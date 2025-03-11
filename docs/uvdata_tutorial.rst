@@ -55,457 +55,15 @@ attribute has the same length as the ``ant_1_array`` and ``ant_2_array`` (the le
 the baseline-time axis on the ``data_array``).
 
 
-UVData: File conversion
+UVData: Instantiating a UVData object from a file (i.e. reading data)
 -----------------------
-Converting between tested data formats.
-Note that it is possible to create a new :class:`pyuvdata.UVData` object
-with the class method :meth:`pyuvdata.UVData.from_file` as well.
+TODO: Add example code.
 
-a) miriad -> uvfits
-*******************
-.. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
+UVData: Writing UVData objects to disk
+-----------------------
+TODO: Add example code.
 
-  >>> # This miriad file is known to be a drift scan.
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file)
-  >>> uvd = UVData.from_file(miriad_file, file_type='miriad')
-
-  >>> # Write out the uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, force_phase=True)
-  The data are not all phased to a sidereal source. Phasing to zenith of the first timestamp.
-
-b) uvfits -> miriad
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd.read(uvfits_file)
-  >>> uvd.read(uvfits_file, file_type='uvfits')
-  >>> # Here we use the ``from_file`` class method without needing to initialize a new object.
-  >>> uvd = UVData.from_file(uvfits_file)
-
-  >>> # Write out the miriad file
-  >>> write_file = os.path.join('.', 'tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-c) FHD -> uvfits
-****************
-When reading FHD format, we need to point to several files for each observation.
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Construct the list of files
-  >>> fhd_prefix = '1061316296_'
-  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
-  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
-  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
-  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
-  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
-
-  # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(
-  ...    fhd_vis_files,
-  ...    flags_file=flags_file,
-  ...    layout_file=layout_file,
-  ...    params_file=params_file,
-  ...    settings_file=settings_file,
-  ... )
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-d) FHD -> miriad
-****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> import os
-
-  >>> # Construct the list of files
-  >>> fhd_prefix = '1061316296_'
-  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
-  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
-  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
-  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
-  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
-
-
-  # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(
-  ...    fhd_vis_files,
-  ...    flags_file=flags_file,
-  ...    layout_file=layout_file,
-  ...    params_file=params_file,
-  ...    settings_file=settings_file,
-  ... )
-  >>> write_file = os.path.join('.','tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-e) CASA -> uvfits
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-
-  >>> # Use the `read` method, optionally specify the file type. Can also use the
-  >>> # file type specific `read_ms` method, but only if reading a single file.
-  >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file)
-  >>> uvd = UVData.from_file(ms_file, file_type='ms')
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-f) CASA -> miriad
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> import os
-  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-
-  >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file)
-
-  >>> # Write out Miriad file
-  >>> write_file = os.path.join('.', 'tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-g) miriad -> uvh5
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-
-  >>> # This miriad file is known to be a drift scan.
-  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file)
-
-  >>> # Write out the uvh5 file
-  >>> uvd.write_uvh5(os.path.join('.', 'tutorial.uvh5'))
-
-h) uvfits -> uvh5
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import os
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file)
-
-  >>> # Write out the uvh5 file
-  >>> write_file = os.path.join('.', 'tutorial.uvh5')
-  >>> if os.path.exists(write_file):
-  ...    os.remove(write_file)
-  >>> uvd.write_uvh5(write_file)
-
-  >>> # Read the uvh5 file back in.
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(write_file)
-  >>> uvd = UVData.from_file(write_file, file_type='uvh5')
-
-i) MWA correlator -> uvfits
-***************************
-The MWA correlator writes FITS files containing the correlator dumps (but
-lacking metadata and not conforming to the uvfits format). pyuvdata can read
-these files from both the Legacy and MWAX correlator versions, along with MWA
-metafits files (containing the required metadata), into a UVData object which can then
-be written out to uvfits or any other supported file type. There are also options for
-applying cable length corrections, dividing out digital gains, dividing out the coarse
-band shape, common flagging patterns, using AOFlagger flag files, and phasing the data
-to the pointing center. It is also optional to apply a Van Vleck correction for Legacy
-correlator data. The default for this correction is to use a Chebyshev polynomial
-approximation, and there is an option to instead use a slower integral implementation.
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Construct the list of files
-  >>> data_path = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
-  >>> filelist = [data_path + i for i in ['1131733552.metafits',
-  ... '1131733552_20151116182537_mini_gpubox01_00.fits']]
-
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> # Apply cable corrections and phase data before writing to uvfits
-  >>> # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
-  >>> uvd.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
-  >>> uvd = UVData.from_file(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-j) SMA MIR -> ms
-****************
-The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
-users prefer to convert to the CASA-based Measurement Set (MS) format for further
-processing. The :meth:`pyuvdata.UVData.read_mir` method (and by extension,
-:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
-specific to the MIR format. These keywords fall broadly into two groups: selection, and
-visibility handling.
-
-In addition to the selection keywords supported with UVData objects, there are a few
-extra keywords supported for MIR data sets:
--   ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
-
--   ``receiver``: Specifies a receiver type (generally some combination of '230', '240',
-    '345', and/or '400') to load, with different receivers typically used to target
-    different bands and/or polarizations.
-
--   ``sideband``: Specifies which sideband to load, with the two options being 'l' for
-    lower and 'u' for upper.
-
--   ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
-    constructed as the average of all channels across a single spectral window (set to
-    ``False`` by default).
-
--   ``select_where`` : An keyword which allows for more advanced selection criterion.
-    See the documentation in :meth:`pyuvdata.mir_parser.MirParser` for more details.
-
-Some example use cases for the selection keywords:
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Create a path to the SMA MIR test data set in pyuvdata
-  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
-  >>> # Let's first try loading just the '230' receivers.
-  >>> uvd.read(data_path, receivers='230')
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 131072)
-
-  >>> # Now try one sideband, say the lower ('l')
-  >>> uvd.read(data_path, sidebands='l')
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 65536)
-
-  >>> # Now try one just one chunk (2)
-  >>> uvd.read(data_path, corrchunk=2)
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 32768)
-
-  >>> # Now all together -- '230' receiver, 'l' sideband, chunks 1 and 3
-  >>> uvd.read(data_path, receivers='230', sidebands='l', corrchunk=[1, 3])
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 32768)
-
-  >>> # Write out a measurement set file
-  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
-  >>> uvd.write_ms(write_file)
-
-As for visibility handling keywords:
-
-- ``rechunk``: Number of channels to spectrally average the data over on read. This is
-  generally the most commonly used keyword, as it reduces the memory/disk space needed
-  to complete read/write operations.
-
-- ``apply_tsys``: Normalize the data using system temperature measurements to produces
-  values in (uncalibrated) Jy (default is ``True``).
-
-- ``apply_flags``: Apply on-line flags (default is ``True``).
-
-For example, the native resolution of the test MIR dataset is 140 kHz -- to average this
-down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
-via the following:
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Build a path to the test SMA data set
-  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
-  >>> # Set things up to average over 64-channel blocks.
-  >>> uvd.read(data_path, rechunk=64)
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
-  >>> uvd.write_ms(write_file)
-
-.. warning::
-    Reading and writing of MIR data will on occasion generate a warning message about
-    the LSTs not being correct. This warning is spurious, and a byproduct how LST values
-    are calculated at time of write (polled average versus calculated based on the
-    timestamp/integration midpoint), and can safely be ignored.
-
-UVData: Instantiating from arrays in memory
--------------------------------------------
-``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
-is useful for mocking up data for testing or for creating a UVData object from
-simulated data. Instead of instantiating a blank object and setting each required
-parameter, you can use the ``.new()`` static method, which deals with the task
-of creating a consistent object from a minimal set of inputs
-
-.. code-block:: python
-
-  >>> from pyuvdata import Telescope, UVData
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> uvd = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = np.linspace(2459855, 2459856, 20),
-  ... )
-
-Notice that you need only provide the required parameters, and the rest will be
-filled in with sensible defaults. The telescope related metadata is passed
-directly to a simple Telescope constructor which also only requires the minimal
-set of inputs but can accept any other parameters supported by the class.
-Importantly, the times and baselines can be provided either as unique values,
-with the intention that their cartesian outer product should be
-used (i.e. the combination of each provided time with each baseline), or as full
-length-Nblt arrays (if you don't require all combinations). While this behaviour can
-be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
-to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
-where each baseline observed one time each. This case is ambiguous without the
-``do_blt_outer`` keyword, so we must set it:
-
-.. code-block:: python
-
-  >>> from pyuvdata import Telescope, UVData
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
-  >>> antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
-  >>> uvd = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = times,
-  ...     antpairs=antpairs,
-  ...     do_blt_outer=False,
-  ... )
-  >>> uvd.time_array
-  array([2459855. , 2459855.1, 2459855.2, 2459855.3])
-
-Notice that the resulting ``time_array`` only has 4 values. If we had set
-``do_blt_outer = True``, we would have gotten the cartesian outer product of the
-provided times and baselines, which would have resulted in 16 times:
-
-.. code-block:: python
-
-  >>> from pyuvdata import Telescope, UVData
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> uvd_rect = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = times,
-  ...     antpairs=antpairs,
-  ...     do_blt_outer=True,
-  ... )
-  >>> uvd_rect.time_array
-  array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
-         2459855.1, 2459855.1, 2459855.2, 2459855.2, 2459855.2, 2459855.2,
-         2459855.3, 2459855.3, 2459855.3, 2459855.3])
-
-To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keyword:
-
-.. code-block:: python
-
-  >>> from pyuvdata import Telescope, UVData
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> uvd_rect = UVData.new(
-  ...   freq_array = np.linspace(1e8, 2e8, 100),
-  ...   polarization_array = ["xx", "yy"],
-  ...   telescope = Telescope.new(
-  ...     antenna_positions = {
-  ...       0: [0.0, 0.0, 0.0],
-  ...       1: [0.0, 0.0, 1.0],
-  ...       2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     name = "test",
-  ...     instrument = "test",
-  ...   ),
-  ...   times = times,
-  ...   antpairs=antpairs,
-  ...   do_blt_outer=True,
-  ...   time_axis_faster_than_bls=True,
-  ... )
-  >>> uvd_rect.time_array
-  array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
-         2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
-         2459855. , 2459855.1, 2459855.2, 2459855.3])
-
-See the full documentation for the method
-:func:`pyuvdata.uvdata.UVData.new` for more information.
 
 .. _quick_access:
 
@@ -673,221 +231,6 @@ h) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
   >>> # Load object to instance name "uv" and will remain in interpreter
   pyuvdata_inspect.py -i <uv*_file>
 
-UVData: Phasing
----------------
-Phasing/unphasing data
-
-.. code-block:: python
-
-  >>> import os
-  >>> from astropy.time import Time
-  >>> from numpy import pi
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(uvh5_file)
-
-  >>> # We can get information on the sources in the data set by using the
-  >>> # `print_phase_center_info` command. This object is initially unprojected (unphased)
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
-      #          Name                          deg           deg
-  ----------------------------------------------------------------------
-      0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
-
-
-  >>> # When phasing, the user needs to supply a name for each phase
-  >>> # center, though it does not need to be unique. We are specifying that the type
-  >>> # here is "sidereal", which means that the position is represented by a fixed set
-  >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
-  >>> uvd.phase(lon=5.23368, lat=0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
-      #          Name                       hours           deg
-  ------------------------------------------------------------------------------
-      1       target1      sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
-
-
-  >>> # You can use the `phase_to_time` method to phase to zenith at a particular time.
-  >>> # The time can be passed as an astropy Time object or as a float which will be
-  >>> # interpreted as a JD
-  >>> uvd.phase_to_time(Time(uvd.time_array[0], format='jd'))
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
-      #          Name                       hours           deg
-  ------------------------------------------------------------------------------
-      0  zenith_at_jd2458661.234803      sidereal   13:20:57.92  -30:37:09.44   icrs  J2000.0
-
-
-  >>> # You can also now phase to "ephem" objects, which
-  >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
-  >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
-  >>> uvd.phase(lon=0, lat=0, epoch="J2000", cat_name="Sun", lookup_name=True)
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
-      #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
-  ---------------------------------------------------------------------------------------------------------------------
-      1           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
-
-
-  >>> # Finally, we can use a selection mask to only phase part of the data at a time,
-  >>> # like only the data belonging to the first integration
-  >>> select_mask = uvd.time_array == uvd.time_array[0]
-
-  >>> # Let's use this to create a 'driftscan' target, which is phased to a particular
-  >>> # azimuth and elevation (note this is different than "unprojected" data -- which
-  >>> # used to be designated with phase_type="drift" -- in that it is still phased and
-  >>> # can be to any azimuth and elevation, not just zenith). Note that we need to
-  >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
-  >>> uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
-
-  >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
-  >>> # phase centers present in the data
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
-      #          Name                          deg           deg                  Start-MJD    End-MJD       pc    km/s
-  ----------------------------------------------------------------------------------------------------------------------
-      0        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
-      1           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
-
-  >>> # We can unproject (unphase) data using the `unproject_phase` method
-  >>> uvd.unproject_phase()
-
-  >>> # Now when using `print_phase_center_info`, we'll see that all the data are unprojected
-  >>> uvd.print_phase_center_info()
-     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
-      #          Name                          deg           deg
-  ----------------------------------------------------------------------
-      2   unprojected   unprojected     0:00:00.00  +90:00:00.00  altaz
-
-
-UVData: Averaging and Resampling
---------------------------------
-pyuvdata has methods to average (downsample) in time and frequency and also to
-upsample in time (useful to get all baselines on the shortest time integration
-for a data set that has had baseline dependent time averaging applied).
-
-Use the :meth:`pyuvdata.UVData.downsample_in_time`,
-:meth:`pyuvdata.UVData.upsample_in_time` and :meth:`pyuvdata.UVData.resample_in_time`
-methods to average (downsample) and upsample in time or to do both at once on data
-that have had baseline dependent averaging (BDA) applied to put all the baselines
-on the same time integrations. Resampling in time is done on phased data by default,
-drift mode data are phased, resampled, and then unphased. Set ``allow_drift=True``
-to do resampling without phasing.
-
-Use the :meth:`pyuvdata.UVData.frequency_average` method to average along the frequency
-axis.
-
-a) Averaging (Downsampling) in time
-***********************************
-Use either the ``n_times_to_avg`` keyword to specify an integer factor to average
-by or ``min_int_time`` to specify a minimum final integration time. Specifying
-``min_int_time`` is most appropriate when the integration time varies, e.g. if
-the data have had baseline-dependent averaging applied.
-
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> uvd2 = uvd.copy()
-  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times:  1.879048192 - 1.879048192
-
-  >>> # first use n_times_to_avg to average by a factor of 2 in time.
-  >>> uvd.downsample_in_time(n_times_to_avg=2)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
-
-  >>> print("Range of integration times after downsampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after downsampling:  3.758096384 - 3.758096384
-
-  >>> # Now use min_int_time to average by a factor of 2 in time.
-  >>> min_integration_time = np.amax(uvd2.integration_time) * 2.0
-  >>> uvd2.downsample_in_time(min_int_time=min_integration_time)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
-
-  >>> print("Range of integration times after downsampling: ", np.amin(uvd2.integration_time),
-  ...       "-", np.amax(uvd2.integration_time))
-  Range of integration times after downsampling:  3.758096384 - 3.758096384
-
-
-b) Upsampling in time
-*********************
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times:  1.879048192 - 1.879048192
-
-  >>> max_integration_time = np.amin(uvd.integration_time) / 2.0
-  >>> uvd.upsample_in_time(max_integration_time)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
-
-  >>> print("Range of integration times after upsampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after upsampling:  0.939524096 - 0.939524096
-
-c) Resampling a BDA dataset in time
-***********************************
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
-  >>> uvd = UVData.from_file(testfile)
-  >>> print(
-  ...    "Range of integration times: ", np.amin(uvd.integration_time), "-", np.amax(uvd.integration_time)
-  ... )
-  Range of integration times:  2.0 - 16.0
-
-  >>> # Resample all baselines to an 8s integration time
-  >>> uvd.resample_in_time(8, allow_drift=True)
-  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
-  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
-
-  >>> print("Range of integration times after resampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after resampling:  8.0 - 8.0
-
-d) Averaging in frequency
-*************************
-The :meth:`pyuvdata.UVData.frequency_average` method takes a number of channels to
-average together. Use the `keep_ragged` parameter to control the handling if the
-number of frequencies in each spectral window does not divide evenly by the number of
-channels to be averaged together. Use the `respect_spws` parameter to control whether
-averaging will be done over spectral window boundaries.
-
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> print("Channel width: ", uvd.channel_width)
-  Channel width:  [122070.3125 122070.3125 122070.3125 122070.3125]
-
-  >>> # Average by a factor of 2 in frequency
-  >>> uvd.frequency_average(n_chan_to_avg=2, keep_ragged=True)
-  >>> print("Channel width after frequency averaging: ", uvd.channel_width)
-  Channel width after frequency averaging:  [244140.625 244140.625]
 
 UVData: Plotting
 ----------------
@@ -933,51 +276,6 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
 
 .. image:: Images/amplitude_waterfall.png
     :width: 600
-
-
-UVData: Location conversions
-----------------------------
-A number of conversion methods exist to map between different coordinate systems
-for locations on the earth.
-
-Note that the ``UVData.telescope.location`` attribute is an
-:class:`astropy.EarthLocation` object, so it can be used directly to get to any
-astropy supported coordinate system.
-
-a) Getting antenna positions in East, North, Up (ENU) frame in units of meters
-******************************************************************************
-
-Note that the ENU frame is sometimes referred to as the topocentric frame but
-in many references the topocentric frame has the pole on the axis of rotation
-for the Earth rather than at the local zenith. We just call it the ENU frame for
-clarity.
-
-Use the :meth:`pyuvdata.Telescope.get_enu_antpos` to get the antenna
-positions in the ENU frame. Or use the ``telescope.location`` and
-``telescope.antenna_positions`` attributes (which are ECEF positions relative
-to the ``telescope.location``) with the :meth:`pyuvdata.utils.ENU_from_ECEF`
-utility method.
-
-.. code-block:: python
-
-  >>> # directly from Telescope object
-  >>> import os
-  >>> from astropy.units import Quantity
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> data_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(data_file)
-  >>> antpos = uvd.telescope.get_enu_antpos()
-
-  >>> # using utils
-  >>> from pyuvdata import utils
-
-  >>> # get antennas positions in ECEF
-  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to_value("m")
-  >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
-
-  >>> # convert to East, North, Up (ENU) coords.
-  >>> antpos = utils.ENU_from_ECEF(antpos, center_loc=uvd.telescope.location)
 
 UVData: Selecting data
 ----------------------
@@ -1367,6 +665,277 @@ h) Select data and return new object (leaving original intact).
   >>> print(np.unique(uvd2.ant_1_array.tolist() + uvd2.ant_2_array.tolist()))
   [ 1 12 21]
 
+
+
+.. _uvdata_sorting_data:
+
+UVData: Sorting data along various axes
+---------------------------------------
+Methods exist for sorting (and conjugating) data along all the data axes to
+support comparisons between UVData objects and software access patterns.
+
+a) Conjugating baselines
+************************
+
+The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to conform to
+various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'v<0'``,
+``'v>0'``) or it can just conjugate a set of specific baseline-time indices.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> uvd = UVData.from_file(uvfits_file)
+  >>> uvd.conjugate_bls('ant1<ant2')
+  >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
+  True
+
+  >>> uvd2.conjugate_bls('u<0', use_enu=False)
+  >>> print(np.max(uvd2.uvw_array[:, 0]) <= 0)
+  True
+
+b) Sorting along the baseline-time axis
+***************************************
+
+The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by
+sorting by ``'time'``, ``'baseline'``, ``'ant1'`` or ``'ant2'`` or according to an order
+preferred for data that have baseline dependent averaging ``'bda'``. A user can also
+just specify a desired order by passing an array of baseline-time indices. There is also
+an option to sort the auto visibilities before the cross visibilities (``autos_first``).
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> uvd = UVData.from_file(uvfits_file)
+
+  >>> # The default is to sort first by time, then by baseline
+  >>> uvd.reorder_blts()
+  >>> print(np.min(np.diff(uvd.time_array)) >= 0)
+  True
+
+  >>> # Explicity sorting by 'time' then 'baseline' gets the same result
+  >>> uvd2 = uvd.copy()
+  >>> uvd2.reorder_blts('time', minor_order='baseline')
+  >>> print(uvd == uvd2)
+  True
+
+  >>> uvd.reorder_blts('ant1', minor_order='ant2')
+  >>> print(np.min(np.diff(uvd.ant_1_array)) >= 0)
+  True
+
+  >>> # You can also sort and conjugate in a single step for the purposes of comparing two objects
+  >>> uvd.reorder_blts('bda', conj_convention='ant1<ant2')
+  >>> uvd2.reorder_blts('bda', conj_convention='ant1<ant2')
+  >>> print(uvd == uvd2)
+  True
+
+c) Sorting along the frequency axis
+***********************************
+
+The :meth:`pyuvdata.UVData.reorder_freqs` method will reorder the frequency axis by
+sorting by spectral windows or channels (or even just the channels within specific
+spectral windows). Spectral windows or channels can be sorted by ascending or descending
+number or in an order specified by passing an index array for spectral window or
+channels.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> testfile = os.path.join(DATA_PATH, "sma_test.mir")
+  >>> uvd = UVData.from_file(testfile)
+
+  >>> # Sort by spectral window number and by frequency within the spectral window
+  >>> # Now the spectral windows are in ascending order and the frequencies in each window
+  >>> # are in ascending order.
+  >>> uvd.reorder_freqs(spw_order="number", channel_order="freq")
+  >>> print(uvd.spw_array)
+  [-4 -3 -2 -1  1  2  3  4]
+
+  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  >>> # Prepend a ``-`` to the sort string to sort in descending order.
+  >>> # Now the spectral windows are in descending order but the frequencies in each window
+  >>> # are in ascending order.
+  >>> uvd.reorder_freqs(spw_order="-number", channel_order="freq")
+  >>> print(uvd.spw_array)
+  [ 4  3  2  1 -1 -2 -3 -4]
+
+  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
+  True
+
+  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
+  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
+  >>> # in spectral window 2 are in ascending order
+  >>> uvd.reorder_freqs(select_spw=1, channel_order="-freq")
+  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) <= 0)
+  True
+
+  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 2)])) >= 0)
+  True
+
+c) Sorting along the polarization axis
+**************************************
+
+The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization axis
+either following the ``'AIPS'`` or ``'CASA'`` convention, or by an explicit index
+ordering set by the user.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> from pyuvdata import utils
+  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> uvd = UVData.from_file(uvfits_file)
+  >>> print(utils.polnum2str(uvd.polarization_array))
+  ['rr', 'll', 'rl', 'lr']
+
+  >>> uvd.reorder_pols('CASA')
+  >>> print(utils.polnum2str(uvd.polarization_array))
+  ['rr', 'rl', 'lr', 'll']
+
+
+UVData: Averaging and Resampling
+--------------------------------
+pyuvdata has methods to average (downsample) in time and frequency and also to
+upsample in time (useful to get all baselines on the shortest time integration
+for a data set that has had baseline dependent time averaging applied).
+
+Use the :meth:`pyuvdata.UVData.downsample_in_time`,
+:meth:`pyuvdata.UVData.upsample_in_time` and :meth:`pyuvdata.UVData.resample_in_time`
+methods to average (downsample) and upsample in time or to do both at once on data
+that have had baseline dependent averaging (BDA) applied to put all the baselines
+on the same time integrations. Resampling in time is done on phased data by default,
+drift mode data are phased, resampled, and then unphased. Set ``allow_drift=True``
+to do resampling without phasing.
+
+Use the :meth:`pyuvdata.UVData.frequency_average` method to average along the frequency
+axis.
+
+a) Averaging (Downsampling) in time
+***********************************
+Use either the ``n_times_to_avg`` keyword to specify an integer factor to average
+by or ``min_int_time`` to specify a minimum final integration time. Specifying
+``min_int_time`` is most appropriate when the integration time varies, e.g. if
+the data have had baseline-dependent averaging applied.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uvd = UVData.from_file(datafile)
+  >>> uvd2 = uvd.copy()
+  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
+  ...       "-", np.amax(uvd.integration_time))
+  Range of integration times:  1.879048192 - 1.879048192
+
+  >>> # first use n_times_to_avg to average by a factor of 2 in time.
+  >>> uvd.downsample_in_time(n_times_to_avg=2)
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
+
+  >>> print("Range of integration times after downsampling: ", np.amin(uvd.integration_time),
+  ...       "-", np.amax(uvd.integration_time))
+  Range of integration times after downsampling:  3.758096384 - 3.758096384
+
+  >>> # Now use min_int_time to average by a factor of 2 in time.
+  >>> min_integration_time = np.amax(uvd2.integration_time) * 2.0
+  >>> uvd2.downsample_in_time(min_int_time=min_integration_time)
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
+
+  >>> print("Range of integration times after downsampling: ", np.amin(uvd2.integration_time),
+  ...       "-", np.amax(uvd2.integration_time))
+  Range of integration times after downsampling:  3.758096384 - 3.758096384
+
+
+b) Upsampling in time
+*********************
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uvd = UVData.from_file(datafile)
+  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
+  ...       "-", np.amax(uvd.integration_time))
+  Range of integration times:  1.879048192 - 1.879048192
+
+  >>> max_integration_time = np.amin(uvd.integration_time) / 2.0
+  >>> uvd.upsample_in_time(max_integration_time)
+  Data are unprojected or phased as a driftscan, phasing before resampling.
+  Undoing phasing.
+
+  >>> print("Range of integration times after upsampling: ", np.amin(uvd.integration_time),
+  ...       "-", np.amax(uvd.integration_time))
+  Range of integration times after upsampling:  0.939524096 - 0.939524096
+
+c) Resampling a BDA dataset in time
+***********************************
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
+  >>> uvd = UVData.from_file(testfile)
+  >>> print(
+  ...    "Range of integration times: ", np.amin(uvd.integration_time), "-", np.amax(uvd.integration_time)
+  ... )
+  Range of integration times:  2.0 - 16.0
+
+  >>> # Resample all baselines to an 8s integration time
+  >>> uvd.resample_in_time(8, allow_drift=True)
+  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
+  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
+
+  >>> print("Range of integration times after resampling: ", np.amin(uvd.integration_time),
+  ...       "-", np.amax(uvd.integration_time))
+  Range of integration times after resampling:  8.0 - 8.0
+
+d) Averaging in frequency
+*************************
+The :meth:`pyuvdata.UVData.frequency_average` method takes a number of channels to
+average together. Use the `keep_ragged` parameter to control the handling if the
+number of frequencies in each spectral window does not divide evenly by the number of
+channels to be averaged together. Use the `respect_spws` parameter to control whether
+averaging will be done over spectral window boundaries.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uvd = UVData.from_file(datafile)
+  >>> print("Channel width: ", uvd.channel_width)
+  Channel width:  [122070.3125 122070.3125 122070.3125 122070.3125]
+
+  >>> # Average by a factor of 2 in frequency
+  >>> uvd.frequency_average(n_chan_to_avg=2, keep_ragged=True)
+  >>> print("Channel width after frequency averaging: ", uvd.channel_width)
+  Channel width after frequency averaging:  [244140.625 244140.625]
+
+
 UVData: Combining and concatenating data
 ----------------------------------------
 The :meth:`pyuvdata.UVData.__add__` method lets you combine UVData objects along
@@ -1533,6 +1102,95 @@ and :meth:`pyuvdata.UVData.diff_vis` methods.
   >>> uvd1.rdate = rdate_obj.strftime("%Y-%m-%d")
   >>> uvd1.sum_vis(uvd2, inplace=True, override_params=["rdate"])
 
+
+UVData: Phasing
+---------------
+Phasing/unphasing data
+
+.. code-block:: python
+
+  >>> import os
+  >>> from astropy.time import Time
+  >>> from numpy import pi
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> uvd = UVData.from_file(uvh5_file)
+
+  >>> # We can get information on the sources in the data set by using the
+  >>> # `print_phase_center_info` command. This object is initially unprojected (unphased)
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
+      #          Name                          deg           deg
+  ----------------------------------------------------------------------
+      0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
+
+
+  >>> # When phasing, the user needs to supply a name for each phase
+  >>> # center, though it does not need to be unique. We are specifying that the type
+  >>> # here is "sidereal", which means that the position is represented by a fixed set
+  >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
+  >>> uvd.phase(lon=5.23368, lat=0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
+      #          Name                       hours           deg
+  ------------------------------------------------------------------------------
+      1       target1      sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
+
+
+  >>> # You can use the `phase_to_time` method to phase to zenith at a particular time.
+  >>> # The time can be passed as an astropy Time object or as a float which will be
+  >>> # interpreted as a JD
+  >>> uvd.phase_to_time(Time(uvd.time_array[0], format='jd'))
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
+      #          Name                       hours           deg
+  ------------------------------------------------------------------------------
+      0  zenith_at_jd2458661.234803      sidereal   13:20:57.92  -30:37:09.44   icrs  J2000.0
+
+
+  >>> # You can also now phase to "ephem" objects, which
+  >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
+  >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
+  >>> uvd.phase(lon=0, lat=0, epoch="J2000", cat_name="Sun", lookup_name=True)
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
+  ---------------------------------------------------------------------------------------------------------------------
+      1           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+
+
+  >>> # Finally, we can use a selection mask to only phase part of the data at a time,
+  >>> # like only the data belonging to the first integration
+  >>> select_mask = uvd.time_array == uvd.time_array[0]
+
+  >>> # Let's use this to create a 'driftscan' target, which is phased to a particular
+  >>> # azimuth and elevation (note this is different than "unprojected" data -- which
+  >>> # used to be designated with phase_type="drift" -- in that it is still phased and
+  >>> # can be to any azimuth and elevation, not just zenith). Note that we need to
+  >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
+  >>> uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
+
+  >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
+  >>> # phase centers present in the data
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
+      #          Name                          deg           deg                  Start-MJD    End-MJD       pc    km/s
+  ----------------------------------------------------------------------------------------------------------------------
+      0        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
+      1           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+
+  >>> # We can unproject (unphase) data using the `unproject_phase` method
+  >>> uvd.unproject_phase()
+
+  >>> # Now when using `print_phase_center_info`, we'll see that all the data are unprojected
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
+      #          Name                          deg           deg
+  ----------------------------------------------------------------------
+      2   unprojected   unprojected     0:00:00.00  +90:00:00.00  altaz
+
+
 .. _large_files:
 
 UVData: Working with large files
@@ -1676,144 +1334,120 @@ are written to the appropriate parts of the file on disk.
   ... )
 
 
-.. _uvdata_sorting_data:
+UVData: Working with Redundant Baselines
+----------------------------------------
 
-UVData: Sorting data along various axes
----------------------------------------
-Methods exist for sorting (and conjugating) data along all the data axes to
-support comparisons between UVData objects and software access patterns.
+a) Finding Redundant Baselines
+******************************
+The method :meth:`pyuvdata.UVData.get_redundancies` provides options for finding
+redundant groups of baselines in an array, either by antenna positions or uvw
+coordinates. Baselines are considered redundant if they are within a specified tolerance
+distance (default is 1 meter).
 
-a) Conjugating baselines
-************************
+The default behavior is to use the ``uvw_array`` on the object (representing the baselines
+that have data on the object) to find redundancies among the uvw vectors. If the
+``include_conjugates`` option is set, it will include baselines that are redundant when
+reversed in the same group. In this case, a list of ``conjugates`` is returned as well,
+which contains indices for the baselines that were flipped for the redundant groups.
 
-The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to conform to
-various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'v<0'``,
-``'v>0'``) or it can just conjugate a set of specific baseline-time indices.
+If the ``use_antpos`` keyword is set, ``antenna_positions`` will be used to calculate
+redundancies instead of the ``uvw_array``. This can result in different behavior because
+all possible redundant baselines will be returned, not just the ones with data on the
+object. In this case, the baselines are defined in the u>0 convention, so some of the
+baselines may be conjugated relative to the baselines with data on the object. If the
+``conjugate_bls`` keyword is set, it will also update the baseline conjugation on the object
+so that the baselines in the returned groups correspond with the baselines listed on the
+object (except for antenna pairs with no associated data).
 
-.. code-block:: python
+There are also utility functions to get redundant groups from either a list of baselines
+vectors and corresponding baseline indices
+(:func:`pyuvdata.utils.redundancy.get_baseline_redundancies`)
+or antenna positions and antenna indices
+(:func:`pyuvdata.utils.redundancy.get_antenna_redundancies`). Note that using these utility
+functions for the baselines on an object is less memory efficient than using
+:meth:`pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
+the baseline array.
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file)
-  >>> uvd.conjugate_bls('ant1<ant2')
-  >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
-  True
-
-  >>> uvd2.conjugate_bls('u<0', use_enu=False)
-  >>> print(np.max(uvd2.uvw_array[:, 0]) <= 0)
-  True
-
-b) Sorting along the baseline-time axis
-***************************************
-
-The :meth:`pyuvdata.UVData.reorder_blts` method will reorder the baseline-time axis by
-sorting by ``'time'``, ``'baseline'``, ``'ant1'`` or ``'ant2'`` or according to an order
-preferred for data that have baseline dependent averaging ``'bda'``. A user can also
-just specify a desired order by passing an array of baseline-time indices. There is also
-an option to sort the auto visibilities before the cross visibilities (``autos_first``).
 
 .. code-block:: python
 
   >>> import os
   >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file)
-
-  >>> # The default is to sort first by time, then by baseline
-  >>> uvd.reorder_blts()
-  >>> print(np.min(np.diff(uvd.time_array)) >= 0)
-  True
-
-  >>> # Explicity sorting by 'time' then 'baseline' gets the same result
-  >>> uvd2 = uvd.copy()
-  >>> uvd2.reorder_blts('time', minor_order='baseline')
-  >>> print(uvd == uvd2)
-  True
-
-  >>> uvd.reorder_blts('ant1', minor_order='ant2')
-  >>> print(np.min(np.diff(uvd.ant_1_array)) >= 0)
-  True
-
-  >>> # You can also sort and conjugate in a single step for the purposes of comparing two objects
-  >>> uvd.reorder_blts('bda', conj_convention='ant1<ant2')
-  >>> uvd2.reorder_blts('bda', conj_convention='ant1<ant2')
-  >>> print(uvd == uvd2)
-  True
-
-c) Sorting along the frequency axis
-***********************************
-
-The :meth:`pyuvdata.UVData.reorder_freqs` method will reorder the frequency axis by
-sorting by spectral windows or channels (or even just the channels within specific
-spectral windows). Spectral windows or channels can be sorted by ascending or descending
-number or in an order specified by passing an index array for spectral window or
-channels.
-
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> testfile = os.path.join(DATA_PATH, "sma_test.mir")
-  >>> uvd = UVData.from_file(testfile)
-
-  >>> # Sort by spectral window number and by frequency within the spectral window
-  >>> # Now the spectral windows are in ascending order and the frequencies in each window
-  >>> # are in ascending order.
-  >>> uvd.reorder_freqs(spw_order="number", channel_order="freq")
-  >>> print(uvd.spw_array)
-  [-4 -3 -2 -1  1  2  3  4]
-
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
-  True
-
-  >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> # Now the spectral windows are in descending order but the frequencies in each window
-  >>> # are in ascending order.
-  >>> uvd.reorder_freqs(spw_order="-number", channel_order="freq")
-  >>> print(uvd.spw_array)
-  [ 4  3  2  1 -1 -2 -3 -4]
-
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
-  True
-
-  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
-  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
-  >>> # in spectral window 2 are in ascending order
-  >>> uvd.reorder_freqs(select_spw=1, channel_order="-freq")
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) <= 0)
-  True
-
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 2)])) >= 0)
-  True
-
-c) Sorting along the polarization axis
-**************************************
-
-The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization axis
-either following the ``'AIPS'`` or ``'CASA'`` convention, or by an explicit index
-ordering set by the user.
-
-.. code-block:: python
-
-  >>> import os
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> from pyuvdata import utils
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file)
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'll', 'rl', 'lr']
 
-  >>> uvd.reorder_pols('CASA')
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'rl', 'lr', 'll']
+  >>> # This file contains a HERA19 layout.
+  >>> uvd = UVData.from_file(
+  ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
+  ... )
+  >>> uvd.unproject_phase(use_ant_pos=True)
+  >>> tol = 0.05  # Tolerance in meters
+
+  >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol)
+  >>> print(len(baseline_groups))
+  19
+
+  >>> # The include_conjugates option includes baselines that are redundant when reversed.
+  >>> # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
+  >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvd.get_redundancies(tol=tol, include_conjugates=True)
+  >>> print(len(baseline_groups))
+  19
+
+  >>> # Using antenna positions instead
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
+  >>> print(len(baseline_groups))
+  20
+
+  >>> # get_redundancies has the option to ignore autocorrelations.
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True, include_autos=False)
+  >>> print(len(baseline_groups))
+  19
+
+b) Compressing/inflating on Redundant Baselines
+***********************************************
+Since redundant baselines should have similar visibilities, some level of data
+compression can be achieved by only keeping one out of a set of redundant baselines.
+The :meth:`pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
+redundant to a given tolerance and either average over them or select a single
+baseline from the redundant group. If the data are identical between redundant
+baselines (e.g. if they are from a noiseless simulation) the "select" method
+should be used as it is much faster. If the "average" method is used, the data
+are combined with a weighted average using the ``nsample_array`` as weights
+and the final ``nsample_array`` will be a sum of the ``nsample_array`` of the
+combined baselines (so it can be larger than 1).
+
+This action is (almost) inverted by the :meth:`pyuvdata.UVData.inflate_by_redundancy`
+method, which finds all possible baselines from the antenna positions and fills
+in the full data array based on redundancy.
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uv0 = UVData.from_file(
+  ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
+  ... )
+  >>> tol = 0.02   # In meters
+
+  >>> # Compression can be run in-place or return a separate UVData object.
+  >>> uv_backup = uv0.copy()
+  >>> uvd2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
+  >>> uv0.compress_by_redundancy(method="select", tol=tol)
+  >>> assert uvd2 == uv0
+
+  >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
+  >>> uv0.inflate_by_redundancy(tol=tol)
+  >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
+  >>> uv0.reorder_blts()
+  >>> assert np.all(uv0.baseline_array == uv_backup.baseline_array)
+
+  >>> uvd2.inflate_by_redundancy(tol=tol)
+  >>> assert uvd2 == uv0
+
 
 .. _flex_pol:
 
@@ -1952,120 +1586,506 @@ object.
   (200, 4, 2)
 
 
+UVData: File conversion
+-----------------------
+TODO: A lot of this will probably be redundant once the reading and 
+writing code snippits are added.  Simplify / update?
+Converting between tested data formats.
+Note that it is possible to create a new :class:`pyuvdata.UVData` object
+with the class method :meth:`pyuvdata.UVData.from_file` as well.
 
-UVData: Working with Redundant Baselines
-----------------------------------------
+a) miriad -> uvfits
+*******************
+.. code-block:: python
 
-a) Finding Redundant Baselines
-******************************
-The method :meth:`pyuvdata.UVData.get_redundancies` provides options for finding
-redundant groups of baselines in an array, either by antenna positions or uvw
-coordinates. Baselines are considered redundant if they are within a specified tolerance
-distance (default is 1 meter).
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
 
-The default behavior is to use the ``uvw_array`` on the object (representing the baselines
-that have data on the object) to find redundancies among the uvw vectors. If the
-``include_conjugates`` option is set, it will include baselines that are redundant when
-reversed in the same group. In this case, a list of ``conjugates`` is returned as well,
-which contains indices for the baselines that were flipped for the redundant groups.
+  >>> # This miriad file is known to be a drift scan.
+  >>> # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
+  >>> uvd = UVData.from_file(miriad_file)
+  >>> uvd = UVData.from_file(miriad_file, file_type='miriad')
 
-If the ``use_antpos`` keyword is set, ``antenna_positions`` will be used to calculate
-redundancies instead of the ``uvw_array``. This can result in different behavior because
-all possible redundant baselines will be returned, not just the ones with data on the
-object. In this case, the baselines are defined in the u>0 convention, so some of the
-baselines may be conjugated relative to the baselines with data on the object. If the
-``conjugate_bls`` keyword is set, it will also update the baseline conjugation on the object
-so that the baselines in the returned groups correspond with the baselines listed on the
-object (except for antenna pairs with no associated data).
+  >>> # Write out the uvfits file
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
+  >>> uvd.write_uvfits(write_file, force_phase=True)
+  The data are not all phased to a sidereal source. Phasing to zenith of the first timestamp.
 
-There are also utility functions to get redundant groups from either a list of baselines
-vectors and corresponding baseline indices
-(:func:`pyuvdata.utils.redundancy.get_baseline_redundancies`)
-or antenna positions and antenna indices
-(:func:`pyuvdata.utils.redundancy.get_antenna_redundancies`). Note that using these utility
-functions for the baselines on an object is less memory efficient than using
-:meth:`pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
-the baseline array.
+b) uvfits -> miriad
+*******************
+.. code-block:: python
 
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import shutil
+  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+
+  >>> # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd.read(uvfits_file)
+  >>> uvd.read(uvfits_file, file_type='uvfits')
+  >>> # Here we use the ``from_file`` class method without needing to initialize a new object.
+  >>> uvd = UVData.from_file(uvfits_file)
+
+  >>> # Write out the miriad file
+  >>> write_file = os.path.join('.', 'tutorial.uv')
+  >>> if os.path.exists(write_file):
+  ...    shutil.rmtree(write_file)
+  >>> uvd.write_miriad(write_file)
+
+c) FHD -> uvfits
+****************
+When reading FHD format, we need to point to several files for each observation.
 
 .. code-block:: python
 
   >>> import os
-  >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Construct the list of files
+  >>> fhd_prefix = '1061316296_'
+  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
+  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
+  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
+  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
+
+  # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd = UVData.from_file(
+  ...    fhd_vis_files,
+  ...    flags_file=flags_file,
+  ...    layout_file=layout_file,
+  ...    params_file=params_file,
+  ...    settings_file=settings_file,
+  ... )
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
+  >>> uvd.write_uvfits(write_file)
+
+d) FHD -> miriad
+****************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import shutil
+  >>> import os
+
+  >>> # Construct the list of files
+  >>> fhd_prefix = '1061316296_'
+  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
+  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
+  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
+  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
+
+
+  # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd = UVData.from_file(
+  ...    fhd_vis_files,
+  ...    flags_file=flags_file,
+  ...    layout_file=layout_file,
+  ...    params_file=params_file,
+  ...    settings_file=settings_file,
+  ... )
+  >>> write_file = os.path.join('.','tutorial.uv')
+  >>> if os.path.exists(write_file):
+  ...    shutil.rmtree(write_file)
+  >>> uvd.write_miriad(write_file)
+
+e) CASA -> uvfits
+*****************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
+
+  >>> # Use the `read` method, optionally specify the file type. Can also use the
+  >>> # file type specific `read_ms` method, but only if reading a single file.
+  >>> # note that reading CASA measurement sets requires casacore to be installed
+  >>> uvd = UVData.from_file(ms_file)
+  >>> uvd = UVData.from_file(ms_file, file_type='ms')
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
+  >>> uvd.write_uvfits(write_file)
+
+f) CASA -> miriad
+*****************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import shutil
+  >>> import os
+  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
+
+  >>> # note that reading CASA measurement sets requires casacore to be installed
+  >>> uvd = UVData.from_file(ms_file)
+
+  >>> # Write out Miriad file
+  >>> write_file = os.path.join('.', 'tutorial.uv')
+  >>> if os.path.exists(write_file):
+  ...    shutil.rmtree(write_file)
+  >>> uvd.write_miriad(write_file)
+
+g) miriad -> uvh5
+*****************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+
+  >>> # This miriad file is known to be a drift scan.
+  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
+  >>> uvd = UVData.from_file(miriad_file)
+
+  >>> # Write out the uvh5 file
+  >>> uvd.write_uvh5(os.path.join('.', 'tutorial.uvh5'))
+
+h) uvfits -> uvh5
+*****************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import os
+  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+  >>> uvd = UVData.from_file(uvfits_file)
+
+  >>> # Write out the uvh5 file
+  >>> write_file = os.path.join('.', 'tutorial.uvh5')
+  >>> if os.path.exists(write_file):
+  ...    os.remove(write_file)
+  >>> uvd.write_uvh5(write_file)
+
+  >>> # Read the uvh5 file back in.
+  >>> # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd = UVData.from_file(write_file)
+  >>> uvd = UVData.from_file(write_file, file_type='uvh5')
+
+i) MWA correlator -> uvfits
+***************************
+The MWA correlator writes FITS files containing the correlator dumps (but
+lacking metadata and not conforming to the uvfits format). pyuvdata can read
+these files from both the Legacy and MWAX correlator versions, along with MWA
+metafits files (containing the required metadata), into a UVData object which can then
+be written out to uvfits or any other supported file type. There are also options for
+applying cable length corrections, dividing out digital gains, dividing out the coarse
+band shape, common flagging patterns, using AOFlagger flag files, and phasing the data
+to the pointing center. It is also optional to apply a Van Vleck correction for Legacy
+correlator data. The default for this correction is to use a Chebyshev polynomial
+approximation, and there is an option to instead use a slower integral implementation.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Construct the list of files
+  >>> data_path = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
+  >>> filelist = [data_path + i for i in ['1131733552.metafits',
+  ... '1131733552_20151116182537_mini_gpubox01_00.fits']]
+
+  >>> # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> # Apply cable corrections and phase data before writing to uvfits
+  >>> # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
+  >>> uvd.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
+  >>> uvd = UVData.from_file(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
+  >>> uvd.write_uvfits(write_file)
+
+j) SMA MIR -> ms
+****************
+The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
+users prefer to convert to the CASA-based Measurement Set (MS) format for further
+processing. The :meth:`pyuvdata.UVData.read_mir` method (and by extension,
+:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
+specific to the MIR format. These keywords fall broadly into two groups: selection, and
+visibility handling.
+
+In addition to the selection keywords supported with UVData objects, there are a few
+extra keywords supported for MIR data sets:
+-   ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
+
+-   ``receiver``: Specifies a receiver type (generally some combination of '230', '240',
+    '345', and/or '400') to load, with different receivers typically used to target
+    different bands and/or polarizations.
+
+-   ``sideband``: Specifies which sideband to load, with the two options being 'l' for
+    lower and 'u' for upper.
+
+-   ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
+    constructed as the average of all channels across a single spectral window (set to
+    ``False`` by default).
+
+-   ``select_where`` : An keyword which allows for more advanced selection criterion.
+    See the documentation in :meth:`pyuvdata.mir_parser.MirParser` for more details.
+
+Some example use cases for the selection keywords:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Create a path to the SMA MIR test data set in pyuvdata
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> # Let's first try loading just the '230' receivers.
+  >>> uvd.read(data_path, receivers='230')
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (1, 131072)
+
+  >>> # Now try one sideband, say the lower ('l')
+  >>> uvd.read(data_path, sidebands='l')
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (2, 65536)
+
+  >>> # Now try one just one chunk (2)
+  >>> uvd.read(data_path, corrchunk=2)
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (2, 32768)
+
+  >>> # Now all together -- '230' receiver, 'l' sideband, chunks 1 and 3
+  >>> uvd.read(data_path, receivers='230', sidebands='l', corrchunk=[1, 3])
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (1, 32768)
+
+  >>> # Write out a measurement set file
+  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
+  >>> uvd.write_ms(write_file)
+
+As for visibility handling keywords:
+
+- ``rechunk``: Number of channels to spectrally average the data over on read. This is
+  generally the most commonly used keyword, as it reduces the memory/disk space needed
+  to complete read/write operations.
+
+- ``apply_tsys``: Normalize the data using system temperature measurements to produces
+  values in (uncalibrated) Jy (default is ``True``).
+
+- ``apply_flags``: Apply on-line flags (default is ``True``).
+
+For example, the native resolution of the test MIR dataset is 140 kHz -- to average this
+down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
+via the following:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Build a path to the test SMA data set
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> # Set things up to average over 64-channel blocks.
+  >>> uvd.read(data_path, rechunk=64)
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
+  >>> uvd.write_ms(write_file)
+
+.. warning::
+    Reading and writing of MIR data will on occasion generate a warning message about
+    the LSTs not being correct. This warning is spurious, and a byproduct how LST values
+    are calculated at time of write (polled average versus calculated based on the
+    timestamp/integration midpoint), and can safely be ignored.
+
+
+UVData: Instantiating from arrays in memory
+-------------------------------------------
+``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
+is useful for mocking up data for testing or for creating a UVData object from
+simulated data. Instead of instantiating a blank object and setting each required
+parameter, you can use the ``.new()`` static method, which deals with the task
+of creating a consistent object from a minimal set of inputs
+
+.. code-block:: python
+
+  >>> from pyuvdata import Telescope, UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> uvd = UVData.new(
+  ...     freq_array = np.linspace(1e8, 2e8, 100),
+  ...     polarization_array = ["xx", "yy"],
+  ...     telescope = Telescope.new(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
+  ...     times = np.linspace(2459855, 2459856, 20),
+  ... )
+
+Notice that you need only provide the required parameters, and the rest will be
+filled in with sensible defaults. The telescope related metadata is passed
+directly to a simple Telescope constructor which also only requires the minimal
+set of inputs but can accept any other parameters supported by the class.
+Importantly, the times and baselines can be provided either as unique values,
+with the intention that their cartesian outer product should be
+used (i.e. the combination of each provided time with each baseline), or as full
+length-Nblt arrays (if you don't require all combinations). While this behaviour can
+be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
+to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
+where each baseline observed one time each. This case is ambiguous without the
+``do_blt_outer`` keyword, so we must set it:
+
+.. code-block:: python
+
+  >>> from pyuvdata import Telescope, UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
+  >>> antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
+  >>> uvd = UVData.new(
+  ...     freq_array = np.linspace(1e8, 2e8, 100),
+  ...     polarization_array = ["xx", "yy"],
+  ...     telescope = Telescope.new(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
+  ...     times = times,
+  ...     antpairs=antpairs,
+  ...     do_blt_outer=False,
+  ... )
+  >>> uvd.time_array
+  array([2459855. , 2459855.1, 2459855.2, 2459855.3])
+
+Notice that the resulting ``time_array`` only has 4 values. If we had set
+``do_blt_outer = True``, we would have gotten the cartesian outer product of the
+provided times and baselines, which would have resulted in 16 times:
+
+.. code-block:: python
+
+  >>> from pyuvdata import Telescope, UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> uvd_rect = UVData.new(
+  ...     freq_array = np.linspace(1e8, 2e8, 100),
+  ...     polarization_array = ["xx", "yy"],
+  ...     telescope = Telescope.new(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
+  ...     times = times,
+  ...     antpairs=antpairs,
+  ...     do_blt_outer=True,
+  ... )
+  >>> uvd_rect.time_array
+  array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
+         2459855.1, 2459855.1, 2459855.2, 2459855.2, 2459855.2, 2459855.2,
+         2459855.3, 2459855.3, 2459855.3, 2459855.3])
+
+To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keyword:
+
+.. code-block:: python
+
+  >>> from pyuvdata import Telescope, UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> uvd_rect = UVData.new(
+  ...   freq_array = np.linspace(1e8, 2e8, 100),
+  ...   polarization_array = ["xx", "yy"],
+  ...   telescope = Telescope.new(
+  ...     antenna_positions = {
+  ...       0: [0.0, 0.0, 0.0],
+  ...       1: [0.0, 0.0, 1.0],
+  ...       2: [0.0, 0.0, 2.0],
+  ...     },
+  ...     location = EarthLocation.from_geodetic(0, 0, 0),
+  ...     name = "test",
+  ...     instrument = "test",
+  ...   ),
+  ...   times = times,
+  ...   antpairs=antpairs,
+  ...   do_blt_outer=True,
+  ...   time_axis_faster_than_bls=True,
+  ... )
+  >>> uvd_rect.time_array
+  array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
+         2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
+         2459855. , 2459855.1, 2459855.2, 2459855.3])
+
+See the full documentation for the method
+:func:`pyuvdata.uvdata.UVData.new` for more information.
+
+
+UVData: Location conversions
+----------------------------
+A number of conversion methods exist to map between different coordinate systems
+for locations on the earth.
+
+Note that the ``UVData.telescope.location`` attribute is an
+:class:`astropy.EarthLocation` object, so it can be used directly to get to any
+astropy supported coordinate system.
+
+a) Getting antenna positions in East, North, Up (ENU) frame in units of meters
+******************************************************************************
+
+Note that the ENU frame is sometimes referred to as the topocentric frame but
+in many references the topocentric frame has the pole on the axis of rotation
+for the Earth rather than at the local zenith. We just call it the ENU frame for
+clarity.
+
+Use the :meth:`pyuvdata.Telescope.get_enu_antpos` to get the antenna
+positions in the ENU frame. Or use the ``telescope.location`` and
+``telescope.antenna_positions`` attributes (which are ECEF positions relative
+to the ``telescope.location``) with the :meth:`pyuvdata.utils.ENU_from_ECEF`
+utility method.
+
+.. code-block:: python
+
+  >>> # directly from Telescope object
+  >>> import os
+  >>> from astropy.units import Quantity
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> data_file = os.path.join(DATA_PATH, 'new.uvA')
+  >>> uvd = UVData.from_file(data_file)
+  >>> antpos = uvd.telescope.get_enu_antpos()
+
+  >>> # using utils
   >>> from pyuvdata import utils
 
-  >>> # This file contains a HERA19 layout.
-  >>> uvd = UVData.from_file(
-  ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
-  ... )
-  >>> uvd.unproject_phase(use_ant_pos=True)
-  >>> tol = 0.05  # Tolerance in meters
+  >>> # get antennas positions in ECEF
+  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to_value("m")
+  >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
-  >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol)
-  >>> print(len(baseline_groups))
-  19
+  >>> # convert to East, North, Up (ENU) coords.
+  >>> antpos = utils.ENU_from_ECEF(antpos, center_loc=uvd.telescope.location)
 
-  >>> # The include_conjugates option includes baselines that are redundant when reversed.
-  >>> # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
-  >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvd.get_redundancies(tol=tol, include_conjugates=True)
-  >>> print(len(baseline_groups))
-  19
-
-  >>> # Using antenna positions instead
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
-  >>> print(len(baseline_groups))
-  20
-
-  >>> # get_redundancies has the option to ignore autocorrelations.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True, include_autos=False)
-  >>> print(len(baseline_groups))
-  19
-
-b) Compressing/inflating on Redundant Baselines
-***********************************************
-Since redundant baselines should have similar visibilities, some level of data
-compression can be achieved by only keeping one out of a set of redundant baselines.
-The :meth:`pyuvdata.UVData.compress_by_redundancy` method will find groups of baselines that are
-redundant to a given tolerance and either average over them or select a single
-baseline from the redundant group. If the data are identical between redundant
-baselines (e.g. if they are from a noiseless simulation) the "select" method
-should be used as it is much faster. If the "average" method is used, the data
-are combined with a weighted average using the ``nsample_array`` as weights
-and the final ``nsample_array`` will be a sum of the ``nsample_array`` of the
-combined baselines (so it can be larger than 1).
-
-This action is (almost) inverted by the :meth:`pyuvdata.UVData.inflate_by_redundancy`
-method, which finds all possible baselines from the antenna positions and fills
-in the full data array based on redundancy.
-
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uv0 = UVData.from_file(
-  ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
-  ... )
-  >>> tol = 0.02   # In meters
-
-  >>> # Compression can be run in-place or return a separate UVData object.
-  >>> uv_backup = uv0.copy()
-  >>> uvd2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
-  >>> uv0.compress_by_redundancy(method="select", tol=tol)
-  >>> assert uvd2 == uv0
-
-  >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
-  >>> uv0.inflate_by_redundancy(tol=tol)
-  >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
-  >>> uv0.reorder_blts()
-  >>> assert np.all(uv0.baseline_array == uv_backup.baseline_array)
-
-  >>> uvd2.inflate_by_redundancy(tol=tol)
-  >>> assert uvd2 == uv0
 
 UVData: Normalizing data
 ------------------------
