@@ -35,9 +35,9 @@ the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``) as in
 Users interested in indexing/manipulating the data array directly can find more
 information below.
 
-The antenna numbers associated with each visibility areheld in the ``ant_1_array``
+The antenna numbers associated with each visibility are held in the ``ant_1_array``
 and ``ant_2_array`` attributes. These arrays have the same length as the
-``data_array`` along the baseline-time axis), and which array the numbers appear
+``data_array`` along the baseline-time axis, and which array the numbers appear
 in (``ant_1_array`` vs ``ant_2_array``) indicates the direction of the baseline. On
 UVData objects, the baseline vector is defined to point from antenna 1 to antenna 2, so
 it is given by the position of antenna 2 minus the position of antenna 1. Since the
@@ -64,8 +64,9 @@ call the :meth:`pyuvdata.UVData.read` method). Most file types require a single
 file or folder to instantiate an object, FHD and raw MWA correlator data sets
 require the user to specify multiple files for each dataset.
 
-``pyuvdata`` can also be used to create a UVData object from arrays in memory,
-for details see :ref:`new`.
+``pyuvdata`` can also be used to create a UVData object from arrays in memory
+(see :ref:`new`) and to read in mulitple datasets (files) into a single object
+(see :ref:`multiple_files`).
 
 Note: reading or writing CASA Measurement sets requires python-casacore to be
 installed (see the readme for details). Reading or writing Miriad files is not
@@ -1201,11 +1202,14 @@ directly without creating a third uvdata object.
   >>> uvd2.select(times=times[len(times) // 2:])
   >>> uvd1 += uvd2
 
+
+.. _multiple_files:
+
 d) Reading multiple files.
 **************************
-If the :meth:`pyuvdata.UVData.read` method is given a list of files
-(or list of lists for FHD or MWA correlator files), each file will be read in succession
-and combined with the previous file(s).
+If the :meth:`pyuvdata.UVData.read` method is given a list of dataset files or
+folders (or list of lists for FHD or MWA correlator datasets), each dataset will
+be read in succession and combined with the previous file(s).
 
 .. code-block:: python
 
@@ -1236,12 +1240,13 @@ be invoked implicitly when reading in multiple files as above by passing the
 the ``__add__`` method to combine the data contained in the files into a single
 UVData object.
 
-**WARNING**: There is no guarantee that two objects combined in this fashion
-will result in a self-consistent object after concatenation. Basic checking is
-done, but time-consuming robust checks are eschewed for the sake of speed. The
-data will also *not* be reordered or sorted as part of the concatenation, and so
-this must be done manually by the user if a reordering is desired
-(see :ref:`uvdata_sorting_data`).
+.. warning::
+  There is no guarantee that two objects combined in this fashion
+  will result in a self-consistent object after concatenation. Basic checking is
+  done, but time-consuming robust checks are eschewed for the sake of speed. The
+  data will also *not* be reordered or sorted as part of the concatenation, and so
+  this must be done manually by the user if a reordering is desired
+  (see :ref:`uvdata_sorting_data`).
 
 The :meth:`pyuvdata.UVData.fast_concat` method is significantly faster than
 :meth:`pyuvdata.UVData.__add__`, especially for large UVData objects.
@@ -1921,7 +1926,7 @@ See the full documentation for the method
 UVData: Location conversions
 ----------------------------
 A number of conversion methods exist to map between different coordinate systems
-for locations on the earth.
+for locations on the earth, see :ref:`coordinate_conversions` for all options.
 
 Note that the ``UVData.telescope.location`` attribute is an
 :class:`astropy.EarthLocation` object, so it can be used directly to get to any
