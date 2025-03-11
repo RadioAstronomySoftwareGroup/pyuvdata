@@ -14,9 +14,9 @@ baseline-dependent averaging). Note that UVData can also support combining the f
 and polarization axis, which can be useful in certain circumstances, objects represented
 this way are called ``flex_pol`` objects and are more fully described in :ref:`flex_pol`.
 
-Metadata that is associated with the telescope (as opposed to the data set) is stored in 
-a :class:`pyuvdata.Telescope` object as the ``telescope`` attribute on a UVData object. 
-This includes metadata related to the telescope location, antenna names, numbers and 
+Metadata that is associated with the telescope (as opposed to the data set) is stored in
+a :class:`pyuvdata.Telescope` object as the ``telescope`` attribute on a UVData object.
+This includes metadata related to the telescope location, antenna names, numbers and
 positions as well as other telescope metadata.
 The antennas are described in two ways: with antenna numbers and antenna names. The
 antenna numbers should **not** be confused with indices -- they are not required to start
@@ -27,7 +27,7 @@ respectively. These are arranged in the same order so that an antenna number
 can be used to identify an antenna name and vice versa.
 Note that not all the antennas listed in ``telescope.antenna_numbers`` and
 ``telescope.antenna_names`` are guaranteed to have visibilities associated with
-them in the ``data_array``. 
+them in the ``data_array``.
 
 For most users, the convenience methods for quick data access (see :ref:`quick_access`)
 are the easiest way to get data for particular sets of baselines. Those methods take
@@ -35,7 +35,7 @@ the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``) as in
 Users interested in indexing/manipulating the data array directly can find more
 information below.
 
-The antenna numbers associated with each visibility areheld in the ``ant_1_array`` 
+The antenna numbers associated with each visibility areheld in the ``ant_1_array``
 and ``ant_2_array`` attributes. These arrays have the same length as the
 ``data_array`` along the baseline-time axis), and which array the numbers appear
 in (``ant_1_array`` vs ``ant_2_array``) indicates the direction of the baseline. On
@@ -1588,7 +1588,7 @@ object.
 
 UVData: File conversion
 -----------------------
-TODO: A lot of this will probably be redundant once the reading and 
+TODO: A lot of this will probably be redundant once the reading and
 writing code snippits are added.  Simplify / update?
 Converting between tested data formats.
 Note that it is possible to create a new :class:`pyuvdata.UVData` object
