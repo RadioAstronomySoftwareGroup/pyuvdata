@@ -297,7 +297,8 @@ def test_multi_nchan_spw_read(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent with the.")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
-def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
+@pytest.mark.parametrize("use_feeds", [True, False])
+def test_read_mir_write_ms_flex_pol(mir_data, tmp_path, use_feeds):
     """
     Mir to MS loopback test with flex-pol.
 
@@ -318,6 +319,11 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     mir_obj = Mir()
     mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
+
+    if not use_feeds:
+        mir_uv.telescope.feed_array = None
+        mir_uv.telescope.feed_angle = None
+        mir_uv.telescope.Nfeeds = None
 
     # Write out our modified data set
     mir_uv.write_ms(testfile, clobber=True)

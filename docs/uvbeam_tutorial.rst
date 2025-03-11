@@ -248,7 +248,7 @@ of creating a consistent object from a minimal set of inputs
   ...     data_normalization="physical",
   ...     freq_array=np.linspace(100e6, 200e6, 10),
   ...     x_orientation = "east",
-  ...     feed_array = ["e", "n"],
+  ...     feed_array = ["x", "y"],
   ...     axis1_array=np.deg2rad(np.linspace(-180, 179, 360)),
   ...     axis2_array=np.deg2rad(np.linspace(0, 90, 181)),
   ... )
@@ -301,15 +301,15 @@ a) Selecting a range of Zenith Angles
 
 a) Selecting Feeds or Polarizations
 ***********************************
-Selecting feeds on E-field beams can be done using the feed name (e.g. "x" or "y"). If
-``x_orientation`` is set on the object, strings represting the physical orientation of
-the feed can also be used (e.g. "n" or "e).
+Selecting feeds on E-field beams can be done using the feed name (e.g. "x" or "y").
+Strings representing the physical orientation of the feed (e.g. "n" or "e) can also
+be used if the feeds are oriented toward 0 or 90 degrees (as denoted by ``feed_angle``).
 
 Selecting polarizations on power beams can be done either using the polarization
 numbers or the polarization strings (e.g. "xx" or "yy" for linear polarizations or
-"rr" or "ll" for circular polarizations). If ``x_orientation`` is set on the object,
-strings represting the physical orientation of the dipole can also be used (e.g. "nn"
-or "ee).
+"rr" or "ll" for circular polarizations). Strings representing the physical orientation
+of the feed (e.g. "nn" or "ee") can also be used if the feeds are oriented toward 0 or
+90 degrees (as denoted by ``feed_angle``).
 
 .. code-block:: python
 
@@ -331,8 +331,12 @@ or "ee).
   >>> print(uvb2.feed_array)
   ['y']
 
+  >>> # check the feed_angle
+  >>> print(uvb2.feed_angle)
+  [0.]
+
   >>> # check the x_orientation
-  >>> print(uvb.x_orientation)
+  >>> print(uvb.get_x_orientation_from_feeds())
   east
 
   >>> # make a copy and select a feed by phyiscal orientation
@@ -375,8 +379,12 @@ or "ee).
   >>> print(utils.polnum2str(uvb.polarization_array))
   ['xx', 'yy']
 
+  >>> # print feed_angle
+  >>> print(uvb.feed_angle)
+  [1.57079633 0.        ]
+
   >>> # print x_orientation
-  >>> print(uvb.x_orientation)
+  >>> print(uvb.get_x_orientation_from_feeds())
   east
 
   >>> # select polarizations using the physical orientation strings

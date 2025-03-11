@@ -53,6 +53,7 @@ def uvc_simplest_no_telescope():
         "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
         "telescope_name": "mock",
         "x_orientation": "n",
+        "feeds": ["x", "y"],
         "antenna_positions": {
             0: [0.0, 0.0, 0.0],
             1: [0.0, 0.0, 1.0],
@@ -74,6 +75,7 @@ def uvc_simplest():
             location=EarthLocation.from_geodetic(0, 0, 0),
             name="mock",
             x_orientation="n",
+            feeds=["x", "y"],
             antenna_positions={
                 0: [0.0, 0.0, 0.0],
                 1: [0.0, 0.0, 1.0],
@@ -99,6 +101,7 @@ def uvc_simplest_moon():
             location=MoonLocation.from_selenodetic(0, 0, 0),
             name="mock",
             x_orientation="n",
+            feeds=["x", "y"],
             antenna_positions={
                 0: [0.0, 0.0, 0.0],
                 1: [0.0, 0.0, 1.0],
@@ -195,7 +198,7 @@ def test_new_uvcal_time_range(uvc_simplest):
                     },
                 )
             },
-            "x_orientation must be set on the Telescope object passed to `telescope`.",
+            "feed_array must be set on the Telescope object passed to `telescope`.",
         ],
     ],
 )
@@ -300,7 +303,7 @@ def test_new_uvcal_from_uvdata_errors(uvd_kw, uvc_only_kw):
     uvc_only_kw.pop("x_orientation")
     with pytest.raises(
         ValueError,
-        match=("x_orientation must be provided if it is not set on the UVData object."),
+        match=("Telescope feed info must be provided if not set on the UVData object."),
     ):
         new_uvcal_from_uvdata(uvd, **uvc_only_kw)
 

@@ -627,7 +627,8 @@ class UVCal(UVBase):
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""
         self.telescope._instrument.required = False
-        self.telescope._x_orientation.required = True
+        self.telescope._feed_array.required = True
+        self.telescope._feed_angle.required = True
 
     @staticmethod
     @combine_docstrings(initializers.new_uvcal, style=DocstringStyle.NUMPYDOC)
@@ -1103,8 +1104,9 @@ class UVCal(UVBase):
     def set_telescope_params(
         self,
         *,
-        warn=True,
+        x_orientation=None,
         overwrite=False,
+        warn=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1118,9 +1120,28 @@ class UVCal(UVBase):
 
         Parameters
         ----------
+        x_orientation : str or None
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the known telescope, or if set to
+            None.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
-            the values from the known telescope.
+            the values from the known telescope. Default is False.
+        warn : bool
+            Option to issue a warning listing all modified parameters.
+            Defaults to True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating. Default is True
 
         Raises
         ------
@@ -1133,6 +1154,9 @@ class UVCal(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            x_orientation=x_orientation,
+            polarization_array=self.jones_array,
+            flex_polarization_array=self.flex_jones_array,
         )
 
     def _set_lsts_helper(self, *, astrometry_library=None):
@@ -1880,7 +1904,9 @@ class UVCal(UVBase):
             return False
         if jpol is not None:
             if isinstance(jpol, str | np.str_):
-                jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
+                jpol = utils.jstr2num(
+                    jpol, x_orientation=self.telescope.get_x_orientation_from_feeds()
+                )
             if jpol not in self.jones_array:
                 return False
 
@@ -1920,7 +1946,9 @@ class UVCal(UVBase):
             Antenna polarization index in data arrays
         """
         if isinstance(jpol, str | np.str_):
-            jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
+            jpol = utils.jstr2num(
+                jpol, x_orientation=self.telescope.get_x_orientation_from_feeds()
+            )
 
         if not self._key_exists(jpol=jpol):
             raise ValueError(f"{jpol} not found in jones_array")
@@ -2491,7 +2519,8 @@ class UVCal(UVBase):
             elif "name" in order:
                 name_array = np.asarray(
                     utils.jnum2str(
-                        self.jones_array, x_orientation=self.telescope.x_orientation
+                        self.jones_array,
+                        x_orientation=self.telescope.get_x_orientation_from_feeds(),
                     )
                 )
                 index_array = np.argsort(name_array)
@@ -2742,7 +2771,6 @@ class UVCal(UVBase):
         # Check objects are compatible
         compatibility_params = [
             "_cal_type",
-            "_telescope",
             "_gain_convention",
             "_cal_style",
             "_ref_antenna_name",
@@ -2863,6 +2891,11 @@ class UVCal(UVBase):
                 "Cannot combine objects due to overlapping times with "
                 "different reference antennas."
             )
+
+        # Handle the telescope object in a special fashion, since there can be partially
+        # overlapping information that we want to preserve here. Note that this will
+        # also do equality checking under the hood.
+        this.telescope += other.telescope
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3624,7 +3657,6 @@ class UVCal(UVBase):
         # Check objects are compatible
         compatibility_params = [
             "_cal_type",
-            "_telescope",
             "_gain_convention",
             "_cal_style",
             "_ref_antenna_name",
@@ -3715,7 +3747,11 @@ class UVCal(UVBase):
                             + extra_history
                         )
         # Actually check compatibility parameters
+        # Handle the telescope object in a special fashion, since there can be partially
+        # overlapping information that we want to preserve here.
+        tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
+            tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
@@ -3731,6 +3767,8 @@ class UVCal(UVBase):
                 if not params_match:
                     msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                     warnings.warn(msg)
+
+        this.telescope = tel_obj
 
         # update the phase_center_catalog to make them consistent across objects
         # Doing this as a binary tree merge
@@ -4032,7 +4070,7 @@ class UVCal(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -4141,7 +4179,7 @@ class UVCal(UVBase):
             obj_spw_array=self.spw_array,
             jones=jones,
             obj_flex_jones_array=self.flex_jones_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
             warn_spacing=warn_spacing,
@@ -4151,7 +4189,7 @@ class UVCal(UVBase):
         jones_inds, jones_selections = utils.pol._select_jones_helper(
             jones=jones,
             obj_jones_array=self.jones_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             flex_jones=self.flex_jones_array is not None,
             invert=invert,
             strict=strict,
@@ -4315,7 +4353,7 @@ class UVCal(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -4683,7 +4721,7 @@ class UVCal(UVBase):
                 warning will be suppressed.
             default_jones_array : ndarray of int
                 By default, if not found on read, the jones_array parameter will be
-                set to [0, 0] (unknown pol type) and a warning will be raised. However,
+                set to [-5, -6] (linear pols) and a warning will be raised. However,
                 if a value for default_jones_array is provided, it will be used instead
                 and the warning will be suppressed.
             check_extra : bool
@@ -4744,6 +4782,9 @@ class UVCal(UVBase):
         settings_file=None,
         raw=True,
         extra_history=None,
+        # MSCal
+        default_x_orientation=None,
+        default_jones_array=None,
     ):
         """
         Read a generic file into a UVCal object.
@@ -4866,6 +4907,19 @@ class UVCal(UVBase):
             Option to use the raw (per antenna, per frequency) solution or
             to use the fitted (polynomial over phase/amplitude) solution.
             Default is True (meaning use the raw solutions).
+
+        MSCal
+        -----
+        default_x_orientation : str
+            By default, if not found on read, the x_orientation parameter will be
+            set to "east" and a warning will be raised. However, if a value for
+            default_x_orientation is provided, it will be used instead and the
+            warning will be suppressed.
+        default_jones_array : ndarray of int
+            By default, if not found on read, the jones_array parameter will be
+            set to [-5, -6] (linear pols) and a warning will be raised. However,
+            if a value for default_jones_array is provided, it will be used instead
+            and the warning will be suppressed.
 
         """
         # Check for the defunct keyword up front
@@ -4992,6 +5046,9 @@ class UVCal(UVBase):
                 settings_file=settings_file_use,
                 raw=raw,
                 extra_history=extra_history,
+                # MSCal
+                default_x_orientation=default_x_orientation,
+                default_jones_array=default_jones_array,
             )
             uv_list = []
             for ind, file in enumerate(filename[1:]):
@@ -5034,6 +5091,9 @@ class UVCal(UVBase):
                     settings_file=settings_file_use,
                     raw=raw,
                     extra_history=extra_history,
+                    # MSCal
+                    default_x_orientation=default_x_orientation,
+                    default_jones_array=default_jones_array,
                 )
                 uv_list.append(uvcal2)
             # Concatenate once at end
@@ -5158,6 +5218,8 @@ class UVCal(UVBase):
             elif file_type == "ms":
                 self.read_ms_cal(
                     filename,
+                    default_x_orientation=default_x_orientation,
+                    default_jones_array=default_jones_array,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

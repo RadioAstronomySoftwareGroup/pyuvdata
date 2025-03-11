@@ -321,6 +321,11 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # propagate scan numbers to the uvfits, ONLY for comparison
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
+    # Set the feed information the same, ONLY for comparison
+    uvfits_uv.telescope.feed_array = ms_uv.telescope.feed_array
+    uvfits_uv.telescope.feed_angle = ms_uv.telescope.feed_angle
+    uvfits_uv.telescope.Nfeeds = ms_uv.telescope.Nfeeds
+
     assert uvfits_uv == ms_uv
 
 
@@ -950,9 +955,13 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 def test_ms_optional_parameters(nrao_uv, tmp_path):
     uv_obj = nrao_uv
 
-    uv_obj.telescope.x_orientation = "east"
+    uv_obj.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_obj.polarization_array
+    )
     uv_obj.pol_convention = "sum"
     uv_obj.vis_units = "Jy"
+    # Update the order so as to be UVFITS compliant
+    uv_obj.telescope.reorder_feeds("AIPS")
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     uv_obj.write_ms(test_file, force_phase=True)
@@ -1131,4 +1140,24 @@ def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
     uvd.telescope.instrument = sma_mir.telescope.instrument
     assert sma_mir.history in uvd.history
     uvd.history = sma_mir.history
+    assert uvd == sma_mir
+
+
+def test_write_ms_feed_sort(sma_mir, tmp_path):
+    # Fix the app coords since CASA reader calculates them on the fly
+    sma_mir._set_app_coords_helper()
+
+    uvd = UVData()
+    testfile = os.path.join(tmp_path, "feed_order.ms")
+    sma_mir.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    sma_mir.write_ms(testfile, clobber=True)
+    uvd.read(testfile)
+
+    # Just set this up front
+    uvd.history = sma_mir.history
+    uvd.telescope.instrument = sma_mir.telescope.instrument
+    uvd.extra_keywords = sma_mir.extra_keywords
+
+    assert uvd != sma_mir
+    uvd.telescope.reorder_feeds(order=["y", "x", "l", "r"])
     assert uvd == sma_mir

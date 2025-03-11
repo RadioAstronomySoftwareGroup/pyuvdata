@@ -612,7 +612,8 @@ class UVData(UVBase):
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVData."""
         self.telescope._instrument.required = True
-        self.telescope._x_orientation.required = False
+        self.telescope._feed_array.required = False
+        self.telescope._feed_angle.required = False
 
     # This is required for eq_coeffs, which has Nants_telescope as one of its
     # shapes. That's to allow us to line up the antenna_numbers/names with
@@ -1475,6 +1476,7 @@ class UVData(UVBase):
     def set_telescope_params(
         self,
         *,
+        x_orientation=None,
         overwrite=False,
         warn=True,
         run_check=True,
@@ -1490,9 +1492,28 @@ class UVData(UVBase):
 
         Parameters
         ----------
+        x_orientation : str or None
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the known telescope, or if set to
+            None.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
-            the values from the known telescope.
+            the values from the known telescope. Default is False.
+        warn : bool
+            Option to issue a warning listing all modified parameters.
+            Defaults to True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating. Default is True
 
         Raises
         ------
@@ -1505,6 +1526,9 @@ class UVData(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            x_orientation=x_orientation,
+            polarization_array=self.polarization_array,
+            flex_polarization_array=self.flex_spw_polarization_array,
         )
 
     def _calc_single_integration_time(self):
@@ -2793,7 +2817,9 @@ class UVData(UVBase):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(
                 self.polarization_array
-                == utils.polstr2num(key, x_orientation=self.telescope.x_orientation)
+                == utils.polstr2num(
+                    key, x_orientation=self.telescope.get_x_orientation_from_feeds()
+                )
             )[0]
             if len(pol_ind1) > 0:
                 blt_ind1 = slice(None)
@@ -2840,7 +2866,8 @@ class UVData(UVBase):
                 orig_pol = key[2]
                 if isinstance(key[2], str):
                     pol = utils.polstr2num(
-                        key[2], x_orientation=self.telescope.x_orientation
+                        key[2],
+                        x_orientation=self.telescope.get_x_orientation_from_feeds(),
                     )
                 else:
                     pol = key[2]
@@ -3025,7 +3052,8 @@ class UVData(UVBase):
             list of polarizations (as strings) in the data.
         """
         return utils.polnum2str(
-            self.polarization_array, x_orientation=self.telescope.x_orientation
+            self.polarization_array,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def get_antpairpols(self):
@@ -5397,7 +5425,7 @@ class UVData(UVBase):
         )
 
         # Define parameters that must be the same to add objects
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -5631,6 +5659,9 @@ class UVData(UVBase):
                 raise ValueError(msg)
 
         # Begin manipulating the objects.
+        # Note that this will check to see if we can merge the telescopes (if they are
+        # different, otherwise the underlying checking is the same).
+        this.telescope += other.telescope
 
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -6086,7 +6117,7 @@ class UVData(UVBase):
         # Because self was at the beginning of the list,
         # all the phase centers are merged into it at the end of this loop
 
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         history_update_string = " Combined data along "
 
@@ -6146,7 +6177,9 @@ class UVData(UVBase):
                         )
 
         # Actually check compatibility parameters
+        tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
+            tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
@@ -6156,6 +6189,8 @@ class UVData(UVBase):
                         + " does not match. Cannot combine objects."
                     )
                     raise ValueError(msg)
+
+        this.telescope = tel_obj
 
         if axis == "freq":
             this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
@@ -6571,7 +6606,7 @@ class UVData(UVBase):
             uv=self,
             ant_str=ant_str,
             print_toggle=print_toggle,
-            x_orientation=self.telescope.x_orientation,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def _select_preprocess(
@@ -6679,7 +6714,7 @@ class UVData(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -6781,7 +6816,7 @@ class UVData(UVBase):
             obj_spw_id_array=self.flex_spw_id_array,
             obj_flex_spw_pol_array=self.flex_spw_polarization_array,
             polarizations=polarizations,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
             warn_spacing=warn_spacing,
@@ -6791,7 +6826,7 @@ class UVData(UVBase):
         pol_inds, pol_selections = utils.pol._select_pol_helper(
             polarizations=polarizations,
             obj_pol_array=self.polarization_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             flex_pol=self.flex_spw_polarization_array is not None,
             invert=invert,
             strict=strict,
@@ -6984,7 +7019,7 @@ class UVData(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -11353,7 +11388,9 @@ class UVData(UVBase):
         be aware that the `importuvifts` task does not currently support reading in
         data sets where the number of antennas is > 255. If writing out such a data set
         for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
-        instead.
+        instead, as the `importuvfits` has some hard-coded behaviors that are telescope
+        dependent and not consistent with documented standards for UVFITS (including
+        antenna position handling, among other metadata).
 
         Parameters
         ----------
