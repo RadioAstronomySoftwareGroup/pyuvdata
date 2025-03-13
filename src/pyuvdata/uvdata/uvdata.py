@@ -4649,6 +4649,8 @@ class UVData(UVBase):
             elif (key == "cat_id") and (phase_dict[key] is not None):
                 # If this is the cat_id, make it an int
                 phase_dict[key] = int(phase_dict[key])
+            elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
+                phase_dict[key] = float(phase_dict[key])
         return phase_dict
 
     def _apply_near_field_corrections(self, focus, ra, dec):
