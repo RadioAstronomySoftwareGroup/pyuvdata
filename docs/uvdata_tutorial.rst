@@ -1306,7 +1306,11 @@ and :meth:`pyuvdata.UVData.diff_vis` methods.
 
 UVData: Phasing
 ---------------
-Phasing/unphasing data
+Adjusting the phase of interferometric visibilities for the purposes of imaging
+and other analyses is called phasing. See our
+`phasing memo <https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/docs/references/phasing.pdf>`_
+for a detailed description of phasing and the specific implementation details in
+pyuvdata.
 
 .. code-block:: python
 
