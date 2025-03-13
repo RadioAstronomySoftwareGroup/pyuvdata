@@ -2651,10 +2651,9 @@ def _get_delay(uvd, focus_x, focus_y, focus_z):
     # Get indices to convert between Nants and Nblts
     ind1, ind2 = _nants_to_nblts(uvd)
 
-    # Antenna positions in ENU frame
-    antpos = uvd.telescope.get_enu_antpos() - np.median(
-        uvd.telescope.get_enu_antpos(), axis=0
-    )
+    # The center of the ENU frame should be located at the median position of the array
+    loc = uvd.telescope.location.itrs.cartesian.xyz.value
+    antpos = uvd.telescope.antenna_positions + loc
 
     # Get tile positions for each baseline
     tile1 = antpos[ind1]  # Shape (Nblts, 3)
