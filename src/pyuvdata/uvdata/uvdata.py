@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
+import logging
 import os
 import threading
 import warnings
@@ -28,8 +30,6 @@ from ..uvbase import UVBase
 from .initializers import new_uvdata
 
 __all__ = ["UVData"]
-import contextlib
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -4965,13 +4965,11 @@ class UVData(UVBase):
         # system to use for phasing
         on_moon = False
         if not isinstance(self.telescope.location, EarthLocation):
-            try:
+            with contextlib.suppress(ImportError):
                 from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
 
                 if isinstance(self.telescope.location, MoonLocation):
                     on_moon = True
-            except ImportError:
-                pass
 
         if on_moon:
             zenith_coord = LunarSkyCoord(

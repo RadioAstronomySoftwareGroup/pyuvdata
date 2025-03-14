@@ -361,7 +361,7 @@ def _get_compression(compression):
         HDF5 compression options
     """
     if compression == "bitshuffle":
-        if not hdf5plugin_present:  # pragma: no cover
+        if not hdf5plugin_present:
             raise ImportError(
                 "The hdf5plugin package is not installed but is required to use "
                 "bitshuffle compression."

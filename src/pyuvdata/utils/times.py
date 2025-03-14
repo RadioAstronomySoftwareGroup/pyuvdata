@@ -174,7 +174,7 @@ def get_lst_for_time(
             import novas_de405  # noqa
             from novas import compat as novas
             from novas.compat import eph_manager
-        except ImportError as e:  # pragma: no cover
+        except ImportError as e:
             raise ImportError(
                 "novas and/or novas_de405 are not installed but is required for "
                 "NOVAS functionality"

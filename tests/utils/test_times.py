@@ -215,3 +215,23 @@ def test_lst_for_time_moon(astrometry_args, selenoid):
         np.testing.assert_allclose(
             lst_array, lst_array_default, rtol=0, atol=utils.RADIAN_TOL
         )
+
+
+def test_get_lst_for_time_no_novas_errors(astrometry_args):
+    try:
+        import novas_de405  # noqa
+        from novas import compat as novas  # noqa
+        from novas.compat import eph_manager  # noqa
+    except ImportError:
+        with pytest.raises(
+            ImportError,
+            match="novas and/or novas_de405 are not installed but is required for "
+            "NOVAS functionality",
+        ):
+            utils.get_lst_for_time(
+                jd_array=astrometry_args["time_array"],
+                latitude=astrometry_args["telescope_loc"][0],
+                longitude=astrometry_args["telescope_loc"][1],
+                altitude=astrometry_args["telescope_loc"][2],
+                astrometry_library="novas",
+            )

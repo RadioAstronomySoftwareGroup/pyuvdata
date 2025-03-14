@@ -23,7 +23,7 @@ casa_error = None
 try:
     from casacore import tables
     from casacore.tables import tableutil
-except ImportError as error:  # pragma: no cover
+except ImportError as error:
     casa_present = False
     casa_error = error
 
@@ -100,7 +100,7 @@ COORD_PYUVDATA2CASA_DICT = {
 
 def _ms_utils_call_checks(filepath, invert_check=False):
     # Check for casa.
-    if not casa_present:  # pragma: no cover
+    if not casa_present:
         raise ImportError(no_casa_message) from casa_error
     if invert_check:
         if os.path.exists(filepath):
@@ -2127,7 +2127,7 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
         if xyz_telescope_frame == "mcmf":
             try:
                 from lunarsky import MoonLocation
-            except ImportError as ie:
+            except ImportError as ie:  # pragma: no cover
                 # There is a test for this, but it is always skipped with our
                 # current CI setup because it requires that python-casacore is
                 # installed but lunarsky isn't. Doesn't seem worth setting up a
