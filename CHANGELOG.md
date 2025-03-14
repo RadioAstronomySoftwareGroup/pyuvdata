@@ -28,6 +28,7 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Only import lunarsky if needed.
 - `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
 significantly refactored and made to behave more uniformly.
 - Allowing `UVParameter.__eq__` to use `UVParameter.compare_value` if the item being

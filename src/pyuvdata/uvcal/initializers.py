@@ -13,7 +13,7 @@ from astropy.time import Time
 
 from .. import Telescope, __version__, utils
 from ..docstrings import combine_docstrings
-from ..telescopes import Locations, get_antenna_params
+from ..telescopes import get_antenna_params
 from ..uvdata.initializers import get_freq_params, get_spw_params, get_time_params
 
 
@@ -30,7 +30,9 @@ def new_uvcal(
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
     telescope: Telescope | None = None,
-    telescope_location: Locations | None = None,
+    # do not type hint here because MoonLocations are allowed but we don't
+    # want to import them just for this.
+    telescope_location=None,
     telescope_name: str | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,

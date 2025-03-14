@@ -7,20 +7,14 @@ from copy import deepcopy
 import erfa
 import numpy as np
 from astropy import units
-from astropy.coordinates import AltAz, Angle, Distance, EarthLocation, SkyCoord
+from astropy.coordinates import AltAz, Distance, EarthLocation, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
 
 from . import _phasing
+from .coordinates import get_loc_obj
 from .times import get_lst_for_time
 from .tools import _nants_to_nblts, _ntimes_to_nblts
-
-try:
-    from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord, Time as LTime
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
 
 
 def old_uvw_calc(ra, dec, initial_uvw):
@@ -990,21 +984,17 @@ def transform_icrs_to_app(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians, of shape (Ntimes,).
     """
-    if telescope_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
-        if ellipsoid is None:
-            ellipsoid = "SPHERE"
+    site_loc, on_moon = get_loc_obj(
+        telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=ellipsoid,
+        angle_units=units.rad,
+        return_moon=True,
+    )
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if (
-            hasmoon
-            and isinstance(telescope_loc, MoonLocation)
-            or telescope_frame.upper() == "MCMF"
-        ):
+        if on_moon:
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -1037,29 +1027,7 @@ def transform_icrs_to_app(
         if item is not None and ra_coord.shape != item.shape:
             raise ValueError(f"{name} must be the same shape as ra and dec.")
 
-    if isinstance(telescope_loc, EarthLocation) or (
-        hasmoon and isinstance(telescope_loc, MoonLocation)
-    ):
-        site_loc = telescope_loc
-    elif telescope_frame.upper() == "MCMF":
-        site_loc = MoonLocation.from_selenodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-            ellipsoid=ellipsoid,
-        )
-    else:
-        site_loc = EarthLocation.from_geodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-        )
-
-    if (
-        hasmoon
-        and isinstance(site_loc, MoonLocation)
-        and astrometry_library != "astropy"
-    ):
+    if on_moon and astrometry_library != "astropy":
         raise NotImplementedError(
             "MoonLocation telescopes are only supported with the 'astropy' astrometry "
             "library"
@@ -1149,7 +1117,7 @@ def transform_icrs_to_app(
             if v_coord is not None:
                 v_coord = v_coord.repeat(ra_coord.size)
 
-        if isinstance(site_loc, EarthLocation):
+        if not on_moon:
             time_obj_array = Time(time_obj_array, location=site_loc)
 
             sky_coord = SkyCoord(
@@ -1170,6 +1138,8 @@ def transform_icrs_to_app(
                 )
             )
         else:
+            from lunarsky import SkyCoord as LunarSkyCoord, Time as LTime
+
             sky_coord = LunarSkyCoord(
                 ra=ra_coord,
                 dec=dec_coord,
@@ -1401,16 +1371,17 @@ def transform_app_to_icrs(
         ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
-    if telescope_frame.upper() == "MCMF" and not hasmoon:
-        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+    site_loc, on_moon = get_loc_obj(
+        telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=ellipsoid,
+        angle_units=units.rad,
+        return_moon=True,
+    )
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if (
-            hasmoon
-            and isinstance(telescope_loc, MoonLocation)
-            or telescope_frame.upper() == "MCMF"
-        ):
+        if on_moon:
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -1430,29 +1401,7 @@ def transform_app_to_icrs(
     if ra_coord.shape != dec_coord.shape:
         raise ValueError("app_ra and app_dec must be the same shape.")
 
-    if isinstance(telescope_loc, EarthLocation) or (
-        hasmoon and isinstance(telescope_loc, MoonLocation)
-    ):
-        site_loc = telescope_loc
-    elif telescope_frame.upper() == "MCMF":
-        site_loc = MoonLocation.from_selenodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-            ellipsoid=ellipsoid,
-        )
-    else:
-        site_loc = EarthLocation.from_geodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-        )
-
-    if (
-        hasmoon
-        and isinstance(site_loc, MoonLocation)
-        and astrometry_library != "astropy"
-    ):
+    if on_moon and astrometry_library != "astropy":
         raise NotImplementedError(
             "MoonLocation telescopes are only supported with the 'astropy' astrometry "
             "library"
@@ -1476,7 +1425,9 @@ def transform_app_to_icrs(
         time_obj_array = Time([time_obj_array])
 
     if astrometry_library == "astropy":
-        if hasmoon and isinstance(site_loc, MoonLocation):
+        if on_moon:
+            from lunarsky import Time as LTime
+
             time_obj_array = LTime(time_obj_array, location=site_loc)
         else:
             time_obj_array = Time(time_obj_array, location=site_loc)
@@ -1490,7 +1441,7 @@ def transform_app_to_icrs(
             site_loc.lat.rad,
         )
 
-        if isinstance(site_loc, EarthLocation):
+        if not on_moon:
             sky_coord = SkyCoord(
                 az_coord * units.rad,
                 el_coord * units.rad,
@@ -1499,6 +1450,8 @@ def transform_app_to_icrs(
                 obstime=time_obj_array,
             )
         else:
+            from lunarsky import SkyCoord as LunarSkyCoord
+
             sky_coord = LunarSkyCoord(
                 az_coord * units.rad,
                 el_coord * units.rad,
@@ -1776,19 +1729,30 @@ def lookup_jplhorizons(
             "lat": telescope_loc.lat.deg,
             "elevation": telescope_loc.height.to_value(unit=units.km),
         }
-    elif hasmoon and isinstance(telescope_loc, MoonLocation):
-        raise NotImplementedError(
-            "Cannot lookup JPL positions for telescopes with a MoonLocation"
-        )
     elif telescope_loc is None:
         # Setting to None will report the geocentric position
         site_loc = None
-    else:
+    elif isinstance(telescope_loc, tuple | list) or (
+        isinstance(telescope_loc, np.ndarray) and telescope_loc.size > 1
+    ):
+        # MoonLocations are instances of np.ndarray but have size 1
         site_loc = {
             "lon": telescope_loc[1] * (180.0 / np.pi),
             "lat": telescope_loc[0] * (180.0 / np.pi),
             "elevation": telescope_loc[2] * (0.001),  # m -> km
         }
+    else:
+        try:
+            from lunarsky import MoonLocation
+
+            if isinstance(telescope_loc, MoonLocation):
+                raise NotImplementedError(
+                    "Cannot lookup JPL positions for telescopes with a MoonLocation"
+                )
+        except ImportError:
+            raise ValueError(
+                "telescope_loc is not a valid type: ", type(telescope_loc)
+            ) from None
 
     # If force_indv_lookup is True, or unset but only providing a single value, then
     # just calculate the RA/Dec for the times requested rather than creating a table
@@ -2135,31 +2099,12 @@ def calc_app_coords(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians.
     """
-    if isinstance(telescope_loc, EarthLocation) or (
-        hasmoon and isinstance(telescope_loc, MoonLocation)
-    ):
-        site_loc = telescope_loc
-        if hasmoon and isinstance(telescope_loc, MoonLocation):
-            ellipsoid = MoonLocation.ellipsoid
-    elif telescope_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
-        if ellipsoid is None:
-            ellipsoid = "SPHERE"
-        site_loc = MoonLocation.from_selenodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-            ellipsoid=ellipsoid,
-        )
-    else:
-        site_loc = EarthLocation.from_geodetic(
-            telescope_loc[1] * (180.0 / np.pi),
-            telescope_loc[0] * (180.0 / np.pi),
-            height=telescope_loc[2],
-        )
+    site_loc = get_loc_obj(
+        telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=ellipsoid,
+        angle_units=units.rad,
+    )
 
     # Time objects and unique don't seem to play well together, so we break apart
     # their handling here
@@ -2465,30 +2410,12 @@ def uvw_track_generator(
             "lst" local apparent sidereal time (radians),
             "site_loc" EarthLocation or MoonLocation for the telescope site.
     """
-    if isinstance(telescope_loc, EarthLocation) or (
-        hasmoon and isinstance(telescope_loc, MoonLocation)
-    ):
-        site_loc = telescope_loc
-    elif telescope_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
-        if ellipsoid is None:
-            ellipsoid = "SPHERE"
-
-        site_loc = MoonLocation.from_selenodetic(
-            Angle(telescope_loc[1], unit="deg"),
-            Angle(telescope_loc[0], unit="deg"),
-            telescope_loc[2],
-            ellipsoid=ellipsoid,
-        )
-    else:
-        site_loc = EarthLocation.from_geodetic(
-            Angle(telescope_loc[1], unit="deg"),
-            Angle(telescope_loc[0], unit="deg"),
-            height=telescope_loc[2],
-        )
+    site_loc = get_loc_obj(
+        telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=ellipsoid,
+        angle_units=units.deg,
+    )
 
     if not isinstance(lon_coord, np.ndarray):
         lon_coord = np.array(lon_coord)

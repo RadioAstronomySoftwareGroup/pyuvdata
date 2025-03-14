@@ -8,9 +8,8 @@ from astropy.coordinates import SkyCoord
 
 import pyuvdata.utils.phasing as phs_utils
 from pyuvdata import utils
-from pyuvdata.utils.phasing import hasmoon
 
-from .test_coordinates import selenoids
+from .test_coordinates import frame_selenoid, selenoids
 
 
 @pytest.fixture(scope="session")
@@ -42,7 +41,7 @@ def astrometry_args():
         unit="rad",
     )
 
-    if hasmoon:
+    if len(frame_selenoid) > 1:
         default_args["moon_telescope_loc"] = (
             0.6875 * np.pi / 180.0,
             24.433 * np.pi / 180.0,
@@ -93,7 +92,7 @@ def astrometry_args():
         default_args["app_ra"], default_args["app_dec"], unit="rad"
     )
 
-    if hasmoon:
+    if len(frame_selenoid) > 1:
         default_args["moon_app_ra"] = {}
         default_args["moon_app_dec"] = {}
         default_args["moon_app_coord"] = {}

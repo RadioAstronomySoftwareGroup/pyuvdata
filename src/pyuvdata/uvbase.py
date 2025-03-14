@@ -257,6 +257,9 @@ class UVBase:
             this_param.value = value
             this_param.setter(self)
             setattr(self, param_name, this_param)
+            if isinstance(this_param, uvp.LocationParameter):
+                # call self.on_moon to set expected types properly
+                _ = this_param.on_moon
 
         return fset
 

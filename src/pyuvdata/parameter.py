@@ -20,17 +20,6 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
 
-allowed_location_types = [EarthLocation]
-try:
-    from lunarsky import MoonLocation
-
-    allowed_location_types.append(MoonLocation)
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
-
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter", "SkyCoordParameter"]
 
 
@@ -63,7 +52,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
                 f"Input expected_type is a string with value: '{expected_type}'. "
                 "When the expected_type is a string, it must be a Python builtin type."
             ) from err
-    if strict_type_check or isinstance(expected_type, list):
+    if strict_type_check or isinstance(expected_type, list | tuple):
         return expected_type
 
     for types in [
@@ -200,7 +189,7 @@ class UVParameter:
 
     description : str
         Description of the data or metadata in the object.
-    expected_type
+    expected_type : str or list or tuple of str
         The type that the data or metadata should be. Default is int or str if
         form is 'str'.
     acceptable_vals : list, optional
@@ -248,7 +237,7 @@ class UVParameter:
 
     description : str
         Description of the data or metadata in the object.
-    expected_type
+    expected_type : str or list or tuple of str
         The type that the data or metadata should be. Default is int or str if
         form is 'str'.
     acceptable_vals : list, optional
@@ -327,7 +316,10 @@ class UVParameter:
             isinstance(other, self.__class__) and isinstance(self, other.__class__)
         ):
             if not silent:
-                print(f"{self.name} parameter classes are different")
+                print(
+                    f"{self.name} parameter classes are different. Left is "
+                    f"{type(self.__class__)}, right is {type(other.__class__)}."
+                )
             return False
 
         # if a parameter should be considered equal if one of them is None, exit here.
@@ -337,25 +329,31 @@ class UVParameter:
         if self.value is None:
             if other.value is not None:
                 if not silent:
-                    print(f"{self.name} is None on left, but not right")
+                    print(f"{self.name} is None on left, but is not None on right.")
                 return False
             else:
                 return True
         if other.value is None and self.value is not None:
             if not silent:
-                print(f"{self.name} is None on right, but not left")
+                print(f"{self.name} is None on right, but is not None on left.")
             return False
 
-        if isinstance(self.value, tuple(allowed_location_types)) and not isinstance(
-            other.value, tuple(allowed_location_types)
+        if isinstance(self.value, EarthLocation) and not isinstance(
+            other.value, EarthLocation
         ):
             if not silent:
-                print(f"{self.name} parameter value is a Location, but other is not")
+                print(
+                    f"{self.name} parameter value is an EarthLocation on left, "
+                    f"but is {type(other.value)} on right."
+                )
             return False
 
         if isinstance(self.value, SkyCoord) and not isinstance(other.value, SkyCoord):
             if not silent:
-                print(f"{self.name} parameter value is a SkyCoord, but other is not")
+                print(
+                    f"{self.name} parameter value is a SkyCoord on left, "
+                    f"but is {type(other.value)} on right."
+                )
             return False
 
         if isinstance(self.value, np.recarray):
@@ -364,7 +362,8 @@ class UVParameter:
             if not isinstance(other.value, np.recarray):
                 if not silent:
                     print(
-                        f"{self.name} parameter value is a recarray, but other is not."
+                        f"{self.name} parameter value is a recarray on left, "
+                        f"but is {type(other.value)} on right."
                     )
                 return False
             this_names = self.value.dtype.names
@@ -409,12 +408,17 @@ class UVParameter:
         ):
             if not isinstance(other.value, np.ndarray):
                 if not silent:
-                    print(f"{self.name} parameter value is an array, but other is not")
+                    print(
+                        f"{self.name} parameter value is an array on left, "
+                        f"but is {type(other.value)} on right."
+                    )
                 return False
             if self.value.shape != other.value.shape:
                 if not silent:
                     print(
-                        f"{self.name} parameter value is an array, shapes are different"
+                        f"{self.name} parameter value is an array, shapes are "
+                        f"different. Left has shape {self.value.shape}, right "
+                        f"has shape {other.value.shape}."
                     )
                 return False
 
@@ -422,8 +426,8 @@ class UVParameter:
                 if not isinstance(other.value, units.Quantity):
                     if not silent:
                         print(
-                            f"{self.name} parameter value is a Quantity, but "
-                            "other is not."
+                            f"{self.name} parameter value is a Quantity on left, "
+                            f"but is {type(other.value)} on right."
                         )
                     return False
 
@@ -431,7 +435,8 @@ class UVParameter:
                     if not silent:
                         print(
                             f"{self.name} parameter value is an astropy Quantity, "
-                            "units are not equivalent"
+                            "units are not equivalent. Left has units "
+                            f"{self.value.unit}, right has units {other.value.unit}."
                         )
                     return False
                 if not isinstance(self.tols[1], units.Quantity):
@@ -448,7 +453,7 @@ class UVParameter:
                     if not silent:
                         print(
                             f"{self.name} parameter value is an astropy Quantity, "
-                            "values are not close"
+                            "units are equivalent but values are not close."
                         )
                     return False
             else:
@@ -493,8 +498,8 @@ class UVParameter:
                 ):
                     if not silent:
                         print(
-                            f"{self.name} parameter value is array, values are not "
-                            "close"
+                            f"{self.name} parameter value is an array with matching "
+                            "shapes, values are not close."
                         )
                     return False
         else:
@@ -530,8 +535,8 @@ class UVParameter:
                 if isinstance(other.value, np.ndarray):
                     if not silent:
                         print(
-                            f"{self.name} parameter value is not an array, "
-                            "but other is an array"
+                            f"{self.name} parameter value is not an array on left "
+                            "but right is an array."
                         )
                     return False
                 try:
@@ -567,9 +572,10 @@ class UVParameter:
                         if self.value != other.value:
                             if not silent:
                                 print(
-                                    f"{self.name} parameter value is not a string "
-                                    "or a dict and cannot be cast as a numpy "
-                                    "array. The values are not equal."
+                                    f"{self.name} parameter value has type "
+                                    f"{type(self.value)} on left and "
+                                    f"{type(other.value)} on right. The values "
+                                    "are not equal."
                                 )
                             return False
 
@@ -950,58 +956,80 @@ class LocationParameter(UVParameter):
             value=value,
             spoof_val=spoof_val,
             description=description,
-            expected_type=tuple(allowed_location_types),
+            expected_type=(EarthLocation,),
             strict_type_check=True,
             acceptable_range=None,
             tols=tols,
         )
 
+        # call self.on_moon to set expected types properly
+        _ = self.on_moon
+
+    @property
+    def on_moon(self):
+        """Detect if this location is on the moon."""
+        # figure out if this is on the moon. Doing it this way limits
+        # attempted imports of lunarsky
+        if isinstance(self.value, EarthLocation):
+            return False
+        else:
+            try:
+                from lunarsky import MoonLocation
+
+                if isinstance(self.value, MoonLocation):
+                    self.expected_type = (EarthLocation, MoonLocation)
+                    return True
+            except ImportError:
+                return False
+
     @property
     def frame(self):
         """Get the frame."""
-        if isinstance(self.value, EarthLocation):
-            return "itrs"
-        elif hasmoon and isinstance(self.value, MoonLocation):
+        if self.on_moon:
             return "mcmf"
+        else:
+            return "itrs"
 
     @property
     def ellipsoid(self):
         """Get the ellipsoid."""
-        if isinstance(self.value, EarthLocation):
-            return None
-        elif hasmoon and isinstance(self.value, MoonLocation):
+        if self.on_moon:
             return self.value.ellipsoid
+        else:
+            return None
 
     def xyz(self):
         """Get the body centric coordinates in meters."""
         if self.value is None:
             return None
+        elif self.on_moon:
+            centric_coords = self.value.selenocentric
         else:
-            if hasmoon and isinstance(self.value, MoonLocation):
-                centric_coords = self.value.selenocentric
-            else:
-                centric_coords = self.value.geocentric
-            return units.Quantity(centric_coords).to_value("m")
+            centric_coords = self.value.geocentric
+        return units.Quantity(centric_coords).to_value("m")
 
     def set_xyz(self, xyz, *, frame=None, ellipsoid=None):
         """Set the body centric coordinates in meters."""
         if frame is None:
-            if hasmoon and isinstance(self.value, MoonLocation):
+            if self.on_moon:
                 frame = "mcmf"
             else:
                 frame = "itrs"
 
         allowed_frames = ["itrs"]
-        if hasmoon:
+        if self.on_moon:
             allowed_frames += ["mcmf"]
         if frame not in allowed_frames:
             raise ValueError(f"frame must be one of {allowed_frames}")
+
         if xyz is None:
             self.value = None
         else:
             if frame == "itrs":
                 self.value = EarthLocation.from_geocentric(*(xyz * units.m))
             else:
+                from lunarsky import MoonLocation
+
                 if ellipsoid is None and isinstance(self.value, MoonLocation):
                     ellipsoid = self.value.ellipsoid
                 moonloc = MoonLocation.from_selenocentric(*(xyz * units.m))
@@ -1035,7 +1063,9 @@ class LocationParameter(UVParameter):
         if lat_lon_alt is None:
             self.value = None
         else:
-            if hasmoon and isinstance(self.value, MoonLocation):
+            if self.on_moon:
+                from lunarsky import MoonLocation
+
                 if ellipsoid is None:
                     ellipsoid = self.value.ellipsoid
                 self.value = MoonLocation.from_selenodetic(
@@ -1087,41 +1117,66 @@ class LocationParameter(UVParameter):
 
     def check_acceptability(self):
         """Check that value is an allowed object type."""
-        if not isinstance(self.value, tuple(allowed_location_types)):
-            return (
-                False,
-                f"Location must be an object of type: {allowed_location_types}",
-            )
+        if not isinstance(self.value, self.expected_type):
+            return (False, f"Location must be an object of type: {self.expected_type}")
         else:
             return True, ""
 
     def __eq__(self, other, *, silent=False):
         """Handle equality properly for Earth/Moon Location objects."""
-        if not isinstance(self.value, tuple(allowed_location_types)) or not isinstance(
-            other.value, tuple(allowed_location_types)
+        # First check that other is a LocationParameter
+        if not (
+            isinstance(other, self.__class__) and isinstance(self, other.__class__)
         ):
-            # one of these is not a proper location type.
+            if not silent:
+                print(
+                    f"{self.name} parameter classes are different. Left is "
+                    f"{type(self.__class__)}, right is {type(other.__class__)}."
+                )
+            return False
+
+        if not isinstance(self.value, self.expected_type) and not isinstance(
+            other.value, other.expected_type
+        ):
+            # these are not proper location types (e.g. None), call the super
             return super().__eq__(other, silent=silent)
+
+        if not isinstance(self.value, self.expected_type) or not isinstance(
+            other.value, other.expected_type
+        ):
+            # one has a location type, the other does not
+            if not silent:
+                print(
+                    f"{self.name} parameter values are locations types in one "
+                    f"object and not in the other. Left is type {type(self.value)}, "
+                    f"right is type {type(other.value)}."
+                )
+            return False
 
         if not isinstance(other.value, self.value.__class__):
             if not silent:
-                print(f"{self.name} parameter classes do not match")
+                print(
+                    f"{self.name} parameter value classes do not match. Left is "
+                    f"type {type(self.value)}, right is type {type(other.value)}."
+                )
             return False
 
-        if (
-            hasmoon
-            and isinstance(self.value, MoonLocation)
-            and self.value.ellipsoid != other.value.ellipsoid
-        ):
+        if self.on_moon and self.value.ellipsoid != other.value.ellipsoid:
             if not silent:
-                print(f"{self.name} parameter ellipsoid is not the same. ")
+                print(
+                    f"{self.name} parameter value ellipsoid is not the same. "
+                    f"Left is {self.value.ellipsoid}, right is {other.value.ellipsoid}."
+                )
             return False
 
         if not np.allclose(
             self.xyz(), other.xyz(), rtol=self.tols[0], atol=self.tols[1]
         ):
             if not silent:
-                print(f"{self.name} parameter is not close. ")
+                print(
+                    f"{self.name} parameter values have the same class but "
+                    "the values are not close."
+                )
             return False
 
         return True
