@@ -368,7 +368,7 @@ def test_new_errors(simplest_working_params):
     simplest_working_params["location"] = Quantity([0, 0, 0], unit="m")
     with pytest.raises(
         ValueError,
-        match="telescope_location has an unsupported type, it must be one of ",
+        match="telescope_location is not a supported type. It must be one of ",
     ):
         Telescope.new(**simplest_working_params)
 

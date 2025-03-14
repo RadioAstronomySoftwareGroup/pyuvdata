@@ -63,7 +63,7 @@ def simplest_working_params() -> dict[str, Any]:
 @pytest.fixture
 def lunar_simple_params() -> dict[str, Any]:
     pytest.importorskip("lunarsky")
-    from pyuvdata.utils.coordinates import MoonLocation
+    from lunarsky import MoonLocation
 
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),

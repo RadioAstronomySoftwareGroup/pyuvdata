@@ -9,7 +9,7 @@ import os
 import warnings
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -22,15 +22,6 @@ from .utils.io import antpos, hdf5 as hdf5_utils
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
-
-try:
-    from lunarsky import MoonLocation
-
-    # This can be built from utils.allowed_location_types in python >= 3.11
-    # but in 3.10 Union has to be declared with types
-    Locations = Union[EarthLocation, MoonLocation]  # noqa UP007
-except ImportError:
-    Locations = EarthLocation
 
 # We use astropy sites for telescope locations. The dict below is for
 # telescopes not in astropy sites, or to include extra information for a telescope.
@@ -759,7 +750,9 @@ class Telescope(UVBase):
     def new(
         cls,
         name: str,
-        location: Locations,
+        # do not type hint here because MoonLocations are allowed but we don't
+        # want to import them just for this.
+        location,
         antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
         antenna_names: list[str] | np.ndarray | None = None,
         antenna_numbers: list[int] | np.ndarray | None = None,
@@ -810,12 +803,9 @@ class Telescope(UVBase):
 
         """
         tel_obj = cls()
-
-        if not isinstance(location, tuple(utils.coordinates.allowed_location_types)):
-            raise ValueError(
-                "telescope_location has an unsupported type, it must be one of "
-                f"{utils.coordinates.allowed_location_types}"
-            )
+        _ = utils.coordinates.get_frame_ellipsoid_loc_obj(
+            location, "telescope_location"
+        )
 
         tel_obj.name = name
         tel_obj.location = location

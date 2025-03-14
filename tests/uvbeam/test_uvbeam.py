@@ -1343,19 +1343,27 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
 def test_interp_no_basis_vector(cst_efield_2freq, interp_func):
     beam = cst_efield_2freq
 
-    if interp_func == "healpix_simple":
-        pytest.importorskip("astropy_healpix")
-        beam.to_healpix()
+    if interp_func == "healpix_simple" and not healpix_installed:
+        with pytest.raises(
+            ImportError,
+            match="astropy_healpix is not installed but is "
+            "required for healpix functionality. "
+            "Install 'astropy-healpix' using conda or pip.",
+        ):
+            beam.to_healpix()
+    else:
+        if interp_func == "healpix_simple":
+            beam.to_healpix()
 
-    az = np.linspace(0, 2 * np.pi, 100)
-    za = np.linspace(0, np.pi / 2, 100)
-    _, bv = beam.interp(
-        az_array=az,
-        za_array=za,
-        return_basis_vector=False,
-        interpolation_function=interp_func,
-    )
-    assert bv is None
+        az = np.linspace(0, 2 * np.pi, 100)
+        za = np.linspace(0, np.pi / 2, 100)
+        _, bv = beam.interp(
+            az_array=az,
+            za_array=za,
+            return_basis_vector=False,
+            interpolation_function=interp_func,
+        )
+        assert bv is None
 
 
 def test_interp_healpix_nside(cst_efield_2freq, cst_efield_2freq_cut_healpix):
@@ -1686,6 +1694,33 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
         power_beam.interp(
             az_array=az_orig_vals, za_array=za_orig_vals, return_basis_vector=False
         )
+
+
+def test_interp_no_healpix_error(cst_efield_2freq):
+    efield_beam = cst_efield_2freq
+    try:
+        from astropy_healpix import HEALPix  # noqa
+    except ImportError:
+        with pytest.raises(
+            ImportError,
+            match="astropy_healpix is not installed but is "
+            "required for healpix functionality. "
+            "Install 'astropy-healpix' using conda or pip.",
+        ):
+            efield_beam.interp(
+                healpix_nside=8, healpix_inds=np.arange(8), new_object=True
+            )
+
+        efield_beam.pixel_coordinate_system = "healpix"
+        with pytest.raises(
+            ImportError,
+            match="astropy_healpix is not installed but is "
+            "required for healpix functionality. "
+            "Install 'astropy-healpix' using conda or pip.",
+        ):
+            efield_beam._interp_healpix_bilinear(
+                az_array=np.zeros(1), za_array=np.zeros(1), freq_array=np.zeros(1)
+            )
 
 
 @pytest.mark.parametrize(

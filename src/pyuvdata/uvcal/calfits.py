@@ -11,13 +11,6 @@ from astropy.coordinates import EarthLocation
 from astropy.io import fits
 from docstring_parser import DocstringStyle
 
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
 from .. import utils
 from ..docstrings import copy_replace_short_description
 from ..utils.io import fits as fits_utils
@@ -523,10 +516,12 @@ class CALFITS(UVCal):
             telescope_frame = hdr.pop("FRAME", "itrs")
             ellipsoid = None
             if telescope_frame == "mcmf":
-                if not hasmoon:
+                try:
+                    from lunarsky import MoonLocation
+                except ImportError as ie:
                     raise ValueError(
                         "Need to install `lunarsky` package to work with MCMF frames."
-                    )
+                    ) from ie
                 ellipsoid = hdr.pop("ELLIPSOI", "SPHERE")
 
             if (

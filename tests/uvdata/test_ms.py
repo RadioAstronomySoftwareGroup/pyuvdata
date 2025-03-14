@@ -14,7 +14,7 @@ from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..utils.test_coordinates import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid
 
 pytest.importorskip("casacore")
 
@@ -366,7 +366,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     Read in ms file, write out as miriad, read back in and check for
     object equality.
     """
-    pytest.importorskip("pyuvdata.uvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     ms_uv = nrao_uv
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
@@ -897,7 +897,9 @@ def test_ms_reader_errs(sma_mir, tmp_path, badcol, badval, errtype, msg):
         assert ms_uv._time_array == sma_mir._time_array
 
 
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_ms_no_moon(sma_mir, tmp_path):
     """Check errors when calling read_ms with MCMF without lunarsky."""
     from casacore import tables
