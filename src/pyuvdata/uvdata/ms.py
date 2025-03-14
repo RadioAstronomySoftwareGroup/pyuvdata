@@ -29,7 +29,7 @@ no_casa_message = (
 casa_present = True
 try:
     import casacore.tables as tables
-except ImportError as error:  # pragma: no cover
+except ImportError as error:
     casa_present = False
     casa_error = error
 
@@ -104,7 +104,7 @@ class MS(UVData):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
         """
-        if not casa_present:  # pragma: no cover
+        if not casa_present:
             raise ImportError(no_casa_message) from casa_error
 
         if any(
@@ -856,7 +856,7 @@ class MS(UVData):
         # Check for defunct keyword here
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
-        if not casa_present:  # pragma: no cover
+        if not casa_present:
             raise ImportError(no_casa_message) from casa_error
 
         if not os.path.exists(filepath):

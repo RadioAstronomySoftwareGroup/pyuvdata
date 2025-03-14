@@ -654,6 +654,11 @@ def test_location_equality(frame, selenoid):
     [
         ["par_class", "p1 parameter classes are different."],
         [
+            "uvp",
+            "p1 parameter value is an EarthLocation on left, but is "
+            "<class 'astropy.units.quantity.Quantity'> on right.",
+        ],
+        [
             "non_loc",
             "p1 parameter values are locations types in one object and not in "
             "the other",
@@ -683,6 +688,17 @@ def test_location_inequality(capsys, change, msg):
             value=MoonLocation.from_selenocentric(*ref_xyz_moon["SPHERE"], unit="m"),
         )
     elif change == "par_class":
+        param2 = uvp.UVParameter(
+            "p1",
+            value=units.Quantity(np.array(ref_xyz), unit="m"),
+            expected_type=units.Quantity,
+        )
+    elif change == "uvp":
+        param1 = uvp.UVParameter(
+            "p1",
+            value=EarthLocation.from_geocentric(*ref_xyz, unit="m"),
+            expected_type=(EarthLocation,),
+        )
         param2 = uvp.UVParameter(
             "p1",
             value=units.Quantity(np.array(ref_xyz), unit="m"),

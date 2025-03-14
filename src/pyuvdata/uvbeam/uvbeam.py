@@ -1857,7 +1857,7 @@ class UVBeam(UVBase):
 
         try:
             from astropy_healpix import HEALPix
-        except ImportError as e:  # pragma: no cover
+        except ImportError as e:
             raise ImportError(
                 "astropy_healpix is not installed but is "
                 "required for healpix functionality. "
@@ -2172,7 +2172,7 @@ class UVBeam(UVBase):
                 )
             try:
                 from astropy_healpix import HEALPix
-            except ImportError as e:  # pragma: no cover
+            except ImportError as e:
                 raise ImportError(
                     "astropy_healpix is not installed but is "
                     "required for healpix functionality. "
@@ -2394,7 +2394,7 @@ class UVBeam(UVBase):
 
         try:
             from astropy_healpix import HEALPix
-        except ImportError as e:  # pragma: no cover
+        except ImportError as e:
             raise ImportError(
                 "astropy_healpix is not installed but is "
                 "required for healpix functionality. "

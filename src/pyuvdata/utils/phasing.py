@@ -1172,7 +1172,7 @@ def transform_icrs_to_app(
             import novas_de405  # noqa
             from novas import compat as novas
             from novas.compat import eph_manager
-        except ImportError as e:  # pragma: no cover
+        except ImportError as e:
             raise ImportError(
                 "novas and/or novas_de405 are not installed but is required for "
                 "NOVAS functionality"
@@ -1710,7 +1710,7 @@ def lookup_jplhorizons(
     """
     try:
         from astroquery.jplhorizons import Horizons
-    except ImportError as err:  # pragma: no cover
+    except ImportError as err:
         raise ImportError(
             "astroquery is not installed but is required for "
             "planet ephemeris functionality"
@@ -1742,6 +1742,7 @@ def lookup_jplhorizons(
             "elevation": telescope_loc[2] * (0.001),  # m -> km
         }
     else:
+        bad_type = False
         try:
             from lunarsky import MoonLocation
 
@@ -1749,10 +1750,16 @@ def lookup_jplhorizons(
                 raise NotImplementedError(
                     "Cannot lookup JPL positions for telescopes with a MoonLocation"
                 )
-        except ImportError:
+            else:
+                bad_type = True
+        except ImportError:  # pragma: no cover
+            # getting here requires having astroquery but not lunarsky. We don't
+            # have a CI like that.
+            bad_type = True
+        if bad_type:
             raise ValueError(
-                "telescope_loc is not a valid type: ", type(telescope_loc)
-            ) from None
+                f"telescope_loc is not a valid type: {type(telescope_loc)}"
+            )
 
     # If force_indv_lookup is True, or unset but only providing a single value, then
     # just calculate the RA/Dec for the times requested rather than creating a table

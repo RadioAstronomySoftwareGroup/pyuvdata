@@ -24,7 +24,7 @@ no_casa_message = (
 casa_present = True
 try:
     from casacore import tables
-except ImportError as error:  # pragma: no cover
+except ImportError as error:
     casa_present = False
     casa_error = error
 

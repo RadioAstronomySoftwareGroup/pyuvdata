@@ -19,7 +19,7 @@ import numpy as np
 
 try:
     from . import _miriad
-except ImportError as e:  # pragma: no cover
+except ImportError as e:
     raise ImportError(
         "The miriad extension is not built but is required for reading miriad "
         "files. Note that miriad is currently not supported on Windows."
