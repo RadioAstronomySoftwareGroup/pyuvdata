@@ -885,6 +885,16 @@ def test_generic_read():
             },
             False,
         ),
+        (
+            {
+                "cat_name": "near_field_test",
+                "ra": 0.4,
+                "dec": -0.3,
+                "cat_type": "near_field",
+                "dist": 10 * units.km,
+            },
+            False,
+        ),
     ],
 )
 def test_phase_unphase_hera(hera_uvh5, phase_kwargs, partial):
@@ -917,18 +927,26 @@ def test_phase_unphase_hera(hera_uvh5, phase_kwargs, partial):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_unphase_hera_one_bl(hera_uvh5):
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_phase_unphase_hera_one_bl(hera_uvh5, cat_type):
     uv_raw = hera_uvh5
     # check that phase + unphase work with one baseline
     uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
     uv_phase_small = uv_raw_small.copy()
-    uv_phase_small.phase(lon=Angle("23h").rad, lat=Angle("15d").rad, cat_name="foo")
+    uv_phase_small.phase(
+        lon=Angle("23h").rad,
+        lat=Angle("15d").rad,
+        cat_name="foo",
+        cat_type=cat_type,
+        dist=5000,
+    )
     uv_phase_small.unproject_phase(cat_name="zenith")
     assert uv_raw_small == uv_phase_small
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_unphase_hera_antpos(hera_uvh5):
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_phase_unphase_hera_antpos(hera_uvh5, cat_type):
     uv_phase = hera_uvh5.copy()
     uv_raw = hera_uvh5
     # check that they match if you phase & unphase using antenna locations
@@ -957,9 +975,19 @@ def test_phase_unphase_hera_antpos(hera_uvh5):
 
     uv_raw_new = uv_raw.copy()
     uv_raw_new.uvw_array = uvw_calc
-    uv_phase.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo", use_ant_pos=True)
+    uv_phase.phase(
+        ra=0.0,
+        dec=0.0,
+        epoch="J2000",
+        cat_name="foo",
+        use_ant_pos=True,
+        cat_type=cat_type,
+        dist=7000,
+    )
     uv_phase2 = uv_raw_new.copy()
-    uv_phase2.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo")
+    uv_phase2.phase(
+        ra=0.0, dec=0.0, epoch="J2000", cat_name="foo", cat_type=cat_type, dist=7000
+    )
 
     # The uvw's only agree to ~1mm. should they be better?
     np.testing.assert_allclose(
@@ -10205,7 +10233,7 @@ def test_print_object_multi(carma_miriad):
             ValueError,
             re.escape(
                 "If set, cat_type must be one of ['sidereal', 'ephem', 'unprojected', "
-                "'driftscan']"
+                "'driftscan', 'near_field']"
             ),
         ],
     ],
@@ -12588,3 +12616,86 @@ def test_select_partial_pol_match(sma_mir, invert):
         sma_mir.select(polarizations=["xx", "xy"], invert=invert)
 
     assert np.all(np.isin(sma_mir.polarization_array, [-5], invert=invert))
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_corrections():
+    uvfits_raw = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uvfits_corr = os.path.join(DATA_PATH, "1061316296_nearfield.uvh5")
+
+    uvd_raw = UVData()
+    uvd_corr = UVData()
+
+    uvd_raw.read(uvfits_raw)
+    uvd_corr.read(uvfits_corr)
+
+    uvd_raw.phase(
+        ra=np.radians(30),
+        dec=np.radians(-20),
+        cat_name="foo",
+        dist=10000,
+        cat_type="near_field",
+    )
+
+    # History and filename don't matter here
+    uvd_raw.history = uvd_corr.history
+    uvd_raw.filename = uvd_corr.filename
+
+    assert uvd_raw == uvd_corr
+
+
+def test_near_field_err():
+    uvfits_sample = os.path.join(DATA_PATH, "1061316296.uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    with pytest.raises(
+        ValueError, match="dist parameter must be specified for cat_type 'near_field'"
+    ):
+        uvd.phase(
+            ra=np.radians(30),
+            dec=np.radians(-20),
+            cat_name="foo",
+            cat_type="near_field",
+        )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "file_format, import_check, error_message",
+    [
+        (
+            "miriad",
+            lambda: pytest.importorskip("pyuvdata.uvdata._miriad"),
+            "Writing near-field phased data to miriad format is not yet supported.",
+        ),
+        (
+            "ms",
+            lambda: pytest.importorskip("casacore"),
+            "Writing near-field phased data to Measurement Set format "
+            + "is not yet supported.",
+        ),
+        (
+            "uvfits",
+            None,
+            "Writing near-field phased data to uvfits format is not yet supported.",
+        ),
+    ],
+)
+def test_write_near_field_err(file_format, import_check, error_message):
+    uvh5_sample = os.path.join(DATA_PATH, "1061316296_nearfield.uvh5")
+
+    uvd = UVData()
+    uvd.read(uvh5_sample)
+
+    if import_check:
+        import_check()
+
+    with pytest.raises(NotImplementedError, match=error_message):
+        if file_format == "miriad":
+            uvd.write_miriad("test_path")
+        elif file_format == "ms":
+            uvd.write_ms("test_path")
+        elif file_format == "uvfits":
+            uvd.write_uvfits("test_path")

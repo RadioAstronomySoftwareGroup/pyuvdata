@@ -24,6 +24,7 @@ from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
+from ..utils.phasing import _get_delay, _get_focus_xyz
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
@@ -4650,8 +4651,64 @@ class UVData(UVBase):
                 phase_dict[key] = int(phase_dict[key])
             elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
                 phase_dict[key] = float(phase_dict[key])
-
         return phase_dict
+
+    def _apply_near_field_corrections(self, focus, ra, dec):
+        """
+        Apply near-field corrections by focusing the array to the specified focal point.
+
+        Parameters
+        ----------
+        focus : astropy.units.Quantity object
+            Focal point of the array
+        ra : ndarray
+            Right ascension of the focal point ie phase center (rad; shape (Ntimes,))
+        dec : ndarray
+            Declination of the focal point ie phase center (rad; shape (Ntimes,))
+
+        Returns
+        -------
+        None (performs operations inplace)
+        """
+        # ------- Parameters that are independent of frequency --------
+
+        # Obtain focal distance in km
+        focus = focus.to(units.km).value
+
+        # Convert ra, dec from radians to degrees
+        ra, dec = np.degrees(ra), np.degrees(dec)
+
+        # Calculate the x, y, z coordinates of the focal point
+        # in ENU frame for each vis along Nblts axis
+        focus_x, focus_y, focus_z = _get_focus_xyz(self, focus, ra, dec)
+
+        # Calculate near-field correction at the specified timestep
+        # for each vis along Nblts axis
+        phi, new_w = _get_delay(self, focus_x, focus_y, focus_z)
+
+        # Update old w with new w
+        self.uvw_array[:, -1] = new_w
+
+        # ---------------- Frequency-dependent calculations ---------------------
+
+        # Calculate wavelength associate with each frequency
+        wavelengths = 299792458 / self.freq_array
+
+        # Reshape the phi and wavelengths arrays in order to
+        # be able to broadcast them together
+        phi = np.reshape(phi, (phi.size, 1))  # (Nblts, 1)
+        wavelengths = np.reshape(wavelengths, (1, wavelengths.size))  # (1, Nfreqs)
+
+        # Calculate phase corrections at all frequencies
+        # -- produces shape (Nblts, Nfreqs)
+        phase_corrections = np.exp(-2j * np.pi * phi / wavelengths)
+
+        # Set data at each polarization (Npols = 4 usually)
+        for pol in self.polarization_array:
+            prev = np.reshape(self.get_data(pol), (self.Nblts, self.Nfreqs, 1))
+            corr = np.reshape(phase_corrections, (self.Nblts, self.Nfreqs, 1))
+
+            self.set_data(corr * prev, pol)
 
     def phase(
         self,
@@ -4713,7 +4770,9 @@ class UVData(UVBase):
         cat_type : str
             Type of phase center to be added. Must be one of:
             "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
-            "driftscan" (fixed az/el position). Default is "sidereal".
+            "driftscan" (fixed az/el position), "near_field" (first applies far-field
+            phasing assuming sidereal phase center, then applies near-field
+            corrections to the specified dist). Default is "sidereal".
         ephem_times : ndarray of float
             Only used when `cat_type="ephem"`. Describes the time for which the values
             of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
@@ -4723,10 +4782,14 @@ class UVData(UVBase):
         pm_dec : float
             Proper motion in Dec, in units of mas/year. Only used for sidereal phase
             centers.
-        dist : float or ndarray of float
-            Distance of the source, in units of pc. Only used for sidereal and ephem
-            phase centers. Expected to be a float for sidereal phase
-            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        dist : float or ndarray of float or astropy.units.Quantity object.
+            Distance to the source. Used for sidereal and ephem phase centers,
+            and for applying near-field corrections. If passed either as a float
+            (for sidereal phase centers) or as an ndarray of floats of shape (Npts,)
+            (for ephem phase centers), will be interpreted in units of parsec for all
+            cat_types except near_field; in the latter case it will be interpreted
+            in meters. Alternatively, an astropy.units.Quantity object may be passed
+            instead, in which case the units will be infered automatically.
         vrad : float or ndarray of float
             Radial velocity of the source, in units of km/s. Only used for sidereal and
             ephem phase centers. Expected to be a float for sidereal phase
@@ -4770,6 +4833,23 @@ class UVData(UVBase):
         # Before moving forward with the heavy calculations, we need to do some
         # basic housekeeping to make sure that we've got the coordinate data that
         # we need in order to proceed.
+        if dist is not None:
+            if isinstance(dist, units.Quantity):
+                dist_qt = copy.deepcopy(dist)
+            else:
+                if cat_type == "near_field":
+                    dist_qt = dist * units.m
+                else:
+                    dist_qt = dist * units.parsec
+
+            dist = dist_qt.to(
+                units.parsec
+            ).value  # phase_dict internally stores in parsecs
+        elif dist is None and cat_type == "near_field":
+            raise ValueError(
+                "dist parameter must be specified for cat_type 'near_field'"
+            )
+
         phase_dict = self._phase_dict_helper(
             lon=lon,
             lat=lat,
@@ -4923,6 +5003,12 @@ class UVData(UVBase):
         # otherwise we'll have no record of source properties.
         if cleanup_old_sources:
             self._clear_unused_phase_centers()
+
+        # Lastly, apply near-field corrections if specified
+        if cat_type == "near_field":
+            self._apply_near_field_corrections(
+                focus=dist_qt, ra=phase_dict["cat_lon"], dec=phase_dict["cat_lat"]
+            )
 
     def phase_to_time(
         self, time, *, phase_frame="icrs", use_ant_pos=True, select_mask=None
