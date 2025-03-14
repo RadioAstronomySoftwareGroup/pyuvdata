@@ -15,7 +15,7 @@ from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..utils.test_coordinates import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -933,7 +933,9 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_uvfits_no_moon(casa_uvfits, tmp_path):
     """Check errors when reading uvfits with MCMF without lunarsky."""
     uv_in = casa_uvfits

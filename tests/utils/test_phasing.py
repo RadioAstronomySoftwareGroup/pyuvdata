@@ -14,12 +14,8 @@ from astropy.time import Time
 import pyuvdata.utils.phasing as phs_utils
 from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
-from pyuvdata.utils.phasing import hasmoon
 
 from .test_coordinates import frame_selenoid
-
-if hasmoon:
-    from lunarsky import MoonLocation, Time as LTime
 
 
 @pytest.fixture
@@ -56,7 +52,9 @@ def calc_uvw_args():
     yield default_args
 
 
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_no_moon():
     """Check errors when calling functions with MCMF without lunarsky."""
     msg = "Need to install `lunarsky` package to work with MCMF frame."
@@ -811,16 +809,17 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     assert str(cm.value).startswith(msg)
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_lookup_jplhorizons_moon_err():
     """
     Check for argument errors with lookup_jplhorizons.
     """
     # Don't do this test if we don't have astroquery loaded
     pytest.importorskip("astroquery")
+    pytest.importorskip("lunarsky")
 
     from ssl import SSLError
 
+    from lunarsky import MoonLocation
     from requests import RequestException
 
     default_args = {
@@ -1792,6 +1791,8 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame, selenoid):
         )
         TimeClass = Time
     else:
+        from lunarsky import MoonLocation, Time as LTime
+
         telescope_loc = MoonLocation.from_selenodetic(
             astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
             astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
@@ -1930,7 +1931,7 @@ def test_calc_app_coords_time_obj():
     np.testing.assert_allclose(app_dec_to, app_dec_nto, rtol=0, atol=utils.RADIAN_TOL)
 
 
-@pytest.mark.skipif(hasmoon, reason="lunarsky installed")
+@pytest.mark.skipif(len(frame_selenoid) > 1, reason="lunarsky installed")
 def test_uvw_track_generator_errs():
     with pytest.raises(
         ValueError, match="Need to install `lunarsky` package to work with MCMF frame."
@@ -1995,9 +1996,9 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
         assert sma_mir._uvw_array.compare_value(gen_results["uvw"])
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 @pytest.mark.parametrize("selenoid", ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"])
 def test_uvw_track_generator_moon(selenoid):
+    pytest.importorskip("lunarsky")
     # Note this isn't a particularly deep test, but it at least exercises the code.
     from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 

@@ -15,12 +15,13 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from .. import Telescope, __version__, utils
-from ..telescopes import Locations
 
 
 def get_time_params(
     *,
-    telescope_location: Locations,
+    # do not type hint here because MoonLocations are allowed but we don't
+    # want to import them just for this.
+    telescope_location,
     time_array: np.ndarray,
     integration_time: float | np.ndarray | None = None,
     astrometry_library: str | None = None,
@@ -289,7 +290,9 @@ def new_uvdata(
     do_blt_outer: bool | None = None,
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
-    telescope_location: Locations | None = None,
+    # do not type hint here because MoonLocations are allowed but we don't
+    # want to import them just for this.
+    telescope_location=None,
     telescope_name: str | None = None,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
     antenna_names: list[str] | None = None,

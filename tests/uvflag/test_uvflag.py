@@ -21,7 +21,7 @@ from pyuvdata.utils.io import hdf5 as hdf5_utils
 from pyuvdata.uvbase import old_telescope_metadata_attrs
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
-from ..utils.test_coordinates import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
@@ -692,7 +692,7 @@ def test_hdf5_meta_telescope_location(test_outfile):
         alt, meta.telescope_location_obj.height.to_value("m"), rtol=0, atol=1e-3
     )
 
-    if hasmoon:
+    if len(frame_selenoid) > 1:
         from lunarsky import MoonLocation
 
         moon_loc = MoonLocation.from_selenodetic(
@@ -717,7 +717,9 @@ def test_hdf5_meta_telescope_location(test_outfile):
         assert isinstance(meta.telescope_location_obj, MoonLocation)
 
 
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
     """Check errors when calling HDF5Meta with MCMF without lunarsky."""
     shutil.copyfile(test_f_file, test_outfile)

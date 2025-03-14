@@ -6,17 +6,11 @@ import warnings
 
 import erfa
 import numpy as np
-from astropy.coordinates import Angle, EarthLocation
+from astropy import units
 from astropy.time import Time
 from astropy.utils import iers
 
-try:
-    from lunarsky import MoonLocation, Time as LTime
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
+from .coordinates import get_loc_obj
 from .tools import (
     _is_between,
     _strict_raise,
@@ -54,8 +48,9 @@ def get_lst_for_time(
     jd_array : ndarray of float
         JD times to get lsts for.
     telescope_loc : tuple or EarthLocation or MoonLocation
-        Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
-        or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
+        Alternative way of specifying telescope lat/lon/alt, either as a 3-element
+        tuple with latitude and longitude in degrees, or as an astropy
+        EarthLocation (or lunarsky MoonLocation). Cannot supply both
         `telescope_loc` and `latitute`, `longitude`, or `altitude`.
     latitude : float
         Latitude of location to get lst for in degrees. Cannot specify both `latitute`
@@ -87,46 +82,29 @@ def get_lst_for_time(
         LASTs in radians corresponding to the jd_array.
 
     """
-    site_loc = None
-    if telescope_loc is not None:
+    if telescope_loc is None:
+        if all(item is not None for item in [latitude, longitude, altitude]):
+            telescope_loc = (latitude, longitude, altitude)
+        else:
+            raise ValueError(
+                "Must supply all of latitude, longitude and altitude if "
+                "telescope_loc is not supplied"
+            )
+    else:
         if not all(item is None for item in [latitude, longitude, altitude]):
             raise ValueError(
                 "Cannot set both telescope_loc and latitude/longitude/altitude"
             )
-        if isinstance(telescope_loc, EarthLocation) or (
-            hasmoon and isinstance(telescope_loc, MoonLocation)
-        ):
-            site_loc = telescope_loc
-            if isinstance(telescope_loc, EarthLocation):
-                frame = "ITRS"
-            else:
-                frame = "MCMF"
-        else:
-            latitude, longitude, altitude = telescope_loc
+    site_loc, on_moon = get_loc_obj(
+        telescope_loc,
+        telescope_frame=frame,
+        ellipsoid=ellipsoid,
+        angle_units=units.deg,
+        return_moon=True,
+    )
 
-    if site_loc is None:
-        if frame.upper() == "MCMF":
-            if not hasmoon:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with MCMF frame."
-                )
-            if ellipsoid is None:
-                ellipsoid = "SPHERE"
-
-            site_loc = MoonLocation.from_selenodetic(
-                Angle(longitude, unit="deg"),
-                Angle(latitude, unit="deg"),
-                altitude,
-                ellipsoid=ellipsoid,
-            )
-        else:
-            site_loc = EarthLocation.from_geodetic(
-                Angle(longitude, unit="deg"),
-                Angle(latitude, unit="deg"),
-                height=altitude,
-            )
     if astrometry_library is None:
-        if frame == "itrs":
+        if not on_moon:
             astrometry_library = "erfa"
         else:
             astrometry_library = "astropy"
@@ -146,13 +124,15 @@ def get_lst_for_time(
 
     jd, reverse_inds = np.unique(jd_array, return_inverse=True)
 
-    if isinstance(site_loc, EarthLocation):
+    if not on_moon:
         TimeClass = Time
     else:
         if not astrometry_library == "astropy":
             raise NotImplementedError(
                 "The MCMF frame is only supported with the 'astropy' astrometry library"
             )
+        from lunarsky import Time as LTime
+
         TimeClass = LTime
 
     times = TimeClass(jd, format="jd", scale="utc", location=site_loc)
@@ -242,7 +222,7 @@ def get_lst_for_time(
             )
 
         # Add the telescope lon to convert from GAST to LAST (local)
-        lst_array = np.mod(lst_array + (longitude / 15.0), 24.0)
+        lst_array = np.mod(lst_array + (site_loc.lon.deg / 15.0), 24.0)
 
         # Convert from hours back to rad
         lst_array *= np.pi / 12.0

@@ -14,13 +14,6 @@ from astropy.io import fits
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
 from .. import utils
 from ..docstrings import copy_replace_short_description
 from ..utils.io import fits as fits_utils
@@ -589,11 +582,13 @@ class UVFITS(UVData):
                             "Only 'itrs' and 'mcmf' are currently supported."
                         )
                     if telescope_frame == "mcmf":
-                        if not hasmoon:
+                        try:
+                            from lunarsky import MoonLocation
+                        except ImportError as ie:
                             raise ValueError(
                                 "Need to install `lunarsky` package to work with "
                                 "MCMF frames."
-                            )
+                            ) from ie
 
                         ellipsoid = ant_hdu.header.get("ELLIPSOI", "SPHERE")
 
