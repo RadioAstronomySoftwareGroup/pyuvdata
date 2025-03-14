@@ -679,7 +679,8 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
     """
     Check for argument errors with transform_icrs_to_app
     """
-    pytest.importorskip("novas")
+    if "library" in arg_dict and arg_dict["library"] == "novas":
+        pytest.importorskip("novas")
     default_args = astrometry_args.copy()
     for key in arg_dict:
         default_args[key] = arg_dict[key]
@@ -699,6 +700,32 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
             epoch=default_args["epoch"],
             astrometry_library=default_args["library"],
         )
+
+
+def test_transform_icrs_to_app_no_novas_error(astrometry_args):
+    try:
+        import novas_de405  # noqa
+        from novas import compat as novas  # noqa
+        from novas.compat import eph_manager  # noqa
+    except ImportError:
+        with pytest.raises(
+            ImportError,
+            match="novas and/or novas_de405 are not installed but is required for "
+            "NOVAS functionality",
+        ):
+            phs_utils.transform_icrs_to_app(
+                time_array=astrometry_args["time_array"],
+                ra=astrometry_args["icrs_ra"],
+                dec=astrometry_args["icrs_dec"],
+                telescope_loc=astrometry_args["telescope_loc"],
+                telescope_frame=astrometry_args["telescope_frame"],
+                pm_ra=astrometry_args["pm_ra"],
+                pm_dec=astrometry_args["pm_dec"],
+                dist=astrometry_args["dist"],
+                vrad=astrometry_args["vrad"],
+                epoch=astrometry_args["epoch"],
+                astrometry_library="novas",
+            )
 
 
 @pytest.mark.parametrize(
@@ -767,6 +794,7 @@ def test_transform_sidereal_coords_arg_errs():
         [{"force_lookup": False, "high_cadence": True}, "Too many ephem points"],
         [{"time_array": np.arange(10)}, "No current support for JPL ephems outside"],
         [{"targ_name": "whoami"}, "Target ID is not recognized in either the small"],
+        [{"telescope_loc": "foo"}, "telescope_loc is not a valid type:"],
     ],
 )
 def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
@@ -848,6 +876,24 @@ def test_lookup_jplhorizons_moon_err():
     assert str(cm.value).startswith(
         "Cannot lookup JPL positions for telescopes with a MoonLocation"
     )
+
+
+def test_lookup_jplhorizons_no_astroquery_err():
+    # We have to handle this piece a bit carefully, since some queries fail due to
+    # intermittent failures connecting to the JPL-Horizons service.
+    try:
+        import astroquery  # noqa
+    except ImportError:
+        with pytest.raises(
+            ImportError,
+            match="astroquery is not installed but is required for planet "
+            "ephemeris functionality",
+        ):
+            phs_utils.lookup_jplhorizons(
+                target_name="Mars",
+                time_array=np.array([0.0, 1000.0]) + 2456789.0,
+                telescope_loc=EarthLocation.from_geodetic(0, 0, height=0.0),
+            )
 
 
 @pytest.mark.parametrize(

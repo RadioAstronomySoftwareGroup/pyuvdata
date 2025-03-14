@@ -3287,19 +3287,28 @@ def test_fix_autos_no_op():
 
 
 def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
-    pytest.importorskip("hdf5plugin")
-
     uvd, _ = uv_phase_comp
 
     outfile = os.path.join(tmp_path, "test.uvh5")
-    uvd.write_uvh5(outfile, data_compression="bitshuffle")
+    try:
+        import hdf5plugin  # noqa
 
-    with h5py.File(outfile, "r") as f:
-        dgrp = f["/Data"]
-        assert "32008" in dgrp["visdata"]._filters
+        uvd.write_uvh5(outfile, data_compression="bitshuffle")
 
-    uvd2 = UVData.from_file(outfile)
-    assert uvd == uvd2
+        with h5py.File(outfile, "r") as f:
+            dgrp = f["/Data"]
+            assert "32008" in dgrp["visdata"]._filters
+
+        uvd2 = UVData.from_file(outfile)
+        assert uvd == uvd2
+
+    except ImportError:
+        with pytest.raises(
+            ImportError,
+            match="The hdf5plugin package is not installed but is required to use "
+            "bitshuffle compression.",
+        ):
+            uvd.write_uvh5(outfile, data_compression="bitshuffle")
 
 
 @pytest.mark.usefixtures("tmp_path_factory")
