@@ -1253,7 +1253,7 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     Read in uvfits file, write out as miriad, read back in and check for
     object equality.
     """
-    pytest.importorskip("pyuvdata.uvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     uvfits_uv = casa_uvfits
     miriad_uv = UVData()
     testfile = str(tmp_path / "outtest_miriad")

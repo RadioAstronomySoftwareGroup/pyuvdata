@@ -67,7 +67,7 @@ def hera_uvh5(hera_uvh5_main):
 @pytest.fixture(scope="session")
 def paper_miriad_main():
     """Read in PAPER miriad file."""
-    pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
+    pytest.importorskip("pyuvdata.uvdata.aipy_extracts", exc_type=ImportError)
     uv_in = UVData()
     uv_in.read(paper_miriad_file)
 
