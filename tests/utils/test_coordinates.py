@@ -13,17 +13,16 @@ from astropy.coordinates import EarthLocation
 from pyuvdata import utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
-from pyuvdata.utils.coordinates import hasmoon
 
 selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 
-if hasmoon:
+try:
     from lunarsky import MoonLocation
 
     frame_selenoid = [["itrs", None]]
     for snd in selenoids:
         frame_selenoid.append(["mcmf", snd])
-else:
+except ImportError:
     frame_selenoid = [["itrs", None]]
 
 
@@ -335,10 +334,10 @@ def test_LatLonAlt_from_XYZ():
     pytest.raises(ValueError, utils.LatLonAlt_from_XYZ, ref_xyz[0:1])
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_XYZ_from_LatLonAlt_mcmf(selenoid):
     """Test MCMF lat/lon/alt to xyz with reference values."""
+    pytest.importorskip("lunarsky")
     lat, lon, alt = ref_latlonalt_moon
     out_xyz = utils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf", ellipsoid=selenoid)
     np.testing.assert_allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
@@ -355,10 +354,10 @@ def test_XYZ_from_LatLonAlt_mcmf(selenoid):
         utils.XYZ_from_LatLonAlt(lat, lon, alt, frame="undef")
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_LatLonAlt_from_XYZ_mcmf(selenoid):
     """Test MCMF xyz to lat/lon/alt with reference values."""
+    pytest.importorskip("lunarsky")
     out_latlonalt = utils.LatLonAlt_from_XYZ(
         ref_xyz_moon[selenoid], frame="mcmf", ellipsoid=selenoid
     )
@@ -382,7 +381,9 @@ def test_LatLonAlt_from_XYZ_mcmf(selenoid):
         )
 
 
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_no_moon():
     """Check errors when calling functions with MCMF without lunarsky."""
     msg = "Need to install `lunarsky` package to work with MCMF frame."
@@ -454,9 +455,9 @@ def test_enu_from_ecef(enu_ecef_info):
     np.testing.assert_allclose(enu, enu2, rtol=0, atol=1e-3)
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_enu_from_mcmf(enu_mcmf_info, selenoid):
+    pytest.importorskip("lunarsky")
     (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
         enu_mcmf_info
     )
@@ -551,7 +552,8 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     # error checking
     with pytest.raises(
         ValueError,
-        match="ITRS vector magnitudes must be on the order of the radius of the earth",
+        match="itrs position vector magnitudes must be on the order of the "
+        "radius of Earth",
     ):
         utils.ENU_from_ECEF(
             xyz / 2.0, latitude=center_lat, longitude=center_lon, altitude=center_alt
@@ -841,7 +843,6 @@ def test_check_surface_based_positions(err_state, tel_loc, check_frame, del_tel_
         assert (err_state == "err") or (status == (tel_loc == check_frame))
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 @pytest.mark.parametrize("tel_loc", ["Earth", "Moon"])
 @pytest.mark.parametrize("check_frame", ["Earth", "Moon"])
 def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
@@ -850,6 +851,7 @@ def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
     if tel_loc == "Earth":
         loc = EarthLocation.from_geodetic(0, 0, 0)
     else:
+        pytest.importorskip("lunarsky")
         loc = MoonLocation.from_selenodetic(0, 0, 0)
 
     if tel_loc == check_frame:

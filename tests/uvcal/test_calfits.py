@@ -14,7 +14,7 @@ from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..utils.test_coordinates import hasmoon, selenoids
+from ..utils.test_coordinates import frame_selenoid, selenoids
 from . import extend_jones_axis, time_array_to_time_range
 
 
@@ -119,7 +119,9 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+@pytest.mark.skipif(
+    len(frame_selenoid) > 1, reason="Test only when lunarsky not installed."
+)
 def test_calfits_no_moon(gain_data, tmp_path):
     """Check errors when reading uvfits with MCMF without lunarsky."""
     write_file = str(tmp_path / "outtest.calfits")

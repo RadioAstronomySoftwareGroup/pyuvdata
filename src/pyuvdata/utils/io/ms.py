@@ -14,13 +14,6 @@ from ... import __version__, utils
 from ...telescopes import known_telescope_location, known_telescopes
 from ...uvdata.uvdata import reporting_request
 
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
 no_casa_message = (
     "casacore is not installed but is required for measurement set functionality"
 )
@@ -2131,14 +2124,17 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
         )
         return telescope_loc
     else:
-        if xyz_telescope_frame == "mcmf" and not hasmoon:
-            # There is a test for this, but it is always skipped with our
-            # current CI setup because it requires that python-casacore is
-            # installed but lunarsky isn't. Doesn't seem worth setting up a
-            # whole separate CI for this.
-            raise ValueError(  # pragma: no cover
-                "Need to install `lunarsky` package to work with MCMF frames."
-            )
+        if xyz_telescope_frame == "mcmf":
+            try:
+                from lunarsky import MoonLocation
+            except ImportError as ie:
+                # There is a test for this, but it is always skipped with our
+                # current CI setup because it requires that python-casacore is
+                # installed but lunarsky isn't. Doesn't seem worth setting up a
+                # whole separate CI for this.
+                raise ValueError(  # pragma: no cover
+                    "Need to install `lunarsky` package to work with MCMF frames."
+                ) from ie
 
         if "telescope_location" in obs_dict:
             if xyz_telescope_frame == "itrs":

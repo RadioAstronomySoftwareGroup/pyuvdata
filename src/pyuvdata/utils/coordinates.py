@@ -5,16 +5,10 @@
 import warnings
 
 import numpy as np
-from astropy.coordinates import EarthLocation
+from astropy import units
+from astropy.coordinates import Angle, EarthLocation
 
 from . import _coordinates
-
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
 
 __all__ = [
     "LatLonAlt_from_XYZ",
@@ -25,21 +19,124 @@ __all__ = [
     "ECEF_from_ENU",
 ]
 
-allowed_location_types = [EarthLocation]
-if hasmoon:
-    selenoids = {
-        "SPHERE": _coordinates.Body.Moon_sphere,
-        "GSFC": _coordinates.Body.Moon_gsfc,
-        "GRAIL23": _coordinates.Body.Moon_grail23,
-        "CE-1-LAM-GEO": _coordinates.Body.Moon_ce1lamgeo,
-    }
-    allowed_location_types.append(MoonLocation)
-
-
 _range_dict = {
     "itrs": (6.35e6, 6.39e6, "Earth"),
     "mcmf": (1717100.0, 1757100.0, "Moon"),
 }
+
+
+def get_selenoids():
+    try:
+        return {
+            "SPHERE": _coordinates.Body.Moon_sphere,
+            "GSFC": _coordinates.Body.Moon_gsfc,
+            "GRAIL23": _coordinates.Body.Moon_grail23,
+            "CE-1-LAM-GEO": _coordinates.Body.Moon_ce1lamgeo,
+        }
+    except AttributeError as ae:
+        raise ValueError(
+            "Need to install `lunarsky` package to work with selenoids."
+        ) from ae
+
+
+def get_loc_obj(
+    telescope_loc,
+    telescope_frame="itrs",
+    ellipsoid=None,
+    angle_units=units.rad,
+    return_moon=False,
+):
+    """
+    Check if telescope is on the moon.
+
+    Parameters
+    ----------
+    telescope_loc : array-like of floats or EarthLocation or MoonLocation
+        ITRS latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, or a tuple
+        of shape (3,) containing (in order) the latitude, longitude, and altitude,
+        in units of radians, radians, and meters, respectively.
+    telescope_frame: str, optional
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
+
+    """
+    on_moon = False
+    loc_obj = None
+    if isinstance(telescope_loc, EarthLocation):
+        loc_obj = telescope_loc
+    elif telescope_frame.upper() == "ITRS" and (
+        isinstance(telescope_loc, tuple | list)
+        or (isinstance(telescope_loc, np.ndarray) and telescope_loc.size > 1)
+    ):
+        # Moon Locations are np.ndarray instances but they have size 1
+        loc_obj = EarthLocation.from_geodetic(
+            lon=Angle(telescope_loc[1] * angle_units),
+            lat=Angle(telescope_loc[0] * angle_units),
+            height=telescope_loc[2],
+        )
+    else:
+        try:
+            from lunarsky import MoonLocation
+
+            if isinstance(telescope_loc, MoonLocation):
+                on_moon = True
+                loc_obj = telescope_loc
+            elif telescope_frame.upper() == "MCMF":
+                on_moon = True
+                if ellipsoid is None:
+                    ellipsoid = "SPHERE"
+                loc_obj = MoonLocation.from_selenodetic(
+                    lon=Angle(telescope_loc[1] * angle_units),
+                    lat=Angle(telescope_loc[0] * angle_units),
+                    height=telescope_loc[2],
+                    ellipsoid=ellipsoid,
+                )
+        except ImportError as ie:
+            if telescope_frame.upper() == "MCMF":
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MCMF frame."
+                ) from ie
+
+    if return_moon:
+        return loc_obj, on_moon
+    else:
+        return loc_obj
+
+
+def get_frame_ellipsoid_loc_obj(loc_obj, loc_ob_parname="loc_obj"):
+    if isinstance(loc_obj, EarthLocation):
+        frame = "ITRS"
+        ellipsoid = None
+    else:
+        allowed_location_types = [EarthLocation]
+        loc_error = False
+        try:
+            from lunarsky import MoonLocation
+
+            if isinstance(loc_obj, MoonLocation):
+                frame = "MCMF"
+                ellipsoid = loc_obj.ellipsoid
+            else:
+                allowed_location_types.append(MoonLocation)
+                loc_error = True
+        except ImportError:
+            loc_error = True
+        if loc_error:
+            raise ValueError(
+                f"{loc_ob_parname} is not a supported type. It must be one of "
+                f"{allowed_location_types}"
+            )
+    return frame, ellipsoid
+
+
+def _check_moon_body_exists():
+    try:
+        _ = _coordinates.Body.Moon_sphere
+    except AttributeError as ae:
+        raise ValueError(
+            "Need to install `lunarsky` package to work with MCMF frame."
+        ) from ae
 
 
 def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability=True):
@@ -71,9 +168,8 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
 
     """
     frame = frame.upper()
-    if not hasmoon and frame == "MCMF":
-        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
-
+    if frame == "MCMF":
+        _check_moon_body_exists()
     if frame == "ITRS":
         accept_bounds = (6.35e6, 6.39e6)
     elif frame == "MCMF":
@@ -108,6 +204,7 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
     if frame == "ITRS":
         lla = _coordinates._lla_from_xyz(xyz, _coordinates.Body.Earth.value)
     elif frame == "MCMF":
+        selenoids = get_selenoids()
         lla = _coordinates._lla_from_xyz(xyz, selenoids[ellipsoid].value)
     else:
         raise ValueError(
@@ -152,8 +249,8 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, *, frame="ITRS", ellipsoid
     n_pts = latitude.size
 
     frame = frame.upper()
-    if not hasmoon and frame == "MCMF":
-        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+    if frame == "MCMF":
+        _check_moon_body_exists()
 
     if longitude.size != n_pts:
         raise ValueError(
@@ -172,7 +269,7 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, *, frame="ITRS", ellipsoid
     elif frame == "MCMF":
         if ellipsoid is None:
             ellipsoid = "SPHERE"
-
+        selenoids = get_selenoids()
         xyz = _coordinates._xyz_from_latlonalt(
             latitude, longitude, altitude, selenoids[ellipsoid].value
         )
@@ -294,19 +391,11 @@ def ENU_from_ECEF(
 
     """
     if center_loc is not None:
-        if not isinstance(center_loc, tuple(allowed_location_types)):
-            raise ValueError(
-                "center_loc is not a supported type. It must be one of "
-                f"{allowed_location_types}"
-            )
+        frame, ellipsoid = get_frame_ellipsoid_loc_obj(center_loc, "center_loc")
+
         latitude = center_loc.lat.rad
         longitude = center_loc.lon.rad
         altitude = center_loc.height.to_value("m")
-        if isinstance(center_loc, EarthLocation):
-            frame = "ITRS"
-        else:
-            frame = "MCMF"
-            ellipsoid = center_loc.ellipsoid
     else:
         if latitude is None or longitude is None or altitude is None:
             raise ValueError(
@@ -314,18 +403,11 @@ def ENU_from_ECEF(
                 "must be passed."
             )
         frame = frame.upper()
-        if not hasmoon and frame == "MCMF":
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
+        if frame == "MCMF":
+            _check_moon_body_exists()
 
-    if frame == "ITRS":
-        sensible_radius_range = (6.35e6, 6.39e6)
-        world = "earth"
-    elif frame == "MCMF":
-        world = "moon"
-        sensible_radius_range = (1.71e6, 1.75e6)
-        if ellipsoid is None:
+    if frame.lower() in _range_dict:
+        if frame == "MCMF" and ellipsoid is None:
             ellipsoid = "SPHERE"
     else:
         raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
@@ -342,29 +424,27 @@ def ENU_from_ECEF(
 
     # check that these are sensible ECEF values -- their magnitudes need to be
     # on the order of Earth's radius
-    ecef_magnitudes = np.linalg.norm(xyz, axis=0)
-    if np.any(ecef_magnitudes <= sensible_radius_range[0]) or np.any(
-        ecef_magnitudes >= sensible_radius_range[1]
-    ):
-        raise ValueError(
-            f"{frame} vector magnitudes must be on the order"
-            f" of the radius of the {world}"
-        )
+    check_surface_based_positions(
+        telescope_loc=None,
+        telescope_frame=frame.lower(),
+        antenna_positions=xyz[np.newaxis, :],
+    )
 
     # the cython utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
+    if frame == "ITRS":
+        body = _coordinates.Body.Earth.value
+    else:
+        # we have already forced the frame to conform to our options
+        # and if we  don't have moon we have already errored.
+        selenoids = get_selenoids()
+        body = selenoids[ellipsoid].value
     enu = _coordinates._ENU_from_ECEF(
         xyz,
         np.ascontiguousarray(latitude, dtype=np.float64),
         np.ascontiguousarray(longitude, dtype=np.float64),
         np.ascontiguousarray(altitude, dtype=np.float64),
-        # we have already forced the frame to conform to our options
-        # and if we  don't have moon we have already errored.
-        (
-            _coordinates.Body.Earth.value
-            if frame == "ITRS"
-            else selenoids[ellipsoid].value
-        ),
+        body,
     )
     enu = enu.T
 
@@ -418,19 +498,11 @@ def ECEF_from_ENU(
 
     """
     if center_loc is not None:
-        if not isinstance(center_loc, tuple(allowed_location_types)):
-            raise ValueError(
-                "center_loc is not a supported type. It must be one of "
-                f"{allowed_location_types}"
-            )
+        frame, ellipsoid = get_frame_ellipsoid_loc_obj(center_loc, "center_loc")
+
         latitude = center_loc.lat.rad
         longitude = center_loc.lon.rad
         altitude = center_loc.height.to_value("m")
-        if isinstance(center_loc, EarthLocation):
-            frame = "ITRS"
-        else:
-            frame = "MCMF"
-            ellipsoid = center_loc.ellipsoid
     else:
         if latitude is None or longitude is None or altitude is None:
             raise ValueError(
@@ -438,10 +510,8 @@ def ECEF_from_ENU(
                 "must be passed."
             )
         frame = frame.upper()
-        if not hasmoon and frame == "MCMF":
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
+        if frame == "MCMF":
+            _check_moon_body_exists()
 
         if frame not in ["ITRS", "MCMF"]:
             raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
@@ -461,18 +531,19 @@ def ECEF_from_ENU(
 
     # the cython utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
+    if frame == "ITRS":
+        body = _coordinates.Body.Earth.value
+    else:
+        # we have already forced the frame to conform to our options
+        # and if we  don't have moon we have already errored.
+        selenoids = get_selenoids()
+        body = selenoids[ellipsoid].value
     xyz = _coordinates._ECEF_from_ENU(
         enu,
         np.ascontiguousarray(latitude, dtype=np.float64),
         np.ascontiguousarray(longitude, dtype=np.float64),
         np.ascontiguousarray(altitude, dtype=np.float64),
-        # we have already forced the frame to conform to our options
-        # and if we  don't have moon we have already errored.
-        (
-            _coordinates.Body.Earth.value
-            if frame == "ITRS"
-            else selenoids[ellipsoid].value
-        ),
+        body,
     )
     xyz = xyz.T
 
@@ -583,7 +654,7 @@ def check_surface_based_positions(
     of both. For the Earth, the permitted range of values is betwen 6350 and 6390 km,
     whereas for theMoon the range is 1717.1 to 1757.1 km.
 
-    telescope_loc : tuple or EarthLocation or MoonLocation
+    telescope_loc : array-like of float or EarthLocation or MoonLocation
         Telescope location, specified as a 3-element tuple (specifying geo/selenocentric
         position in meters) or as an astropy EarthLocation (or lunarsky MoonLocation).
     telescope_frame : str, optional
@@ -611,20 +682,35 @@ def check_surface_based_positions(
     if antenna_positions is None:
         antenna_positions = np.zeros((1, 3))
 
-    if isinstance(telescope_loc, EarthLocation) or (
-        hasmoon and isinstance(telescope_loc, MoonLocation)
-    ):
-        antenna_positions = antenna_positions + (
-            telescope_loc.x.to_value("m"),
-            telescope_loc.y.to_value("m"),
-            telescope_loc.z.to_value("m"),
-        )
+    if telescope_loc is not None:
+        tel_object = False
         if isinstance(telescope_loc, EarthLocation):
+            tel_object = True
             telescope_frame = "itrs"
+        elif isinstance(telescope_loc, tuple | list) or (
+            isinstance(telescope_loc, np.ndarray) and telescope_loc.size > 1
+        ):
+            # Moon Locations are np.ndarray instances but they have size 1
+
+            antenna_positions = antenna_positions + telescope_loc
         else:
-            telescope_frame = "mcmf"
-    elif telescope_loc is not None:
-        antenna_positions = antenna_positions + telescope_loc
+            try:
+                from lunarsky import MoonLocation
+
+                if isinstance(telescope_loc, MoonLocation):
+                    tel_object = True
+                    telescope_frame = "mcmf"
+            except ImportError as ie:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MoonLocations."
+                ) from ie
+
+        if tel_object:
+            antenna_positions = antenna_positions + (
+                telescope_loc.x.to_value("m"),
+                telescope_loc.y.to_value("m"),
+                telescope_loc.z.to_value("m"),
+            )
 
     low_lim, hi_lim, world = _range_dict[telescope_frame]
 

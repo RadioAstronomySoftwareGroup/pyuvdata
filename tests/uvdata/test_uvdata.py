@@ -1048,7 +1048,7 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
-        from lunarsky import MoonLocation
+        from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
 
         enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
@@ -1066,7 +1066,7 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
         uv_in.set_lsts_from_time_array()
         uv_in.check()
 
-        zenith_coord = utils.phasing.LunarSkyCoord(
+        zenith_coord = LunarSkyCoord(
             alt=Angle(90 * units.deg),
             az=Angle(0 * units.deg),
             obstime=phase_time,

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from functools import cached_property
 from pathlib import Path
@@ -13,15 +14,6 @@ import h5py
 import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation
-
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
-import contextlib
 
 from ..coordinates import ENU_from_ECEF, LatLonAlt_from_XYZ
 
@@ -641,11 +633,13 @@ class HDF5Meta:
             return EarthLocation.from_geodetic(
                 lat=lat_deg * units.deg, lon=lon_deg * units.deg, height=alt * units.m
             )
-        else:
-            if not hasmoon:
+        elif self.telescope_frame == "mcmf":
+            try:
+                from lunarsky import MoonLocation
+            except ImportError as ie:
                 raise ValueError(
                     "Need to install `lunarsky` package to work with MCMF frames."
-                )
+                ) from ie
             return MoonLocation.from_selenodetic(
                 lat=lat_deg * units.deg,
                 lon=lon_deg * units.deg,

@@ -13,15 +13,7 @@ from astropy.coordinates import (
     SkyCoord,
 )
 
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
 from pyuvdata import parameter as uvp, utils
-from pyuvdata.parameter import allowed_location_types
 from pyuvdata.uvbase import UVBase
 
 from .utils.test_coordinates import (
@@ -61,19 +53,21 @@ def test_value_class_inequality(capsys):
     assert param1.__ne__(param2, silent=False)
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "p1 parameter value is not an array, but other is an array"
+        "p1 parameter value is not an array on left but right is an array."
     )
 
     assert param2.__ne__(param1, silent=False)
     captured = capsys.readouterr()
-    assert captured.out.startswith("p2 parameter value is an array, but other is not")
+    assert captured.out.startswith(
+        "p2 parameter value is an array on left, but is <class 'int'> on right."
+    )
 
     param3 = uvp.UVParameter(name="p2", value="Alice")
     assert param1.__ne__(param3, silent=False)
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "p1 parameter value is not a string or a dict and cannot be cast as a "
-        "numpy array. The values are not equal."
+        "p1 parameter value has type <class 'int'> on left and <class 'str'> on "
+        "right. The values are not equal."
     )
 
 
@@ -84,7 +78,9 @@ def test_array_inequality(capsys):
     assert param1.__ne__(param2, silent=False)
 
     captured = capsys.readouterr()
-    assert captured.out.startswith("p1 parameter value is array, values are not close")
+    assert captured.out.startswith(
+        "p1 parameter value is an array with matching shapes, values are not close."
+    )
 
     param3 = uvp.UVParameter(name="p3", value=np.array([0, 1]))
     assert param1.__ne__(param3, silent=False)
@@ -138,12 +134,14 @@ def test_quantity_equality_error():
         (
             np.array([0, 2, 4]) * units.m,
             1 * units.mm,
-            "p1 parameter value is an astropy Quantity, values are not close",
+            "p1 parameter value is an astropy Quantity, units are equivalent but "
+            "values are not close.",
         ),
         (
             np.array([0, 1, 3]) * units.mm,
             1 * units.mm,
-            "p1 parameter value is an astropy Quantity, values are not close",
+            "p1 parameter value is an astropy Quantity, units are equivalent but "
+            "values are not close.",
         ),
         (
             np.array([0, 1, 3]) * units.Jy,
@@ -153,17 +151,20 @@ def test_quantity_equality_error():
         (
             units.Quantity([0.101 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
-            "p1 parameter value is an astropy Quantity, values are not close",
+            "p1 parameter value is an astropy Quantity, units are equivalent but "
+            "values are not close.",
         ),
         (
             units.Quantity([0.09 * units.cm, 100.11 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
-            "p1 parameter value is an astropy Quantity, values are not close",
+            "p1 parameter value is an astropy Quantity, units are equivalent but "
+            "values are not close.",
         ),
         (
             np.array([0, 1000, 2998.9]) * units.mm,
             1 * units.mm,
-            "p1 parameter value is an astropy Quantity, values are not close",
+            "p1 parameter value is an astropy Quantity, units are equivalent but "
+            "values are not close.",
         ),
     ),
 )
@@ -187,7 +188,8 @@ def test_quantity_array_inequality(capsys):
 
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "p1 parameter value is a Quantity, but other is not."
+        "p1 parameter value is a Quantity on left, but is <class 'numpy.ndarray'> "
+        "on right."
     )
 
 
@@ -390,7 +392,8 @@ def test_recarray_equality():
         [
             None,
             np.arange(35, dtype=float),
-            "p1 parameter value is a recarray, but other is not.",
+            "p1 parameter value is a recarray on left, but is "
+            "<class 'numpy.ndarray'> on right.",
         ],
     ],
 )
@@ -433,8 +436,9 @@ def test_equality_check_fail(capsys):
 
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "p1 parameter value is not a string or a dict and cannot be cast as a "
-        "numpy array. The values are not equal."
+        "p1 parameter value has type <class 'pyuvdata.parameter.UVParameter'> "
+        "on left and <class 'pyuvdata.parameter.UVParameter'> on right. The "
+        "values are not equal."
     )
 
 
@@ -556,6 +560,8 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
         )
         wrong_obj = EarthLocation.of_site("mwa")
     else:
+        from lunarsky import MoonLocation
+
         xyz_val = ref_xyz_moon[selenoid]
         latlonalt_val = ref_latlonalt_moon
         loc_centric = MoonLocation.from_selenocentric(*ref_xyz_moon[selenoid], unit="m")
@@ -621,7 +627,7 @@ def test_location_acceptability():
     param1 = uvp.LocationParameter("p1", value=val)
     acceptable, reason = param1.check_acceptability()
     assert not acceptable
-    assert reason == f"Location must be an object of type: {allowed_location_types}"
+    assert reason == f"Location must be an object of type: {param1.expected_type}"
 
 
 @pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
@@ -631,6 +637,8 @@ def test_location_equality(frame, selenoid):
         xyz_adj = np.array(ref_xyz) + 8e-4
         loc_obj2 = EarthLocation.from_geocentric(*xyz_adj, unit="m")
     else:
+        from lunarsky import MoonLocation
+
         loc_obj1 = MoonLocation.from_selenocentric(*ref_xyz_moon[selenoid], unit="m")
         loc_obj1.ellipsoid = selenoid
         xyz_adj = np.array(ref_xyz_moon[selenoid]) + 8e-4
@@ -644,10 +652,18 @@ def test_location_equality(frame, selenoid):
 @pytest.mark.parametrize(
     ["change", "msg"],
     [
-        ["non_loc", "p1 parameter value is a Location, but other is not"],
-        ["class", "p1 parameter classes do not match"],
-        ["ellipsoid", "p1 parameter ellipsoid is not the same. "],
-        ["value", "p1 parameter is not close. "],
+        ["par_class", "p1 parameter classes are different."],
+        [
+            "non_loc",
+            "p1 parameter values are locations types in one object and not in "
+            "the other",
+        ],
+        ["class", "p1 parameter value classes do not match."],
+        ["ellipsoid", "p1 parameter value ellipsoid is not the same."],
+        [
+            "value",
+            "p1 parameter values have the same class but the values are not close.",
+        ],
     ],
 )
 def test_location_inequality(capsys, change, msg):
@@ -660,12 +676,22 @@ def test_location_inequality(capsys, change, msg):
         )
     elif change == "class":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         param2 = uvp.LocationParameter(
             "p1",
             value=MoonLocation.from_selenocentric(*ref_xyz_moon["SPHERE"], unit="m"),
         )
+    elif change == "par_class":
+        param2 = uvp.UVParameter(
+            "p1",
+            value=units.Quantity(np.array(ref_xyz), unit="m"),
+            expected_type=units.Quantity,
+        )
     elif change == "ellipsoid":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         param1 = uvp.LocationParameter(
             "p1",
             value=MoonLocation.from_selenodetic(
@@ -754,7 +780,10 @@ def test_skycoord_param_inequality(sky_in, change, capsys):
     elif change == "type":
         sky2 = Longitude(5.0, unit="hourangle")
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
-        msg = "sky1 parameter value is a SkyCoord, but other is not"
+        msg = (
+            "sky1 parameter value is a SkyCoord on left, but is "
+            "<class 'astropy.coordinates.angles.core.Longitude'> on right."
+        )
 
     assert param1.__ne__(param2, silent=False)
 
@@ -929,14 +958,14 @@ def test_scalar_array_parameter_mismatch(capsys):
 
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "_test1 parameter value is not an array, but other is an array"
+        "_test1 parameter value is not an array on left but right is an array."
     )
 
     assert param2.__ne__(param1, silent=False)
 
     captured = capsys.readouterr()
     assert captured.out.startswith(
-        "_test2 parameter value is an array, but other is not"
+        "_test2 parameter value is an array on left, but is <class 'float'> on right."
     )
 
     return
@@ -948,12 +977,12 @@ def test_value_none_parameter_mismatch(capsys):
     assert param1.__ne__(param2, silent=False)
 
     captured = capsys.readouterr()
-    assert captured.out.startswith("_test1 is None on right, but not left")
+    assert captured.out.startswith("_test1 is None on right, but is not None on left")
 
     assert param2.__ne__(param1, silent=False)
 
     captured = capsys.readouterr()
-    assert captured.out.startswith("_test2 is None on left, but not right")
+    assert captured.out.startswith("_test2 is None on left, but is not None on right")
 
     return
 

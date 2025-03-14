@@ -32,6 +32,7 @@ cdef class Ellipsoid:
 class Body(enum.Enum):
   Earth = Ellipsoid(6378137, 6356752.31424518)
 
+  # TODO fix this to not try to import lunarsky unless it's asked for.
   try:
     from lunarsky.moon import SELENOIDS
 

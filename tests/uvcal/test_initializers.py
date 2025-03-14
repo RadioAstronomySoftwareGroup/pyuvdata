@@ -90,7 +90,7 @@ def uvc_simplest():
 @pytest.fixture(scope="function")
 def uvc_simplest_moon():
     pytest.importorskip("lunarsky")
-    from pyuvdata.utils.coordinates import MoonLocation
+    from lunarsky import MoonLocation
 
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),

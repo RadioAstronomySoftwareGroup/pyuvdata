@@ -14,7 +14,7 @@ from typing import Literal
 
 import numpy as np
 from astropy import constants as const, coordinates as coord, units
-from astropy.coordinates import Angle, SkyCoord
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
@@ -5027,10 +5027,18 @@ class UVData(UVBase):
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate
         # system to use for phasing
-        if phs_utils.hasmoon and isinstance(
-            self.telescope.location, phs_utils.MoonLocation
-        ):
-            zenith_coord = phs_utils.LunarSkyCoord(
+        on_moon = False
+        if not isinstance(self.telescope.location, EarthLocation):
+            try:
+                from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
+
+                if isinstance(self.telescope.location, MoonLocation):
+                    on_moon = True
+            except ImportError:
+                pass
+
+        if on_moon:
+            zenith_coord = LunarSkyCoord(
                 alt=Angle(90 * units.deg),
                 az=Angle(0 * units.deg),
                 obstime=time,
