@@ -9035,6 +9035,8 @@ class UVData(UVBase):
             Option to check the cross-check the internal metadata codes, and deselect
             data without valid matches, useful for automatically handling various data
             recording issues. Default is True.
+        metadata_only : bool
+            Option to load metadata only (no visibilities). Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
