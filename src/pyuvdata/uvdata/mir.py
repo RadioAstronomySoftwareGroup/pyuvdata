@@ -102,6 +102,7 @@ class Mir(UVData):
         compass_soln=None,
         swarm_only=True,
         codes_check=True,
+        metadata_only=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -172,6 +173,7 @@ class Mir(UVData):
             apply_flags=apply_flags,
             apply_tsys=apply_tsys,
             apply_dedoppler=apply_dedoppler,
+            metadata_only=metadata_only,
         )
 
         if run_check:
@@ -274,6 +276,7 @@ class Mir(UVData):
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
+        metadata_only=False,
     ):
         """
         Convert a MirParser object into a UVData object.
@@ -822,60 +825,60 @@ class Mir(UVData):
         self.filename = [os.path.basename(basename)]
         self._filename.form = (1,)
 
-        # Finally, start the heavy lifting of loading the full data. We start this by
-        # creating arrays to plug visibilities and flags into. The array is shaped this
-        # way since when reading in a MIR file, we scan through the blt-axis the
-        # slowest and the freq-axis the fastest (i.e., the data is roughly ordered by
-        # blt, pol, freq).
-        self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
-        self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
-        self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
+        if not metadata_only:
+            # Start the heavy lifting of loading the full data. Create arrays to plug
+            # visibilities and flags into. The array is shaped this way since when
+            # reading in a MIR file, we scan through the blt-axis slowest and the
+            # freq-axis fastest (i.e., the data is roughly ordered by blt, pol, freq).
+            self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
+            self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
+            self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
 
-        # Get a list of the current inhid values for later
-        inhid_list = mir_data.in_data["inhid"].copy()
+            # Get a list of the current inhid values for later
+            inhid_list = mir_data.in_data["inhid"].copy()
 
-        # Store a backup of the selection masks
-        mir_data.save_mask("pre-select")
+            # Store a backup of the selection masks
+            mir_data.save_mask("pre-select")
 
-        # If no data is loaded, we want to load subsets of data to start rather than
-        # the whole block in one go, since this will save us 2x in memory.
-        inhid_step = len(inhid_list)
-        if (mir_data.vis_data is None) and (mir_data.auto_data is None):
-            inhid_step = (inhid_step // 8) + 1
-
-        for start in range(0, len(inhid_list), inhid_step):
-            # If no data is loaded, load up a quarter of the data at a time. This
-            # keeps the "extra" memory usage below that for the nsample_array attr,
-            # which is generated and filled _after_ this step (thus no extra memory
-            # should be required)
+            # If no data is loaded, we want to load subsets of data to start rather than
+            # the whole block in one go, since this will save us 2x in memory.
+            inhid_step = len(inhid_list)
             if (mir_data.vis_data is None) and (mir_data.auto_data is None):
-                # Note that the masks are combined via and operation.
-                mir_data.select(
-                    where=("inhid", "eq", inhid_list[start : start + inhid_step])
+                inhid_step = (inhid_step // 8) + 1
+
+            for start in range(0, len(inhid_list), inhid_step):
+                # If no data is loaded, load up a quarter of the data at a time. This
+                # keeps the "extra" memory usage below that for the nsample_array attr,
+                # which is generated and filled _after_ this step (thus no extra memory
+                # should be required)
+                if (mir_data.vis_data is None) and (mir_data.auto_data is None):
+                    # Note that the masks are combined via and operation.
+                    mir_data.select(
+                        where=("inhid", "eq", inhid_list[start : start + inhid_step])
+                    )
+
+                # Call this convenience function in case we need to run the data filling
+                # multiple times (if we are loading up subsets of data)
+                self._prep_and_insert_data(
+                    mir_data,
+                    sphid_dict,
+                    spdx_dict,
+                    blhid_blt_order,
+                    apply_flags=apply_flags,
+                    apply_tsys=apply_tsys,
+                    apply_dedoppler=apply_dedoppler,
                 )
 
-            # Call this convenience function in case we need to run the data filling
-            # multiple times (if we are loading up subsets of data)
-            self._prep_and_insert_data(
-                mir_data,
-                sphid_dict,
-                spdx_dict,
-                blhid_blt_order,
-                apply_flags=apply_flags,
-                apply_tsys=apply_tsys,
-                apply_dedoppler=apply_dedoppler,
-            )
+                # Because the select operation messes with the masks, we want to restore
+                # those in case we mucked with them earlier (so that subsequent selects
+                # behave as expected).
+                mir_data.restore_mask("pre-select")
 
-            # Because the select operation messes with the masks, we want to restore
-            # those in case we mucked with them earlier (so that subsequent selects
-            # behave as expected).
-            mir_data.restore_mask("pre-select")
-
-        # We call transpose here since vis_data above is shape (Nblts, Npols, Nfreqs),
-        # and we need to get it to (Nblts,Nfreqs, Npols) to match what UVData expects.
-        self.data_array = np.transpose(self.data_array, (0, 2, 1))
-        self.flag_array = np.transpose(self.flag_array, (0, 2, 1))
-        self.nsample_array = np.transpose(self.nsample_array, (0, 2, 1))
+            # We call transpose here since vis_data is shape (Nblts, Npols, Nfreqs), and
+            #  we need to get it to (Nblts,Nfreqs, Npols) to match what UVData expects.
+            self.data_array = np.transpose(self.data_array, (0, 2, 1))
+            self.flag_array = np.transpose(self.flag_array, (0, 2, 1))
+            self.nsample_array = np.transpose(self.nsample_array, (0, 2, 1))
 
         if any(obs_mode == 3):
             # One final step -- there is a special mode for SMA known as "on-the-fly"
@@ -943,9 +946,12 @@ class Mir(UVData):
                 telescope_lon=self.telescope.location.lon.rad,
             )
 
-            self._apply_w_proj(
-                new_w_vals=new_uvw[:, 2], old_w_vals=old_uvw[:, 2], select_mask=otf_mask
-            )
+            if not metadata_only:
+                self._apply_w_proj(
+                    new_w_vals=new_uvw[:, 2],
+                    old_w_vals=old_uvw[:, 2],
+                    select_mask=otf_mask,
+                )
             self.uvw_array[otf_mask] += new_uvw[otf_mask] - old_uvw[otf_mask]
 
             # Update apparent coords and frame PA where OTF was used
