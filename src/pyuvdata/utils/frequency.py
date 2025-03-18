@@ -250,7 +250,7 @@ def _sort_freq_helper(
         temp_spws = 0 + flex_spw_id_array
 
         # Check whether or not we need to sort the channels in individual windows
-        sort_spw = {idx: channel_order is not None for idx in spw_array}
+        sort_spw = dict.fromkeys(spw_array, channel_order is not None)
         if select_spw is not None:
             if spw_order is not None:
                 warnings.warn(

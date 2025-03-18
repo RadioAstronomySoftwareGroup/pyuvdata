@@ -4429,7 +4429,8 @@ class UVCal(UVBase):
             Option to only initialize the metadata. If False, this method also
             initializes the data-like arrays to zeros/ones as appropriate
             (or False for the flag_array) with the appropriate sizes.
-        """  # noqa: D207,RST203
+
+        """
         new = initializers.new_uvcal_from_uvdata(
             uvdata=uvdata,
             gain_convention=gain_convention,
