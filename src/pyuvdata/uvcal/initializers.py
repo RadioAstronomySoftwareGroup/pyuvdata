@@ -441,7 +441,8 @@ def new_uvcal_from_uvdata(
         if at all possible. The only time it is useful to pass this in explicitly is
         if ``wide_band=True`` and the spectral windows desired are not just
         ``(0, ..., Nspw-1)``.
-    """  # noqa: RST203
+
+    """
     from ..uvdata import UVData
 
     if not isinstance(uvdata, UVData):

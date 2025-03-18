@@ -6463,7 +6463,7 @@ def test_quick_redundant_vs_redundant_test_array(grid_alg, pyuvsim_redundant):
         grp = []
         grp.extend(bl.compressed())
         for other_bls in reds:
-            if set(reds.compressed()).issubset(other_bls.compressed()):  # noqa: B038
+            if set(reds.compressed()).issubset(other_bls.compressed()):
                 grp.extend(other_bls.compressed())
         grp = np.unique(grp).tolist()
         groups.append(grp)
@@ -6505,7 +6505,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(grid_alg, casa_uvfit
         grp = []
         grp.extend(bl.compressed())
         for other_bls in reds:
-            if set(reds.compressed()).issubset(other_bls.compressed()):  # noqa: B038
+            if set(reds.compressed()).issubset(other_bls.compressed()):
                 grp.extend(other_bls.compressed())
         grp = np.unique(grp).tolist()
         groups.append(grp)
