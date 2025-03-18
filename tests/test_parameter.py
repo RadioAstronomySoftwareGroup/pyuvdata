@@ -444,8 +444,8 @@ def test_equality_check_fail(capsys):
 
 def test_notclose(capsys):
     """Test equality error for values not with tols."""
-    param1 = uvp.UVParameter(name="p1", value=1.0)
-    param2 = uvp.UVParameter(name="p2", value=1.001)
+    param1 = uvp.UVParameter(name="p1", value=1.0, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1.001, expected_type=float)
     assert param1.__ne__(param2, silent=False)
 
     captured = capsys.readouterr()
@@ -457,8 +457,19 @@ def test_notclose(capsys):
 
 def test_close():
     """Test equality error for values within tols."""
-    param1 = uvp.UVParameter(name="p1", value=1.0)
-    param2 = uvp.UVParameter(name="p2", value=1.000001)
+    param1 = uvp.UVParameter(name="p1", value=1.0, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1.000001, expected_type=float)
+    assert param1 == param2
+
+
+def test_close_int_vs_float():
+    """Test equality tols floats versus default with int."""
+    param1 = uvp.UVParameter(name="p1", value=1000000, expected_type=int)
+    param2 = uvp.UVParameter(name="p2", value=1000001, expected_type=int)
+    assert param1 != param2
+
+    param1 = uvp.UVParameter(name="p1", value=1000000, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1000001, expected_type=float)
     assert param1 == param2
 
 

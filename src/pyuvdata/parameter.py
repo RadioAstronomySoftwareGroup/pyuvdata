@@ -259,7 +259,8 @@ class UVParameter:
         Tuple giving a range of allowed magnitudes for elements of value.
     tols : 2-tuple of float
         Relative and absolute tolerances for testing the equality of UVParameters, to be
-        used by np.isclose()
+        used by np.isclose(). Default is (1e-5, 1e-8) if expected_type is either float
+        or complex, otherwise (0, 0).
     strict_type_check : bool
         When True, the input expected_type is used exactly, otherwise a more
         generic type is found to allow changes in precisions or to/from numpy
@@ -279,7 +280,7 @@ class UVParameter:
         expected_type=int,
         acceptable_vals=None,
         acceptable_range=None,
-        tols=(1e-05, 1e-08),
+        tols=None,
         strict_type_check=False,
         ignore_eq_none: bool = False,
         setter: callable | None = None,
@@ -303,7 +304,9 @@ class UVParameter:
             self.strict_type = strict_type_check
         self.acceptable_vals = acceptable_vals
         self.acceptable_range = acceptable_range
-        if np.size(tols) == 1:
+        if tols is None:
+            self.tols = (1e-5, 1e-8) if expected_type in [float, complex] else (0, 0)
+        elif np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
         else:
