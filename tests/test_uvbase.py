@@ -687,6 +687,7 @@ def test_setattr_old_telescope():
             assert new_telescope.location == test_obj.telescope.location
         elif param == "telescope_location_lat_lon_alt":
             tel_val = new_telescope._location.lat_lon_alt()
+            tel_param_obj = new_telescope._location
             with check_warnings(
                 DeprecationWarning,
                 match="The UVData.telescope_location_lat_lon_alt attribute now "
@@ -704,6 +705,7 @@ def test_setattr_old_telescope():
             )
         elif param == "telescope_location_lat_lon_alt_degrees":
             tel_val = new_telescope._location.lat_lon_alt_degrees()
+            tel_param_obj = new_telescope._location
             with check_warnings(
                 DeprecationWarning,
                 match="The UVData.telescope_location_lat_lon_alt_degrees "
