@@ -676,3 +676,75 @@ def _ntimes_to_nblts(uvd):
         inds.append(np.where(unique_t == i)[0][0])
 
     return np.asarray(inds)
+
+
+def _quantized_group(arr, tols, force=False):
+    """
+    Group values based on tolerances.
+
+    This is a utility function for grouping floating point data in the presence of
+    tolerances. Note that the grouping that is performed here is maximally exclusive,
+    e.g. if an absolute tolerance of 1 is used on the array [1, 2, 3], two groups
+    will be formed (effectively [1, 2] and [3]) instead of one.
+
+    Parameters
+    ----------
+    arr : array-like of float
+        Array from which to produce groups based on the sorted values and tolerances.
+    tols : tuple of float
+        Tolerances to be used, must be length 2. First value is the relative tolerance,
+        second is the absolute tolerance.
+    force : bool
+        Set to False by default, which means that if arr has no values within tolerances
+        (that aren't identical), then the function will simply return back the original
+        array, since the existing values can already be used to group the data. However,
+        if set to True, then the function will return back an array of integer values
+        representing the groupings of arr.
+
+    Returns
+    -------
+    group_arr : ndarray
+        If no values are within tols (but not identical to other values) and force is
+        not set to True, then the original arr is returned. Otherwise, an array of ints
+        is returned, of the same length as arr, demarking which group each index
+        position belongs to (where group numbering is ordered by ascending order of
+        values in arr).
+    """
+    rtol, atol = tols
+    if (rtol == 0) and (atol == 0) and (not force):
+        # Cover the no-op case, just return the original array
+        return arr
+
+    sort_arr = np.sort(arr)
+    tol_check = atol
+
+    if rtol != 0:
+        tol_check = (rtol * sort_arr) if (atol == 0) else ((rtol * sort_arr) + atol)
+        tol_check = tol_check[:-1]
+
+    diff_arr = np.diff(sort_arr)
+
+    # We want to make sure we return something, so plug in the existing array for
+    # now as the thing we want to assign.
+    group_arr = arr
+
+    if np.any(np.logical_and(diff_arr < tol_check, diff_arr != 0)):
+        # This check basically looks to see if there's anything where the tolerance
+        # matters - the check is about 100x faster than running the code below (and
+        # about 10x faster that the code above), so it's a relatively trivial check.
+        group_arr = np.zeros(len(arr), dtype=int)
+        check_val = sort_arr[0]
+        count = 0
+        # Note that the tolist call helps to speed up the line below by ~10-20%
+        for val, idx in zip(sort_arr.tolist(), np.argsort(arr).tolist(), strict=True):
+            if check_val < val:
+                check_val = (val + atol) * (1 + rtol)
+                count = count + 1
+            group_arr[idx] = count
+    elif force:
+        # Otherwise if nothing is within tol but we're forcing things, then we just
+        # need to count where the entries are different.
+        group_arr = np.zeros(len(arr), dtype=int)
+        group_arr[np.argsort(arr)[1:]] = np.cumsum(diff_arr != 0)
+
+    return group_arr
