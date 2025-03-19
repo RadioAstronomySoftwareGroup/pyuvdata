@@ -1490,7 +1490,7 @@ class Telescope(UVBase):
                 ):
                     continue
             elif this_param == other_param:
-                # If not a tuple, just let UVParamter.__eq__ handle it
+                # If not a tuple, just let UVParameter.__eq__ handle it
                 continue
 
             # If we got here, then no match was achieved. Time to successfully fail!
