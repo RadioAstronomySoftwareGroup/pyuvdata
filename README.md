@@ -1,7 +1,7 @@
 # pyuvdata
 
 [![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=main)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=main)
-[![](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/workflows/Run%20Tests/badge.svg?branch=main)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
+[![testing](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions/workflows/macosx_windows_ci.yaml/badge.svg?branch=main)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=main)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
