@@ -305,7 +305,14 @@ class UVParameter:
         self.acceptable_vals = acceptable_vals
         self.acceptable_range = acceptable_range
         if tols is None:
-            self.tols = (1e-5, 1e-8) if expected_type in [float, complex] else (0, 0)
+            excl_list = (str, np.bool_, np.integer, np.unsignedinteger, bool, int)
+
+            if isinstance(self.expected_type, list):
+                no_tol = all(issubclass(item, excl_list) for item in self.expected_type)
+            else:
+                no_tol = any(issubclass(item, self.expected_type) for item in excl_list)
+
+            self.tols = (0, 0) if no_tol else (1e-5, 1e-8)
         elif np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
