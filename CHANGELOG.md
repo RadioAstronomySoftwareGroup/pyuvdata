@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 - A new page to the docs labeled "Conventions" has been added.
 - The methods `Telescope.__add__` and `Telescope.__iadd__` have been added to allow
 `Telescope` objects with different antennas or feeds to be combined.
+- The methods `Telescope.reorder_antennas` and `Telescope.reorder_feeds` have been
+added to allow reordering of antenna metadata.
 - The methods `UVParameter.get_from_form` and `UVParameter.set_from_form`, which allows
 one to perform selection/setting operations based on the `UVParameter.form` attribute.
 - Handling for MeasurementSet calibration subtypes "T Jones" (non-pol-specific antenna

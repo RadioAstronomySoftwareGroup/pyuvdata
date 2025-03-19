@@ -1246,6 +1246,66 @@ class Telescope(UVBase):
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
+    def reorder_antennas(
+        self,
+        order="number",
+        *,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange the antenna axis according to desired order.
+
+        Parameters
+        ----------
+        order: str or array like of int
+            If a string, allowed values are "name" and "number" to sort on the antenna
+            name or number respectively. A '-' can be prepended to signify descending
+            order instead of the default ascending order (e.g. "-number"). An array of
+            integers of length Nants representing indexes along the existing `ant_array`
+            can also be supplied to sort in any desired order (note these are indices
+            into the `ant_array` not antenna numbers).
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            Raised if order is not an allowed string or is an array that does not
+            contain all the required numbers.
+
+        """
+        if isinstance(order, np.ndarray | list | tuple):
+            if not np.array_equal(np.sort(order), np.arange(self.Nants)):
+                raise ValueError(
+                    "If order is an index array, it must contain all indices for the"
+                    "ant_array, without duplicates."
+                )
+            index_array = order
+        else:
+            if order not in ["number", "name", "-number", "-name"]:
+                raise ValueError(
+                    "order must be one of 'number', 'name', '-number', '-name' or an "
+                    "index array of length Nants_data"
+                )
+
+            index_array = np.argsort(
+                self.antenna_names if "name" in order else self.antenna_numbers
+            )
+
+            if order[0] == "-":
+                index_array = np.flip(index_array)
+
+        self._select_along_param_axis({"Nants": index_array})
+
+        if run_check:
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
     def __add__(
         self,
         other: Telescope,
@@ -1321,6 +1381,8 @@ class Telescope(UVBase):
             other_param = getattr(other, axis_attr)
             this_val = this_param.value
             other_val = other_param.value
+            n_this = getattr(this, axis_name)
+            n_other = getattr(this, axis_name)
             if (
                 this_val is not None
                 and other_val is not None
@@ -1369,48 +1431,43 @@ class Telescope(UVBase):
                 # are ordered correctly so that we can compare apples-to-apples.
                 # Note if there is no overlap, this will spit out trivial slices
                 # that will produce arrays of zero-length along this relevant axis.
-                _, this_ind, other_ind = np.intersect1d(
+                _, this_olap_ind, other_olap_ind = np.intersect1d(
                     this_val, other_val, return_indices=True
                 )
-                this_overlap[axis_name] = slicify(this_ind, allow_empty=True)
-                other_overlap[axis_name] = slicify(other_ind, allow_empty=True)
-                has_overlap = len(this_ind) or len(other_ind)
+                this_overlap[axis_name] = slicify(this_olap_ind, allow_empty=True)
+                other_overlap[axis_name] = slicify(other_olap_ind, allow_empty=True)
 
                 # Next, figure out how these things plug in to the "big" array, using
                 # unique (which automatically sorts the output).
-                unique_val = np.unique(np.concatenate((this_val, other_val)))
-                ind_order = {key: idx for idx, key in enumerate(unique_val)}
+                ind_order = {key: None for arr in [this_val, other_val] for key in arr}
+                # TODO: Can insert ordering here if desired as a future feature
+                ind_order = {key: idx for idx, key in enumerate(ind_order)}
 
                 # Record the length of the new axis.
                 nind_dict[axis_name] = len(ind_order)
 
-                # Figure out how indices map from old array positions to new array
-                # positions
-                this_put = np.asarray([ind_order[key] for key in this_val])
-                other_put = np.asarray([ind_order[key] for key in other_val])
+                # Figure out how indices map from other array to new array.
+                this_put = [ind_order[key] for key in this_val]
+                other_put = [ind_order[key] for key in other_val]
 
-                # Create some slices, ordering the arrays accordingly. Note that we
-                # use argsort on the "get" arrays so that the ordering of the data is
-                # right in case we need to use putmask (inside set_from_form).
-                tget_map[axis_name] = slicify(np.argsort(this_put), allow_empty=True)
-                tset_map[axis_name] = slicify(np.sort(this_put), allow_empty=True)
-                oget_map[axis_name] = slicify(np.argsort(other_put), allow_empty=True)
-                oset_map[axis_name] = slicify(np.sort(other_put), allow_empty=True)
+                # Create some slices, ordering the arrays accordingly.
+                tget_map[axis_name] = slice(0, n_this, 1)
+                tset_map[axis_name] = slicify(this_put, allow_empty=True)
+                oget_map[axis_name] = slice(0, n_other, 1)
+                oset_map[axis_name] = slicify(other_put, allow_empty=True)
 
                 if tset_map[axis_name] != oset_map[axis_name]:
                     diff_axis.append(axis_name)
 
-                if has_overlap:
+                if len(this_olap_ind) or len(other_olap_ind):
                     # If there is overlap, we can speed up processing if we don't need
                     # to copy the overlapping bits (provided they match). Use that to
                     # construct an alternate version of the indexing.
-                    mask = np.isin(other_put, this_put, invert=True)
-                    alt_put = other_put[mask]
-                    alt_get = np.nonzero(mask)[0]
-                    aget_map[axis_name] = slicify(
-                        alt_get[np.argsort(alt_put)], allow_empty=True
-                    )
-                    aset_map[axis_name] = slicify(np.sort(alt_put), allow_empty=True)
+                    mask = np.ones_like(other_put, dtype=bool)
+                    mask[other_olap_ind] = False
+                    alt_put = np.asarray(other_put)[mask].tolist()
+                    aget_map[axis_name] = slicify(np.nonzero(mask)[0], allow_empty=True)
+                    aset_map[axis_name] = slicify(alt_put, allow_empty=True)
 
         # Now go through and verify that parameters match where we need them
         for param in this:
@@ -1428,7 +1485,7 @@ class Telescope(UVBase):
                 # Use lazy comparison to do direct comparison first, then fall back
                 # to isclose if not comparing strings to see if that passes.
                 if np.array_equal(this_value, other_value) or (
-                    this_param.expected_type != "str"
+                    issubclass(this_param.expected_type, str)
                     and np.allclose(this_value, other_value, rtol=rtol, atol=atol)
                 ):
                     continue

@@ -3853,12 +3853,7 @@ class UVData(UVBase):
                 "index array of length Npols"
             )
 
-        self.polarization_array = self.polarization_array[index_array]
-        if not self.metadata_only:
-            # data array is special and large, take is faster here
-            self.data_array = np.take(self.data_array, index_array, axis=2)
-            self.nsample_array = self.nsample_array[:, :, index_array]
-            self.flag_array = self.flag_array[:, :, index_array]
+        self._select_along_param_axis({"Npols": index_array})
 
         # check if object is self-consistent
         if run_check:
@@ -4115,25 +4110,7 @@ class UVData(UVBase):
         else:
             index_array = order
 
-        index_array = np.asarray(index_array, dtype=int)
-
-        # actually do the reordering
-        self.ant_1_array = self.ant_1_array[index_array]
-        self.ant_2_array = self.ant_2_array[index_array]
-        self.baseline_array = self.baseline_array[index_array]
-        self.uvw_array = self.uvw_array[index_array, :]
-        self.time_array = self.time_array[index_array]
-        self.lst_array = self.lst_array[index_array]
-        self.integration_time = self.integration_time[index_array]
-        self.phase_center_app_ra = self.phase_center_app_ra[index_array]
-        self.phase_center_app_dec = self.phase_center_app_dec[index_array]
-        self.phase_center_frame_pa = self.phase_center_frame_pa[index_array]
-        self.phase_center_id_array = self.phase_center_id_array[index_array]
-
-        if not self.metadata_only:
-            self.data_array = self.data_array[index_array]
-            self.flag_array = self.flag_array[index_array]
-            self.nsample_array = self.nsample_array[index_array]
+        self._select_along_param_axis({"Nblts": index_array})
 
         self.set_rectangularity(force=True)
 
@@ -4226,34 +4203,15 @@ class UVData(UVBase):
             # This only happens if no sorting is needed
             return
 
-        # Now update all of the arrays.
-        self.freq_array = self.freq_array[index_array]
-        if not self.metadata_only:
-            self.data_array = self.data_array[:, index_array, :]
-            self.flag_array = self.flag_array[:, index_array, :]
-            self.nsample_array = self.nsample_array[:, index_array, :]
-        if self.flex_spw_id_array is not None:
-            self.flex_spw_id_array = self.flex_spw_id_array[index_array]
+        self._select_along_param_axis({"Nfreqs": index_array})
 
+        if (self.flex_spw_id_array is not None) and (self.Nspws > 1):
             # Reorder the spw-axis items based on their first appearance in the data
-            unique_index = np.sort(
-                np.unique(self.flex_spw_id_array, return_index=True)[1]
-            )
-            new_spw_array = self.flex_spw_id_array[unique_index]
-            if self.flex_spw_polarization_array is not None:
-                spw_sort_inds = np.zeros_like(self.spw_array)
-                for idx, spw in enumerate(new_spw_array):
-                    spw_sort_inds[idx] = np.nonzero(self.spw_array == spw)[0][0]
-                self.flex_spw_polarization_array = self.flex_spw_polarization_array[
-                    spw_sort_inds
-                ]
-            self.spw_array = new_spw_array
+            # Note that the dict will preserve first order.
+            new_spw = dict.fromkeys(self.flex_spw_id_array)
+            spw_map = {spw: idx for idx, spw in enumerate(self.spw_array)}
+            self._select_along_param_axis({"Nspws": [spw_map[key] for key in new_spw]})
 
-        self.channel_width = self.channel_width[index_array]
-
-        if self.eq_coeffs is not None:
-            self.eq_coeffs = self.eq_coeffs[:, index_array]
-        # check if object is self-consistent
         if run_check:
             self.check(
                 check_extra=check_extra,

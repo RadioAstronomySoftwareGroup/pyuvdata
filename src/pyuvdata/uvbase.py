@@ -898,25 +898,33 @@ class UVBase:
         slice_dict = {}
         for key, value in param_dict.items():
             if value is not None:
-                slice_dict[key] = slicify(value, allow_empty=True)
+                slice_entry = slicify(value, allow_empty=True)
+                if not (
+                    isinstance(slice_entry, slice)
+                    and slice_entry == slice(0, getattr(self, key), 1)
+                ):
+                    # Check that the slice isn't effectively a no-op
+                    slice_dict[key] = slicify(value, allow_empty=True)
 
-        for param in self:
-            # For each attribute, if the value is None, then bail, otherwise
-            # attempt to figure out along which axis ind_arr will apply.
+        if slice_dict:
+            # If slice_dict isn't empty, proceed forward with the select
+            for param in self:
+                # For each attribute, if the value is None, then bail, otherwise
+                # attempt to figure out along which axis ind_arr will apply.
 
-            attr = getattr(self, param)
-            if attr.name in slice_dict:
-                # This is the length argument itself -- set it accordingly. Look at
-                # param_dict since it has the lists instead of the slices
-                attr.value = len(param_dict[attr.name])
-                attr.setter(self)
-            elif (
-                attr.value is not None
-                and isinstance(attr.form, tuple)
-                and any(key in slice_dict for key in attr.form)
-            ):
-                # Only look at where form is a tuple, since that's the only case we
-                # can have a dynamically defined shape. Note that index doesn't work
-                # here in the case of a repeated param_name in the form.
-                attr.value = attr.get_from_form(slice_dict)
-                attr.setter(self)
+                attr = getattr(self, param)
+                if attr.name in slice_dict:
+                    # This is the length argument itself -- set it accordingly. Look at
+                    # param_dict since it has the lists instead of the slices
+                    attr.value = len(param_dict[attr.name])
+                    attr.setter(self)
+                elif (
+                    attr.value is not None
+                    and isinstance(attr.form, tuple)
+                    and any(key in slice_dict for key in attr.form)
+                ):
+                    # Only look at where form is a tuple, since that's the only case we
+                    # can have a dynamically defined shape. Note that index doesn't work
+                    # here in the case of a repeated param_name in the form.
+                    attr.value = attr.get_from_form(slice_dict)
+                    attr.setter(self)
