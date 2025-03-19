@@ -54,6 +54,9 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Default for `UVParameter.tols` when the expected type is int, bool, or str is
+now set to `(0, 0)`, was originally `(1e-5, 1e-8)` (relative and absolute tolerance,
+respectively).
 - Flex-jones `UVCal` objects now recorded to MeasurementSet format as "T Jones" subtype.
 - Only import lunarsky if needed.
 - `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
