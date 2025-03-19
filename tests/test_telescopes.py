@@ -599,6 +599,43 @@ def test_feed_order(simplest_working_params, order, flipped):
     assert tel.Nfeeds == 2
 
 
+@pytest.mark.parametrize(
+    "kwargs,msg",
+    [
+        [{"order": [0, 1, 2, 3, 4]}, "If order is an index array, it must contain all"],
+        [{"order": [1]}, "If order is an index array, it must contain all"],
+        [{"order": "foo"}, "order must be one of 'number', 'name', '-number', '-name'"],
+    ],
+)
+def test_antenna_order_errors(simplest_working_params, kwargs, msg):
+    tel = Telescope.new(**simplest_working_params)
+    with pytest.raises(ValueError, match=msg):
+        tel.reorder_antennas(**kwargs)
+
+
+@pytest.mark.parametrize("order", ["name", "number"])
+def test_antenna_order(simplest_working_params, order):
+    tel = Telescope.new(**simplest_working_params)
+    tel2 = tel.copy()
+    tel3 = tel.copy()
+
+    # Test no-op
+    tel.reorder_antennas(order=order)
+    assert tel == tel2
+
+    # Test reverse ordering
+    tel.reorder_antennas(order=("-" + order))
+    tel2.reorder_antennas(order=[2, 1, 0])
+    assert tel == tel2
+    assert tel != tel3
+
+    # Reverse the reverse!
+    tel.reorder_antennas(order=order)
+    tel2.reorder_antennas(order=[2, 1, 0])
+    assert tel == tel2
+    assert tel == tel3
+
+
 @pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
 @pytest.mark.parametrize("axis", ["Nfeeds", "Nants"])
 @pytest.mark.parametrize("scenario", ["overlap", "inv_overlap", "interleave", "concat"])
@@ -629,6 +666,11 @@ def test_telescope_add(add_method, axis, scenario):
     tel1._select_along_param_axis(tel1_dict)
     tel2._select_along_param_axis(tel2_dict)
     tel3 = getattr(tel1, add_method)(tel2)
+
+    if axis == "Nants":
+        tel3.reorder_antennas(order="number")
+    elif axis == "Nfeeds":
+        tel3.reorder_feeds(order="AIPS")
 
     assert tel3 == check_tel
 
