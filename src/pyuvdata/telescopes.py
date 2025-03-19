@@ -1485,7 +1485,7 @@ class Telescope(UVBase):
                 # Use lazy comparison to do direct comparison first, then fall back
                 # to isclose if not comparing strings to see if that passes.
                 if np.array_equal(this_value, other_value) or (
-                    issubclass(this_param.expected_type, str)
+                    (not issubclass(str, this_param.expected_type))
                     and np.allclose(this_value, other_value, rtol=rtol, atol=atol)
                 ):
                     continue
