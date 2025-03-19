@@ -2189,31 +2189,19 @@ class UVCal(UVBase):
             if "number" in order:
                 index_array = np.argsort(self.ant_array)
             elif "name" in order:
-                temp = np.asarray(self.telescope.antenna_names)
-                dtype_use = temp.dtype
-                name_array = np.zeros_like(self.ant_array, dtype=dtype_use)
-                # there has to be a better way to do this without a loop...
-                for ind, ant in enumerate(self.ant_array):
-                    name_array[ind] = self.telescope.antenna_names[
-                        np.nonzero(self.telescope.antenna_numbers == ant)[0][0]
-                    ]
-                index_array = np.argsort(name_array)
+                name_map = dict(
+                    zip(
+                        self.telescope.antenna_numbers,
+                        self.telescope.antenna_names,
+                        strict=True,
+                    )
+                )
+                index_array = np.argsort([name_map[ant] for ant in self.ant_array])
 
             if order[0] == "-":
                 index_array = np.flip(index_array)
 
-        if np.all(index_array[1:] > index_array[:-1]):
-            # Nothing to do - the data are already sorted!
-            return
-
-        # update all the relevant arrays
-        self.ant_array = self.ant_array[index_array]
-        for param_name in self._data_params:
-            if param_name == "total_quality_array":
-                continue
-            param = getattr(self, param_name)
-            if param is not None:
-                setattr(self, param_name, param[index_array])
+        self._select_along_param_axis({"Nants_data": index_array})
 
         if run_check:
             self.check(
@@ -2320,6 +2308,7 @@ class UVCal(UVBase):
             if flip_spws:
                 index_array = np.flip(index_array)
 
+            self._select_along_param_axis({"Nspws": index_array})
         else:
             index_array = utils.frequency._sort_freq_helper(
                 Nfreqs=self.Nfreqs,
@@ -2332,43 +2321,14 @@ class UVCal(UVBase):
                 select_spw=select_spw,
             )
 
-            if index_array is None:
-                # This only happens if no sorting is needed
-                return
+            self._select_along_param_axis({"Nfreqs": index_array})
 
-        # update all the relevant arrays
-        if self.wide_band:
-            self.spw_array = self.spw_array[index_array]
-            self.freq_range = self.freq_range[index_array]
-            if self.flex_jones_array is not None:
-                self.flex_jones_array = self.flex_jones_array[index_array]
-        else:
-            self.freq_array = self.freq_array[index_array]
-        for param_name in self._data_params:
-            param = getattr(self, param_name)
-            if param is not None:
-                if param_name == "total_quality_array":
-                    self.total_quality_array = self.total_quality_array[index_array]
-                else:
-                    setattr(self, param_name, param[:, index_array])
-        if self.flex_spw_id_array is not None:
-            self.flex_spw_id_array = self.flex_spw_id_array[index_array]
-
-            if self.Nspws > 1:
+            if (self.flex_spw_id_array is not None) and (self.Nspws > 1):
                 # Reorder the spw-axis items based on their first appearance in the data
-                orig_spw_array = self.spw_array
-                unique_index = np.sort(
-                    np.unique(self.flex_spw_id_array, return_index=True)[1]
-                )
-                self.spw_array = self.flex_spw_id_array[unique_index]
-                spw_index = np.asarray(
-                    [np.nonzero(orig_spw_array == spw)[0][0] for spw in self.spw_array]
-                )
-                if self.flex_jones_array is not None:
-                    self.flex_jones_array = self.flex_jones_array[spw_index]
-
-        if not self.wide_band:
-            self.channel_width = self.channel_width[index_array]
+                # Note that the dict will preserve first order.
+                new_spw = dict.fromkeys(self.flex_spw_id_array)
+                spw_map = {spw: idx for idx, spw in enumerate(self.spw_array)}
+                self._select_along_param_axis({"Nspws": [spw_map[k] for k in new_spw]})
 
         if run_check:
             self.check(
@@ -2435,31 +2395,7 @@ class UVCal(UVBase):
             if order[0] == "-":
                 index_array = np.flip(index_array)
 
-        if np.all(index_array[1:] > index_array[:-1]):
-            # Nothing to do - the data are already sorted!
-            return
-
-        # update all the relevant arrays
-        if self.time_array is not None:
-            self.time_array = self.time_array[index_array]
-        if self.time_range is not None:
-            self.time_range = self.time_range[index_array]
-        if self.lst_array is not None:
-            self.lst_array = self.lst_array[index_array]
-        if self.lst_range is not None:
-            self.lst_range = self.lst_range[index_array]
-        if self.phase_center_id_array is not None:
-            self.phase_center_id_array = self.phase_center_id_array[index_array]
-        if self.ref_antenna_array is not None:
-            self.ref_antenna_array = self.ref_antenna_array[index_array]
-        self.integration_time = self.integration_time[index_array]
-        for param_name in self._data_params:
-            param = getattr(self, param_name)
-            if param is not None:
-                if param_name == "total_quality_array":
-                    self.total_quality_array = self.total_quality_array[:, index_array]
-                else:
-                    setattr(self, param_name, param[:, :, index_array])
+        self._select_along_param_axis({"Ntimes": index_array})
 
         if run_check:
             self.check(
@@ -2528,21 +2464,7 @@ class UVCal(UVBase):
             if order[0] == "-":
                 index_array = np.flip(index_array)
 
-        if np.all(index_array[1:] > index_array[:-1]):
-            # Nothing to do - the data are already sorted!
-            return
-
-        # update all the relevant arrays
-        self.jones_array = self.jones_array[index_array]
-        for param_name in self._data_params:
-            param = getattr(self, param_name)
-            if param is not None:
-                if param_name == "total_quality_array":
-                    self.total_quality_array = self.total_quality_array[
-                        :, :, index_array
-                    ]
-                else:
-                    setattr(self, param_name, param[:, :, :, index_array])
+        self._select_along_param_axis({"Njones": index_array})
 
         if run_check:
             self.check(
