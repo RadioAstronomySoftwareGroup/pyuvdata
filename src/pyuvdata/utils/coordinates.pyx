@@ -29,35 +29,8 @@ cdef class Ellipsoid:
 
 
 # A python interface for different celestial bodies
-class Body(enum.Enum):
-  Earth = Ellipsoid(6378137, 6356752.31424518)
-
-  # TODO fix this to not try to import lunarsky unless it's asked for.
-  try:
-    from lunarsky.moon import SELENOIDS
-
-    Moon_sphere = Ellipsoid(
-      SELENOIDS["SPHERE"]._equatorial_radius.to_value("m"),
-      SELENOIDS["SPHERE"]._equatorial_radius.to_value("m") * (1-SELENOIDS["SPHERE"]._flattening)
-    )
-
-    Moon_gsfc = Ellipsoid(
-      SELENOIDS["GSFC"]._equatorial_radius.to_value("m"),
-      SELENOIDS["GSFC"]._equatorial_radius.to_value("m") * (1-SELENOIDS["GSFC"]._flattening)
-    )
-
-    Moon_grail23 = Ellipsoid(
-      SELENOIDS["GRAIL23"]._equatorial_radius.to_value("m"),
-      SELENOIDS["GRAIL23"]._equatorial_radius.to_value("m") * (1-SELENOIDS["GRAIL23"]._flattening)
-    )
-
-    Moon_ce1lamgeo = Ellipsoid(
-      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius.to_value("m"),
-      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius.to_value("m") * (1-SELENOIDS["CE-1-LAM-GEO"]._flattening)
-    )
-  except:
-    # lunar sky not installed, don't add any moon bodies
-    pass
+cdef earth = Ellipsoid(6378137, 6356752.31424518)
+Earth = earth
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
