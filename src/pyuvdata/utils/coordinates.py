@@ -169,6 +169,7 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
         accept_bounds = (1.71e6, 1.75e6)
         if ellipsoid is None:
             ellipsoid = "SPHERE"
+        selenoids = get_selenoids()
 
     # convert to a numpy array
     xyz = np.asarray(xyz)
@@ -197,7 +198,6 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
     if frame == "ITRS":
         lla = _coordinates._lla_from_xyz(xyz, _coordinates.Earth)
     elif frame == "MCMF":
-        selenoids = get_selenoids()
         lla = _coordinates._lla_from_xyz(xyz, selenoids[ellipsoid])
     else:
         raise ValueError(
