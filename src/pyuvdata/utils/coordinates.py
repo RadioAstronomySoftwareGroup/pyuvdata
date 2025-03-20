@@ -27,16 +27,18 @@ _range_dict = {
 
 def get_selenoids():
     try:
+        from lunarsky.moon import SELENOIDS
+
         return {
-            "SPHERE": _coordinates.Body.Moon_sphere,
-            "GSFC": _coordinates.Body.Moon_gsfc,
-            "GRAIL23": _coordinates.Body.Moon_grail23,
-            "CE-1-LAM-GEO": _coordinates.Body.Moon_ce1lamgeo,
+            key: _coordinates.Ellipsoid(
+                SELENOIDS[key]._equatorial_radius.to_value("m"),
+                SELENOIDS[key]._equatorial_radius.to_value("m") * (1-SELENOIDS[key]._flattening)
+            ) for key in ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
         }
-    except AttributeError as ae:
-        raise ValueError(
+    except ImportError as ie:
+        raise ImportError(
             "Need to install `lunarsky` package to work with selenoids."
-        ) from ae
+        ) from ie
 
 
 def get_loc_obj(
@@ -202,10 +204,10 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
             )
     # this helper function returns one 2D array because it is less overhead for cython
     if frame == "ITRS":
-        lla = _coordinates._lla_from_xyz(xyz, _coordinates.Body.Earth.value)
+        lla = _coordinates._lla_from_xyz(xyz, _coordinates.Earth)
     elif frame == "MCMF":
         selenoids = get_selenoids()
-        lla = _coordinates._lla_from_xyz(xyz, selenoids[ellipsoid].value)
+        lla = _coordinates._lla_from_xyz(xyz, selenoids[ellipsoid])
     else:
         raise ValueError(
             f'No spherical to cartesian transform defined for frame "{frame}".'
@@ -264,14 +266,14 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, *, frame="ITRS", ellipsoid
 
     if frame == "ITRS":
         xyz = _coordinates._xyz_from_latlonalt(
-            latitude, longitude, altitude, _coordinates.Body.Earth.value
+            latitude, longitude, altitude, _coordinates.Earth
         )
     elif frame == "MCMF":
         if ellipsoid is None:
             ellipsoid = "SPHERE"
         selenoids = get_selenoids()
         xyz = _coordinates._xyz_from_latlonalt(
-            latitude, longitude, altitude, selenoids[ellipsoid].value
+            latitude, longitude, altitude, selenoids[ellipsoid]
         )
     else:
         raise ValueError(
@@ -433,12 +435,12 @@ def ENU_from_ECEF(
     # the cython utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
     if frame == "ITRS":
-        body = _coordinates.Body.Earth.value
+        body = _coordinates.Earth
     else:
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
         selenoids = get_selenoids()
-        body = selenoids[ellipsoid].value
+        body = selenoids[ellipsoid]
     enu = _coordinates._ENU_from_ECEF(
         xyz,
         np.ascontiguousarray(latitude, dtype=np.float64),
@@ -532,12 +534,12 @@ def ECEF_from_ENU(
     # the cython utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
     if frame == "ITRS":
-        body = _coordinates.Body.Earth.value
+        body = _coordinates.Earth
     else:
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
         selenoids = get_selenoids()
-        body = selenoids[ellipsoid].value
+        body = selenoids[ellipsoid]
     xyz = _coordinates._ECEF_from_ENU(
         enu,
         np.ascontiguousarray(latitude, dtype=np.float64),
