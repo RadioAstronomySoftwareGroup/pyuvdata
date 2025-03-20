@@ -37,7 +37,7 @@ def get_selenoids():
         }
     except ImportError as ie:
         raise ImportError(
-            "Need to install `lunarsky` package to work with selenoids."
+            "Need to install `lunarsky` package to work with selenoids or in MCMF frame."
         ) from ie
 
 
@@ -96,7 +96,7 @@ def get_loc_obj(
                 )
         except ImportError as ie:
             if telescope_frame.upper() == "MCMF":
-                raise ValueError(
+                raise ImportError (
                     "Need to install `lunarsky` package to work with MCMF frame."
                 ) from ie
 
@@ -132,15 +132,6 @@ def get_frame_ellipsoid_loc_obj(loc_obj, loc_ob_parname="loc_obj"):
     return frame, ellipsoid
 
 
-def _check_moon_body_exists():
-    try:
-        _ = _coordinates.Body.Moon_sphere
-    except AttributeError as ae:
-        raise ValueError(
-            "Need to install `lunarsky` package to work with MCMF frame."
-        ) from ae
-
-
 def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
@@ -170,8 +161,6 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
 
     """
     frame = frame.upper()
-    if frame == "MCMF":
-        _check_moon_body_exists()
     if frame == "ITRS":
         accept_bounds = (6.35e6, 6.39e6)
     elif frame == "MCMF":
@@ -251,8 +240,6 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, *, frame="ITRS", ellipsoid
     n_pts = latitude.size
 
     frame = frame.upper()
-    if frame == "MCMF":
-        _check_moon_body_exists()
 
     if longitude.size != n_pts:
         raise ValueError(
@@ -405,8 +392,6 @@ def ENU_from_ECEF(
                 "must be passed."
             )
         frame = frame.upper()
-        if frame == "MCMF":
-            _check_moon_body_exists()
 
     if frame.lower() in _range_dict:
         if frame == "MCMF" and ellipsoid is None:
@@ -512,8 +497,6 @@ def ECEF_from_ENU(
                 "must be passed."
             )
         frame = frame.upper()
-        if frame == "MCMF":
-            _check_moon_body_exists()
 
         if frame not in ["ITRS", "MCMF"]:
             raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
@@ -703,7 +686,7 @@ def check_surface_based_positions(
                     tel_object = True
                     telescope_frame = "mcmf"
             except ImportError as ie:
-                raise ValueError(
+                raise ImportError(
                     "Need to install `lunarsky` package to work with MoonLocations."
                 ) from ie
 

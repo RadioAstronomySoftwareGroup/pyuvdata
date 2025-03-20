@@ -387,11 +387,16 @@ def test_LatLonAlt_from_XYZ_mcmf(selenoid):
 def test_no_moon():
     """Check errors when calling functions with MCMF without lunarsky."""
 
-    msg = "Need to install `lunarsky` package to work with selenoids."
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ImportError, match=msg):
+        utils.get_lst_for_time(
+            [2451545.0], latitude=0, longitude=0, altitude=0, frame="mcmf"
+        )
+
+    msg ="Need to install `lunarsky` package to work with selenoids or in MCMF frame."
     with pytest.raises(ImportError, match=msg):
         utils.coordinates.get_selenoids()
 
-    msg = "Need to install `lunarsky` package to work with MCMF frame."
     with pytest.raises(ImportError, match=msg):
         utils.LatLonAlt_from_XYZ(ref_xyz_moon["SPHERE"], frame="mcmf")
 
@@ -399,10 +404,6 @@ def test_no_moon():
     with pytest.raises(ImportError, match=msg):
         utils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
 
-    with pytest.raises(ImportError, match=msg):
-        utils.get_lst_for_time(
-            [2451545.0], latitude=0, longitude=0, altitude=0, frame="mcmf"
-        )
 
     with pytest.raises(ImportError, match=msg):
         utils.ENU_from_ECEF(
