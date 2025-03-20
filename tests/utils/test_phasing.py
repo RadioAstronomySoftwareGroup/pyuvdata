@@ -58,7 +58,7 @@ def calc_uvw_args():
 def test_no_moon():
     """Check errors when calling functions with MCMF without lunarsky."""
     msg = "Need to install `lunarsky` package to work with MCMF frame."
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ImportError, match=msg):
         phs_utils.transform_icrs_to_app(
             time_array=[2451545.0],
             ra=0,
@@ -66,7 +66,7 @@ def test_no_moon():
             telescope_loc=(0, 0, 0),
             telescope_frame="mcmf",
         )
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ImportError, match=msg):
         phs_utils.transform_app_to_icrs(
             time_array=[2451545.0],
             app_ra=0,
@@ -74,7 +74,7 @@ def test_no_moon():
             telescope_loc=(0, 0, 0),
             telescope_frame="mcmf",
         )
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ImportError, match=msg):
         phs_utils.calc_app_coords(lon_coord=0.0, lat_coord=0.0, telescope_frame="mcmf")
 
 
@@ -1980,7 +1980,7 @@ def test_calc_app_coords_time_obj():
 @pytest.mark.skipif(len(frame_selenoid) > 1, reason="lunarsky installed")
 def test_uvw_track_generator_errs():
     with pytest.raises(
-        ValueError, match="Need to install `lunarsky` package to work with MCMF frame."
+        ImportError, match="Need to install `lunarsky` package to work with MCMF frame."
     ):
         utils.uvw_track_generator(telescope_loc=(0, 0, 0), telescope_frame="MCMF")
 

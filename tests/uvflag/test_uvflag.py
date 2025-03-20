@@ -727,8 +727,8 @@ def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
         h5f["Header/telescope_frame"] = "mcmf"
 
     meta = hdf5_utils.HDF5Meta(test_outfile)
-    msg = "Need to install `lunarsky` package to work with MCMF frame."
-    with pytest.raises(ValueError, match=msg):
+    msg = "Need to install `lunarsky` package to work with selenoids or MCMF frame."
+    with pytest.raises(ImportError, match=msg):
         meta.telescope_location_obj  # noqa: B018
     del meta
 
@@ -738,7 +738,7 @@ def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
         h5f["Header/telescope_frame"] = "mcmf"
 
     meta = hdf5_utils.HDF5Meta(test_outfile)
-    with pytest.raises(ValueError, match=msg):
+    with pytest.raises(ImportError, match=msg):
         meta.telescope_location_obj  # noqa: B018
 
 
