@@ -39,7 +39,7 @@ def get_selenoids():
         }
     except ImportError as ie:
         raise ImportError(
-            "Need to install `lunarsky` package to work with selenoids or in MCMF frame."
+            "Need to install `lunarsky` package to work with selenoids or MCMF frame."
         ) from ie
 
 
