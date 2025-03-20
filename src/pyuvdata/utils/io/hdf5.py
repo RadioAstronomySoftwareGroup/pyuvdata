@@ -637,8 +637,9 @@ class HDF5Meta:
             try:
                 from lunarsky import MoonLocation
             except ImportError as ie:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with MCMF frames."
+                raise ImportError(
+                    "Need to install `lunarsky` package to work "
+                    "with selenoids or MCMF frame."
                 ) from ie
             return MoonLocation.from_selenodetic(
                 lat=lat_deg * units.deg,
