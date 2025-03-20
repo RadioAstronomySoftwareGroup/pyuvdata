@@ -32,8 +32,10 @@ def get_selenoids():
         return {
             key: _coordinates.Ellipsoid(
                 SELENOIDS[key]._equatorial_radius.to_value("m"),
-                SELENOIDS[key]._equatorial_radius.to_value("m") * (1-SELENOIDS[key]._flattening)
-            ) for key in ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
+                SELENOIDS[key]._equatorial_radius.to_value("m")
+                * (1 - SELENOIDS[key]._flattening),
+            )
+            for key in ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
         }
     except ImportError as ie:
         raise ImportError(
@@ -96,7 +98,7 @@ def get_loc_obj(
                 )
         except ImportError as ie:
             if telescope_frame.upper() == "MCMF":
-                raise ImportError (
+                raise ImportError(
                     "Need to install `lunarsky` package to work with MCMF frame."
                 ) from ie
 
