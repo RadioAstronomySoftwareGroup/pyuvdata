@@ -202,7 +202,7 @@ class FEKOBeam(UVBeam):
         ]
         self.Nfreqs = len(frequency)
         self.freq_array = np.zeros(self.Nfreqs)
-        self.freq_array = frequency
+        self.freq_array = np.array(frequency)
         self.bandpass_array = np.zeros(self.Nfreqs)
 
         data_each = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
