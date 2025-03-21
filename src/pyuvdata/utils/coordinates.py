@@ -3,6 +3,7 @@
 """Utilities for coordinate transforms."""
 
 import warnings
+from functools import cache
 
 import numpy as np
 from astropy import units
@@ -25,6 +26,7 @@ _range_dict = {
 }
 
 
+@cache
 def get_selenoids():
     try:
         from lunarsky.moon import SELENOIDS
