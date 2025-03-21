@@ -206,17 +206,15 @@ class FEKOBeam(UVBeam):
         self.bandpass_array = np.zeros(self.Nfreqs)
 
         data_each = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
-        if beam_type == "efield":
-            data_each2 = np.zeros((len(self.freq_array), np.shape(data_all2[0])[0], 9))
+        data_each2 = np.zeros((len(self.freq_array), np.shape(data_all2[0])[0], 9))
 
         for i in range(len(self.freq_array)):
             data_each[i, :, :] = np.array(
                 [list(map(float, data.split())) for data in data_all[i]]
             )
-            if beam_type == "efield":
-                data_each2[i, :, :] = np.array(
-                    [list(map(float, data.split())) for data in data_all2[i]]
-                )
+            data_each2[i, :, :] = np.array(
+                [list(map(float, data.split())) for data in data_all2[i]]
+            )
             if i == 0:
                 theta_data = np.radians(
                     data_each[i, :, theta_col]
@@ -277,7 +275,11 @@ class FEKOBeam(UVBeam):
                 power_beam1 = 10 ** (data_each[i, :, data_col] / 10).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
+                power_beam2 = 10 ** (data_each2[i, :, data_col] / 10).reshape(
+                    (theta_axis.size, phi_axis.size), order="F"
+                )
                 self.data_array[0, 0, i, :, :] = power_beam1
+                self.data_array[0, 1, i, :, :] = power_beam2
 
             else:
                 self.basis_vector_array = np.zeros(
