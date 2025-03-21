@@ -141,16 +141,15 @@ class FEKOBeam(UVBeam):
             self.extra_keywords = extra_keywords
 
         if beam_type == "power":
-            self.Naxes_vec = 2
-            self.Ncomponents_vec = 1
-
+            self.Naxes_vec = 1
+          
             if feed_pol == "x":
                 feed_pol = "xx"
             elif feed_pol == "y":
                 feed_pol = "yy"
 
             self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
-            self.Npols = len(self.polarization_array)
+            self.Npols = 2 #len(self.polarization_array)
             self._set_power()
         else:
             self.Naxes_vec = 2
