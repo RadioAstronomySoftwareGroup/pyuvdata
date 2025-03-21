@@ -323,8 +323,8 @@ class FEKOBeam(UVBeam):
                 theta_beam = theta_mag * np.exp(1j * theta_phase)
                 phi_beam = phi_mag * np.exp(1j * phi_phase)
 
-                self.data_array[0, 0, 0, i, :, :] = phi_beam
-                self.data_array[1, 0, 0, i, :, :] = theta_beam
+                self.data_array[0, 0, i, :, :] = phi_beam
+                self.data_array[1, 0, i, :, :] = theta_beam
 
                 theta_mag2 = np.sqrt(
                     10 ** (data_each2[i, :, theta_mag_col] / 10)
@@ -350,8 +350,8 @@ class FEKOBeam(UVBeam):
                 theta_beam2 = theta_mag2 * np.exp(1j * theta_phase2)
                 phi_beam2 = phi_mag2 * np.exp(1j * phi_phase2)
 
-                self.data_array[0, 0, 1, i, :, :] = phi_beam2
-                self.data_array[1, 0, 1, i, :, :] = theta_beam2
+                self.data_array[0, 1, i, :, :] = phi_beam2
+                self.data_array[1, 1, i, :, :] = theta_beam2
 
         self.bandpass_array[0] = 1
 
