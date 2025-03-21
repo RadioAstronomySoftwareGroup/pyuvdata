@@ -189,11 +189,11 @@ class FEKOBeam(UVBeam):
 
         filename2 = self.nametopol(filename)
         with open(filename2) as fh:
-                data_chunks = fh.read()[1:].split(
-                    "\n\n"
-                )  ## avoiding the row=1;there is a blank row at the start of every file
+            data_chunks = fh.read()[1:].split(
+                "\n\n"
+            )  ## avoiding the row=1;there is a blank row at the start of every file
         data_all2 = [
-                i.splitlines()[9:] for i in data_chunks
+            i.splitlines()[9:] for i in data_chunks
         ]  ## skips the 9 lines of text in each chunk
 
         frequency = [
