@@ -141,8 +141,8 @@ class FEKOBeam(UVBeam):
             self.extra_keywords = extra_keywords
 
         if beam_type == "power":
-            self.Naxes_vec = 1
-            self.Ncomponents_vec = 2
+            self.Naxes_vec = 2
+            self.Ncomponents_vec = 1
 
             if feed_pol == "x":
                 feed_pol = "xx"
