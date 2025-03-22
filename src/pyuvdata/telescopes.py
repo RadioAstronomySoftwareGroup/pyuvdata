@@ -969,8 +969,21 @@ class Telescope(UVBase):
         x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
         antenna_diameters: list[float] | np.ndarray | None = None,
         feeds: Literal["x", "y", "l", "r"] | list[str] | None = None,
-        feed_array: np.ndarray | None = None,
-        feed_angle: np.ndarray | None = None,
+        feed_array: list[str] | np.ndarray | None = None,
+        feed_angle: list[float] | np.ndarray | None = None,
+        mount_type: Literal[
+            "alt-az",
+            "equatorial",
+            "orbiting",
+            "x-y",
+            "alt-az+nasmyth-r",
+            "alt-az+nasmyth-l",
+            "phased",
+            "fixed",
+            "other",
+        ]
+        | list[str]
+        | None = None,
     ):
         """
         Initialize a new Telescope object from keyword arguments.
@@ -1013,12 +1026,31 @@ class Telescope(UVBase):
             ["x", "y"].
         feed_array : array-like of str or None
             List of feeds for each antenna in the Telescope object, must be one of
-            "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str.
+            "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str. Can also be shape
+            (Nfeeds,), in which case the same values for feed_array are used for
+            all antennas in the object.
         feed_angle : array-like of float or None
             Orientation of the feed with respect to zenith (or with respect to north if
             pointed at zenith). Units is in rads, vertical polarization is nominally 0,
             and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds),
-            dtype float.
+            dtype float.  Can also be shape (Nfeeds,), in which case the same values for
+            feed_angle are used for all antennas in the object.
+        mount_type : str or array-like of str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details. Shape (Nants,), dtype str.
+            Can also provide a single string, in which case the same mount_type is
+            used for all antennas in the object.
 
         Returns
         -------
@@ -1050,11 +1082,21 @@ class Telescope(UVBase):
             tel_obj.instrument = instrument
 
         if feed_angle is not None and feed_array is not None:
-            tel_obj.feed_array = feed_array
-            tel_obj.feed_angle = feed_angle
-            tel_obj.Nfeeds = feed_angle.shape[1]
+            tel_obj.feed_array = np.asarray(feed_array)
+            tel_obj.feed_angle = np.asarray(feed_angle)
+            if (tel_obj.feed_array.ndim == 1) and (tel_obj.feed_angle.ndim == 1):
+                tel_obj.feed_array = np.tile(tel_obj.feed_array, (tel_obj.Nants, 1))
+                tel_obj.feed_angle = np.tile(tel_obj.feed_angle, (tel_obj.Nants, 1))
+
+            tel_obj.Nfeeds = tel_obj.feed_angle.shape[1]
         elif x_orientation is not None:
             tel_obj.set_feeds_from_x_orientation(x_orientation.lower(), feeds=feeds)
+
+        if mount_type is not None:
+            if isinstance(mount_type, str):
+                tel_obj.mount_type = [mount_type] * tel_obj.Nants
+            else:
+                tel_obj.mount_type = mount_type
 
         if antenna_diameters is not None:
             tel_obj.antenna_diameters = np.asarray(antenna_diameters)
