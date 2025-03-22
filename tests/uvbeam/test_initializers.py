@@ -361,3 +361,8 @@ def test_phased_array_errors(phased_array_efield, key_rm, new_key, value, msg):
 
     with pytest.raises(ValueError, match=msg):
         UVBeam.new(**phased_array_efield)
+
+
+def test_mount_init(uvb_azza_efield_kw):
+    uvb = UVBeam.new(**uvb_azza_efield_kw, mount_type="fixed")
+    assert uvb.mount_type == "fixed"
