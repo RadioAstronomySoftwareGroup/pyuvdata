@@ -710,3 +710,15 @@ def test_telescope_add_errs(simplest_working_params, add_method):
     tel2.name = "other test"
     with pytest.raises(ValueError, match="Parameter Telescope.name does not match."):
         getattr(tel, add_method)(tel2)
+
+
+def test_telescope_mount_feed_multicast(simplest_working_params):
+    tel = Telescope.new(
+        **simplest_working_params,
+        mount_type="fixed",
+        feed_array=["x", "y"],
+        feed_angle=[0, np.pi / 2],
+    )
+    np.testing.assert_array_equal(tel.mount_type, ["fixed"] * tel.Nants)
+    np.testing.assert_array_equal(tel.feed_array, [["x", "y"]] * tel.Nants)
+    np.testing.assert_array_equal(tel.feed_angle, [[0, np.pi / 2]] * tel.Nants)

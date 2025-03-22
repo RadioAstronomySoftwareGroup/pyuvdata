@@ -211,7 +211,7 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     assert (
         beam.__repr__() == "ShortDipoleBeam(feed_array=array(['x', 'y'], dtype='<U1'), "
-        "feed_angle=array([1.57079633, 0.        ]), mount_type=None)"
+        "feed_angle=array([1.57079633, 0.        ]), mount_type='fixed')"
     )
 
 
