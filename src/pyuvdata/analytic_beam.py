@@ -126,7 +126,7 @@ class AnalyticBeam:
             "other",
         ]
         | None
-    ) = None
+    ) = "fixed"
 
     include_cross_pols: InitVar[bool] = True
     x_orientation: InitVar[Literal["east", "north"] | None] = "east"
@@ -827,7 +827,7 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
             "other",
         ]
         | None
-    ) = field(default=None, repr=False, compare=False)
+    ) = field(default="fixed", repr=False, compare=True)
 
     # the basis vector type doesn't matter for unpolarized beams, just hardcode
     # it here so subclasses don't have to deal with it.
