@@ -278,7 +278,6 @@ class FEKOBeam(UVBeam):
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 self.data_array[0, 0, i, :, :] = power_beam1
-               
 
             else:
                 self.basis_vector_array = np.zeros(
