@@ -149,7 +149,7 @@ class FEKOBeam(UVBeam):
                 feed_pol = "yy"
 
             self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
-            self.Npols = 2  # len(self.polarization_array)
+            self.Npols = len(self.polarization_array)
             self._set_power()
         else:
             self.Naxes_vec = 2
@@ -278,7 +278,7 @@ class FEKOBeam(UVBeam):
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 self.data_array[0, 0, i, :, :] = power_beam1
-                self.data_array[0, 1, i, :, :] = power_beam2
+               
 
             else:
                 self.basis_vector_array = np.zeros(
