@@ -13,7 +13,7 @@ from astropy.utils import iers
 
 from . import _phasing
 from .times import get_lst_for_time
-from .tools import _get_autocorrelations_mask, _nants_to_nblts, _ntimes_to_nblts
+from .tools import _nants_to_nblts, _ntimes_to_nblts
 
 try:
     from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord, Time as LTime
@@ -2607,12 +2607,11 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     # Initialize sky-based coordinates using right ascension and declination
     obj = SkyCoord(ra * units.deg, dec * units.deg)
 
-    # The center of the ENU frame should be located at the median position of the array
+    # Initialize EarthLocation object centred on the telescope
     loc = uvd.telescope.location.itrs.cartesian.xyz.value
     antpos = uvd.telescope.antenna_positions + loc
     x, y, z = np.median(antpos, axis=0)
 
-    # Initialize EarthLocation object centred on the telescope
     telescope = EarthLocation(x, y, z, unit=units.m)
 
     # Convert sky object to an AltAz frame centered on the telescope
@@ -2629,7 +2628,7 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     return x, y, z
 
 
-def _get_delay(uvd, focus_x, focus_y, focus_z):
+def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
     """
     Calculate near-field phase/delay along the Nblts axis.
 
@@ -2642,8 +2641,6 @@ def _get_delay(uvd, focus_x, focus_y, focus_z):
 
     Returns
     -------
-    phi : ndarray
-        The phase correction to apply to each visibility along the Nblts axis
     new_w : ndarray
         The calculated near-field delay (or w-term) for each visibility along
         the Nblts axis
@@ -2652,8 +2649,9 @@ def _get_delay(uvd, focus_x, focus_y, focus_z):
     ind1, ind2 = _nants_to_nblts(uvd)
 
     # The center of the ENU frame should be located at the median position of the array
-    loc = uvd.telescope.location.itrs.cartesian.xyz.value
-    antpos = uvd.telescope.antenna_positions + loc
+    antpos = uvd.telescope.get_enu_antpos() - np.median(
+        uvd.telescope.get_enu_antpos(), axis=0
+    )
 
     # Get tile positions for each baseline
     tile1 = antpos[ind1]  # Shape (Nblts, 3)
@@ -2681,12 +2679,9 @@ def _get_delay(uvd, focus_x, focus_y, focus_z):
 
     # Calculate near-field delay
     new_w = r1 - r2
-    phi = new_w - old_w
 
-    # Remove autocorrelations
-    mask = _get_autocorrelations_mask(uvd)
+    # Mask autocorrelations
+    mask = np.not_equal(uvd.ant_1_array, uvd.ant_2_array).astype(int)
+    new_w = np.where(mask, new_w, old_w)
 
-    new_w = new_w * mask + old_w * (1 - mask)
-    phi = phi * mask
-
-    return phi, new_w  # Each of shape (Nblts,)
+    return new_w  # Shape (Nblts,)

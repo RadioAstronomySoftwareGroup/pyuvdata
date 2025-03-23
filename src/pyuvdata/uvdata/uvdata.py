@@ -24,7 +24,7 @@ from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
-from ..utils.phasing import _get_delay, _get_focus_xyz
+from ..utils.phasing import _get_focus_xyz, _get_nearfield_delay
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
@@ -4684,31 +4684,11 @@ class UVData(UVBase):
 
         # Calculate near-field correction at the specified timestep
         # for each vis along Nblts axis
-        phi, new_w = _get_delay(self, focus_x, focus_y, focus_z)
+        new_w = _get_nearfield_delay(self, focus_x, focus_y, focus_z)
 
-        # Update old w with new w
+        # Update phase and w
+        self._apply_w_proj(new_w_vals=new_w, old_w_vals=self.uvw_array[:, -1])
         self.uvw_array[:, -1] = new_w
-
-        # ---------------- Frequency-dependent calculations ---------------------
-
-        # Calculate wavelength associate with each frequency
-        wavelengths = 299792458 / self.freq_array
-
-        # Reshape the phi and wavelengths arrays in order to
-        # be able to broadcast them together
-        phi = np.reshape(phi, (phi.size, 1))  # (Nblts, 1)
-        wavelengths = np.reshape(wavelengths, (1, wavelengths.size))  # (1, Nfreqs)
-
-        # Calculate phase corrections at all frequencies
-        # -- produces shape (Nblts, Nfreqs)
-        phase_corrections = np.exp(-2j * np.pi * phi / wavelengths)
-
-        # Set data at each polarization (Npols = 4 usually)
-        for pol in self.polarization_array:
-            prev = np.reshape(self.get_data(pol), (self.Nblts, self.Nfreqs, 1))
-            corr = np.reshape(phase_corrections, (self.Nblts, self.Nfreqs, 1))
-
-            self.set_data(corr * prev, pol)
 
     def phase(
         self,

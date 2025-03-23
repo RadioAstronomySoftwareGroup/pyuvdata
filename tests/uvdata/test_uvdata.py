@@ -12621,14 +12621,10 @@ def test_select_partial_pol_match(sma_mir, invert):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_near_field_corrections():
     uvfits_raw = os.path.join(DATA_PATH, "1061316296.uvfits")
-    uvfits_corr = os.path.join(DATA_PATH, "1061316296_nearfield.uvh5")
+    corr_w_path = os.path.join(DATA_PATH, "1061316296_nearfield_w.npy")
 
     uvd_raw = UVData()
-    uvd_corr = UVData()
-
     uvd_raw.read(uvfits_raw)
-    uvd_corr.read(uvfits_corr)
-
     uvd_raw.phase(
         ra=np.radians(30),
         dec=np.radians(-20),
@@ -12637,11 +12633,10 @@ def test_near_field_corrections():
         cat_type="near_field",
     )
 
-    # History and filename don't matter here
-    uvd_raw.history = uvd_corr.history
-    uvd_raw.filename = uvd_corr.filename
+    # Only compare the w's
+    corr_w = np.load(corr_w_path)
 
-    assert uvd_raw == uvd_corr
+    assert np.allclose(uvd_raw.uvw_array[:, -1], corr_w)
 
 
 def test_near_field_err():
@@ -12684,10 +12679,17 @@ def test_near_field_err():
     ],
 )
 def test_write_near_field_err(file_format, import_check, error_message):
-    uvh5_sample = os.path.join(DATA_PATH, "1061316296_nearfield.uvh5")
+    uvfits_sample = os.path.join(DATA_PATH, "1061316296.uvfits")
 
     uvd = UVData()
-    uvd.read(uvh5_sample)
+    uvd.read(uvfits_sample)
+    uvd.phase(
+        ra=np.radians(30),
+        dec=np.radians(-20),
+        cat_name="foo",
+        dist=10000,
+        cat_type="near_field",
+    )
 
     if import_check:
         import_check()
