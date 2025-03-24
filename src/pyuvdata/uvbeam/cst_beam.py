@@ -58,7 +58,10 @@ class CSTBeam(UVBeam):
         beam_type="power",
         use_future_array_shapes=None,
         feed_pol="x",
+        feed_array=None,
+        feed_angle=None,
         rotate_pol=True,
+        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -162,9 +165,14 @@ class CSTBeam(UVBeam):
         if extra_keywords is not None:
             self.extra_keywords = extra_keywords
 
+        if mount_type is not None:
+            self.mount_type = mount_type
+
         if beam_type == "power":
             self.Naxes_vec = 1
 
+            if feed_array is not None:
+                self.feed_array = np.asarray(feed_array).reshape(-1)
             if feed_pol == "x":
                 feed_pol = "xx"
             elif feed_pol == "y":
@@ -184,22 +192,32 @@ class CSTBeam(UVBeam):
         else:
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
-            if rotate_pol:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x", "y"])
-                    self.feed_angle = np.array([np.pi / 2, 0.0])
-                else:
-                    self.feed_array = np.array(["y", "x"])
-                    self.feed_angle = np.array([0.0, np.pi / 2])
-            else:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x"])
-                    self.feed_angle = np.array([np.pi / 2])
-                else:
-                    self.feed_array = np.array(["y"])
-                    self.feed_angle = np.array([0.0])
-            self.Nfeeds = self.feed_array.size
+            self.feed_array = np.asarray(feed_pol).reshape(-1)
             self._set_efield()
+
+        if feed_angle is not None:
+            self.feed_angle = np.asarray(feed_angle).reshape(-1)
+
+        if rotate_pol and self.feed_array is not None and self.feed_array.size == 1:
+            if self.feed_array[0] == "x":
+                self.feed_array = np.array(["x", "y"])
+            elif self.feed_array[0] == "y":
+                self.feed_array = np.array(["y", "x"])
+            if self.feed_angle is not None:
+                self.feed_angle = np.array(self.feed_angle + np.array([0, np.pi / 2]))
+
+        if self.feed_array is not None:
+            self.Nfeeds = self.feed_array.size
+
+        if x_orientation is None and (
+            self.feed_angle is None or self.feed_array is None
+        ):
+            warnings.warn(
+                "Feed information not supplied and x-orientation not specified -- "
+                "generating values assuming x-orientation is east with feeds "
+                "derived from polarizations present."
+            )
+            x_orientation = "east"
 
         self.data_normalization = "physical"
         self.antenna_type = "simple"
