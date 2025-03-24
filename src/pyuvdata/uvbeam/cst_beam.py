@@ -92,14 +92,37 @@ class CSTBeam(UVBeam):
             into effect by removing the spectral window axis.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
-            files correspond to.
-            Defaults to 'x' (meaning x for efield or xx for power beams).
+            files correspond to. Defaults to 'x' (meaning x for efield or xx for power
+            beams).
+        feed_array : str or array-like of str
+            Feeds to define this beam for, e.g. x & y or r & l. Only used for power
+            beams (feeds are set by feed_pol for efield beams).
+        feed_angle : str or array-like of float
+            Position angle of a given feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs. Must match shape of feed_pol
+            for efield beams, or feed_angle for power beams.
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
             90 degree rotations about the z-axis (so that the y polarization can be
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         frequency : float or list of float
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
