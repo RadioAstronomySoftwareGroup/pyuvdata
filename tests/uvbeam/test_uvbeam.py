@@ -52,6 +52,9 @@ def uvbeam_data():
         "model_version",
         "history",
         "antenna_type",
+        "Nfeeds",
+        "feed_array",
+        "feed_angle",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -59,7 +62,6 @@ def uvbeam_data():
         "Naxes1",
         "Naxes2",
         "Npixels",
-        "Nfeeds",
         "Npols",
         "Ncomponents_vec",
         "axis1_array",
@@ -67,8 +69,6 @@ def uvbeam_data():
         "nside",
         "ordering",
         "pixel_array",
-        "feed_array",
-        "feed_angle",
         "mount_type",
         "polarization_array",
         "basis_vector_array",
@@ -471,6 +471,7 @@ def test_efield_to_power(
     power_beam._data_array.tols = tols
     # modify the history to match
     power_beam.history += " Converted from efield to power using pyuvdata."
+
     assert power_beam == new_power_beam
 
 
@@ -2050,10 +2051,8 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
         )
     else:
         expected_warning = DeprecationWarning
-        warn_msg = [
-            "Support for physically oriented feeds",
-            "The feed_angle parameter must be set for efield beams",
-        ]
+        warn_msg = "Support for physically oriented feeds"
+
     with check_warnings(expected_warning, match=warn_msg):
         efield_beam2 = efield_beam.select(feeds=sel_feeds, invert=invert, inplace=False)
 
@@ -3061,6 +3060,9 @@ def test_generic_read_cst():
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
+        feed_angle=[0.0, np.pi / 2],
+        feed_array=["x", "y"],
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",

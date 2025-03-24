@@ -556,12 +556,8 @@ class AnalyticBeam:
             raise ValueError("Beam type must be 'efield' or 'power'")
 
         if beam_type == "efield":
-            feed_array = self.feed_array
-            feed_angle = self.feed_angle
             polarization_array = None
         else:
-            feed_array = None
-            feed_angle = None
             polarization_array = self.polarization_array
 
         mount_type = self.mount_type if hasattr(self, "mount_type") else None
@@ -588,8 +584,8 @@ class AnalyticBeam:
             model_name=self.__repr__(),
             model_version="1.0",
             freq_array=freq_array,
-            feed_array=feed_array,
-            feed_angle=feed_angle,
+            feed_array=self.feed_array,
+            feed_angle=self.feed_angle,
             mount_type=mount_type,
             polarization_array=polarization_array,
             pixel_coordinate_system=pixel_coordinate_system,
