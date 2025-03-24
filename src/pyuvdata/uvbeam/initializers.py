@@ -78,15 +78,14 @@ def new_uvbeam(
     model_version: str
         Version of the beam model.
     feed_array : ndarray of str
-        Array of feed orientations. Options are: n/e or x/y or r/l. Must be
-        provided for an E-field beam.
+        Array of feed orientations. Options are: n/e or x/y or r/l.
     feed_angle : ndarray of float
         Orientation of the feed with respect to zenith (or with respect to north if
         pointed at zenith). Units is in rads, vertical polarization is nominally 0,
         and horizontal polarization is nominally pi / 2.
     polarization_array : ndarray of str or int
         Array of polarization integers or strings (eg. 'xx' or 'ee'). Must be
-        provided for a power beam.
+        provided for a power beam, otherwise an efield beam is assumed.
     x_orientation : str, optional
         Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
         Ignored in feed_angle is set.
@@ -162,11 +161,6 @@ def new_uvbeam(
     from .uvbeam import UVBeam
 
     uvb = UVBeam()
-
-    if (feed_array is not None and polarization_array is not None) or (
-        feed_array is None and polarization_array is None
-    ):
-        raise ValueError("Provide *either* feed_array *or* polarization_array")
 
     if polarization_array is None:
         uvb.beam_type = "efield"
