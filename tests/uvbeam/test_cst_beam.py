@@ -957,7 +957,7 @@ def test_wrong_column_names(tmp_path):
         beam1.read_cst_beam(
             testfile,
             beam_type="power",
-            frequency=np.array([150e6]),
+            frequency=[150e6],
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -1001,3 +1001,35 @@ def test_hera_yaml():
     beam1.history = beam2.history
 
     assert beam1 == beam2
+
+
+@pytest.mark.parametrize(
+    "kwargs,beam_type,err_msg",
+    [
+        [{"feed_array": ["y"]}, "efield", "Cannot set feed_array for efield beams"],
+        [{"feed_array": np.ones((2, 2))}, "power", "feed_array cannot be a multi-dim"],
+        [{"feed_angle": np.ones((2, 2))}, "power", "feed_angle cannot be a multi-dim"],
+        [{"feed_angle": [0, 0]}, "efield", "feed_pol and feed_angle must contain"],
+        [{"feed_angle": [0, 0]}, "power", "Must set either both or neither"],
+        [
+            {"feed_array": "y", "feed_angle": [0, 0]},
+            "power",
+            "feed_array and feed_angle must contain the same number",
+        ],
+    ],
+)
+def test_read_cst_feed_errors(kwargs, beam_type, err_msg):
+    beam = UVBeam()
+    with pytest.raises(ValueError, match=err_msg):
+        beam.read_cst_beam(
+            cst_files,
+            beam_type=beam_type,
+            frequency=[150e6, 123e6],
+            feed_pol=np.array(["y"]),
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+            **kwargs,
+        )

@@ -3059,7 +3059,6 @@ def test_generic_read_cst():
         cst_files,
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
-        feed_pol="y",
         feed_angle=[0.0, np.pi / 2],
         feed_array=["x", "y"],
         mount_type="fixed",
@@ -3344,3 +3343,26 @@ def test_xorient_dep_warning(cst_efield_2freq_cut):
         assert cst_efield_2freq_cut.x_orientation == "east"
         cst_efield_2freq_cut.x_orientation = "north"
         assert cst_efield_2freq_cut.x_orientation == "north"
+
+
+@pytest.mark.parametrize(
+    "mod_params,warn_msg",
+    [
+        [
+            {"Nfeeds": None, "feed_array": None, "feed_angle": None},
+            "Feed information now required for power beams",
+        ],
+        [{"feed_angle": None}, "The feed_angle parameter must be set for UVBeam"],
+        [{"feed_array": np.array(["e", "n"])}, "Support for physically oriented feeds"],
+    ],
+)
+def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
+    uvb = cst_power_2freq_cut
+    uvb2 = uvb.copy()
+    for key, value in mod_params.items():
+        setattr(uvb, key, value)
+
+    with check_warnings(DeprecationWarning, match=warn_msg):
+        uvb._fix_feeds()
+
+    assert uvb == uvb2
