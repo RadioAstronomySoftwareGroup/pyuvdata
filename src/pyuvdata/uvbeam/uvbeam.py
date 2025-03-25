@@ -4006,7 +4006,7 @@ class UVBeam(UVBase):
             else:
                 if feed_array is None:
                     raise ValueError(
-                        "Must set either both or either of feed_array and feed_angle "
+                        "Must set either both or neither of feed_array and feed_angle "
                         "for power beams."
                     )
                 if len(feed_angle) != len(feed_array):
