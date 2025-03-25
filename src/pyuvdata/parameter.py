@@ -20,7 +20,7 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
 
-from .utils.tools import _multidim_ind2sub
+from .utils.tools import _multidim_ind2sub, _strict_raise
 
 allowed_location_types = [EarthLocation]
 try:
@@ -796,7 +796,7 @@ class UVParameter:
         if self._setter is not None:
             self._setter(inst)
 
-    def get_from_form(self, form_dict: dict):
+    def get_from_form(self, form_dict: dict, strict: bool | None = None):
         """
         Get values along a set of parameterized axes.
 
@@ -812,18 +812,26 @@ class UVParameter:
             against entries within UVParameter.form, and values which demark which
             indices should be selected (must be 1D). Values can also be given as None,
             in which case no selection is performed along that axis.
+        strict : bool or None
+            Only used if no entries in form_dict match what is present in the form_dict
+            parameter. If set to True, then an error is raised. If set to False, a
+            warning is raised, and the entirety of UVParameter.value is returned. If
+            set to None (default), neither a warning nor error is raised, and the
+            entirety of UVParameter.value is returned.
 
         Returns
         -------
         values : list or ndarray or obj
-            Values based on the positions selected, as specified in form_dict. Note that
-            for singleton values or if no entries in form_dict match the form parameter,
-            the whole of UVParameter.value is returned.
+            Values based on the positions selected, as specified in form_dict.
         """
         # Check the no-op case first
         if self.value is None or not (
             isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
         ):
+            msg = "form_dict does not match anything in UVParameter.form" + (
+                "." if strict else ", returning whole value."
+            )
+            _strict_raise(err_msg=msg, strict=strict)
             return self.value
 
         val_slice = [form_dict.get(key, slice(None)) for key in self.form]
@@ -857,7 +865,9 @@ class UVParameter:
                 value = [self.value[idx] for idx in val_slice[0]]
         return value
 
-    def set_from_form(self, form_dict: dict, values: list | np.ndarray):
+    def set_from_form(
+        self, form_dict: dict, values: list | np.ndarray, strict: bool | None = False
+    ):
         """
         Set values along a set of parameterized axes.
 
@@ -874,14 +884,23 @@ class UVParameter:
             indices should be selected (must be 1D). Values can also be given as None,
             in which case no selection is performed along that axis.
         values : list or ndarray
-            Values based on the positions selected, as specified in form_dict. Note that
-            for singleton values or if no entries in form_dict match the form parameter,
-            the whole of UVParameter.value is set.
+            Values based on the positions selected, as specified in form_dict.
+        strict : bool or None
+            Only used if no entries in form_dict match what is present in the form_dict
+            parameter. If set to True, then an error is raised. If set to False, a
+            warning is raised, and the entirety of UVParameter.value set to be equal to
+            the values argument. If set to None (default), neither a warning nor error
+            is raised, and the entirety of UVParameter.value is set.
         """
         # Check the no-op case first
         if not (
             isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
         ):
+            msg = "form_dict does not match anything in UVParameter.form" + (
+                "." if strict else ", returning whole value."
+            )
+            _strict_raise(err_msg=msg, strict=strict)
+
             self.value = values
             return
 

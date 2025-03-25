@@ -14,6 +14,7 @@ from astropy.coordinates import (
 )
 
 from pyuvdata import parameter as uvp, utils
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import UVBase
 
 from .utils.test_coordinates import (
@@ -1090,7 +1091,16 @@ def test_get_from_form(form_dict, exp_arr):
 )
 def test_set_from_form(form_dict, exp_arr):
     param = uvp.UVParameter("_test1", form=("a", "b"), value=np.full((3, 3), -1))
-    param.set_from_form(form_dict, exp_arr)
+    if "c" in form_dict:
+        # no-op handling
+        exp_warning = UserWarning
+        msg = "form_dict does not match anything in UVParameter.form"
+    else:
+        exp_warning = None
+        msg = ""
+
+    with check_warnings(exp_warning, match=msg):
+        param.set_from_form(form_dict, exp_arr)
 
     # Test that the values are set as expected
     val = param.value[form_dict.get("a", slice(None))]
@@ -1134,7 +1144,17 @@ def test_get_from_form_list(form_dict, exp_list):
 )
 def test_set_from_form_list(form_dict, exp_list):
     param = uvp.UVParameter("_test1", form=("a",), value=[-1, -1, -1])
-    param.set_from_form(form_dict, exp_list)
+    if "b" in form_dict:
+        # no-op catch case
+        exp_warning = UserWarning
+        msg = "form_dict does not match anything in UVParameter.form"
+    else:
+        exp_warning = None
+        msg = ""
+
+    with check_warnings(exp_warning, match=msg):
+        param.set_from_form(form_dict, exp_list)
+
     if isinstance(form_dict.get("a"), list):
         assert exp_list == [param.value[idx] for idx in form_dict["a"]]
     else:
@@ -1153,6 +1173,10 @@ def test_set_get_singleton():
     param = uvp.UVParameter("_test1")
     assert param.form == ()
     assert param.value is None
-    param.set_from_form({"a": []}, 123.456)
+    with check_warnings(
+        UserWarning, match="form_dict does not match anything in UVParameter.form"
+    ):
+        param.set_from_form({"a": []}, 123.456)
+
     assert param.value == 123.456
     assert param.value == param.get_from_form({"a": 1})
