@@ -14,8 +14,9 @@ one to perform selection/setting operations based on the `UVParameter.form` attr
 - Handling for MeasurementSet calibration subtypes "T Jones" (non-pol-specific antenna
 gains) and "D Jones" (polarization leakages) has been added to `MSCal`.
 - The `UVBeam.x_orientation` parameter has been deprecated, superseded by two new
-parameters: `UVBeam.feed_array` and `UVBeam.feed_angle`, which describe the
-polarization and orientation of the beam.
+required parameters: `UVBeam.feed_array` and `UVBeam.feed_angle`, which describe the
+polarization and orientation of the beam (the former of which was already present but
+only required for efield beams).
 - The `Telescope.x_orientation` parameter has been deprecated, superseded by two new
 parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
 polarization and orientation of the detectors for a given antenna.
