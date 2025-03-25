@@ -715,10 +715,15 @@ def test_telescope_add_errs(simplest_working_params, add_method):
 def test_telescope_mount_feed_multicast(simplest_working_params):
     tel = Telescope.new(
         **simplest_working_params,
+        mount_type=["fixed"] * 3,
+        feed_array=np.array([["x", "y"]] * 3),
+        feed_angle=[[0, np.pi / 2]] * 3,
+    )
+    tel2 = Telescope.new(
+        **simplest_working_params,
         mount_type="fixed",
         feed_array=["x", "y"],
         feed_angle=[0, np.pi / 2],
     )
-    np.testing.assert_array_equal(tel.mount_type, ["fixed"] * tel.Nants)
-    np.testing.assert_array_equal(tel.feed_array, [["x", "y"]] * tel.Nants)
-    np.testing.assert_array_equal(tel.feed_angle, [[0, np.pi / 2]] * tel.Nants)
+
+    assert tel == tel2
