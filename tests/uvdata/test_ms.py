@@ -1057,13 +1057,26 @@ def test_flip_conj(nrao_uv, tmp_path):
     with check_warnings(
         UserWarning, match="Writing in the MS file that the units of the data are unca"
     ):
-        nrao_uv.write_ms(filename, flip_conj=True, run_check=False)
+        nrao_uv.write_ms(filename, flip_conj=True, run_check=False, clobber=True)
 
     with check_warnings(UserWarning, match=["UVW orientation appears to be flip"] * 2):
         uv = UVData.from_file(filename)
         nrao_uv.check(allow_flip_conj=True)
 
     assert nrao_uv == uv
+
+
+def test_no_flip(sma_mir, tmp_path):
+    filename = os.path.join(tmp_path, "no_flip_conj.ms")
+    sma_mir._set_app_coords_helper()
+
+    # Now test that turning off the flip passes through nominally.
+    sma_mir.write_ms(filename, flip_conj=False, clobber=True)
+    uv = UVData.from_file(filename)
+
+    assert sma_mir.__eq__(
+        uv, allowed_failures=["history", "extra_keywords", "instrument", "filename"]
+    )
 
 
 def test_importuvfits_flip_conj(sma_mir, tmp_path):

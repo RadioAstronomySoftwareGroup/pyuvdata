@@ -572,7 +572,10 @@ class UVBase:
                 other_param = getattr(other, param)
                 if isinstance(self_param.value, UVBase):
                     if self_param.value.__ne__(
-                        other_param.value, check_extra=check_extra, silent=True
+                        other_param.value,
+                        check_extra=check_extra,
+                        silent=True,
+                        allowed_failures=allowed_failures,
                     ):
                         if not silent:
                             print(f"parameter {param} does not match.")
