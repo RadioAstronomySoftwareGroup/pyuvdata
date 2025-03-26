@@ -70,6 +70,8 @@ compared and `UVParameter.value` share the same class.
 and `UVBeam.check`.
 
 ### Fixed
+- Bug in `UVData.write_ms` where datasets with a single spectral window were being
+written with the wrong conjugation when setting `flip_conj=True`.
 - Bug in `UVData.write_ms` where the baseline conjugation scheme did not conform to
 what CASA nominally expects.
 - Bug in `utils.tools.slicify` and `utils.tools._convert_to_slices` where

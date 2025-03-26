@@ -873,6 +873,9 @@ def test_generic_read():
         )
 
     with pytest.raises(ValueError, match="File type could not be determined"):
+        uv_in.read(os.path.join(DATA_PATH, "mwa_ant_pos.csv"))
+
+    with pytest.raises(FileNotFoundError, match="File not found, check path for: foo"):
         uv_in.read("foo")
 
 
