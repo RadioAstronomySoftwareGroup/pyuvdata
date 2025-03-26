@@ -10379,6 +10379,11 @@ class UVData(UVBase):
             else:
                 file_test = filename
 
+            if isinstance(file_test, str) and not os.path.exists(file_test):
+                # Adding this b/c otherwise you get a "filetype not determined" error
+                # that I (Karto) have dumbly lost a lot of time to.
+                raise FileNotFoundError(f"File not found, check path for: {file_test}")
+
             if os.path.isdir(file_test):
                 # it's a directory, so it's either miriad, mir, or ms file type
                 if os.path.exists(os.path.join(file_test, "vartable")):
