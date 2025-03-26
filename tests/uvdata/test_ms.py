@@ -80,7 +80,6 @@ def nrao_uv(nrao_uv_main):
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
-@pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
@@ -96,7 +95,6 @@ def test_cotter_ms():
         match=[
             "Warning: select on read keyword set",
             "Setting telescope_location to value in known_telescopes for MWA.",
-            "UVW orientation appears to be flipped,",
         ],
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
@@ -937,7 +935,11 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     with check_warnings(
-        UserWarning, match="Writing in the MS file that the units of the data are"
+        UserWarning,
+        match=[
+            "Writing in the MS file that the units of the data are",
+            "UVData object contains a mix of baseline conjugation states",
+        ],
     ):
         uv_obj.write_ms(test_file, force_phase=True)
 
@@ -1049,14 +1051,17 @@ def test_ms_bad_history(sma_mir, tmp_path):
 def test_flip_conj(nrao_uv, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj.ms")
     nrao_uv.set_uvws_from_antenna_positions()
+    nrao_uv.uvw_array *= -1
+    nrao_uv.data_array = np.conj(nrao_uv.data_array)
 
     with check_warnings(
         UserWarning, match="Writing in the MS file that the units of the data are unca"
     ):
-        nrao_uv.write_ms(filename, flip_conj=True)
+        nrao_uv.write_ms(filename, flip_conj=True, run_check=False)
 
-    with check_warnings(UserWarning, match="UVW orientation appears to be flipped,"):
+    with check_warnings(UserWarning, match=["UVW orientation appears to be flip"] * 2):
         uv = UVData.from_file(filename)
+        nrao_uv.check(allow_flip_conj=True)
 
     assert nrao_uv == uv
 
@@ -1091,8 +1096,7 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj_multispw.ms")
 
     sma_mir.write_ms(filename, flip_conj=True)
-    with check_warnings(UserWarning, match="UVW orientation appears to be flipped,"):
-        ms_uv = UVData.from_file(filename)
+    ms_uv = UVData.from_file(filename)
 
     # MS doesn't have the concept of an "instrument" name like FITS does, and instead
     # defaults to the telescope name. Make sure that checks out here.
@@ -1163,3 +1167,27 @@ def test_write_ms_feed_sort(sma_mir, tmp_path):
     assert uvd != sma_mir
     uvd.telescope.reorder_feeds(order=["y", "x", "l", "r"])
     assert uvd == sma_mir
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_write_ms_baseline_conj_warning(nrao_uv, tmp_path):
+    testfile = os.path.join(tmp_path, "mix_bl_conj.ms")
+
+    uvd = nrao_uv
+    uvd.vis_units = "Jy"
+    uvd.pol_convention = "sum"
+
+    # Mix up the conj for some baselines
+    uvd.conjugate_bls(convention="u>0")
+
+    with check_warnings(
+        UserWarning,
+        match=[
+            "The uvw_array does not match",
+            "UVData object contains a mix of baseline conjugation states",
+        ],
+    ):
+        uvd.write_ms(testfile, clobber=True)
+
+    uvd2 = UVData.from_file(testfile)
+    assert uvd == uvd2
