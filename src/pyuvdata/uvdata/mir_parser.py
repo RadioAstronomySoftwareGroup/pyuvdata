@@ -3295,6 +3295,9 @@ class MirParser:
         ):
             sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
 
+        # Map for matching receiver code to antenna letter index (A=0, B=1)
+        rx_map = {0: 0, 1: 0, 2: 1, 3: 1}
+
         # Create an empty dict, that'll be what we hand back to the user.
         compass_soln_dict = {}
 
@@ -3310,36 +3313,47 @@ class MirParser:
             # First, pull out the bandpass solns, and the associated metadata. Note that
             # the real/imag values here are split to make it easier for grabbing the
             # data cleanly w/o worries about endianness/recasting.
-            ant_arr = np.array(file["antArr"][0]).astype(int)  # Antenna number
-            rx_arr = np.array(file["rx1Arr"][0]).astype(int)  # Receiver (0=RxA, 1=RxB)
-            sb_arr = np.array(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
-            chunk_arr = np.array(file["winArr"][0]).astype(int)  # Spectral win #
+            ant_arr = np.asarray(file["antArr"][0]).astype(int)  # Antenna number
+            rx_arr = np.asarray(file["rxList"][0]).astype(int)  # Rx num
+            sb_arr = np.asarray(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
+            win_arr = np.asarray(file["winArr"][0]).astype(int)  # Spectral win number
+
+            # Map receiver codes to A/B index values
+            rx_arr[:] = [rx_map[rx] for rx in rx_arr]
+            Nrx = len(rx_arr)
+            Nant = len(ant_arr)
+            Nwin = len(win_arr)
             bp_arr = (
-                np.asarray(file["reBandpassArr"])
-                + (1j * np.asarray(file["imBandpassArr"]))
-            ).astype(np.complex64)  # BP gains (3D array)
-            sefd_arr = np.asarray(file["sefdArr"]) ** 2.0
+                file["bandpassArr"][...].view(np.complex64).reshape(Nrx, Nant, Nwin, -1)
+            )  # BP gains (4D array)
+
+            if "crossRxBandpassArr" in file:
+                # Multiply last receiver feeds w/ cross-rx bandpass soln
+                bp_arr[-1] *= (
+                    file["crossRxBandpassArr"][...].view(np.complex64).reshape(Nwin, -1)
+                )
+
+            sefd_arr = np.square(file["sefdArr"])
 
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
-            for idx, ant in enumerate(ant_arr):
-                for jdx, (rx, sb, chunk) in enumerate(
-                    zip(rx_arr, sb_arr, chunk_arr, strict=True)
-                ):
-                    cal_data = bp_arr[idx, jdx]
-                    cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
-                    sefd_data = sefd_arr[idx, jdx]
-                    sefd_flags = (sefd_data == 0.0) | ~np.isfinite(sefd_data)
+            for idx, rx in enumerate(rx_arr):
+                for jdx, ant in enumerate(ant_arr):
+                    for kdx, (sb, win) in enumerate(zip(sb_arr, win_arr, strict=True)):
+                        cal_data = bp_arr[idx, jdx, kdx]
+                        cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
+                        sefd_data = sefd_arr[idx, jdx, kdx]
+                        sefd_flags = (sefd_data == 0.0) | ~np.isfinite(sefd_data)
 
-                    cal_data[cal_flags] = 1.0
-                    sefd_data[sefd_flags] = 0.0
+                        cal_data[cal_flags] = 1.0
+                        sefd_data[sefd_flags] = 0.0
 
-                    bandpass_gains[(ant, rx, sb, chunk)] = {
-                        "cal_data": cal_data,
-                        "cal_flags": cal_flags,
-                        "sefd_data": sefd_data,
-                        "sefd_flags": sefd_flags,
-                    }
+                        bandpass_gains[(ant, rx, sb, win)] = {
+                            "cal_data": cal_data,
+                            "cal_flags": cal_flags,
+                            "sefd_data": sefd_data,
+                            "sefd_flags": sefd_flags,
+                        }
 
             # Once we divvy-up the solutions, plug them back into the dict that
             # we will pass back to the user.
@@ -3395,7 +3409,7 @@ class MirParser:
             # Now, we can move on to flags. Note that COMPASS doesn't have access to
             # the integration header IDs, so we have to do a little bit of matching
             # based on the timestamp of the data in COMPASS vs MIR (via the MJD).
-            mjd_compass = np.array(file["mjdArr"][0])
+            mjd_compass = np.asarray(file["mjdArr"][0])
             mjd_mir = self.in_data["mjd"]
             inhid_arr = self.in_data["inhid"]
 
@@ -3417,37 +3431,33 @@ class MirParser:
             flags_arr = np.asarray(file["flagArr"])  # Per-sphid flags
             saflags_arr = np.asarray(file["staticAntFlagArr"])  # "All times" ant flags
             sbflags_arr = np.asarray(file["staticBaseFlagArr"])  # "All times" BL flags
-            ant1_arr = np.asarray(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
-            rx1_arr = np.asarray(file["rx1Arr"][0]).astype(
-                int
-            )  # Receiver/pol of 1st ant
-            ant2_arr = np.asarray(file["ant2Arr"][0]).astype(int)  # 2nd ant in baseline
-            rx2_arr = np.asarray(file["rx2Arr"][0]).astype(
-                int
-            )  # Receiver/pol of 2nd ant
-            sb_arr = np.asarray(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
-            chunk_arr = np.asarray(file["winArr"][0]).astype(int)  # Spectral win number
+            a1_arr = np.asarray(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
+            rx1_arr = np.asarray(file["rx1Arr"][0]).astype(int)  # Rx/pol of 1st ant
+            a2_arr = np.asarray(file["ant2Arr"][0]).astype(int)  # 2nd ant in baseline
+            rx2_arr = np.asarray(file["rx2Arr"][0]).astype(int)  # Rx/pol of 2nd ant
+
+            # Map receiver codes to A/B index values
+            rx1_arr[:] = [rx_map[rx] for rx in rx1_arr]
+            rx2_arr[:] = [rx_map[rx] for rx in rx2_arr]
 
             # Begin unpacking the "static" flags, which are both baseline and antenna
             # based and persistent across the entire track. Note that the two loops here
             # are used to match the indexing scheme of the flags (so the slowest loop
             # iterates on the outer-most axis of the array).
             saflags_dict = {}
-            for idx, ant in enumerate(ant_arr):
-                for jdx, (rx, sb, chunk) in enumerate(
-                    zip(rx1_arr, sb_arr, chunk_arr, strict=True)
-                ):
-                    saflags_dict[(ant, rx, sb, chunk)] = saflags_arr[idx, jdx]
+            for idx, rx in enumerate(rx_arr):
+                for jdx, ant in enumerate(ant_arr):
+                    for kdx, (sb, win) in enumerate(zip(sb_arr, win_arr, strict=True)):
+                        saflags_dict[(ant, rx, sb, win)] = saflags_arr[idx, jdx, kdx]
 
             sbflags_dict = {}
-            for idx, (ant1, ant2) in enumerate(zip(ant1_arr, ant2_arr, strict=True)):
-                for jdx, (rx1, rx2, sb, chunk) in enumerate(
-                    zip(rx1_arr, rx2_arr, sb_arr, chunk_arr, strict=True)
-                ):
-                    # Store both conventions for antenna ordering
-                    flag_slice = sbflags_arr[idx, jdx]
-                    sbflags_dict[(ant1, rx1, ant2, rx2, sb, chunk)] = flag_slice
-                    sbflags_dict[(ant2, rx2, ant1, rx1, sb, chunk)] = flag_slice
+            for idx, (rx1, rx2) in enumerate(zip(rx1_arr, rx2_arr, strict=True)):
+                for jdx, (a1, a2) in enumerate(zip(a1_arr, a2_arr, strict=True)):
+                    for kdx, (sb, win) in enumerate(zip(sb_arr, win_arr, strict=True)):
+                        # Store both conventions for antenna ordering
+                        flag_slice = sbflags_arr[idx, jdx, kdx]
+                        sbflags_dict[(a1, rx1, a2, rx2, sb, win)] = flag_slice
+                        sbflags_dict[(a2, rx2, a1, rx1, sb, win)] = flag_slice
 
             # Expand out the flags to produce baseline-based masks, which will be what
             # is actually used with the visibility data.
@@ -3475,20 +3485,19 @@ class MirParser:
                     # has no flags for this integration. Skip it (on apply, it will
                     # use the wide flags instead).
                     continue
-                for jdx, (ant1, ant2) in enumerate(
-                    zip(ant1_arr, ant2_arr, strict=True)
-                ):
-                    for kdx, (rx1, rx2, sb, chunk) in enumerate(
-                        zip(rx1_arr, rx2_arr, sb_arr, chunk_arr, strict=True)
-                    ):
-                        try:
-                            sphid = sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)]
-                            sphid_flags[sphid] = flags_arr[idx, jdx, kdx]
-                        except KeyError:
-                            # If we don't have a match for the entry, that's okay,
-                            # since this may just be a subset of the data that COMPASS
-                            # processed for the track. In this case, discard the flags.
-                            pass
+                for jdx, (rx1, rx2) in enumerate(zip(rx1_arr, rx2_arr, strict=True)):
+                    for kdx, (a1, a2) in enumerate(zip(a1_arr, a2_arr, strict=True)):
+                        for ldx, (sb, win) in enumerate(
+                            zip(sb_arr, win_arr, strict=True)
+                        ):
+                            try:
+                                sphid = sphid_dict[(inhid, a1, rx1, a2, rx2, sb, win)]
+                                sphid_flags[sphid] = flags_arr[idx, jdx, kdx, ldx]
+                            except KeyError:
+                                # If we don't have a match for the entry, that's okay,
+                                # since this may be a subset of the data that COMPASS
+                                # processed for the track. If so, discard the flags.
+                                pass
 
             if len(sphid_flags) == 0:
                 # If we don't have _any_ flags recorded, raise a warning, since this
