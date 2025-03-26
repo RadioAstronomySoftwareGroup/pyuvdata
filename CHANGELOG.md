@@ -70,8 +70,10 @@ compared and `UVParameter.value` share the same class.
 and `UVBeam.check`.
 
 ### Fixed
-- Bug in `utils.tools._convert_to_slices` where reverse-ordered slices (i.e., where
-the step was negative) where not correctly handled.
+- Bug in `UVData.write_ms` where the baseline conjugation scheme did not conform to
+what CASA nominally expects.
+- Bug in `utils.tools.slicify` and `utils.tools._convert_to_slices` where
+reverse-ordered slices (i.e., where the step was negative) where not correctly handled.
 - Bug in `UVData.sum_vis` where it errored if there were different filenames on
 the input objects. Now the filename lists are combined on the output object.
 - Bug in `UVBeam.select` where `polarization_array` could be incorrectly ordered after

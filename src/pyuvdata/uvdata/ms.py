@@ -43,6 +43,7 @@ class MS(UVData):
 
     """
 
+    @copy_replace_short_description(UVData.write_ms, style=DocstringStyle.NUMPYDOC)
     def write_ms(
         self,
         filepath,
@@ -50,7 +51,7 @@ class MS(UVData):
         force_phase=False,
         model_data=None,
         corrected_data=None,
-        flip_conj=False,
+        flip_conj=None,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -59,52 +60,8 @@ class MS(UVData):
         check_autos=True,
         fix_autos=False,
     ):
-        """
-        Write a CASA measurement set (MS).
-
-        Parameters
-        ----------
-        filepath : str
-            The MS file path to write to.
-        force_phase : bool
-            Option to automatically phase drift scan data to zenith of the first
-            timestamp.
-        model_data : ndarray
-            Optional argument, which contains data to be written into the MODEL_DATA
-            column of the measurement set (along with the data, which is written into
-            the DATA column). Must contain the same dimensions as `data_array`.
-        corrected_data : ndarray
-            Optional argument, which contains data to be written into the CORRECTED_DATA
-            column of the measurement set (along with the data, which is written into
-            the DATA column). Must contain the same dimensions as `data_array`.
-        clobber : bool
-            Option to overwrite the file if it already exists.
-        flip_conj : bool
-            If set to True, and the UVW coordinates are flipped (i.e., multiplied by
-            -1) and the visibilities are complex conjugated prior to write, such that
-            the data are written with the "opposite" conjugation scheme to what UVData
-            normally uses.  Note that this is only needed for specific subset of
-            applications that read MS-formatted data, and should only be used by expert
-            users. Default is False.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-        """
-        if not casa_present:
+        """Write a CASA measurement set (MS)."""
+        if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
         if any(
@@ -163,6 +120,14 @@ class MS(UVData):
         if self.scan_number_array is None:
             self._set_scan_numbers()
 
+        if flip_conj is None:
+            flip_conj = np.all(self.ant_1_array <= self.ant_2_array)
+            if np.any(self.ant_1_array < self.ant_2_array) != flip_conj:
+                warnings.warn(
+                    "UVData object contains a mix of baseline conjugation states -- "
+                    "this may cause some tasks (e.g., gaincal) in CASA to fail."
+                )
+
         # Initialize a skelton measurement set
         ms = ms_utils.init_ms_file(
             filepath,
@@ -211,7 +176,7 @@ class MS(UVData):
                 temp_vals = arr[:, :, pol_order]
 
                 if flip_conj and ("DATA" in col):
-                    temp_vals = np.conj(temp_vals, out=temp_vals)
+                    temp_vals = np.conj(temp_vals)
 
                 ms.putcol(col, temp_vals)
 
@@ -365,6 +330,8 @@ class MS(UVData):
         if self.pol_convention is not None:
             ms.putkeyword("pyuvdata_polconv", self.pol_convention)
 
+        ms.putkeyword("pyuvdata_flip_conj", flip_conj)
+
         ms.done()
 
         ms_utils.write_ms_antenna(filepath, uvobj=self)
@@ -385,7 +352,7 @@ class MS(UVData):
         data_column,
         data_desc_dict,
         read_weights=True,
-        flip_conj=False,
+        pyuvdata_written=False,
         raise_error=True,
         allow_flex_pol=False,
     ):
@@ -410,10 +377,9 @@ class MS(UVData):
         read_weights : bool
             Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
-        flip_conj : bool
-            On read, whether to flip the conjugation of the baselines. Normally the MS
-            format is the same as what is used for pyuvdata (ant2 - ant1), hence the
-            default is False.
+        pyuvdata_written : bool
+            Whether the file in question was written by pyuvdata. Used in part to
+            determine conjugation of the baselines.
         raise_error : bool
             On read, whether to raise an error if different records (i.e.,
             different spectral windows) report different metadata for the same
@@ -455,6 +421,7 @@ class MS(UVData):
         self.extra_keywords = main_keywords.get("pyuvdata_extra", {})
         self.pol_convention = main_keywords.get("pyuvdata_polconv", None)
         x_orientation = main_keywords.get("pyuvdata_xorient", None)
+        flip_conj = main_keywords.get("pyuvdata_flip_conj", None)
 
         default_vis_units = {
             "DATA": "uncalib",
@@ -500,6 +467,17 @@ class MS(UVData):
                 "values; only files with one subarray are "
                 "supported."
             )
+
+        if flip_conj is None:
+            # if we got to this point, it means that the conjugation scheme has not
+            # been encoded into the dataset, which is _either_ and old pyuvdata written
+            # file or written external to pyuvdata. CASA's convention is not 100% clear,
+            # but testing of the code base reveals that CASA supports both conventions.
+            # Which convention is used is dependent on antenna numbering, i.e. whether
+            # ant1 >= ant2 or ant1 <= ant2 (flip_conj=False for the former and True for
+            # the latter). This seems to explain the apparent contradictions in the
+            # documentation, and the inconsistent results we have seen w/ importuvfits.
+            flip_conj = (not pyuvdata_written) and np.all(ant_1_arr <= ant_2_arr)
 
         data_desc_count = np.sum(np.isin(list(data_desc_dict.keys()), unique_data_desc))
 
@@ -841,7 +819,7 @@ class MS(UVData):
         use_future_array_shapes=None,
         astrometry_library=None,
     ):
-        """Read in a casa measurement set."""
+        """Read in a CASA measurement set."""
         # Check for defunct keyword here
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
@@ -889,21 +867,12 @@ class MS(UVData):
             for key in single_chan_list:
                 del data_desc_dict[key]
 
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # CASA's convention is unclear: the docs contradict themselves,
-        # but after a question to the helpdesk we got a clear response that
-        # the convention is antenna2_pos - antenna1_pos, so the convention is the
-        # same as ours & Miriad's
-        # HOWEVER, it appears that CASA's importuvfits task does not make this
-        # convention change. So if the data in the MS came via that task and was not
-        # written by pyuvdata, we do need to flip the uvws & conjugate the data
-        flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
         spw_list, field_list, pol_list, flex_pol, x_orientation = self._read_ms_main(
             filepath,
             data_column=data_column,
             data_desc_dict=data_desc_dict,
             read_weights=read_weights,
-            flip_conj=flip_conj,
+            pyuvdata_written=pyuvdata_written,
             raise_error=raise_error,
             allow_flex_pol=allow_flex_pol,
         )
