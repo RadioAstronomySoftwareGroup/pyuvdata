@@ -11326,7 +11326,7 @@ class UVData(UVBase):
         force_phase=False,
         model_data=None,
         corrected_data=None,
-        flip_conj=False,
+        flip_conj=None,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -11358,9 +11358,12 @@ class UVData(UVBase):
             If set to True, and the UVW coordinates are flipped (i.e., multiplied by
             -1) and the visibilities are complex conjugated prior to write, such that
             the data are written with the "opposite" conjugation scheme to what UVData
-            normally uses.  Note that this is only needed for specific subset of
-            applications that read MS-formated data, and should only be used by expert
-            users. Default is False.
+            normally uses. If set to False, no baseline conjugation is performed. By
+            default, the conjugation scheme is automatically determined by baseline
+            conjugation (e.g., "ant1>ant2" or "ant1<ant2"), see UVData.conjugate_bls for
+            further details). Note that this is only needed for specific subset of
+            applications that read MS-formatted data, and should only be modified by
+            expert users.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
