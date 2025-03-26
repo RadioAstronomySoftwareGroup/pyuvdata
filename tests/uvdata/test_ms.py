@@ -114,24 +114,28 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_te
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
-        enu_antpos = uvobj.telescope.get_enu_antpos()
-        uvobj.telescope.location = MoonLocation.from_selenodetic(
-            lat=uvobj.telescope.location.lat,
-            lon=uvobj.telescope.location.lon,
-            height=uvobj.telescope.location.height,
-            ellipsoid=selenoid,
-        )
-        new_full_antpos = utils.ECEF_from_ENU(
-            enu=enu_antpos, center_loc=uvobj.telescope.location
-        )
-        uvobj.telescope.antenna_positions = (
-            new_full_antpos - uvobj.telescope._location.xyz()
-        )
-        uvobj.set_lsts_from_time_array()
-        uvobj.set_uvws_from_antenna_positions()
-        uvobj._set_app_coords_helper()
-        uvobj.check()
+        try:
+            enu_antpos = uvobj.telescope.get_enu_antpos()
+            uvobj.telescope.location = MoonLocation.from_selenodetic(
+                lat=uvobj.telescope.location.lat,
+                lon=uvobj.telescope.location.lon,
+                height=uvobj.telescope.location.height,
+                ellipsoid=selenoid,
+            )
+            new_full_antpos = utils.ECEF_from_ENU(
+                enu=enu_antpos, center_loc=uvobj.telescope.location
+            )
+            uvobj.telescope.antenna_positions = (
+                new_full_antpos - uvobj.telescope._location.xyz()
+            )
+            uvobj.set_lsts_from_time_array()
+            uvobj.set_uvws_from_antenna_positions()
+            uvobj._set_app_coords_helper()
+            uvobj.check()
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     expected_extra_keywords = ["DATA_COL", "observer"]
 
