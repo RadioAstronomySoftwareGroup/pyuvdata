@@ -4670,8 +4670,6 @@ class UVData(UVBase):
         -------
         None (performs operations inplace)
         """
-        # ------- Parameters that are independent of frequency --------
-
         # Obtain focal distance in km
         focus = focus.to(units.km).value
 

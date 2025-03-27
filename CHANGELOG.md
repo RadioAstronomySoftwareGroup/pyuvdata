@@ -21,6 +21,11 @@ not to warn based on spacing errors that would prevent writing out to e.g., FITS
 file formats. Default is typically `False` (with the exception of `UVBeam`, where the
 default is `True`), such that most warnings about frequency/polarization/time spacing
 will not normally be raised.
+- New `near_field` option added to the `phase` method's `cat_type` keyword attribute.
+Passing `near_field` first performs sidereal far-field corrections using fixed RA/Dec,
+then applies geometric near-field corrections using the `distance` keyword, which can
+either be specified as a floating-point number (which, combined with the `near_field`
+tag, will be interpreted in meters) or as an `astropy.units.Quantity` object.
 
 ### Changed
 - `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
