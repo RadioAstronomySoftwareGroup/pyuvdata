@@ -2681,7 +2681,7 @@ def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
     new_w = r1 - r2
 
     # Mask autocorrelations
-    mask = np.not_equal(uvd.ant_1_array, uvd.ant_2_array).astype(int)
+    mask = np.not_equal(uvd.ant_1_array, uvd.ant_2_array)
     new_w = np.where(mask, new_w, old_w)
 
     return new_w  # Shape (Nblts,)
