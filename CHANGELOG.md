@@ -57,6 +57,8 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- `feed_array` (and by association, `feed_angle` and `Nfeeds`) is now a required
+parameter for `UVBeam`.
 - Default for `UVParameter.tols` when the expected type is int, bool, or str is
 now set to `(0, 0)`, was originally `(1e-5, 1e-8)` (relative and absolute tolerance,
 respectively).
