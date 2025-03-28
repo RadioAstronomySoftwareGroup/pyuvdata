@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from pyuvdata import UVBeam
+from pyuvdata.testing import check_warnings
 
 ph_params = [
     "element_location_array",
@@ -40,7 +41,7 @@ def uvb_healpix_kw():
 
 @pytest.fixture()
 def uvb_efield_kw():
-    return {"feed_array": ["x", "y"]}
+    return {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0]}
 
 
 @pytest.fixture()
@@ -95,11 +96,20 @@ def test_new_uvcal_simplest(
         kw_use = {**kw_coord, **uvb_power_kw}
         kw_no_cross_use = {**kw_coord, **uvb_power_nocross_kw}
 
-    uvb = UVBeam.new(**kw_use)
-    assert uvb.Nfreqs == 10
-    if beam_type == "efield":
-        assert uvb.Nfeeds == 2
+    if beam_type == "power":
+        warn_type = DeprecationWarning
+        warn_msg = "Feed information now required for power beams"
     else:
+        warn_type = None
+        warn_msg = ""
+
+    with check_warnings(warn_type, match=warn_msg):
+        uvb = UVBeam.new(**kw_use)
+
+    assert uvb.Nfreqs == 10
+    assert uvb.Nfeeds == 2
+
+    if beam_type == "power":
         assert uvb.Npols == 4
 
     if uvb.pixel_coordinate_system == "healpix":
@@ -109,7 +119,9 @@ def test_new_uvcal_simplest(
         assert uvb.Naxes2 == 181
 
     if beam_type == "power":
-        uvb_no_cross = UVBeam.new(**kw_no_cross_use)
+        uvb_no_cross = UVBeam.new(
+            feed_array=uvb.feed_array, feed_angle=uvb.feed_angle, **kw_no_cross_use
+        )
         assert uvb_no_cross.Npols == 2
 
 
@@ -117,7 +129,7 @@ def test_x_orientation(uvb_azza_efield_kw):
     uvb_azza_efield_kw["x_orientation"] = "e"
     uvb = UVBeam.new(**uvb_azza_efield_kw)
 
-    assert uvb.x_orientation == "east"
+    assert uvb.get_x_orientation_from_feeds() == "east"
 
 
 @pytest.mark.parametrize("pcs", ["az_za", "healpix"])
@@ -223,14 +235,6 @@ def test_kwargs(uvb_azza_efield_kw):
         UVBeam.new(**uvb_azza_efield_kw)
 
 
-def test_no_feed_pol_error(uvb_common_kw):
-    with pytest.raises(
-        ValueError,
-        match=re.escape("Provide *either* feed_array *or* polarization_array"),
-    ):
-        UVBeam.new(**uvb_common_kw)
-
-
 def test_pcs_params_error(uvb_common_kw, uvb_efield_kw, uvb_azza_kw, uvb_healpix_kw):
     with pytest.raises(
         ValueError,
@@ -296,6 +300,11 @@ def test_data_array_errors(uvb_azza_efield_kw):
         UVBeam.new(**uvb_azza_efield_kw)
 
 
+def test_feed_angle_warning(uvb_common_kw, uvb_azza_kw):
+    with check_warnings(UserWarning, match="No feed orientation information passed"):
+        UVBeam.new(feed_array=["x", "y"], **uvb_common_kw, **uvb_azza_kw)
+
+
 @pytest.mark.parametrize(
     ["key_rm", "new_key", "value", "msg"],
     [
@@ -355,3 +364,8 @@ def test_phased_array_errors(phased_array_efield, key_rm, new_key, value, msg):
 
     with pytest.raises(ValueError, match=msg):
         UVBeam.new(**phased_array_efield)
+
+
+def test_mount_init(uvb_azza_efield_kw):
+    uvb = UVBeam.new(**uvb_azza_efield_kw, mount_type="fixed")
+    assert uvb.mount_type == "fixed"

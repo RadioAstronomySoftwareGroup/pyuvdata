@@ -14,6 +14,7 @@ from astropy.coordinates import (
 )
 
 from pyuvdata import parameter as uvp, utils
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import UVBase
 
 from .utils.test_coordinates import (
@@ -444,8 +445,8 @@ def test_equality_check_fail(capsys):
 
 def test_notclose(capsys):
     """Test equality error for values not with tols."""
-    param1 = uvp.UVParameter(name="p1", value=1.0)
-    param2 = uvp.UVParameter(name="p2", value=1.001)
+    param1 = uvp.UVParameter(name="p1", value=1.0, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1.001, expected_type=float)
     assert param1.__ne__(param2, silent=False)
 
     captured = capsys.readouterr()
@@ -457,8 +458,19 @@ def test_notclose(capsys):
 
 def test_close():
     """Test equality error for values within tols."""
-    param1 = uvp.UVParameter(name="p1", value=1.0)
-    param2 = uvp.UVParameter(name="p2", value=1.000001)
+    param1 = uvp.UVParameter(name="p1", value=1.0, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1.000001, expected_type=float)
+    assert param1 == param2
+
+
+def test_close_int_vs_float():
+    """Test equality tols floats versus default with int."""
+    param1 = uvp.UVParameter(name="p1", value=1000000, expected_type=int)
+    param2 = uvp.UVParameter(name="p2", value=1000001, expected_type=int)
+    assert param1 != param2
+
+    param1 = uvp.UVParameter(name="p1", value=1000000, expected_type=float)
+    param2 = uvp.UVParameter(name="p2", value=1000001, expected_type=float)
     assert param1 == param2
 
 
@@ -1040,3 +1052,131 @@ def test_compare_value(value, param_value, value_type, status):
         expected_type=value_type,
     )
     assert param.compare_value(value) == status
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_arr",
+    [
+        [{"a": slice(None), "b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(0, 3, 2), "b": slice(0, 3, 2)}, [[0, 2], [6, 8]]],
+        [{"a": slice(0, 3, 2), "b": [0, 2]}, [[0, 2], [6, 8]]],
+        [{"a": [0, 2], "b": [0, 2]}, [[0, 2], [6, 8]]],
+        [{"a": [0, 2], "b": [2, 0]}, [[2, 0], [8, 6]]],
+        [{"a": [2, 0], "b": [0, 2]}, [[6, 8], [0, 2]]],
+    ],
+)
+def test_get_from_form(form_dict, exp_arr):
+    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.arange(9).reshape(3, 3))
+    np.testing.assert_array_equal(param.get_from_form(form_dict), exp_arr)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_arr",
+    [
+        [{"c": []}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(None), "b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": [1], "b": [1]}, np.arange(1).reshape(1, 1)],
+        [{"a": [0, 2], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(2), "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [0, 2], "b": slice(2)}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(2), "b": slice(2)}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(0), "b": slice(0)}, np.arange(0).reshape(0, 0)],  # no-op
+        [{"a": [0, 2], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [2, 0], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [0, 2], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
+        [{"a": [2, 0], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
+    ],
+)
+def test_set_from_form(form_dict, exp_arr):
+    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.full((3, 3), -1))
+    if "c" in form_dict:
+        # no-op handling
+        exp_warning = UserWarning
+        msg = "form_dict does not match anything in UVParameter.form"
+    else:
+        exp_warning = None
+        msg = ""
+
+    with check_warnings(exp_warning, match=msg):
+        param.set_from_form(form_dict, exp_arr)
+
+    # Test that the values are set as expected
+    val = param.value[form_dict.get("a", slice(None))]
+    val = val[:, form_dict.get("b", slice(None))]
+    np.testing.assert_array_equal(val, exp_arr)
+
+    # Check that all the other values were untouched
+    a_mask = np.ones(3, dtype=bool)
+    a_mask[form_dict.get("a", ())] = False
+    b_mask = np.ones(3, dtype=bool)
+    b_mask[form_dict.get("b", ())] = False
+    assert np.all(param.value[a_mask, :] == -1)
+    assert np.all(param.value[:, b_mask] == -1)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_list",
+    [
+        [{"a": slice(None)}, [1, 2, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"b": slice(10)}, [1, 2, 3]],
+        [{"a": [0, 2]}, [1, 3]],
+    ],
+)
+def test_get_from_form_list(form_dict, exp_list):
+    param = uvp.UVParameter("_test1", form=("a",), value=[1, 2, 3])
+    assert exp_list == param.get_from_form(form_dict)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_list",
+    [
+        [{"a": slice(None)}, [1, 2, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"b": slice(10)}, [1, 2, 3]],
+        [{"a": [0, 2]}, [1, 3]],
+        [{"a": [2, 0]}, [1, 3]],
+    ],
+)
+def test_set_from_form_list(form_dict, exp_list):
+    param = uvp.UVParameter("_test1", form=("a",), value=[-1, -1, -1])
+    if "b" in form_dict:
+        # no-op catch case
+        exp_warning = UserWarning
+        msg = "form_dict does not match anything in UVParameter.form"
+    else:
+        exp_warning = None
+        msg = ""
+
+    with check_warnings(exp_warning, match=msg):
+        param.set_from_form(form_dict, exp_list)
+
+    if isinstance(form_dict.get("a"), list):
+        assert exp_list == [param.value[idx] for idx in form_dict["a"]]
+    else:
+        assert exp_list == param.value[form_dict.get("a", slice(None))]
+
+
+def test_set_from_form_err():
+    param = uvp.UVParameter("_test1", form=("a",))
+    with pytest.raises(
+        ValueError, match="Cannot call set_from_form if UVParameter.value is None."
+    ):
+        param.set_from_form({"a": slice(None)}, [1])
+
+
+def test_set_get_singleton():
+    param = uvp.UVParameter("_test1")
+    assert param.form == ()
+    assert param.value is None
+    with check_warnings(
+        UserWarning, match="form_dict does not match anything in UVParameter.form"
+    ):
+        param.set_from_form({"a": []}, 123.456)
+
+    assert param.value == 123.456
+    assert param.value == param.get_from_form({"a": 1})

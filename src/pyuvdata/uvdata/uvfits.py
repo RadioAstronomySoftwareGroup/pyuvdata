@@ -463,13 +463,14 @@ class UVFITS(UVData):
             latitude_degrees = vis_hdr.pop("LAT", None)
             longitude_degrees = vis_hdr.pop("LON", None)
             altitude = vis_hdr.pop("ALT", None)
-            self.telescope.x_orientation = vis_hdr.pop("XORIENT", None)
+            x_orientation = vis_hdr.pop("XORIENT", None)
             blt_order_str = vis_hdr.pop("BLTORDER", None)
             if blt_order_str is not None:
                 self.blt_order = tuple(blt_order_str.split(", "))
                 if self.blt_order == ("bda",):
                     self._blt_order.form = (1,)
             self.history = str(vis_hdr.get("HISTORY", ""))
+            pyuvdata_written = "pyuvdata" in self.history
             if not utils.history._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
@@ -689,9 +690,44 @@ class UVFITS(UVData):
             if "DIAMETER" in ant_hdu.columns.names:
                 self.telescope.antenna_diameters = ant_hdu.data.field("DIAMETER")
 
+            # If written by older versions of pyuvdata, we don't neccessarily want to
+            # trust the mount information, otherwise read it in.
+            if ant_hdu.header.get("HASMNT", not pyuvdata_written):
+                ref_dict = utils.antenna.MOUNT_NUM2STR_DICT
+                if not pyuvdata_written:
+                    # Standard UVFITS only supports codes 0-6, so remove the other
+                    # codes so as to prevent mislabeling
+                    ref_dict = {k: v for k, v in ref_dict.items() if k in range(7)}
+                # Default to other if mount code isn't found
+                self.telescope.mount_type = [
+                    ref_dict.get(mount, "other") for mount in ant_hdu.data["MNTSTA"]
+                ]
+
+            if ant_hdu.header.get("HASFEED", not pyuvdata_written):
+                # Tranpose here so that the shape is (Nants, Nfeeds)
+                # NB: Older versions of the fits reader produce " " here, so we use
+                # strip so that the output across versions is a uniform ""
+                self.telescope.feed_array = np.array(
+                    [
+                        [item.strip().lower() for item in ant_hdu.data["POLTYA"]],
+                        [item.strip().lower() for item in ant_hdu.data["POLTYB"]],
+                    ]
+                ).T
+                self.telescope.Nfeeds = 2
+                self.telescope.feed_angle = np.radians(
+                    [ant_hdu.data["POLAA"], ant_hdu.data["POLAB"]]
+                ).T
+
+                # If POLYTB is all missing, assuming this is a single-feed setup
+                if all(self.telescope.feed_array[:, 1] == ""):
+                    self.telescope.feed_array = self.telescope.feed_array[:, :1]
+                    self.telescope.feed_angle = self.telescope.feed_angle[:, :1]
+                    self.telescope.Nfeeds = 1
+
             # This will not error because uvfits required keywords ensure we
             # have everything that is required for this method.
             self.set_telescope_params(
+                x_orientation=x_orientation,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -1215,9 +1251,6 @@ class UVFITS(UVData):
         if self.pol_convention is not None:
             hdu.header["POLCONV"] = self.pol_convention
 
-        if self.telescope.x_orientation is not None:
-            hdu.header["XORIENT"] = self.telescope.x_orientation
-
         if self.blt_order is not None:
             blt_order_str = ", ".join(self.blt_order)
             hdu.header["BLTORDER"] = blt_order_str
@@ -1251,14 +1284,37 @@ class UVFITS(UVData):
         # ADD the ANTENNA table
         staxof = np.zeros(self.telescope.Nants)
 
-        # 0 specifies alt-az, 6 would specify a phased array
-        mntsta = np.zeros(self.telescope.Nants)
+        if self.telescope.mount_type is not None:
+            mntsta = np.array(
+                [
+                    utils.antenna.MOUNT_STR2NUM_DICT[mount]
+                    for mount in self.telescope.mount_type
+                ]
+            )
+        else:
+            # If not known, set alt-az (0) as the default (as it was before)
+            mntsta = np.zeros(self.telescope.Nants)
 
-        # beware, X can mean just about anything
-        poltya = np.full((self.telescope.Nants), "X", dtype=np.object_)
-        polaa = [90.0] + np.zeros(self.telescope.Nants)
-        poltyb = np.full((self.telescope.Nants), "Y", dtype=np.object_)
-        polab = [0.0] + np.zeros(self.telescope.Nants)
+        polaa = np.full(self.telescope.Nants, 0.0)
+        polab = np.full(self.telescope.Nants, 0.0)
+        poltya = np.full(self.telescope.Nants, "", dtype=np.object_)
+        poltyb = np.full(self.telescope.Nants, "", dtype=np.object_)
+
+        if self.telescope.feed_array is not None:
+            for idx, feeds in enumerate(self.telescope.feed_array):
+                # Format everything uppercase as expected by
+                feeds = [feed.upper() for feed in feeds]
+                if any(item not in ["X", "Y", "L", "R", ""] for item in feeds):
+                    raise ValueError(
+                        "UVFITS only supports x/y or l/r polarized feed information."
+                    )
+                # See if we need to flip to UVFITS convention, which wants XY/RL
+                feed_a, feed_b = (1, 0) if feeds in [["Y", "X"], ["L", "R"]] else (0, 1)
+                poltya[idx] = feeds[feed_a]
+                polaa[idx] = np.degrees(self.telescope.feed_angle[idx, feed_a])
+                if len(feeds) == 2:
+                    poltyb[idx] = feeds[feed_b]
+                    polab[idx] = np.degrees(self.telescope.feed_angle[idx, feed_b])
 
         col1 = fits.Column(
             name="ANNAME", format="8A", array=self.telescope.antenna_names
@@ -1357,11 +1413,11 @@ class UVFITS(UVData):
         # note: Bart had this set to 3. We've set it 0 after aips 117. -jph
         ant_hdu.header["NOPCAL"] = 0
 
+        # TODO: evaluate poltype if/when leakages ever get propagated here
         ant_hdu.header["POLTYPE"] = "X-Y LIN"
+        ant_hdu.header["HASMNT"] = self.telescope.mount_type is not None
+        ant_hdu.header["HASFEED"] = self.telescope.feed_array is not None
 
-        # note: we do not support the concept of "frequency setups"
-        # -- lists of spws given in a SU table.
-        # Karto: Here might be a place to address freq setup?
         ant_hdu.header["FREQID"] = 1
 
         # if there are offsets in images, this could be the culprit
@@ -1372,13 +1428,6 @@ class UVFITS(UVData):
 
         # we always output right handed coordinates
         ant_hdu.header["XYZHAND"] = "RIGHT"
-
-        # At some point, we can fill these in more completely using astropy IERS
-        # utilities, since CASA/AIPS doesn't want to be told what the apparent coords
-        # are, but rather wants to calculate them itself.
-        # ant_hdu.header["RDATE"] = '2020-07-24T16:35:39.144087'
-        # ant_hdu.header["POLARX"] = 0.0
-        # ant_hdu.header["POLARY"] = 0.0
 
         fits_tables = [hdu, ant_hdu]
         # If needed, add the FQ table

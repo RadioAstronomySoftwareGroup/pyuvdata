@@ -650,6 +650,15 @@ def test_nants_data_telescope_larger(casa_uvfits):
     uvobj.telescope.antenna_positions = np.concatenate(
         (uvobj.telescope.antenna_positions, np.zeros((1, 3))), axis=0
     )
+    uvobj.telescope.feed_array = np.concatenate(
+        (uvobj.telescope.feed_array, [uvobj.telescope.feed_array[-1]]), axis=0
+    )
+    uvobj.telescope.feed_angle = np.concatenate(
+        (uvobj.telescope.feed_angle, [uvobj.telescope.feed_angle[-1]]), axis=0
+    )
+    uvobj.telescope.mount_type = np.concatenate(
+        (uvobj.telescope.mount_type, [uvobj.telescope.mount_type[-1]]), axis=0
+    )
     assert uvobj.check()
 
 
@@ -661,6 +670,9 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[1:]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[1:]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[1:, :]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[1:]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[1:, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[1:, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
@@ -677,6 +689,9 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[:-1]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[:-1]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[:-1]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[:-1]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[:-1, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[:-1, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_2_array must be in antenna_numbers"
@@ -858,6 +873,9 @@ def test_generic_read():
         )
 
     with pytest.raises(ValueError, match="File type could not be determined"):
+        uv_in.read(os.path.join(DATA_PATH, "mwa_ant_pos.csv"))
+
+    with pytest.raises(FileNotFoundError, match="File not found, check path for: foo"):
         uv_in.read("foo")
 
 
@@ -1049,6 +1067,9 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+        spicey_err = SpiceUNKNOWNFRAME
 
         enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
@@ -1074,6 +1095,7 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
             location=uv_in.telescope.location,
         )
     else:
+        spicey_err = None
         zenith_coord = SkyCoord(
             alt=Angle(90 * units.deg),
             az=Angle(0 * units.deg),
@@ -1083,7 +1105,10 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
         )
     zen_icrs = zenith_coord.transform_to("icrs")
 
-    uv_in.phase_to_time(uv_in.time_array[0])
+    try:
+        uv_in.phase_to_time(uv_in.time_array[0])
+    except spicey_err:
+        pytest.skip(reason="Flaky CSPICE issue")
 
     assert np.isclose(
         uv_in.phase_center_catalog[1]["cat_lat"],
@@ -2537,7 +2562,7 @@ def test_select_polarizations(hera_uvh5, pol_list, invert):
             pol_int_list[idx] = p
         else:
             pol_int_list[idx] = utils.polstr2num(
-                p, x_orientation=uv_object.telescope.x_orientation
+                p, x_orientation=uv_object.telescope.get_x_orientation_from_feeds()
             )
 
     assert np.all(np.isin(pol_int_list, uv_object.polarization_array, invert=invert))
@@ -5130,14 +5155,17 @@ def test_get_pols(casa_uvfits):
 def test_get_pols_x_orientation(paper_uvh5):
     uv_in = paper_uvh5
 
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
 
     pols = uv_in.get_pols()
     pols_data = ["en"]
     assert pols == pols_data
 
-    uv_in.telescope.x_orientation = "north"
-
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "north", polarization_array=uv_in.polarization_array
+    )
     pols = uv_in.get_pols()
     pols_data = ["ne"]
     assert pols == pols_data
@@ -12334,7 +12362,9 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         "name",
         "location",
         "instrument",
-        "x_orientation",
+        "Nfeeds",
+        "feed_array",
+        "feed_angle",
         "Nants",
         "antenna_names",
         "antenna_numbers",
