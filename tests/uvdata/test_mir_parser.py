@@ -39,41 +39,47 @@ def compass_soln_file(tmp_path_factory):
         file["antArr"] = np.array([[1, 4]])
         file["ant1Arr"] = np.array([[1]])
         file["ant2Arr"] = np.array([[4]])
-        file["rx1Arr"] = np.repeat([0, 0, 1, 1], 4).reshape(1, -1)
-        file["rx2Arr"] = np.repeat([0, 0, 1, 1], 4).reshape(1, -1)
-        file["sbArr"] = np.repeat([0, 1, 0, 1], 4).reshape(1, -1)
-        file["winArr"] = np.tile([[1, 2, 3, 4]], 4)
+        file["rx1Arr"] = np.array([[0, 3]])
+        file["rx2Arr"] = np.array([[0, 3]])
+        file["rxList"] = np.array([[0, 3]])
+        file["sbArr"] = np.array([[0, 0, 0, 0, 1, 1, 1, 1]])
+        file["winArr"] = np.array([[1, 2, 3, 4, 1, 2, 3, 4]])
 
         # Make a set of bp solns that are easy to recreate in the test (to verify
         # that we actually have the solutions that we expect).
-        bp_soln = np.arange(16 * 16384) + (np.flip(np.arange(16 * 16384)) * 1j)
-
         bp_soln = np.reshape(
-            np.concatenate((bp_soln / 2, np.conj(np.reciprocal(bp_soln)))),
-            (2, 16, 16384),
+            np.arange(2 * 8 * 16384) + (np.flip(np.arange(2 * 8 * 16384)) * 1j),
+            (2, 1, 8, 16384, 1),
+        )
+
+        # Exp bp soln shape is (Nrx, Nants, Nwin, Nchan, 2) w/ float32s on the
+        # final axis ([real imag]).
+        bp_soln = np.concatenate(
+            (bp_soln / 2, np.conj(np.reciprocal(bp_soln))), axis=1
         ).astype(np.complex64)
 
-        file["reBandpassArr"] = bp_soln.real
-        file["imBandpassArr"] = bp_soln.imag
+        file["bandpassArr"] = bp_soln.view(np.float32)
+        file["crossRxBandpassArr"] = np.full((8, 16384, 2), 0.5**0.5, dtype=np.float32)
 
-        # Populate the SEFD values
-        file["sefdArr"] = np.ones(bp_soln.shape)
+        # Populate the SEFD values, exp shape (Nrx, Nants, Nwin, Nchan)
+        file["sefdArr"] = np.ones((2, 2, 8, 16384))
 
         # This number is pulled from the test mir_data object, in in_data["mjd"].
         file["mjdArr"] = np.array([[59054.69153811]])
 
         # Set up a picket fence of flags for the "normal" flagging. Note we use
-        # uint8 here because of the compression scheme COMPASS uses.
-        file["flagArr"] = np.full((1, 1, 16, 2048), 170, dtype=np.uint8)
+        # uint8 here because of the compression scheme COMPASS uses. Flags shape is
+        # (Nints, Npols, Nbase, Nwin, Nchan//8)
+        file["flagArr"] = np.full((1, 2, 1, 8, 2048), 170, dtype=np.uint8)
 
         # Set up the static flags so that the first half of the spectrum is flagged,
         # first quarter w/ ant flags and second quarter w/ base flags
         static_arr = np.zeros(2048, dtype=np.uint8)
         static_arr[:512] = 255
-        file["staticAntFlagArr"] = np.tile(static_arr, (8, 16, 1))
+        file["staticAntFlagArr"] = np.tile(static_arr, (2, 8, 8, 1))
         static_arr[:512] = 0
         static_arr[512:1024] = 255
-        file["staticBaseFlagArr"] = np.tile(static_arr, (28, 16, 1))
+        file["staticBaseFlagArr"] = np.tile(static_arr, (2, 28, 8, 1))
 
     yield filename
 
