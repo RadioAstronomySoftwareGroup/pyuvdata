@@ -124,9 +124,11 @@ class MS(UVData):
             flip_conj = np.all(self.ant_1_array <= self.ant_2_array)
             if np.any(self.ant_1_array < self.ant_2_array) != flip_conj:
                 warnings.warn(
-                    "UVData object contains a mix of baseline conjugation states -- "
-                    "this may cause some tasks (e.g., gaincal) in CASA to fail."
+                    "UVData object contains a mix of baseline conjugation states, "
+                    "which is not uniformly supported in CASA -- forcing conjugation "
+                    'to be "ant2<ant1" on object.'
                 )
+                self.conjugate_bls("ant2<ant1")
 
         # Initialize a skelton measurement set
         ms = ms_utils.init_ms_file(
