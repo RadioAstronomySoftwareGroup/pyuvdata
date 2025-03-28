@@ -3,6 +3,7 @@
 [![CircleCI](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata.svg?style=svg&branch=main)](https://circleci.com/gh/RadioAstronomySoftwareGroup/pyuvdata?branch=main)
 [![testing](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions/workflows/macosx_windows_ci.yaml/badge.svg?branch=main)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=main)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
+[![](https://readthedocs.org/projects/pyuvdata/badge/?version=latest)](https://app.readthedocs.org/projects/pyuvdata/)
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
 
 pyuvdata defines a pythonic interface to interferometric data sets.
