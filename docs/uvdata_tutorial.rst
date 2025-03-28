@@ -358,6 +358,7 @@ There are methods on UVData objects which allow for updating the data, flags, or
 nsamples arrays in place. We show how to use the :meth:`pyuvdata.UVData.set_data`
 method below, and note there are analogous :meth:`pyuvdata.UVData.set_flags`
 and :meth:`pyuvdata.UVData.set_nsamples` methods.
+
 .. code-block:: python
 
   >>> import os
@@ -433,8 +434,9 @@ UVData: Plotting
 ----------------
 Making a simple waterfall plot.
 
-Note: there is now support for reading in only part of a uvfits, uvh5 or miriad file
-(see :ref:`large_files`), so you need not read in the entire file to plot one waterfall.
+Note: there is now support for reading in only part of a file for many file types
+(see :ref:`large_files`), so you need not read in the entire file to plot one
+waterfall.
 
 .. code-block:: python
 
@@ -507,8 +509,8 @@ a) Select 3 antennas to keep using the antenna number.
   >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
   [ 1 12 21]
 
-b) Select 3 antennas to keep using the antenna names, also select 5 frequencies to keep.
-****************************************************************************************
+b) Select 3 antennas by name and 4 frequencies to keep
+******************************************************
 .. code-block:: python
 
   >>> import os
