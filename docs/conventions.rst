@@ -22,8 +22,14 @@ the data from the first antenna multiplied against the data from the second (i.e
 the position of the first (after which various rotations are applied). The second is
 *ant1-ant2*, where :math:`\mathcal{V}_{12}=\langle V_{1} V_{2}^{*} \rangle`, and the
 *uvw*-coordinate is calculated by taking the position of the first antenna minus
-the second. The pyuvdata software package uses the *ant2-ant1* convention (as does
-MIRIAD; with UVFITS, MeasurementSet, FHD, and Mir formats use the opposite convention).
+the second. The pyuvdata software package uses the *ant2-ant1* convention, as does
+MIRIAD; with UVFITS, FHD, and Mir formats use the opposite convention. MeasurementSet
+format (used within CASA) appears to support both conventions, with the convention
+selected based on the number of the antennas in the pair: when the antenna number of
+*ant1* is greater than that of *ant2*, then the *ant2-ant1* convention is used,
+otherwise the *ant1-ant2* convention is used (e.g., the 3-7 baseline would use the
+*ant1-ant2* convention within CASA, whereas the 7-3 baseline would use the *ant2-ant1*
+convention).
 
 Phase Center Types
 ------------------
