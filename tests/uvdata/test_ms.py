@@ -1208,3 +1208,4 @@ def test_write_ms_baseline_conj_warning(nrao_uv, tmp_path):
 
     uvd2 = UVData.from_file(testfile)
     assert uvd == uvd2
+    assert all(uvd.ant_1_array >= uvd.ant_2_array)
