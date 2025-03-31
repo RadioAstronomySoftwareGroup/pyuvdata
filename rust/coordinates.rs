@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use ndarray::{Array, ArrayView, Axis};
 use numpy::{IntoPyArray, Ix2, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::{
-    pyclass, pymodule,
+    pyclass, pymethods, pymodule,
     types::{PyModule, PyModuleMethods},
     Bound, PyResult, Python,
 };
@@ -21,7 +21,9 @@ pub struct Ellipsoid {
 
     b_div_a2: f64,
 }
+#[pymethods]
 impl Ellipsoid {
+    #[new]
     pub fn new(gps_a: f64, gps_b: f64) -> Self {
         let b_div_a2 = (gps_b / gps_a).powi(2);
 
