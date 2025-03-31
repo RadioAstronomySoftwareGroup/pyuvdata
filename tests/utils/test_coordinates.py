@@ -567,8 +567,7 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     # error checking
     with pytest.raises(
         ValueError,
-        match="itrs position vector magnitudes must be on the order of the "
-        "radius of Earth",
+        match="ITRS vector magnitudes must be on the order of the radius of the earth",
     ):
         utils.ENU_from_ECEF(
             xyz / 2.0, latitude=center_lat, longitude=center_lon, altitude=center_alt

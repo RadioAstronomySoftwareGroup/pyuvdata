@@ -22,8 +22,8 @@ fn _warn(msg: &str) {
     .expect("Unable to issue python warning.");
 }
 
-// we have to do some oddly convolute things to make sure we can
-// import he submodules as expected from the python side
+// we have to do some oddly convoluted things to make sure we can
+// import the submodules as expected from the python side
 fn register_child_module(
     parent_module: &Bound<'_, PyModule>,
     child_name: &str,
