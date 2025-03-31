@@ -63,7 +63,7 @@ cdef inline void apply_offset_mod(
   for i in range(nbls):
     bl_tmp = _bl[i] - offset
     _ants[1, i] = bl_tmp % modulus
-    _ants[0, i] = (bl_tmp - (_ants[1, i])) // modulus
+    _ants[0, i] = bl_tmp // modulus
   return
 
 # defining these constants helps cython not cast the large

@@ -37,9 +37,8 @@ fn _baseline_to_antnums(bls_array: &[u64]) -> Array<u64, Ix2> {
         .map(|x| x - offset)
         .enumerate()
         .for_each(|(index, _bl)| {
-            let a1 = _bl % modulus;
-            _ants2[index] = MaybeUninit::new(a1);
-            _ants1[index] = MaybeUninit::new((_bl - a1) / modulus);
+            _ants2[index] = MaybeUninit::new(_bl % modulus);
+            _ants1[index] = MaybeUninit::new(_bl / modulus);
         });
 
     // We have to tell the compiler that we have initialized all elements of the array.
