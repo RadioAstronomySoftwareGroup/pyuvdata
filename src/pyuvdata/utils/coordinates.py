@@ -421,7 +421,7 @@ def ENU_from_ECEF(
         antenna_positions=xyz[np.newaxis, :],
     )
 
-    # the cython utility expects (3, Npts) for faster manipulation
+    # the extension utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
     if frame == "ITRS":
         body = _coordinates.Earth
@@ -432,13 +432,7 @@ def ENU_from_ECEF(
         body = selenoids[ellipsoid]
 
     enu = _coordinates._ENU_from_ECEF(
-        xyz,
-        np.float64(latitude),
-        np.float64(longitude),
-        np.float64(altitude),
-        # we have already forced the frame to conform to our options
-        # and if we  don't have moon we have already errored.
-        body,
+        xyz, np.float64(latitude), np.float64(longitude), np.float64(altitude), body
     )
     enu = enu.T
 
@@ -521,7 +515,7 @@ def ECEF_from_ENU(
         enu = enu[np.newaxis, :]
     enu = np.ascontiguousarray(enu.T, dtype=np.float64)
 
-    # the cython utility expects (3, Npts) for faster manipulation
+    # the extension utility expects (3, Npts) for faster manipulation
     # transpose after we get the array back to match the expected shape
     if frame == "ITRS":
         body = _coordinates.Earth

@@ -3,14 +3,14 @@ use ndarray::{Array, ArrayView, Axis};
 use numpy::{IntoPyArray, Ix2, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::{
     pyclass, pymodule,
-    sync::GILOnceCell,
-    types::{PyAnyMethods, PyDict, PyDictMethods, PyModule, PyModuleMethods},
+    types::{PyModule, PyModuleMethods},
     Bound, PyResult, Python,
 };
-use std::{collections::HashMap, mem::MaybeUninit};
+use std::mem::MaybeUninit;
 
+#[pyclass]
 #[derive(Clone, Debug, Copy)]
-struct Ellipsoid {
+pub struct Ellipsoid {
     gps_a: f64,
 
     gps_b: f64,
@@ -22,7 +22,7 @@ struct Ellipsoid {
     b_div_a2: f64,
 }
 impl Ellipsoid {
-    fn new(gps_a: f64, gps_b: f64) -> Self {
+    pub fn new(gps_a: f64, gps_b: f64) -> Self {
         let b_div_a2 = (gps_b / gps_a).powi(2);
 
         Self {
@@ -35,84 +35,16 @@ impl Ellipsoid {
     }
 }
 
-static LIST_CELL: GILOnceCell<HashMap<String, Ellipsoid>> = GILOnceCell::new();
-
-fn get_selenoid<'a>(py: Python<'_>, selenoid: &'a str) -> &'a Ellipsoid {
-    LIST_CELL
-        .get_or_try_init(py, || {
-            let lunar_module = PyModule::import(py, "lunarsky")?;
-            let full_moon = lunar_module.getattr("moon")?;
-            let lunar_moon = full_moon.downcast::<PyModule>()?;
-
-            let all_sels = lunar_moon.getattr("SELENOIDS")?;
-            let selenoids = all_sels.downcast::<PyDict>()?;
-
-            Ok::<_, pyo3::PyErr>(
-                selenoids
-                    .iter()
-                    .map_while(|(key, selenoid)| {
-                        Some((key.extract::<String>().ok()?, {
-                            let radius = selenoid
-                                .getattr("_equatorial_radius")
-                                .ok()?
-                                .call_method1("to_value", ("m",))
-                                .ok()?
-                                .extract::<f64>()
-                                .ok()?;
-                            let flattening = selenoid
-                                .getattr("_flattening")
-                                .ok()?
-                                .extract::<f64>()
-                                .ok()?;
-                            Ellipsoid::new(radius, radius * (1.0 - flattening))
-                        }))
-                    })
-                    .collect(),
-            )
-        })
-        .expect("Failed to initialize lunarsky ellipsoids.")
-        .get(selenoid)
-        .expect("No lunary sky selenoid information on this build.")
-}
-
 lazy_static! {
-    static ref EARTH: Ellipsoid = Ellipsoid::new(6378137_f64, 6356752.31424518_f64);
+    pub static ref EARTH: Ellipsoid = Ellipsoid::new(6378137_f64, 6356752.31424518_f64);
 }
 
-#[pyclass(eq, eq_int)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(non_camel_case_types)]
-/// Celestial Ellipsoids used for Geodetic to Geocentric conversions.
-enum Body {
-    /// Earth Assumes a semi-major axis of 6378137m and a semi-minor axis of 6356752.31424518m.
-    Earth,
-    /// moon data taken from https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
-    /// with radius from spice_utils
-    Moon_sphere,
-    Moon_gsfc,
-    Moon_grail23,
-    Moon_ce1lamgeo,
-}
-impl Body {
-    fn get_body(&self) -> &Ellipsoid {
-        match self {
-            Body::Earth => &EARTH,
-            Body::Moon_sphere => Python::with_gil(|py| get_selenoid(py, "SPHERE")),
-            Body::Moon_gsfc => Python::with_gil(|py| get_selenoid(py, "GSFC")),
-            Body::Moon_grail23 => Python::with_gil(|py| get_selenoid(py, "GRAIL23")),
-            Body::Moon_ce1lamgeo => Python::with_gil(|py| get_selenoid(py, "CE-1-LAM-GEO")),
-        }
-    }
-}
-
-fn xyz_from_lla(lat: &[f64], lon: &[f64], alt: &[f64], body: Body) -> Array<f64, Ix2> {
+fn xyz_from_lla(lat: &[f64], lon: &[f64], alt: &[f64], body: Ellipsoid) -> Array<f64, Ix2> {
     let mut xyz = Array::<f64, Ix2>::uninit((3, lat.len()));
 
     assert_eq!(lat.len(), lon.len());
     assert_eq!(lat.len(), alt.len());
     assert_eq!(xyz.shape()[1], lat.len());
-
-    let ellipsoid = body.get_body();
 
     for (_lat, _lon, _alt, mut _xyz) in itertools::izip!(lat, lon, alt, xyz.axis_iter_mut(Axis(1)))
     {
@@ -122,36 +54,33 @@ fn xyz_from_lla(lat: &[f64], lon: &[f64], alt: &[f64], body: Body) -> Array<f64,
         let sin_lon = _lon.sin();
         let cos_lon = _lon.cos();
 
-        let gps_n = ellipsoid.gps_a / (1.0 - ellipsoid.e_squared * sin_lat.powi(2)).sqrt();
+        let gps_n = body.gps_a / (1.0 - body.e_squared * sin_lat.powi(2)).sqrt();
 
         _xyz[0] = MaybeUninit::new((gps_n + _alt) * cos_lat * cos_lon);
         _xyz[1] = MaybeUninit::new((gps_n + _alt) * cos_lat * sin_lon);
-        _xyz[2] = MaybeUninit::new((ellipsoid.b_div_a2 * gps_n + _alt) * sin_lat);
+        _xyz[2] = MaybeUninit::new((body.b_div_a2 * gps_n + _alt) * sin_lat);
     }
 
     unsafe { xyz.assume_init() }
 }
 
-fn lla_from_xyz(xyz: ArrayView<f64, Ix2>, body: Body) -> Array<f64, Ix2> {
+fn lla_from_xyz(xyz: ArrayView<f64, Ix2>, body: Ellipsoid) -> Array<f64, Ix2> {
     let mut lla = Array::<f64, Ix2>::uninit(xyz.raw_dim());
-    let ellipsoid = body.get_body();
 
     for (_xyz, mut _lla) in xyz.axis_iter(Axis(1)).zip(lla.axis_iter_mut(Axis(1))) {
         let gps_p = (_xyz[0].powi(2) + _xyz[1].powi(2)).sqrt();
-        let gps_theta = (_xyz[2] * ellipsoid.gps_a).atan2(gps_p * ellipsoid.gps_b);
+        let gps_theta = (_xyz[2] * body.gps_a).atan2(gps_p * body.gps_b);
 
         // create a temporary variable so we can reference it without needing unsafe pointer references.
-        let lla0 = (_xyz[2]
-            + ellipsoid.e_prime_squared * ellipsoid.gps_b * gps_theta.sin().powi(3))
-        .atan2(gps_p - ellipsoid.e_squared * ellipsoid.gps_a * gps_theta.cos().powi(3));
+        let lla0 = (_xyz[2] + body.e_prime_squared * body.gps_b * gps_theta.sin().powi(3))
+            .atan2(gps_p - body.e_squared * body.gps_a * gps_theta.cos().powi(3));
 
         _lla[0] = MaybeUninit::new(lla0);
 
         _lla[1] = MaybeUninit::new(_xyz[1].atan2(_xyz[0]));
 
         _lla[2] = MaybeUninit::new(
-            (gps_p / lla0.cos())
-                - ellipsoid.gps_a / (1.0 - ellipsoid.e_squared * lla0.sin().powi(2)).sqrt(),
+            (gps_p / lla0.cos()) - body.gps_a / (1.0 - body.e_squared * lla0.sin().powi(2)).sqrt(),
         );
     }
     unsafe { lla.assume_init() }
@@ -162,7 +91,7 @@ fn enu_from_ecef(
     lat: f64,
     lon: f64,
     alt: f64,
-    body: Body,
+    body: Ellipsoid,
 ) -> Array<f64, Ix2> {
     let mut enu = Array::uninit(xyz.raw_dim());
 
@@ -192,7 +121,7 @@ fn ecef_from_enu(
     lat: f64,
     lon: f64,
     alt: f64,
-    body: Body,
+    body: Ellipsoid,
 ) -> Array<f64, Ix2> {
     let mut xyz = Array::uninit(enu.raw_dim());
 
@@ -226,14 +155,17 @@ fn ecef_from_enu(
 
 #[pymodule]
 pub(crate) fn _coordinates(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Body>()?;
+    m.add_class::<Ellipsoid>()?;
+
+    m.add("Earth", *EARTH)?;
+
     #[pyfn(m)]
     fn _xyz_from_latlonalt<'py>(
         py: Python<'py>,
         lat: PyReadonlyArray1<'py, f64>,
         lon: PyReadonlyArray1<'py, f64>,
         alt: PyReadonlyArray1<'py, f64>,
-        body: Body,
+        body: Ellipsoid,
     ) -> Bound<'py, PyArray2<f64>> {
         // we're assuming lat, lon, and alt are all the same length
         // and have n_points > 1. This should be checked on the python side.
@@ -250,7 +182,7 @@ pub(crate) fn _coordinates(m: &Bound<'_, PyModule>) -> PyResult<()> {
     fn _lla_from_xyz<'py>(
         py: Python<'py>,
         xyz: PyReadonlyArray2<'py, f64>,
-        body: Body,
+        body: Ellipsoid,
     ) -> Bound<'py, PyArray2<f64>> {
         lla_from_xyz(xyz.as_array(), body).into_pyarray(py)
     }
@@ -263,7 +195,7 @@ pub(crate) fn _coordinates(m: &Bound<'_, PyModule>) -> PyResult<()> {
         lat: f64,
         lon: f64,
         alt: f64,
-        body: Body,
+        body: Ellipsoid,
     ) -> Bound<'py, PyArray2<f64>> {
         enu_from_ecef(xyz.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
@@ -276,7 +208,7 @@ pub(crate) fn _coordinates(m: &Bound<'_, PyModule>) -> PyResult<()> {
         lat: f64,
         lon: f64,
         alt: f64,
-        body: Body,
+        body: Ellipsoid,
     ) -> Bound<'py, PyArray2<f64>> {
         ecef_from_enu(enu.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
@@ -305,7 +237,7 @@ mod test {
             &[ref_latlonalt.0],
             &[ref_latlonalt.1],
             &[ref_latlonalt.2],
-            Body::Earth,
+            *EARTH,
         );
 
         approx::assert_abs_diff_eq!(ref_xyz, xyz_out, epsilon = 1e-5)
@@ -326,7 +258,7 @@ mod test {
         )
         .unwrap();
 
-        let lla_out = lla_from_xyz(ref_xyz.view(), Body::Earth);
+        let lla_out = lla_from_xyz(ref_xyz.view(), *EARTH);
 
         approx::assert_abs_diff_eq!(ref_latlonalt, lla_out, epsilon = 1e-5)
     }
@@ -417,7 +349,7 @@ mod test {
             ]
         ];
 
-        let enu = enu_from_ecef(xyz.view(), center_lat, center_lon, center_alt, Body::Earth);
+        let enu = enu_from_ecef(xyz.view(), center_lat, center_lon, center_alt, *EARTH);
 
         approx::assert_abs_diff_eq!(ref_enu, enu, epsilon = 1e-5)
     }
