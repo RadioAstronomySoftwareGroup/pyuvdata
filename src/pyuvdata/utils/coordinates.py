@@ -430,6 +430,7 @@ def ENU_from_ECEF(
         # and if we  don't have moon we have already errored.
         selenoids = get_selenoids()
         body = selenoids[ellipsoid]
+
     enu = _coordinates._ENU_from_ECEF(
         xyz,
         np.float64(latitude),
@@ -437,7 +438,7 @@ def ENU_from_ECEF(
         np.float64(altitude),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        (_coordinates.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
+        body,
     )
     enu = enu.T
 
@@ -530,11 +531,7 @@ def ECEF_from_ENU(
         selenoids = get_selenoids()
         body = selenoids[ellipsoid]
     xyz = _coordinates._ECEF_from_ENU(
-        enu,
-        np.float64(latitude),
-        np.float64(longitude),
-        np.float64(altitude),
-        body,
+        enu, np.float64(latitude), np.float64(longitude), np.float64(altitude), body
     )
     xyz = xyz.T
 
