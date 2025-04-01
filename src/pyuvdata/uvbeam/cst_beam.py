@@ -58,7 +58,10 @@ class CSTBeam(UVBeam):
         beam_type="power",
         use_future_array_shapes=None,
         feed_pol="x",
+        feed_array=None,
+        feed_angle=None,
         rotate_pol=True,
+        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -89,14 +92,37 @@ class CSTBeam(UVBeam):
             into effect by removing the spectral window axis.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
-            files correspond to.
-            Defaults to 'x' (meaning x for efield or xx for power beams).
+            files correspond to. Defaults to 'x' (meaning x for efield or xx for power
+            beams).
+        feed_array : str or array-like of str
+            Feeds to define this beam for, e.g. x & y or r & l. Only used for power
+            beams (feeds are set by feed_pol for efield beams).
+        feed_angle : str or array-like of float
+            Position angle of a given feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs. Must match shape of feed_pol
+            for efield beams, or feed_angle for power beams.
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
             90 degree rotations about the z-axis (so that the y polarization can be
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         frequency : float or list of float
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -157,16 +183,19 @@ class CSTBeam(UVBeam):
         ):
             self.history += self.pyuvdata_version_str
 
-        if x_orientation is not None:
-            self.x_orientation = x_orientation
         if reference_impedance is not None:
             self.reference_impedance = float(reference_impedance)
         if extra_keywords is not None:
             self.extra_keywords = extra_keywords
 
+        if mount_type is not None:
+            self.mount_type = mount_type
+
         if beam_type == "power":
             self.Naxes_vec = 1
 
+            if feed_array is not None:
+                self.feed_array = np.asarray(feed_array).reshape(-1)
             if feed_pol == "x":
                 feed_pol = "xx"
             elif feed_pol == "y":
@@ -186,18 +215,32 @@ class CSTBeam(UVBeam):
         else:
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
-            if rotate_pol:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x", "y"])
-                else:
-                    self.feed_array = np.array(["y", "x"])
-            else:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x"])
-                else:
-                    self.feed_array = np.array(["y"])
-            self.Nfeeds = self.feed_array.size
+            self.feed_array = np.asarray(feed_pol).reshape(-1)
             self._set_efield()
+
+        if feed_angle is not None:
+            self.feed_angle = np.asarray(feed_angle).reshape(-1)
+
+        if rotate_pol and self.feed_array is not None and self.feed_array.size == 1:
+            if self.feed_array[0] == "x":
+                self.feed_array = np.array(["x", "y"])
+            elif self.feed_array[0] == "y":
+                self.feed_array = np.array(["y", "x"])
+            if self.feed_angle is not None:
+                self.feed_angle = np.array(self.feed_angle + np.array([0, np.pi / 2]))
+
+        if self.feed_array is not None:
+            self.Nfeeds = self.feed_array.size
+
+        if x_orientation is None and (
+            self.feed_angle is None or self.feed_array is None
+        ):
+            warnings.warn(
+                "Feed information not supplied and x-orientation not specified -- "
+                "generating values assuming x-orientation is east with feeds "
+                "derived from polarizations present."
+            )
+            x_orientation = "east"
 
         self.data_normalization = "physical"
         self.antenna_type = "simple"
@@ -368,6 +411,9 @@ class CSTBeam(UVBeam):
             warnings.warn(
                 f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
             )
+
+        if x_orientation is not None:
+            self.set_feeds_from_x_orientation(x_orientation)
 
         if run_check:
             self.check(

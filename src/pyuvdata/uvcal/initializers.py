@@ -35,6 +35,9 @@ def new_uvcal(
     telescope_location=None,
     telescope_name: str | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
+    feeds: Literal["x", "y", "l", "r"] | list[str] | None = None,
+    feed_array: np.ndarray | None = None,
+    feed_angle: np.ndarray | None = None,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
     antenna_names: list[str] | None = None,
     antenna_numbers: list[int] | None = None,
@@ -110,6 +113,20 @@ def new_uvcal(
         Deprecated. Orientation of the x-axis. Options are 'east', 'north',
         'e', 'n', 'ew', 'ns'. Not required or used if a Telescope object is
         passed to `telescope`.
+    feeds : list of str or None:
+        List of feeds present in the Telescope, which must be one of "x", "y", "l",
+        "r". Length of the list must be either 1 or 2. Used to populate feed_array
+        and feed_angle parameters if only supplying x_orientation, default is
+        ["x", "y"]. Not used if a Telescope object is passed to `telescope`.
+    feed_array : array-like of str or None
+        List of feeds for each antenna in the Telescope object, must be one of
+        "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str. Not used if a Telescope
+        object is passed to `telescope`.
+    feed_angle : array-like of float or None
+        Orientation of the feed with respect to zenith (or with respect to north if
+        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
+        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds),
+        dtype float. Not used if a Telescope object is passed to `telescope`.
     antenna_positions : ndarray of float or dict of ndarray of float
         Deprecated. Array of antenna positions in ECEF coordinates in meters.
         If a dict, keys can either be antenna numbers or antenna names, and values are
@@ -213,7 +230,9 @@ def new_uvcal(
             "antenna_names",
             "antenna_numbers",
             "Nants",
-            "x_orientation",
+            "feed_array",
+            "feed_angle",
+            "Nfeeds",
         ]
         for key in required_on_tel:
             if getattr(telescope, key) is None:
@@ -231,6 +250,9 @@ def new_uvcal(
             antname_format=antname_format,
             instrument=instrument,
             x_orientation=x_orientation,
+            feeds=feeds,
+            feed_angle=feed_angle,
+            feed_array=feed_array,
             antenna_diameters=antenna_diameters,
         )
 
@@ -304,7 +326,7 @@ def new_uvcal(
         jones_array = np.array(jones_array)
         if jones_array.dtype.kind != "i":
             jones_array = utils.jstr2num(
-                jones_array, x_orientation=telescope.x_orientation
+                jones_array, x_orientation=telescope.get_x_orientation_from_feeds()
             )
 
     history += (
@@ -587,18 +609,22 @@ def new_uvcal_from_uvdata(
         "telescope_location": "location",
         "instrument": "instrument",
         "antenna_diameters": "antenna_diameters",
+        "feed_array": "feed_array",
+        "feed_angle": "feed_angle",
     }
     for param, tele_name in other_tele_params.items():
         if param in kwargs:
             setattr(new_telescope, tele_name, kwargs.pop(param))
 
     if "x_orientation" in kwargs:
-        new_telescope.x_orientation = utils.XORIENTMAP[
-            kwargs.pop("x_orientation").lower()
-        ]
-    if new_telescope.x_orientation is None:
+        new_telescope.set_feeds_from_x_orientation(
+            kwargs.pop("x_orientation"),
+            polarization_array=uvdata.polarization_array,
+            flex_polarization_array=uvdata.flex_spw_polarization_array,
+        )
+    if new_telescope.get_x_orientation_from_feeds() is None:
         raise ValueError(
-            "x_orientation must be provided if it is not set on the UVData object."
+            "Telescope feed info must be provided if not set on the UVData object."
         )
 
     ant_array = kwargs.pop(

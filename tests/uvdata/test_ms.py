@@ -80,7 +80,6 @@ def nrao_uv(nrao_uv_main):
 
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
-@pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
@@ -96,7 +95,6 @@ def test_cotter_ms():
         match=[
             "Warning: select on read keyword set",
             "Setting telescope_location to value in known_telescopes for MWA.",
-            "UVW orientation appears to be flipped,",
         ],
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
@@ -116,24 +114,28 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_te
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
-        enu_antpos = uvobj.telescope.get_enu_antpos()
-        uvobj.telescope.location = MoonLocation.from_selenodetic(
-            lat=uvobj.telescope.location.lat,
-            lon=uvobj.telescope.location.lon,
-            height=uvobj.telescope.location.height,
-            ellipsoid=selenoid,
-        )
-        new_full_antpos = utils.ECEF_from_ENU(
-            enu=enu_antpos, center_loc=uvobj.telescope.location
-        )
-        uvobj.telescope.antenna_positions = (
-            new_full_antpos - uvobj.telescope._location.xyz()
-        )
-        uvobj.set_lsts_from_time_array()
-        uvobj.set_uvws_from_antenna_positions()
-        uvobj._set_app_coords_helper()
-        uvobj.check()
+        try:
+            enu_antpos = uvobj.telescope.get_enu_antpos()
+            uvobj.telescope.location = MoonLocation.from_selenodetic(
+                lat=uvobj.telescope.location.lat,
+                lon=uvobj.telescope.location.lon,
+                height=uvobj.telescope.location.height,
+                ellipsoid=selenoid,
+            )
+            new_full_antpos = utils.ECEF_from_ENU(
+                enu=enu_antpos, center_loc=uvobj.telescope.location
+            )
+            uvobj.telescope.antenna_positions = (
+                new_full_antpos - uvobj.telescope._location.xyz()
+            )
+            uvobj.set_lsts_from_time_array()
+            uvobj.set_uvws_from_antenna_positions()
+            uvobj._set_app_coords_helper()
+            uvobj.check()
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     expected_extra_keywords = ["DATA_COL", "observer"]
 
@@ -320,6 +322,11 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
 
     # propagate scan numbers to the uvfits, ONLY for comparison
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
+
+    # Set the feed information the same, ONLY for comparison
+    uvfits_uv.telescope.feed_array = ms_uv.telescope.feed_array
+    uvfits_uv.telescope.feed_angle = ms_uv.telescope.feed_angle
+    uvfits_uv.telescope.Nfeeds = ms_uv.telescope.Nfeeds
 
     assert uvfits_uv == ms_uv
 
@@ -932,7 +939,11 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     with check_warnings(
-        UserWarning, match="Writing in the MS file that the units of the data are"
+        UserWarning,
+        match=[
+            "Writing in the MS file that the units of the data are",
+            "UVData object contains a mix of baseline conjugation states",
+        ],
     ):
         uv_obj.write_ms(test_file, force_phase=True)
 
@@ -952,9 +963,13 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 def test_ms_optional_parameters(nrao_uv, tmp_path):
     uv_obj = nrao_uv
 
-    uv_obj.telescope.x_orientation = "east"
+    uv_obj.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_obj.polarization_array
+    )
     uv_obj.pol_convention = "sum"
     uv_obj.vis_units = "Jy"
+    # Update the order so as to be UVFITS compliant
+    uv_obj.telescope.reorder_feeds("AIPS")
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     uv_obj.write_ms(test_file, force_phase=True)
@@ -1040,16 +1055,32 @@ def test_ms_bad_history(sma_mir, tmp_path):
 def test_flip_conj(nrao_uv, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj.ms")
     nrao_uv.set_uvws_from_antenna_positions()
+    nrao_uv.uvw_array *= -1
+    nrao_uv.data_array = np.conj(nrao_uv.data_array)
 
     with check_warnings(
         UserWarning, match="Writing in the MS file that the units of the data are unca"
     ):
-        nrao_uv.write_ms(filename, flip_conj=True)
+        nrao_uv.write_ms(filename, flip_conj=True, run_check=False, clobber=True)
 
-    with check_warnings(UserWarning, match="UVW orientation appears to be flipped,"):
+    with check_warnings(UserWarning, match=["UVW orientation appears to be flip"] * 2):
         uv = UVData.from_file(filename)
+        nrao_uv.check(allow_flip_conj=True)
 
     assert nrao_uv == uv
+
+
+def test_no_flip(sma_mir, tmp_path):
+    filename = os.path.join(tmp_path, "no_flip_conj.ms")
+    sma_mir._set_app_coords_helper()
+
+    # Now test that turning off the flip passes through nominally.
+    sma_mir.write_ms(filename, flip_conj=False, clobber=True)
+    uv = UVData.from_file(filename)
+
+    assert sma_mir.__eq__(
+        uv, allowed_failures=["history", "extra_keywords", "instrument", "filename"]
+    )
 
 
 def test_importuvfits_flip_conj(sma_mir, tmp_path):
@@ -1082,8 +1113,7 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj_multispw.ms")
 
     sma_mir.write_ms(filename, flip_conj=True)
-    with check_warnings(UserWarning, match="UVW orientation appears to be flipped,"):
-        ms_uv = UVData.from_file(filename)
+    ms_uv = UVData.from_file(filename)
 
     # MS doesn't have the concept of an "instrument" name like FITS does, and instead
     # defaults to the telescope name. Make sure that checks out here.
@@ -1134,3 +1164,48 @@ def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
     assert sma_mir.history in uvd.history
     uvd.history = sma_mir.history
     assert uvd == sma_mir
+
+
+def test_write_ms_feed_sort(sma_mir, tmp_path):
+    # Fix the app coords since CASA reader calculates them on the fly
+    sma_mir._set_app_coords_helper()
+
+    uvd = UVData()
+    testfile = os.path.join(tmp_path, "feed_order.ms")
+    sma_mir.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    sma_mir.write_ms(testfile, clobber=True)
+    uvd.read(testfile)
+
+    # Just set this up front
+    uvd.history = sma_mir.history
+    uvd.telescope.instrument = sma_mir.telescope.instrument
+    uvd.extra_keywords = sma_mir.extra_keywords
+
+    assert uvd != sma_mir
+    uvd.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    assert uvd == sma_mir
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_write_ms_baseline_conj_warning(nrao_uv, tmp_path):
+    testfile = os.path.join(tmp_path, "mix_bl_conj.ms")
+
+    uvd = nrao_uv
+    uvd.vis_units = "Jy"
+    uvd.pol_convention = "sum"
+
+    # Mix up the conj for some baselines
+    uvd.conjugate_bls(convention="u>0")
+
+    with check_warnings(
+        UserWarning,
+        match=[
+            "The uvw_array does not match",
+            "UVData object contains a mix of baseline conjugation states",
+        ],
+    ):
+        uvd.write_ms(testfile, clobber=True)
+
+    uvd2 = UVData.from_file(testfile)
+    assert uvd == uvd2
+    assert all(uvd.ant_1_array >= uvd.ant_2_array)
