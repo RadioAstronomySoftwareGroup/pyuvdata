@@ -1372,17 +1372,7 @@ class UVFlag(UVBase):
             this_uv_sort = this_order[inv_uv_order]
 
             # do the sorting
-            self.telescope.antenna_numbers = self.telescope.antenna_numbers[
-                this_uv_sort
-            ]
-            if self.telescope.antenna_names is not None:
-                self.telescope.antenna_names = self.telescope.antenna_names[
-                    this_uv_sort
-                ]
-            if self.telescope.antenna_positions is not None:
-                self.telescope.antenna_positions = self.telescope.antenna_positions[
-                    this_uv_sort
-                ]
+            self.telescope.reorder_antennas(order=this_uv_sort)
 
     def to_baseline(
         self,
@@ -1466,6 +1456,8 @@ class UVFlag(UVBase):
                 if param in warning_params:
                     warnings.warn(
                         f"{param} is not the same on this object and on uv. "
+                        f"The value on this object is {this_param.value}; "
+                        f"the value on uv is {uv_param.value}."
                         "Keeping the value on this object."
                     )
                 else:
