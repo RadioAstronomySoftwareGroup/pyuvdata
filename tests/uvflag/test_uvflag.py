@@ -2339,9 +2339,7 @@ def test_to_baseline_flags(uvdata_obj, resort):
     if resort:
         rng = np.random.default_rng()
         new_order = rng.permutation(uvf.telescope.Nants)
-        uvf.telescope.antenna_numbers = uvf.telescope.antenna_numbers[new_order]
-        uvf.telescope.antenna_names = uvf.telescope.antenna_names[new_order]
-        uvf.telescope.antenna_positions = uvf.telescope.antenna_positions[new_order, :]
+        uvf.telescope.reorder_antennas(order=new_order)
 
     uvf.to_baseline(uv)
     assert uvf.type == "baseline"
