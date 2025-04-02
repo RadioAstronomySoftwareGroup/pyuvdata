@@ -37,6 +37,8 @@ compared and `UVParameter.value` share the same class.
 and `UVBeam.check`.
 
 ### Fixed
+- Bug in MWA beams that caused beams pointed away from zenith to be wrong because
+the delays were not assigned to the right dipoles.
 - Bug in `UVData.sum_vis` where it errored if there were different filenames on
 the input objects. Now the filename lists are combined on the output object.
 - Bug in `UVBeam.select` where `polarization_array` could be incorrectly ordered after
