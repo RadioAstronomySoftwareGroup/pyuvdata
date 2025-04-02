@@ -126,6 +126,83 @@ def test_mwa_orientation(mwa_beam_1ppd):
     assert efield_beam.data_array[0, east_ind, 0, za_val, north_az] < 0
 
 
+@pytest.mark.parametrize(
+    ("delay_set", "az_val", "za_range"),
+    [
+        (np.zeros(16), 0, [-0.1, 0.1]),
+        (np.ones(16), 0, [-0.1, 0.1]),
+        (np.tile(np.arange(0, 8, 2), 4), 0, [12, 15]),
+        (np.tile((np.arange(0, 8, 2))[np.newaxis, :].T, 4).flatten(), 270, [12, 15]),
+        (np.tile(np.flip(np.arange(0, 8, 2)), 4), 180, [12, 15]),
+        (
+            np.tile(np.flip(np.arange(0, 8, 2))[np.newaxis, :].T, 4).flatten(),
+            90,
+            [12, 15],
+        ),
+    ],
+)
+def test_mwa_pointing(delay_set, az_val, za_range):
+    # Test that pointing the beam moves the peak in the right direction.
+
+    delays = np.empty((2, 16), dtype=int)
+
+    for pol in range(2):
+        delays[pol] = delay_set
+
+    mwa_beam = UVBeam.from_file(
+        filename, pixels_per_deg=1, beam_type="efield", delays=delays
+    )
+    mwa_beam.efield_to_power(calc_cross_pols=False)
+
+    # set up zenith angle, azimuth and frequency arrays to evaluate with
+    # make a regular grid in direction cosines for nice plots
+    n_vals = 100
+    zmax = np.radians(90)  # Degrees
+    axis_arr = np.arange(-n_vals / 2.0, n_vals / 2.0) / float(n_vals / 2.0)
+    l_arr, m_arr = np.meshgrid(axis_arr, axis_arr)
+    radius = np.sqrt(l_arr**2 + m_arr**2)
+    za_array = radius * zmax
+    az_array = np.arctan2(m_arr, l_arr)
+
+    # Wrap the azimuth array to [0, 2pi] to match the extent of the UVBeam azimuth
+    where_neg_az = np.nonzero(az_array < 0)
+    az_array[where_neg_az] = az_array[where_neg_az] + np.pi * 2.0
+    az_array = az_array.flatten()
+    za_array = za_array.flatten()
+
+    # find the values above the horizon so we don't try to interpolate the MWA beam
+    # beyond the horizon
+    above_hor = np.nonzero(za_array <= np.pi / 2.0)[0]
+    az_array = az_array[above_hor]
+    za_array = za_array[above_hor]
+
+    # The MWA beam we have in our test data is small, it only has 3 frequencies,
+    # so we will just get the value at one of those frequencies rather than
+    # trying to interpolate to a new frequency.
+    freqs = np.array([mwa_beam.freq_array[-1]])
+
+    mwa_beam_vals, _ = mwa_beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        freq_array=freqs,
+        return_basis_vector=False,
+    )
+    mwa_beam_vals = np.squeeze(mwa_beam_vals)
+
+    ee_power_vals = mwa_beam_vals[0]
+    nn_power_vals = mwa_beam_vals[1]
+    max_ee_loc = np.nonzero(ee_power_vals == np.max(ee_power_vals))
+    max_nn_loc = np.nonzero(nn_power_vals == np.max(nn_power_vals))
+
+    assert np.rad2deg(az_array[max_ee_loc]) == az_val
+    assert np.rad2deg(az_array[max_nn_loc]) == az_val
+
+    assert np.rad2deg(za_array[max_ee_loc]) > za_range[0]
+    assert np.rad2deg(za_array[max_ee_loc]) < za_range[1]
+    assert np.rad2deg(za_array[max_nn_loc]) > za_range[0]
+    assert np.rad2deg(za_array[max_nn_loc]) < za_range[1]
+
+
 def test_freq_range(mwa_beam_1ppd):
     beam1 = mwa_beam_1ppd
     beam2 = UVBeam()

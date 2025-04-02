@@ -265,7 +265,7 @@ class MWABeam(UVBeam):
 
         pol_names = sorted(pol_names)
 
-        dipole_names = np.array(sorted(dipole_names))
+        dipole_names = np.sort(np.asarray(list(dipole_names), dtype=int)).astype(str)
 
         freqs_hz = np.array(sorted(freqs_hz))
 
