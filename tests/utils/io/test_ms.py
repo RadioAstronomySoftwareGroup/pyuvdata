@@ -133,13 +133,6 @@ def test_field_no_ref(tmp_path):
     assert field_dict["epoch"] == 2000.0
 
 
-def test_read_ms_feed_err():
-    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-
-    with pytest.raises(NotImplementedError):
-        ms_utils.read_ms_feed(filename)
-
-
 def test_read_ms_pointing_err():
     filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
 

@@ -52,6 +52,9 @@ def uvbeam_data():
         "model_version",
         "history",
         "antenna_type",
+        "Nfeeds",
+        "feed_array",
+        "feed_angle",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -59,7 +62,6 @@ def uvbeam_data():
         "Naxes1",
         "Naxes2",
         "Npixels",
-        "Nfeeds",
         "Npols",
         "Ncomponents_vec",
         "axis1_array",
@@ -67,7 +69,7 @@ def uvbeam_data():
         "nside",
         "ordering",
         "pixel_array",
-        "feed_array",
+        "mount_type",
         "polarization_array",
         "basis_vector_array",
         "extra_keywords",
@@ -75,7 +77,6 @@ def uvbeam_data():
         "element_coordinate_system",
         "element_location_array",
         "delay_array",
-        "x_orientation",
         "gain_array",
         "coupling_matrix",
         "reference_impedance",
@@ -446,8 +447,14 @@ def test_efield_to_power(
 
     if physical_orientation:
         efield_beam.feed_array = np.array(["e", "n"])
+        with check_warnings(
+            DeprecationWarning, match="Support for physically oriented feeds"
+        ):
+            efield_beam.check()
         power_beam.polarization_array = np.array(
-            utils.polstr2num(["ee", "nn"], x_orientation=power_beam.x_orientation)
+            utils.polstr2num(
+                ["ee", "nn"], x_orientation=power_beam.get_x_orientation_from_feeds()
+            )
         )
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
@@ -464,6 +471,7 @@ def test_efield_to_power(
     power_beam._data_array.tols = tols
     # modify the history to match
     power_beam.history += " Converted from efield to power using pyuvdata."
+
     assert power_beam == new_power_beam
 
 
@@ -473,8 +481,12 @@ def test_efield_to_power_1feed(cst_efield_2freq_cut, cst_power_2freq_cut):
 
     power_beam = cst_power_2freq_cut
     power_beam.select(polarizations=["xx"])
+    power_beam.feed_array = power_beam.feed_angle = power_beam.Nfeeds = None
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
+    new_power_beam.feed_array = None
+    new_power_beam.feed_angle = None
+    new_power_beam.Nfeeds = None
 
     # The values in the beam file only have 4 sig figs, so they don't match precisely
     diff = np.abs(new_power_beam.data_array - power_beam.data_array)
@@ -2018,6 +2030,7 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
     if antenna_type == "simple":
         efield_beam = cst_efield_1freq
         efield_beam.feed_array = np.array(["n", "e"])
+        efield_beam.feed_angle = None
         feeds_to_keep = ["e"]
     else:
         efield_beam = phased_array_beam_2freq
@@ -2037,10 +2050,16 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
             "Downselecting feeds on phased array beams will lead to loss of information"
         )
     else:
-        expected_warning = None
-        warn_msg = ""
+        expected_warning = DeprecationWarning
+        warn_msg = "Support for physically oriented feeds"
+
     with check_warnings(expected_warning, match=warn_msg):
         efield_beam2 = efield_beam.select(feeds=sel_feeds, invert=invert, inplace=False)
+
+    if antenna_type == "simple":
+        expected_warning = None
+        feeds_to_keep = ["x"]
+        warn_msg = None
 
     assert len(feeds_to_keep) == efield_beam2.Nfeeds
     assert np.all(np.isin(efield_beam2.feed_array, feeds_to_keep))
@@ -2117,7 +2136,9 @@ def test_select_polarizations(pols, cst_efield_1freq, invert):
     pol_arr = []
     for p in pols:
         if not isinstance(p, int):
-            p = utils.polstr2num(p, x_orientation=power_beam.x_orientation)
+            p = utils.polstr2num(
+                p, x_orientation=power_beam.get_x_orientation_from_feeds()
+            )
         pol_arr.append(p)
 
     assert np.all(np.isin(power_beam.polarization_array, pol_arr, invert=invert))
@@ -3038,7 +3059,9 @@ def test_generic_read_cst():
         cst_files,
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
-        feed_pol="y",
+        feed_angle=[0.0, np.pi / 2],
+        feed_array=["x", "y"],
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -3049,6 +3072,7 @@ def test_generic_read_cst():
     assert uvb.check()
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_generic_read(filename):
     """Test generic read can infer the file types correctly."""
@@ -3164,6 +3188,7 @@ def test_generic_read_all_bad_files(tmp_path):
         uvb3.read(filenames, skip_bad_files=True)
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_from_file(filename):
     """Test from file produces same the results as reading explicitly."""
@@ -3192,6 +3217,7 @@ def test_from_file(filename):
     assert uvb == uvb2
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize(
     ["filename", "path_var", "file_list"],
     [
@@ -3308,3 +3334,35 @@ def test_return_basis_vector_notset(cst_efield_2freq_cut: UVBeam):
         )
 
     assert basis_vector is not None
+
+
+def test_xorient_dep_warning(cst_efield_2freq_cut):
+    with check_warnings(
+        DeprecationWarning, ["The UVBeam.x_orientation attribute is deprecated"] * 3
+    ):
+        assert cst_efield_2freq_cut.x_orientation == "east"
+        cst_efield_2freq_cut.x_orientation = "north"
+        assert cst_efield_2freq_cut.x_orientation == "north"
+
+
+@pytest.mark.parametrize(
+    "mod_params,warn_msg",
+    [
+        [
+            {"Nfeeds": None, "feed_array": None, "feed_angle": None},
+            "Feed information now required for power beams",
+        ],
+        [{"feed_angle": None}, "The feed_angle parameter must be set for UVBeam"],
+        [{"feed_array": np.array(["e", "n"])}, "Support for physically oriented feeds"],
+    ],
+)
+def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
+    uvb = cst_power_2freq_cut
+    uvb2 = uvb.copy()
+    for key, value in mod_params.items():
+        setattr(uvb, key, value)
+
+    with check_warnings(DeprecationWarning, match=warn_msg):
+        uvb._fix_feeds()
+
+    assert uvb == uvb2

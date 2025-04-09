@@ -3,10 +3,13 @@
 
 """Primary container for radio telescope antenna beams."""
 
+from __future__ import annotations
+
 import copy
 import importlib
 import os
 import warnings
+from typing import Literal
 
 import numpy as np
 import yaml
@@ -251,23 +254,65 @@ class UVBeam(UVBase):
 
         self._Nfeeds = uvp.UVParameter(
             "Nfeeds",
-            description="Number of feeds. Not required if beam_type is 'power'.",
+            description="Number of feeds.",
             expected_type=int,
             acceptable_vals=[1, 2],
-            required=False,
         )
 
-        desc = (
-            "Array of feed orientations. shape (Nfeeds). "
-            'options are: n/e or x/y or r/l. Not required if beam_type is "power".'
-        )
+        desc = "Array of feed labels. shape (Nfeeds). options are: x/y or r/l."
         self._feed_array = uvp.UVParameter(
             "feed_array",
             description=desc,
-            required=False,
             expected_type=str,
             form=("Nfeeds",),
-            acceptable_vals=["x", "y", "n", "e", "r", "l"],
+            acceptable_vals=["x", "y", "r", "l"],
+        )
+
+        desc = (
+            "Position angle of a given feed, shape (Nfeeds,), units of radians. "
+            "A feed angle of 0 is typically oriented toward zenith for steerable "
+            "antennas, otherwise toward north for fixed antennas (e.g., HERA, LWA)."
+            'More details on this can be found on the "Conventions" page of the docs.'
+        )
+        self._feed_angle = uvp.UVParameter(
+            "feed_angle",
+            description=desc,
+            form=("Nfeeds",),
+            expected_type=float,
+            tols=1e-6,  # 10x (~2pix) single precision limit
+        )
+
+        desc = (
+            "Antenna mount type, which describes the optics of the antenna in question."
+            'Supported options include: "alt-az" (primary rotates in azimuth and'
+            'elevation), "equatorial" (primary rotates in hour angle and declination), '
+            '"orbiting" (antenna is in motion, and its orientation depends on orbital'
+            'parameters), "x-y" (primary rotates first in the plane connecting east, '
+            "west, and zenith, and then perpendicular to that plane), "
+            '"alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary '
+            'mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree '
+            'tertiary mirror), "phased" (antenna is "electronically steered" by '
+            'summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna '
+            'beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other" '
+            '(also referred to in some formats as "bizarre"). See the "Conventions" '
+            "page of the documentation for further details."
+        )
+        self._mount_type = uvp.UVParameter(
+            "mount_type",
+            description=desc,
+            required=False,
+            expected_type=str,
+            acceptable_vals=[
+                "alt-az",
+                "equatorial",
+                "orbiting",
+                "x-y",
+                "alt-az+nasmyth-r",
+                "alt-az+nasmyth-l",
+                "phased",
+                "fixed",
+                "other",
+            ],
         )
 
         self._Npols = uvp.UVParameter(
@@ -483,20 +528,6 @@ class UVBeam(UVBase):
 
         # -------- extra, non-required parameters ----------
         desc = (
-            "Orientation of the physical dipole corresponding to what is "
-            'labelled as the x polarization. Options are "east" '
-            '(indicating east/west orientation) and "north" (indicating '
-            "north/south orientation)"
-        )
-        self._x_orientation = uvp.UVParameter(
-            "x_orientation",
-            description=desc,
-            required=False,
-            expected_type=str,
-            acceptable_vals=["east", "north"],
-        )
-
-        desc = (
             "Any user supplied extra keywords, type=dict. Keys should be "
             "8 character or less strings if writing to beam fits files. "
             'Use the special key "comment" for long multi-line string comments.'
@@ -578,6 +609,128 @@ class UVBeam(UVBase):
 
         super().__init__()
 
+    def __getattr__(self, __name):
+        """Handle getting old attributes."""
+        if __name == "x_orientation":
+            warnings.warn(
+                "The UVBeam.x_orientation attribute is deprecated, and has "
+                "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+                "This will become an error in version 3.4. To set the equivalent "
+                "value in the future, you can substitute accessing this parameter "
+                "with a call to UVBeam.get_x_orientation_from_feeds().",
+                DeprecationWarning,
+            )
+            return self.get_x_orientation_from_feeds()
+
+        return super().__getattribute__(__name)
+
+    def __setattr__(self, __name, __value):
+        """Handle setting old attributes."""
+        if __name == "x_orientation":
+            warnings.warn(
+                "The UVBeam.x_orientation attribute is deprecated, and has "
+                "been superseded by UVBeam.feed_angle and UVBeam.feed_array. "
+                "This will become an error in version 3.4. To get the equivalent "
+                "value in the future, you can substitute accessing this parameter "
+                "with a call to UVBeam.set_feeds_from_x_orientation().",
+                DeprecationWarning,
+            )
+            if __value is not None:
+                return self.set_feeds_from_x_orientation(__value)
+
+        return super().__setattr__(__name, __value)
+
+    def _fix_feeds(self):
+        if self.beam_type == "power" and self.Nfeeds is None:
+            warnings.warn(
+                "Feed information now required for power beams, will default to "
+                "linear feeds with x-orientation aligned to the east (populated based "
+                "on what is preesnt in UVBeam.polarization_array). This will become an "
+                "error in version 3.4.",
+                DeprecationWarning,
+            )
+            self.set_feeds_from_x_orientation(x_orientation="east")
+        if self.feed_array is not None and (
+            ("e" in self.feed_array) or ("n" in self.feed_array)
+        ):
+            warnings.warn(
+                'Support for physically oriented feeds (e.g., "n", and "e") has been '
+                'deprecated, with the only allowed options now available being "x", '
+                '"y", "l", or "r". The physical orientation of the feed is now '
+                "recorded in the UVBeam.feed_angle parameter (which must now be set on "
+                "all UVBeam objects). This will become an error in version 3.4.",
+                DeprecationWarning,
+            )
+            feed_map = {"e": "x", "n": "y"}
+            feed_ang_map = {
+                "e": np.pi / 2,
+                "n": 0.0,
+                "x": np.pi / 2,
+                "y": 0.0,
+                "r": 0.0,
+                "l": 0.0,
+            }
+            if self.feed_angle is None:
+                self.feed_angle = [feed_ang_map.get(f, 0.0) for f in self.feed_array]
+
+            for idx, feed in enumerate(self.feed_array):
+                if feed in feed_map:
+                    self.feed_array[idx] = feed_map[feed]
+                    self.feed_angle[idx] = feed_ang_map[feed]
+        if self.feed_angle is None:
+            warnings.warn(
+                "The feed_angle parameter must be set for UVBeam objects, setting "
+                "based on x-polarization feeds being aligned to east (and all others "
+                "to north). This will become an error in version 3.4.",
+                DeprecationWarning,
+            )
+            self.set_feeds_from_x_orientation("east")
+
+    def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
+        """
+        Get x-orientation equivalent value based on feed information.
+
+        Returns
+        -------
+        x_orientation : str
+            One of "east", "north", or None, based on values present in
+            UVBeam.feed_array and UVBeam.feed_angle.
+        """
+        self._fix_feeds()
+        return utils.pol.get_x_orientation_from_feeds(
+            feed_array=self.feed_array,
+            feed_angle=self.feed_angle,
+            tols=self._feed_angle.tols,
+        )
+
+    def set_feeds_from_x_orientation(self, x_orientation):
+        """
+        Set feed information based on x-orientation value.
+
+        Populates newer parameters describing feed-orientation (`UVBeam.feed_array`
+        and `UVBeam.feed_angle`) based on the "older" x-orientation string. Note that
+        this method will overwrite any previously populated values.
+
+        Parameters
+        ----------
+        x_orientation : str
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north).
+        """
+        self.Nfeeds, self.feed_array, self.feed_angle = (
+            utils.pol.get_feeds_from_x_orientation(
+                x_orientation=x_orientation,
+                feeds=self.feed_array,
+                polarization_array=self.polarization_array,
+                nants=0,
+            )
+        )
+
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
+
     @staticmethod
     @combine_docstrings(initializers.new_uvbeam, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):
@@ -652,8 +805,6 @@ class UVBeam(UVBase):
         self._Naxes_vec.acceptable_vals = [2, 3]
         self._Ncomponents_vec.required = True
         self._basis_vector_array.required = True
-        self._Nfeeds.required = True
-        self._feed_array.required = True
         self._Npols.required = False
         self._polarization_array.required = False
         self._data_array.expected_type = uvp._get_generic_type(complex)
@@ -666,8 +817,6 @@ class UVBeam(UVBase):
         self._Naxes_vec.acceptable_vals = [1, 2, 3]
         self._basis_vector_array.required = False
         self._Ncomponents_vec.required = False
-        self._Nfeeds.required = False
-        self._feed_array.required = False
         self._Npols.required = True
         self._polarization_array.required = True
 
@@ -807,6 +956,9 @@ class UVBeam(UVBase):
             check_auto_power is False.
 
         """
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
+
         # first make sure the required parameters and forms are set properly
         # _set_cs_params is called by _set_efield/_set_power
         if self.beam_type == "efield":
@@ -901,6 +1053,9 @@ class UVBeam(UVBase):
             Option to check optional parameters as well as required ones.
 
         """
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
+
         if self.beam_type != "efield":
             raise ValueError("beam_type must be efield")
 
@@ -922,7 +1077,7 @@ class UVBeam(UVBase):
             utils.pol.convert_feeds_to_pols(
                 beam_object.feed_array,
                 include_cross_pols=calc_cross_pols,
-                x_orientation=beam_object.x_orientation,
+                x_orientation=beam_object.get_x_orientation_from_feeds(),
                 return_feed_pol_order=True,
             )
         )
@@ -992,8 +1147,6 @@ class UVBeam(UVBase):
             power_data = power_data.real
 
         beam_object.data_array = power_data
-        beam_object.Nfeeds = None
-        beam_object.feed_array = None
         if not keep_basis_vector:
             beam_object.basis_vector_array = None
             beam_object.Ncomponents_vec = None
@@ -1121,6 +1274,9 @@ class UVBeam(UVBase):
             Option to check optional parameters as well as required ones.
 
         """
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
+
         if inplace:
             beam_object = self
         else:
@@ -1147,7 +1303,9 @@ class UVBeam(UVBase):
         )
         beam_object.polarization_array = np.array(
             [
-                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
+                utils.polstr2num(
+                    ps.upper(), x_orientation=self.get_x_orientation_from_feeds()
+                )
                 for ps in pol_strings
             ]
         )
@@ -1175,7 +1333,9 @@ class UVBeam(UVBase):
         beam_object.data_array = power_data
         beam_object.polarization_array = np.array(
             [
-                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
+                utils.polstr2num(
+                    ps.upper(), x_orientation=self.get_x_orientation_from_feeds()
+                )
                 for ps in pol_strings
             ]
         )
@@ -1187,8 +1347,6 @@ class UVBeam(UVBase):
         )
         beam_object.Npols = beam_object.Nfeeds**2
         beam_object.history = beam_object.history + history_update_string
-        beam_object.Nfeeds = None
-        beam_object.feed_array = None
         beam_object.basis_vector_array = None
         beam_object.Ncomponents_vec = None
 
@@ -1418,7 +1576,9 @@ class UVBeam(UVBase):
                 pol_inds = np.arange(Npol_feeds)
             else:
                 pols = [
-                    utils.polstr2num(p, x_orientation=self.x_orientation)
+                    utils.polstr2num(
+                        p, x_orientation=self.get_x_orientation_from_feeds()
+                    )
                     for p in polarizations
                 ]
                 pol_inds = []
@@ -2474,7 +2634,9 @@ class UVBeam(UVBase):
         # assert beam_type is power
         assert self.beam_type == "power", "beam_type must be power"
         if isinstance(pol, str | np.str_):
-            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(
+                pol, x_orientation=self.get_x_orientation_from_feeds()
+            )
         pol_array = self.polarization_array
         if pol in pol_array:
             stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
@@ -2507,7 +2669,9 @@ class UVBeam(UVBase):
 
         """
         if isinstance(pol, str | np.str_):
-            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(
+                pol, x_orientation=self.get_x_orientation_from_feeds()
+            )
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
         if self.Naxes_vec > 1:
@@ -2549,7 +2713,9 @@ class UVBeam(UVBase):
 
         """
         if isinstance(pol, str | np.str_):
-            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(
+                pol, x_orientation=self.get_x_orientation_from_feeds()
+            )
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
         if self.Naxes_vec > 1:
@@ -2619,6 +2785,7 @@ class UVBeam(UVBase):
         else:
             this = self.copy()
         # Check that both objects are UVBeam and valid
+        # Note this will fix the old "e" and "n" feed types
         this.check(check_extra=check_extra, run_check_acceptability=False)
         if not issubclass(other.__class__, this.__class__) and not issubclass(
             this.__class__, other.__class__
@@ -2660,20 +2827,21 @@ class UVBeam(UVBase):
                 )
                 raise ValueError(msg)
 
-        # check for presence of optional parameters with a frequency axis in
-        # both objects
-        optional_freq_params = [
+        # check for presence of optional parameters
+        optional_params = [
             "_receiver_temperature_array",
             "_loss_array",
             "_mismatch_array",
             "_s_parameters",
+            "_mount_type",
         ]
-        for attr in optional_freq_params:
+        if self.beam_type != "efield":
+            optional_params.extend(["_feed_array", "_feed_angle"])
+
+        for attr in optional_params:
             this_attr = getattr(this, attr)
             other_attr = getattr(other, attr)
-            if (
-                this_attr.value is None or other_attr.value is None
-            ) and this_attr != other_attr:
+            if (this_attr.value is None) != (other_attr.value is None):
                 warnings.warn(
                     "Only one of the UVBeam objects being combined "
                     f"has optional parameter {attr}. After the sum the "
@@ -2950,8 +3118,12 @@ class UVBeam(UVBase):
                 this.feed_array = np.concatenate(
                     [this.feed_array, other.feed_array[pnew_inds]]
                 )
+                this.feed_angle = np.concatenate(
+                    [this.feed_angle, other.feed_angle[pnew_inds]]
+                )
                 order = np.argsort(this.feed_array)
                 this.feed_array = this.feed_array[order]
+                this.feed_angle = this.feed_angle[order]
 
                 if this.antenna_type == "phased_array":
                     # have to concat twice because two axes are feed axes
@@ -3234,7 +3406,7 @@ class UVBeam(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -3254,6 +3426,9 @@ class UVBeam(UVBase):
             beamfits file-format. Default is True.
 
         """
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
+
         if inplace:
             beam_object = self
         else:
@@ -3351,7 +3526,7 @@ class UVBeam(UVBase):
         feed_inds, feed_selections = utils.pol._select_feed_helper(
             feeds=feeds,
             obj_feed_array=self.feed_array,
-            obj_x_orientation=self.x_orientation,
+            obj_x_orientation=self.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
         )
@@ -3360,7 +3535,7 @@ class UVBeam(UVBase):
         pol_inds, pol_selections = utils.pol._select_pol_helper(
             polarizations=polarizations,
             obj_pol_array=self.polarization_array,
-            obj_x_orientation=self.x_orientation,
+            obj_x_orientation=self.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
             warn_spacing=warn_spacing,
@@ -3510,7 +3685,10 @@ class UVBeam(UVBase):
         beam_type="power",
         use_future_array_shapes=None,
         feed_pol=None,
+        feed_array=None,
+        feed_angle=None,
         rotate_pol=None,
+        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -3569,12 +3747,35 @@ class UVBeam(UVBase):
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
+        feed_array : str or array-like of str
+            Feeds to define this beam for, e.g. x & y or r & l. Only used for power
+            beams (feeds are set by feed_pol for efield beams).
+        feed_angle : str or array-like of float
+            Position angle of a given feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs. Must match shape of feed_pol
+            for efield beams, or feed_angle for power beams.
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
             90 degree rotations about the z-axis (so that the y polarization can be
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -3652,7 +3853,7 @@ class UVBeam(UVBase):
             if "ref_imp" in settings_dict:
                 overriding_keywords["reference_impedance"] = reference_impedance
             if "x_orientation" in settings_dict:
-                overriding_keywords["x_orientation"] = reference_impedance
+                overriding_keywords["x_orientation"] = x_orientation
             for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn(
@@ -3678,8 +3879,14 @@ class UVBeam(UVBase):
                 history = settings_dict["history"]
             if reference_impedance is None and "ref_imp" in settings_dict:
                 reference_impedance = float(settings_dict["ref_imp"])
-            if x_orientation is None and "x_orientation" in settings_dict:
-                x_orientation = settings_dict["x_orientation"]
+            if x_orientation is None:
+                x_orientation = settings_dict.get("x_orientation", None)
+            if feed_array is None:
+                feed_array = settings_dict.get("feed_array", None)
+            if feed_angle is None:
+                feed_angle = settings_dict.get("feed_angle", None)
+            if mount_type is None:
+                mount_type = settings_dict.get("mount_type", None)
 
             if extra_keywords is None:
                 extra_keywords = {}
@@ -3694,6 +3901,9 @@ class UVBeam(UVBase):
                 "frequencies",
                 "filenames",
                 "feed_pol",
+                "feed_array",
+                "feed_angle",
+                "mount_type",
                 "ref_imp",
                 "x_orientation",
             ]
@@ -3766,6 +3976,45 @@ class UVBeam(UVBase):
         if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
             feed_pol = feed_pol[0]
 
+        if feed_array is not None:
+            if beam_type == "power":
+                if isinstance(feed_array, np.ndarray) and (feed_array.ndim > 1):
+                    raise ValueError("feed_array cannot be a multi-dimensional array.")
+            else:
+                raise ValueError(
+                    "Cannot set feed_array for efield beams in read_cst_beam, use "
+                    "feed_pol instead."
+                )
+            feed_array = np.asarray(feed_array).reshape(-1)
+
+        if feed_angle is not None:
+            if isinstance(feed_angle, np.ndarray) and (feed_angle.ndim > 1):
+                raise ValueError("feed_angle cannot be a multi-dimensional array.")
+            feed_angle = np.asarray(feed_angle).reshape(-1)
+
+            if beam_type == "efield":
+                exp_len = len(feed_pol) if isinstance(feed_pol, list | tuple) else 1
+                if exp_len != len(feed_angle):
+                    raise ValueError(
+                        "feed_pol and feed_angle must contain the same number of "
+                        "elements for efield beams."
+                    )
+                if len(feed_angle) == 1:
+                    feed_angle = feed_angle[0]
+                else:
+                    feed_angle = feed_angle.tolist()
+            else:
+                if feed_array is None:
+                    raise ValueError(
+                        "Must set either both or neither of feed_array and feed_angle "
+                        "for power beams."
+                    )
+                if len(feed_angle) != len(feed_array):
+                    raise ValueError(
+                        "feed_array and feed_angle must contain the same number of "
+                        "elements for power beams."
+                    )
+
         if isinstance(cst_filename, list | tuple):
             if frequency is not None:
                 if isinstance(frequency, list | tuple):
@@ -3789,14 +4038,15 @@ class UVBeam(UVBase):
                 pol = feed_pol[0]
                 if rotate_pol is None:
                     # if a mix of feed pols, don't rotate by default
-                    if np.any(np.array(feed_pol) != feed_pol[0]):
-                        rotate_pol = False
-                    else:
-                        rotate_pol = True
+                    rotate_pol = all(feed == feed_pol[0] for feed in feed_pol)
             else:
                 pol = feed_pol
                 if rotate_pol is None:
                     rotate_pol = True
+            if isinstance(feed_angle, list):
+                ang = feed_angle[0]
+            else:
+                ang = feed_angle
             if isinstance(freq, list | tuple):
                 raise ValueError("frequency can not be a nested list")
             if isinstance(pol, list | tuple):
@@ -3806,7 +4056,10 @@ class UVBeam(UVBase):
                 beam_type=beam_type,
                 use_future_array_shapes=use_future_array_shapes,
                 feed_pol=pol,
+                feed_array=feed_array,
+                feed_angle=ang,
                 rotate_pol=rotate_pol,
+                mount_type=mount_type,
                 frequency=freq,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -3837,13 +4090,20 @@ class UVBeam(UVBase):
                     pol = feed_pol[file_i + 1]
                 else:
                     pol = feed_pol
+                if isinstance(feed_angle, list):
+                    ang = feed_angle[file_i + 1]
+                else:
+                    ang = feed_angle
                 beam2 = UVBeam()
                 beam2.read_cst_beam(
                     f,
                     beam_type=beam_type,
                     use_future_array_shapes=use_future_array_shapes,
                     feed_pol=pol,
+                    feed_array=feed_array,
+                    feed_angle=ang,
                     rotate_pol=rotate_pol,
+                    mount_type=mount_type,
                     frequency=freq,
                     telescope_name=telescope_name,
                     feed_name=feed_name,
@@ -3875,7 +4135,10 @@ class UVBeam(UVBase):
                 cst_filename,
                 beam_type=beam_type,
                 feed_pol=feed_pol,
+                feed_array=feed_array,
+                feed_angle=feed_angle,
                 rotate_pol=rotate_pol,
+                mount_type=mount_type,
                 frequency=frequency,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -3975,7 +4238,10 @@ class UVBeam(UVBase):
         # cst parameters
         beam_type="power",
         feed_pol=None,
+        feed_array=None,
+        feed_angle=None,
         rotate_pol=None,
+        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -4095,12 +4361,38 @@ class UVBeam(UVBase):
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
             Only applies to cst file types.
+        feed_array : str or array-like of str
+            Feeds to define this beam for, e.g. x & y or r & l. Only used for power
+            beams (feeds are set by feed_pol for efield beams).
+            Only applies to cst file types.
+        feed_angle : str or array-like of float
+            Position angle of a given feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs. Must match shape of feed_pol
+            for efield beams, or feed_angle for power beams.
+            Only applies to cst file types.
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
             90 degree rotations about the z-axis (so that the y polarization can be
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
+            Only applies to cst file types.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
             Only applies to cst file types.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
@@ -4195,7 +4487,10 @@ class UVBeam(UVBase):
                 filename,
                 beam_type=beam_type,
                 feed_pol=feed_pol,
+                feed_array=feed_array,
+                feed_angle=feed_angle,
                 rotate_pol=rotate_pol,
+                mount_type=mount_type,
                 frequency=frequency,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -4241,7 +4536,10 @@ class UVBeam(UVBase):
                             # reading later
                             beam_type=beam_type,
                             feed_pol=feed_pol,
+                            feed_array=feed_array,
+                            feed_angle=feed_angle,
                             rotate_pol=rotate_pol,
+                            mount_type=mount_type,
                             frequency=frequency,
                             telescope_name=telescope_name,
                             feed_name=feed_name,
@@ -4292,7 +4590,10 @@ class UVBeam(UVBase):
                                 # reading later
                                 beam_type=beam_type,
                                 feed_pol=feed_pol,
+                                feed_array=feed_array,
+                                feed_angle=feed_angle,
                                 rotate_pol=rotate_pol,
+                                mount_type=mount_type,
                                 frequency=frequency,
                                 telescope_name=telescope_name,
                                 feed_name=feed_name,

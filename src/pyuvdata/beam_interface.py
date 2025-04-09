@@ -109,6 +109,11 @@ class BeamInterface:
         return self.beam.feed_array
 
     @property
+    def feed_angle(self):
+        """The feeds for which the beam is defined."""
+        return self.beam.feed_angle
+
+    @property
     def Nfeeds(self):  # noqa N802
         """The number of feeds defined on the beam."""
         return self.beam.Nfeeds or len(self.feed_array)
@@ -190,7 +195,7 @@ class BeamInterface:
             # Down-select polarizations based on the feeds input.
             possible_pols = [f1 + f2 for f1, f2 in product(feeds, feeds)]
             possible_pol_ints = upol.polstr2num(
-                possible_pols, x_orientation=self.beam.x_orientation
+                possible_pols, x_orientation=self.beam.get_x_orientation_from_feeds()
             )
             if maintain_ordering:
                 use_pols = [
