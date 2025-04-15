@@ -224,6 +224,13 @@ def test_shortdipole_feed_error():
     ):
         ShortDipoleBeam(feed_array=["r", "l"])
 
+    with pytest.raises(
+        NotImplementedError,
+        match="ShortDipoleBeams currently only support dipoles aligned to East "
+        "and North, it does not yet have support for arbitrary feed angles.",
+    ):
+        ShortDipoleBeam(feed_angle=[np.deg2rad(30), np.deg2rad(120)])
+
 
 @pytest.mark.parametrize(
     ("feed_array", "x_orientation"),
@@ -412,6 +419,12 @@ def test_missing_x_orientation():
     [
         (UniformBeam(), UniformBeam(feed_array=["r", "l"]), True),
         (ShortDipoleBeam(), ShortDipoleBeam(x_orientation="north"), False),
+        (ShortDipoleBeam(), ShortDipoleBeam(feed_angle=[np.pi / 2, 0]), True),
+        (
+            ShortDipoleBeam(x_orientation="north"),
+            ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[0, np.pi / 2]),
+            True,
+        ),
         (UniformBeam(), ShortDipoleBeam(), False),
         (
             ShortDipoleBeam(mount_type="fixed"),
