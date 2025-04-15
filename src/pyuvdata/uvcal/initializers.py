@@ -598,7 +598,6 @@ def new_uvcal_from_uvdata(
         "mount_type": "mount_type",
     }
     for param, tele_name in other_tele_params.items():
-        print(param, getattr(new_telescope, tele_name))
         if param in kwargs:
             setattr(new_telescope, tele_name, kwargs.pop(param))
 

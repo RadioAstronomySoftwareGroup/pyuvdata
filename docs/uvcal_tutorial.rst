@@ -248,6 +248,7 @@ of creating a consistent object from a minimal set of inputs
   ...         location = EarthLocation.from_geodetic(0, 0, 0),
   ...         name = "test",
   ...         x_orientation = "east",
+  ...         mount_type = "fixed",
   ...     ),
   ...     time_array = np.linspace(2459855, 2459856, 20),
   ... )
