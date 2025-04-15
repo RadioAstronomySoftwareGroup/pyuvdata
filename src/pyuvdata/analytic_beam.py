@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import warnings
-from dataclasses import InitVar, astuple, dataclass, field, replace
+from dataclasses import InitVar, dataclass, field, replace
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -42,9 +42,25 @@ def dc_eq(dc1, dc2) -> bool:
         return True
     if dc1.__class__ is not dc2.__class__:
         return NotImplemented  # better than False
-    t1 = astuple(dc1)
-    t2 = astuple(dc2)
-    return all(array_safe_eq(a1, a2) for a1, a2 in zip(t1, t2, strict=True))
+    fields1 = dataclasses.fields(dc1)
+    dict1 = {}
+    for fld in fields1:
+        if fld.compare:
+            dict1[fld.name] = getattr(dc1, fld.name)
+    fields2 = dataclasses.fields(dc2)
+    dict2 = {}
+    for fld in fields2:
+        if fld.compare:
+            dict2[fld.name] = getattr(dc2, fld.name)
+
+    # I can't figure out how to cause this to happen, but I still think it
+    # should be checked.
+    if dict1.keys() != dict2.keys():  # pragma: no cover
+        return False
+    return all(
+        array_safe_eq(a1, a2)
+        for a1, a2 in zip(dict1.values(), dict2.values(), strict=True)
+    )
 
 
 @dataclass(kw_only=True)
@@ -281,7 +297,9 @@ class AnalyticBeam:
         else:
             self.feed_array = np.asarray(["x", "y"])
 
-        if x_orientation is not None:
+        if self.feed_angle is not None:
+            self.feed_angle = np.asarray(self.feed_angle)
+        elif x_orientation is not None:
             self.set_feeds_from_x_orientation(x_orientation)
 
         linear_pol = False
@@ -740,7 +758,7 @@ yaml.add_multi_representer(
 yaml.add_multi_representer(AnalyticBeam, _analytic_beam_representer, Dumper=yaml.Dumper)
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class UnpolarizedAnalyticBeam(AnalyticBeam):
     """
     Unpolarized analytic beam base class.
@@ -827,7 +845,7 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
     basis_vector_type = "az_za"
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class AiryBeam(UnpolarizedAnalyticBeam):
     """
     A zenith pointed Airy beam.
@@ -916,7 +934,7 @@ def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
     return sigma
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class GaussianBeam(UnpolarizedAnalyticBeam):
     """
     A circular, zenith pointed Gaussian beam.
@@ -1143,6 +1161,16 @@ class ShortDipoleBeam(AnalyticBeam):
                     f"got feeds: {self.feed_array}"
                 )
 
+        if self.feed_angle is not None:
+            x_orient = utils.pol.get_x_orientation_from_feeds(
+                feed_array=self.feed_array, feed_angle=self.feed_angle, tols=[0, 1e-6]
+            )
+            if x_orient is None:
+                raise NotImplementedError(
+                    "ShortDipoleBeams currently only support dipoles aligned to East "
+                    "and North, it does not yet have support for arbitrary feed angles."
+                )
+
     def _efield_eval(
         self,
         *,
@@ -1185,7 +1213,7 @@ class ShortDipoleBeam(AnalyticBeam):
         return data_array
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class UniformBeam(UnpolarizedAnalyticBeam):
     """
     A uniform beam.
