@@ -1098,7 +1098,7 @@ c) Resampling a BDA dataset in time
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
-  >>> uvd = UVData.from_file(testfile)
+  >>> uvd = UVData.from_file(testfile, default_mount_type="fixed")
   >>> print(
   ...    "Range of integration times: ", np.amin(uvd.integration_time), "-", np.amax(uvd.integration_time)
   ... )

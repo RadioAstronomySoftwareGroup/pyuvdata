@@ -101,7 +101,7 @@ a) Reading a CST power beam file
   ...   feed_pol='x', rotate_pol=True, telescope_name='HERA',
   ...   feed_name='PAPER_dipole', feed_version='0.1',
   ...   model_name='E-field pattern - Rigging height 4.9m',
-  ...   model_version='1.0',
+  ...   model_version='1.0', mount_type='fixed',
   ... )
   >>> print(beam.beam_type)
   power
@@ -249,6 +249,7 @@ of creating a consistent object from a minimal set of inputs
   ...     freq_array=np.linspace(100e6, 200e6, 10),
   ...     x_orientation = "east",
   ...     feed_array = ["x", "y"],
+  ...     mount_type = "fixed",
   ...     axis1_array=np.deg2rad(np.linspace(-180, 179, 360)),
   ...     axis2_array=np.deg2rad(np.linspace(0, 90, 181)),
   ... )
