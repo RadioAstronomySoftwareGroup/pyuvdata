@@ -1876,9 +1876,8 @@ class MWACorrFITS(UVData):
         self.polarization_array = file_pol_array[pol_index_array]
 
         # Set values for feed-array/feed-angle based on east x-orientation
-        self.telescope.set_feeds_from_x_orientation(
-            "east", polarization_array=self.polarization_array
-        )
+        self.telescope.mount_type = ["phased"] * self.telescope.Nants
+        self.set_telescope_params(x_orientation="east")
 
         if read_data:
             if not mwax:

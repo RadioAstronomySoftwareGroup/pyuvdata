@@ -22,17 +22,6 @@ from astropy.coordinates import EarthLocation, SkyCoord
 
 from .utils.tools import _multidim_ind2sub, _strict_raise
 
-allowed_location_types = [EarthLocation]
-try:
-    from lunarsky import MoonLocation
-
-    allowed_location_types.append(MoonLocation)
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
-
-
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter", "SkyCoordParameter"]
 
 

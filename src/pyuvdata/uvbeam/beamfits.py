@@ -75,6 +75,7 @@ class BeamFITS(UVBeam):
         freq_range=None,
         az_range=None,
         za_range=None,
+        mount_type=None,
     ):
         """Read the data from a beamfits file."""
         # Check for defunct future array shapes call
@@ -314,7 +315,7 @@ class BeamFITS(UVBeam):
             self.feed_version = primary_header.pop("FEEDVER", None)
             self.model_name = primary_header.pop("MODEL", None)
             self.model_version = primary_header.pop("MODELVER", None)
-            self.mount_type = primary_header.pop("MNTSTA", None)
+            self.mount_type = primary_header.pop("MNTSTA", mount_type)
             x_orientation = primary_header.pop("XORIENT", "east")
             feedlist = primary_header.pop("FEEDLIST", None)
             if feedlist is not None:

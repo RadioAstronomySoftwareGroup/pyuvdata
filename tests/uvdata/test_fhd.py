@@ -230,7 +230,10 @@ def test_fhd_antenna_pos(fhd_data):
 
     cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     cotter_obj = UVData()
-    cotter_obj.read(cotter_file)
+    with check_warnings(
+        UserWarning, match="mount_type, feed_array, feed_angle are not set"
+    ):
+        cotter_obj.read(cotter_file)
 
     # don't test antenna_numbers, they will not match.
     # mwa_corr_fits now uses antenna_numbers that correspond to antenna_names
@@ -790,7 +793,10 @@ def test_conjugation():
     del file_dict["model_files"]
 
     uvfits_uv = UVData()
-    uvfits_uv.read(uvfits_file)
+    with check_warnings(
+        UserWarning, match="mount_type, feed_array, feed_angle are not set"
+    ):
+        uvfits_uv.read(uvfits_file)
 
     fhd_uv = UVData()
     with check_warnings(

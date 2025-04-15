@@ -44,16 +44,19 @@ def setup_and_teardown_package():
 def uvcalibrate_init_data_main():
     """Make initial uvcalibrate inputs."""
     uvdata = UVData()
-    uvdata.read(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
-        file_type="uvh5",
-    )
+    with check_warnings(UserWarning, match="mount_type are not set"):
+        uvdata.read(
+            os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
+            file_type="uvh5",
+        )
+
     uvcal = UVCal()
     with check_warnings(
         UserWarning,
-        match="telescope_location, antenna_positions, antenna_diameters are "
-        "not set or are being overwritten. telescope_location, antenna_positions, "
-        "antenna_diameters are set using values from known telescopes for HERA.",
+        match="telescope_location, antenna_positions, mount_type, antenna_diameters "
+        "are not set or are being overwritten. telescope_location, antenna_positions, "
+        "mount_type, antenna_diameters are set using values from known telescopes for "
+        "HERA.",
     ):
         uvcal.read_calfits(
             os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
@@ -85,12 +88,11 @@ def uvcalibrate_data_main(uvcalibrate_init_data_main):
     uvcal = uvcal_in.copy()
 
     warn_str = [
-        "telescope_location, Nants, antenna_names, antenna_numbers, "
-        "antenna_positions, antenna_diameters are not set or are being "
-        "overwritten. telescope_location, Nants, antenna_names, "
-        "antenna_numbers, antenna_positions, antenna_diameters are set "
-        "using values from known telescopes for HERA.",
-        "Nants has changed, setting feed_array and feed_angle ",
+        "telescope_location, Nants, antenna_names, antenna_numbers, antenna_positions, "
+        "mount_type, antenna_diameters are not set or are being overwritten. "
+        "telescope_location, Nants, antenna_names, antenna_numbers, antenna_positions, "
+        "mount_type, antenna_diameters are set using values from known telescopes for "
+        "HERA."
     ]
     with check_warnings(UserWarning, warn_str):
         uvcal.set_telescope_params(overwrite=True)
@@ -115,7 +117,15 @@ def uvcalibrate_data(uvcalibrate_data_main):
 @pytest.fixture(scope="session")
 def uvcalibrate_uvdata_oldfiles_main():
     uvd = UVData()
-    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
+    with check_warnings(
+        UserWarning,
+        match=[
+            "mount_type are not set or are being overwritten.",
+            "The uvw_array does not match the expected values",
+            "Fixing auto-correlations to be be real-only",
+        ],
+    ):
+        uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
 
     yield uvd
 

@@ -744,6 +744,7 @@ class Miriad(UVData):
         projected=None,
         correct_lat_lon=True,
         background_lsts=True,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1569,6 +1570,7 @@ class Miriad(UVData):
         # set any extra info
         self.set_telescope_params(
             x_orientation=x_orientation,
+            mount_type=default_mount_type,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
