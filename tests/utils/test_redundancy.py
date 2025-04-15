@@ -22,9 +22,10 @@ def test_redundancy_finder(grid_alg):
     redundant groups for a test file with the HERA19 layout.
     """
     uvd = UVData()
-    uvd.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    with check_warnings(UserWarning, match="mount_type are not set"):
+        uvd.read_uvfits(
+            os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+        )
 
     uvd.select(times=uvd.time_array[0])
     uvd.unproject_phase(use_ant_pos=True)
@@ -195,9 +196,10 @@ def test_high_tolerance_redundancy_error():
     such that baselines end up in multiple groups
     """
     uvd = UVData()
-    uvd.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    with check_warnings(UserWarning, match="mount_type are not set"):
+        uvd.read_uvfits(
+            os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+        )
 
     uvd.select(times=uvd.time_array[0])
     uvd.unproject_phase(use_ant_pos=True)
@@ -256,7 +258,10 @@ def test_redundancy_conjugates(grid_alg):
 def test_redundancy_finder_fully_redundant_array(grid_alg):
     """Test the redundancy finder for a fully redundant array."""
     uvd = UVData()
-    uvd.read_uvfits(os.path.join(DATA_PATH, "test_redundant_array.uvfits"))
+    with check_warnings(
+        UserWarning, match="mount_type, feed_array, feed_angle are not set"
+    ):
+        uvd.read_uvfits(os.path.join(DATA_PATH, "test_redundant_array.uvfits"))
     uvd.select(times=uvd.time_array[0])
 
     tol = 1  # meters

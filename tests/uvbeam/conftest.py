@@ -40,6 +40,7 @@ def make_cst_beam(beam_type):
         feed_name="Dipole",
         feed_version="1.0",
         feed_pol=["x"],
+        mount_type="fixed",
         model_name="Dipole - Rigging height 4.9 m",
         model_version="1.0",
         x_orientation="east",

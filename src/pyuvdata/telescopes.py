@@ -41,6 +41,9 @@ _KNOWN_TELESCOPES = {
             "value taken from capo/cals/hsa7458_v000.py, "
             "comment reads KAT/SA  (GPS), altitude from elevationmap.net"
         ),
+        "mount_type": "fixed",
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0.0],
     },
     "HERA": {
         "location": EarthLocation.from_geodetic(
@@ -50,6 +53,7 @@ _KNOWN_TELESCOPES = {
         ),
         "antenna_diameters": 14.0,
         "antenna_positions_file": "hera_ant_pos.csv",
+        "mount_type": "fixed",
         "citation": (
             "value taken from hera_mc geo.py script "
             "(using hera_cm_db_updates under the hood.)"
@@ -63,6 +67,7 @@ _KNOWN_TELESCOPES = {
         ),
         "Nants": 8,
         "antenna_diameters": 6.0,
+        "mount_type": "alt-az+nasmyth-l",
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
     "SZA": {
@@ -71,6 +76,11 @@ _KNOWN_TELESCOPES = {
             lon=Angle("-118d08m29.9126s"),
             height=2400.0 * units.m,
         ),
+        "Nants": 8,
+        "antenna_diameters": 3.5,
+        "mount_type": "alt-az+nasmyth-l",
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0.0],
         "citation": "Unknown",
     },
     "OVRO-LWA": {
@@ -79,9 +89,17 @@ _KNOWN_TELESCOPES = {
             lon=Angle("-118.281666695d"),
             height=1183.48 * units.m,
         ),
+        "mount_type": "fixed",
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0.0],
         "citation": "OVRO Sharepoint Documentation",
     },
-    "MWA": {"antenna_positions_file": "mwa_ant_pos.csv"},
+    "MWA": {
+        "antenna_positions_file": "mwa_ant_pos.csv",
+        "mount_type": "phased",
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0.0],
+    },
     "ATA": {
         "location": EarthLocation.from_geodetic(
             lat=Angle("40d49m02.75s"),
@@ -89,6 +107,9 @@ _KNOWN_TELESCOPES = {
             height=1019.222 * units.m,
         ),
         "antenna_diameters": 6.1,
+        "mount_type": "alt-az",
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0.0],
         "citation": "Private communication (D. DeBoer to G. Keating; 2024)",
     },
 }
@@ -179,7 +200,7 @@ def known_telescopes():
     return known_telescopes
 
 
-def get_telescope(telescope_name, telescope_dict_in=_KNOWN_TELESCOPES):
+def get_telescope(telescope_name):
     """
     Get Telescope object for a telescope in telescope_dict. Deprecated.
 
@@ -187,9 +208,6 @@ def get_telescope(telescope_name, telescope_dict_in=_KNOWN_TELESCOPES):
     ----------
     telescope_name : str
         Name of a telescope
-    telescope_dict_in: dict
-        telescope info dict. Default is None, meaning use KNOWN_TELESCOPES
-        (other values are only used for testing)
 
     Returns
     -------
@@ -203,16 +221,10 @@ def get_telescope(telescope_name, telescope_dict_in=_KNOWN_TELESCOPES):
         "Telescope.from_known_telescopes.",
         DeprecationWarning,
     )
-    return Telescope.from_known_telescopes(
-        telescope_name, known_telescope_dict=telescope_dict_in, run_check=False
-    )
+    return Telescope.from_known_telescopes(telescope_name, run_check=False)
 
 
-def known_telescope_location(
-    name: str,
-    return_citation: bool = False,
-    known_telescope_dict: dict = _KNOWN_TELESCOPES,
-):
+def known_telescope_location(name: str, return_citation: bool = False, **kwargs):
     """
     Get the location for a known telescope.
 
@@ -222,9 +234,6 @@ def known_telescope_location(
         Name of the telescope
     return_citation : bool
         Option to return the citation.
-    known_telescope_dict: dict
-        This should only be used for testing. This allows passing in a
-        different dict to use in place of the KNOWN_TELESCOPES dict.
 
     Returns
     -------
@@ -234,30 +243,33 @@ def known_telescope_location(
         Citation string.
 
     """
-    astropy_sites = EarthLocation.get_site_names()
-    known_telescopes = {k.lower(): v for k, v in known_telescope_dict.items()}
-
     # first deal with location.
-    if name in astropy_sites:
+    if name in EarthLocation.get_site_names():
         location = EarthLocation.of_site(name)
-
         citation = "astropy sites"
-    elif name.lower() in known_telescopes:
-        telescope_dict = known_telescopes[name.lower()]
-        citation = telescope_dict["citation"]
-
-        try:
-            location = telescope_dict["location"]
-        except KeyError as ke:
-            raise KeyError(
-                "Missing location information in known_telescopes_dict "
-                f"for telescope {name}."
-            ) from ke
     else:
-        # no telescope matching this name
-        raise ValueError(
-            f"Telescope {name} is not in astropy_sites or known_telescopes_dict."
-        )
+        telescope_dict = {}
+        tel_name = name.lower()
+        for key in _KNOWN_TELESCOPES:
+            if key.lower() == tel_name:
+                telescope_dict = _KNOWN_TELESCOPES[key]
+        for key in kwargs:
+            if (key == "citation") or (key == "location"):
+                telescope_dict[key] = kwargs[key]
+
+        if telescope_dict:
+            citation = telescope_dict.get("citation")
+            location = telescope_dict.get("location")
+            if location is None:
+                raise KeyError(
+                    "Missing location information in known_telescopes_dict "
+                    f"for telescope {name}."
+                )
+        else:
+            # no telescope matching this name
+            raise ValueError(
+                f"Telescope {name} is not in astropy_sites or known_telescopes_dict."
+            )
 
     if not return_citation:
         return location
@@ -641,9 +653,12 @@ class Telescope(UVBase):
         )
 
         # If using feed_angle, make sure feed_array is set (and visa-versa)
-        if (self.feed_array is None) != (self.feed_angle is None):
+        param_check = [
+            p is not None for p in [self.feed_array, self.feed_angle, self.mount_type]
+        ]
+        if any(param_check[0:2]) and not all(param_check):
             raise ValueError(
-                "Parameter feed_array and feed_angle must be set together."
+                "Parameter feed_array, feed_angle, and mount_type must be set together."
             )
 
         if run_check_acceptability:
@@ -664,11 +679,11 @@ class Telescope(UVBase):
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
-        known_telescope_dict: dict = _KNOWN_TELESCOPES,
-        x_orientation: str | None = None,
         feeds: str | list[str] | None = None,
         polarization_array: np.ndarray | None = None,
         flex_polarization_array: np.ndarray | None = None,
+        override_known_params: bool = True,
+        **kwargs,
     ):
         """
         Update the parameters based on telescope in known_telescopes.
@@ -695,9 +710,6 @@ class Telescope(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             updating.
-        known_telescope_dict: dict
-            This should only be used for testing. This allows passing in a
-            different dict to use in place of the KNOWN_TELESCOPES dict.
         x_orientation : str
             String describing how the x-orientation is oriented. Must be either "north"/
             "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
@@ -721,6 +733,12 @@ class Telescope(UVBase):
             scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
             polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
             feeds present if not supplied.
+        override_known_params : bool
+            Normally, when passing arguments for individual parameters for the Telescope
+            object, they will be used over what is present in the KNOWN_TELESCOPES dict.
+            However, if set to False, the information in the KNOWN_TELESCOPES dict is
+            used if/when present, even if supplied as an argument when calling this
+            method.
 
         Raises
         ------
@@ -735,16 +753,27 @@ class Telescope(UVBase):
                 "The telescope name attribute must be set to update from "
                 "known_telescopes."
             )
-        known_telescopes = {k.lower(): v for k, v in known_telescope_dict.items()}
+        telescope_dict = {}
+        tel_name = self.name.lower()
+        for key in _KNOWN_TELESCOPES:
+            if key.lower() == tel_name:
+                telescope_dict.update(_KNOWN_TELESCOPES[key])
 
         astropy_sites_list = []
         known_telescope_list = []
+        direct_set_list = []
+        for key in kwargs:
+            if override_known_params or key not in telescope_dict:
+                value = kwargs[key]
+                telescope_dict[key] = value
+                direct_set_list.append(key)
+                if value is None:
+                    del telescope_dict[key]
+
         # first deal with location.
         if overwrite or self.location is None:
             location, citation = known_telescope_location(
-                self.name,
-                return_citation=True,
-                known_telescope_dict=known_telescope_dict,
+                self.name, return_citation=True, **kwargs
             )
             self.location = location
             self.citation = citation
@@ -754,8 +783,8 @@ class Telescope(UVBase):
                 known_telescope_list.append("telescope_location")
 
         # check for extra info
-        if self.name.lower() in known_telescopes:
-            telescope_dict = known_telescopes[self.name.lower()]
+        if telescope_dict:
+            x_orientation = telescope_dict.get("x_orientation")
 
             if "antenna_positions_file" in telescope_dict and (
                 overwrite
@@ -835,32 +864,98 @@ class Telescope(UVBase):
             if "Nants" in telescope_dict and (overwrite or self.Nants is None):
                 self.Nants = telescope_dict["Nants"]
 
+            if "mount_type" in telescope_dict and (
+                overwrite or self.mount_type is None
+            ):
+                mount_type = telescope_dict["mount_type"]
+                if isinstance(mount_type, str):
+                    mount_type = [mount_type]
+
+                if len(mount_type) == 1 and self.Nants is not None:
+                    mount_type *= self.Nants
+
+                if len(mount_type) == self.Nants:
+                    known_telescope_list.append("mount_type")
+                    self.mount_type = mount_type
+                elif warn:
+                    warnings.warn(
+                        "mount_type is not set because the number of mount_type on "
+                        "known_telescopes_dict is more than one and does not match "
+                        f"Nants for telescope {self.name}."
+                    )
+
+            feed_params = ["feed_array", "feed_angle"]
+            if x_orientation is not None and not overwrite:
+                feed_params.remove("feed_angle")
+                if not all(
+                    item is None
+                    for item in [polarization_array, flex_polarization_array, feeds]
+                ):
+                    feed_params.remove("feed_array")
+
+            for param in feed_params:
+                if param not in telescope_dict or not (
+                    overwrite or getattr(self, param) is None
+                ):
+                    continue
+                new_val = np.atleast_1d(telescope_dict[param])
+                if new_val.ndim == 1 and self.Nants is not None:
+                    new_val = np.tile(new_val, (self.Nants, 1))
+                if new_val.shape[0] == self.Nants:
+                    known_telescope_list.append(param)
+                    setattr(self, param, new_val)
+                    self.Nfeeds = new_val.shape[1]
+                elif warn:
+                    warnings.warn(
+                        f"{param} is not set because the number of {param} on "
+                        "known_telescopes_dict is more than one and does not match "
+                        f"Nants for telescope {self.name}."
+                    )
+
             if "antenna_diameters" in telescope_dict and (
                 overwrite or self.antenna_diameters is None
             ):
                 antenna_diameters = np.atleast_1d(telescope_dict["antenna_diameters"])
                 if antenna_diameters.size == 1 and self.Nants is not None:
                     known_telescope_list.append("antenna_diameters")
-                    self.antenna_diameters = (
-                        np.zeros(self.Nants, dtype=float) + antenna_diameters[0]
+                    self.antenna_diameters = np.full(
+                        self.Nants, antenna_diameters[0], dtype=float
                     )
                 elif antenna_diameters.size == self.Nants:
                     known_telescope_list.append("antenna_diameters")
                     self.antenna_diameters = antenna_diameters
-                else:
-                    if warn:
-                        warnings.warn(
-                            "antenna_diameters are not set because the number "
-                            "of antenna_diameters on known_telescopes_dict is "
-                            "more than one and does not match Nants for "
-                            f"telescope {self.name}."
-                        )
+                elif warn:
+                    warnings.warn(
+                        "antenna_diameters is not set because the number "
+                        "of antenna_diameters on known_telescopes_dict is "
+                        "more than one and does not match Nants for "
+                        f"telescope {self.name}."
+                    )
 
-            if "x_orientation" in telescope_dict and (
-                overwrite or (self.feed_array is None and self.feed_angle is None)
+            # Set this separately, since if we've specified x-orientation we want to
+            # propagate that information to the relevant parameters.
+            if x_orientation is not None and (
+                (
+                    (overwrite or "Nants" in known_telescope_list)
+                    and not (
+                        "feed_array" in known_telescope_list
+                        and "feed_angle" in known_telescope_list
+                    )
+                )
+                or (self.feed_array is None or self.feed_angle is None)
             ):
-                known_telescope_list.append("x_orientation")
-                x_orientation = telescope_dict["x_orientation"]
+                self.set_feeds_from_x_orientation(
+                    x_orientation=x_orientation,
+                    feeds=feeds,
+                    polarization_array=polarization_array,
+                    flex_polarization_array=flex_polarization_array,
+                )
+
+        # Don't warn on things we've set directly, because that seems overly verbose
+        # and not actually helpful to tell the user that they've provided and argument
+        for item in direct_set_list:
+            if item in known_telescope_list:
+                known_telescope_list.remove(item)
 
         full_list = astropy_sites_list + known_telescope_list
         if warn and _WARN_STATUS.get(self.name.lower(), True) and len(full_list) > 0:
@@ -879,30 +974,39 @@ class Telescope(UVBase):
             warn_str += " ".join(specific_str)
             warnings.warn(warn_str)
 
-        if "Nants" in known_telescope_list and x_orientation is None:
-            # If this changed, then we want to force an update, so capture this
-            # from the previous time it was set.
-            x_orientation = self.get_x_orientation_from_feeds()
-            self.feed_angle = self.feed_array = self.Nfeeds = None
-            if x_orientation is not None and warn:
-                warnings.warn(
-                    "Nants has changed, setting feed_array and feed_angle "
-                    "automatically as these values are consistent with "
-                    f'x_orientation="{x_orientation}".'
-                )
+        if "Nants" in known_telescope_list:
+            for param_name in self:
+                param = getattr(self, param_name)
+                if (
+                    param.value is None
+                    or param.name in known_telescope_list
+                    or not (isinstance(param.form, tuple) and "Nants" in param.form)
+                ):
+                    continue
 
-        # Set this separately, since if we've specified x-orientation we want to
-        # propagate that information to the relevant parameters.
-        if x_orientation is not None and (
-            (overwrite or "Nants" in known_telescope_list)
-            or (self.feed_array is None and self.feed_angle is None)
-        ):
-            self.set_feeds_from_x_orientation(
-                x_orientation=x_orientation,
-                feeds=feeds,
-                polarization_array=polarization_array,
-                flex_polarization_array=flex_polarization_array,
-            )
+                new_val = None
+                if isinstance(param.value, list):
+                    if all(item == param.value[0] for item in param.value):
+                        new_val = [param.value[0]] * self.Nants
+                else:
+                    slice_grp = [slice(None)] * len(param.form)
+                    tile_grp = [1] * len(param.form)
+                    for idx, axis in enumerate(param.form):
+                        if axis == "Nants":
+                            slice_grp[idx] = slice(0, 1)
+                            tile_grp[idx] = self.Nants
+                    if np.all(param.value == param.value[tuple(slice_grp)]):
+                        new_val = np.tile(param.value[tuple(slice_grp)], tile_grp)
+
+                if new_val is not None:
+                    param.value = new_val
+                    param.setter(self)
+                elif warn:
+                    warnings.warn(
+                        "Nants has changed, but no information present in the known "
+                        f"telescopes to set {param.name}, and entries of {param.name} "
+                        "vary on a per-antenna basis -- leaving unchanged."
+                    )
 
         if run_check:
             self.check(
@@ -917,7 +1021,7 @@ class Telescope(UVBase):
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
-        known_telescope_dict: dict = _KNOWN_TELESCOPES,
+        **kwargs,
     ):
         """
         Create a new Telescope object using information from known_telescopes.
@@ -932,9 +1036,6 @@ class Telescope(UVBase):
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters.
-        known_telescope_dict: dict
-            This should only be used for testing. This allows passing in a
-            different dict to use in place of the KNOWN_TELESCOPES dict.
 
         Returns
         -------
@@ -950,7 +1051,7 @@ class Telescope(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            known_telescope_dict=known_telescope_dict,
+            **kwargs,
         )
         return tel_obj
 
@@ -1352,10 +1453,11 @@ class Telescope(UVBase):
         self,
         other: Telescope,
         *,
-        inplace=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
+        warning_params: list | None = None,
+        inplace: bool = False,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
     ):
         """
         Combine two Telescope objects along antennas or feeds.
@@ -1398,10 +1500,14 @@ class Telescope(UVBase):
             )
         other.check(check_extra=check_extra, run_check_acceptability=False)
 
-        warning_params = []
+        if warning_params is None:
+            warning_params = []
+
         for param in this:
-            if not (getattr(this, param).required or getattr(other, param).required):
-                warning_params.append(param)
+            this_param = getattr(this, param)
+            other_param = getattr(other, param)
+            if not (this_param.required or other_param.required):
+                warning_params.append(this_param.name)
 
         # Begin doing some addition magic
         axis_list = [("Nants", "_antenna_numbers"), ("Nfeeds", "_feed_array")]
@@ -1517,7 +1623,9 @@ class Telescope(UVBase):
             other_param = getattr(other, param)
             if this_param.name in excepted_list:
                 continue
-            if isinstance(this_param.form, tuple) and this_param.form != ():
+            elif not (this_param.value is None or other_param.value is None) and (
+                isinstance(this_param.form, tuple) and this_param.form != ()
+            ):
                 # If we have a tuple, that means we have a multi-dim array/list
                 # that we need to handle appropriately.
                 this_value = this_param.get_from_form(this_overlap)
@@ -1536,8 +1644,8 @@ class Telescope(UVBase):
                 continue
 
             # If we got here, then no match was achieved. Time to successfully fail!
-            strict = param not in warning_params
-            err_msg = f"Parameter Telescope.{this_param.name} does not match." + (
+            strict = this_param.name not in warning_params
+            err_msg = f"UVParameter Telescope.{this_param.name} does not match." + (
                 " Continuing anyways." if not strict else ""
             )
             utils.tools._strict_raise(err_msg=err_msg, strict=strict)
@@ -1551,14 +1659,17 @@ class Telescope(UVBase):
                 # If one of the index lengths, grab that here and now.
                 this_param.value = nind_dict[this_param.name]
                 this_param.setter(this)
-            elif this_param.value is None:
-                # If this is None other is not, carry over the value from other
-                # Note we're only working w/ optional values at this point.
-                this_param.value = other_param.value
-                this_param.setter(this)
             elif isinstance(this_param.form, tuple) and any(
                 key in nind_dict for key in this_param.form
             ):
+                if (this_param.value is None) or other_param.value is None:
+                    # This is an attribute that _should_ be combined, but one or the
+                    # other values is set to None, and therefore we are just unsetting
+                    # the whole thing.
+                    this_param.value = None
+                    this_param.setter(this)
+                    continue
+
                 # Only need to do the combine if there are multiple elements to worry
                 # about, otherwise we've checked/forced compatibility
                 temp_val = this_param.get_from_form(tget_map)
@@ -1601,6 +1712,11 @@ class Telescope(UVBase):
 
                 temp_val = other_param.get_from_form(temp_get_map)
                 this_param.set_from_form(temp_set_map, temp_val)
+            elif this_param.value is None:
+                # If this is None other is not, carry over the value from other
+                # Note we're only working w/ optional values at this point.
+                this_param.value = other_param.value
+                this_param.setter(this)
 
         # Final check
         if run_check:
@@ -1612,7 +1728,13 @@ class Telescope(UVBase):
             return this
 
     def __iadd__(
-        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
+        self,
+        other,
+        *,
+        warning_params=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
     ):
         """
         In place add.
@@ -1638,6 +1760,7 @@ class Telescope(UVBase):
         """
         self.__add__(
             other,
+            warning_params=warning_params,
             inplace=True,
             run_check=run_check,
             check_extra=check_extra,

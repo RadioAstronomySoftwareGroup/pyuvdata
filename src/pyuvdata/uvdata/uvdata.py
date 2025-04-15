@@ -615,6 +615,7 @@ class UVData(UVBase):
         self.telescope._instrument.required = True
         self.telescope._feed_array.required = False
         self.telescope._feed_angle.required = False
+        self.telescope._mount_type.required = False
 
     # This is required for eq_coeffs, which has Nants_telescope as one of its
     # shapes. That's to allow us to line up the antenna_numbers/names with
@@ -1478,6 +1479,7 @@ class UVData(UVBase):
         self,
         *,
         x_orientation=None,
+        mount_type=None,
         overwrite=False,
         warn=True,
         run_check=True,
@@ -1528,8 +1530,10 @@ class UVData(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             x_orientation=x_orientation,
+            mount_type=mount_type,
             polarization_array=self.polarization_array,
             flex_polarization_array=self.flex_spw_polarization_array,
+            override_known_params=False,
         )
 
     def _calc_single_integration_time(self):
@@ -9854,6 +9858,8 @@ class UVData(UVBase):
         check_autos=True,
         fix_autos=True,
         # file-type specific parameters
+        # Multiple
+        default_mount_type=None,
         # miriad
         projected=None,
         correct_lat_lon=True,
@@ -10535,6 +10541,8 @@ class UVData(UVBase):
                         check_autos=check_autos,
                         fix_autos=fix_autos,
                         # file-type specific parameters
+                        # multiple
+                        default_mount_type=default_mount_type,
                         # miriad
                         projected=projected,
                         correct_lat_lon=correct_lat_lon,
@@ -10671,6 +10679,8 @@ class UVData(UVBase):
                             check_autos=check_autos,
                             fix_autos=fix_autos,
                             # file-type specific parameters
+                            # multiple
+                            default_mount_type=default_mount_type,
                             # miriad
                             projected=projected,
                             correct_lat_lon=correct_lat_lon,
@@ -10992,6 +11002,7 @@ class UVData(UVBase):
                     read_data=read_data,
                     keep_all_metadata=keep_all_metadata,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11045,6 +11056,7 @@ class UVData(UVBase):
                     projected=projected,
                     correct_lat_lon=correct_lat_lon,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11110,6 +11122,7 @@ class UVData(UVBase):
                     settings_file=settings_file,
                     background_lsts=background_lsts,
                     read_data=read_data,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11129,6 +11142,7 @@ class UVData(UVBase):
                     raise_error=raise_error,
                     read_weights=read_weights,
                     allow_flex_pol=allow_flex_pol,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11162,6 +11176,7 @@ class UVData(UVBase):
                     multidim_index=multidim_index,
                     remove_flex_pol=remove_flex_pol,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

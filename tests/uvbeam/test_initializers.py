@@ -41,12 +41,16 @@ def uvb_healpix_kw():
 
 @pytest.fixture()
 def uvb_efield_kw():
-    return {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0]}
+    return {
+        "feed_array": ["x", "y"],
+        "feed_angle": [np.pi / 2, 0],
+        "mount_type": "fixed",
+    }
 
 
 @pytest.fixture()
 def uvb_power_kw():
-    return {"polarization_array": ["xx", "yy", "xy", "yx"]}
+    return {"polarization_array": ["xx", "yy", "xy", "yx"], "mount_type": "fixed"}
 
 
 @pytest.fixture()
@@ -120,7 +124,10 @@ def test_new_uvcal_simplest(
 
     if beam_type == "power":
         uvb_no_cross = UVBeam.new(
-            feed_array=uvb.feed_array, feed_angle=uvb.feed_angle, **kw_no_cross_use
+            feed_array=uvb.feed_array,
+            feed_angle=uvb.feed_angle,
+            mount_type=uvb.mount_type,
+            **kw_no_cross_use,
         )
         assert uvb_no_cross.Npols == 2
 
@@ -302,7 +309,9 @@ def test_data_array_errors(uvb_azza_efield_kw):
 
 def test_feed_angle_warning(uvb_common_kw, uvb_azza_kw):
     with check_warnings(UserWarning, match="No feed orientation information passed"):
-        UVBeam.new(feed_array=["x", "y"], **uvb_common_kw, **uvb_azza_kw)
+        UVBeam.new(
+            feed_array=["x", "y"], mount_type="fixed", **uvb_common_kw, **uvb_azza_kw
+        )
 
 
 @pytest.mark.parametrize(
@@ -367,5 +376,14 @@ def test_phased_array_errors(phased_array_efield, key_rm, new_key, value, msg):
 
 
 def test_mount_init(uvb_azza_efield_kw):
-    uvb = UVBeam.new(**uvb_azza_efield_kw, mount_type="fixed")
+    uvb = UVBeam.new(**uvb_azza_efield_kw)
+    assert uvb.mount_type == "fixed"
+
+    mod_kwargs = {}
+    for key, value in uvb_azza_efield_kw.items():
+        if key != "mount_type":
+            mod_kwargs[key] = value
+
+    with check_warnings(DeprecationWarning, "The mount_type parameter must be set"):
+        uvb = UVBeam.new(**mod_kwargs)
     assert uvb.mount_type == "fixed"

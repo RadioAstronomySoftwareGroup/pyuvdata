@@ -496,6 +496,7 @@ class CALFITS(UVCal):
         filename,
         *,
         read_data=True,
+        default_mount_type=None,
         background_lsts=True,
         run_check=True,
         check_extra=True,
@@ -618,7 +619,9 @@ class CALFITS(UVCal):
                     )
 
             try:
-                self.set_telescope_params(x_orientation=x_orientation)
+                self.set_telescope_params(
+                    x_orientation=x_orientation, mount_type=default_mount_type
+                )
             except ValueError as ve:
                 warnings.warn(str(ve))
 

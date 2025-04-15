@@ -22,9 +22,10 @@ from . import extend_jones_axis, time_array_to_time_range
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:key CASA_Version in extra_keywords is longer than 8 characters",
-    "ignore:telescope_location, antenna_positions, antenna_diameters are not set or "
-    "are being overwritten. telescope_location, antenna_positions, antenna_diameters "
-    "are set using values from known telescopes for HERA.",
+    "ignore:telescope_location, antenna_positions, mount_type, antenna_diameters are "
+    "not set or are being overwritten. telescope_location, antenna_positions, "
+    "mount_type, antenna_diameters are set using values from known telescopes "
+    "for HERA.",
 )
 
 
@@ -467,6 +468,7 @@ def test_nants_data_telescope_larger(gain_data):
     gain_data.telescope.feed_array = np.concatenate(
         (gain_data.telescope.feed_array, np.array([["x"]], dtype=str))
     )
+    gain_data.telescope.mount_type = gain_data.telescope.mount_type + ["fixed"]
     gain_data.telescope.feed_angle = np.concatenate(
         (gain_data.telescope.feed_angle, np.full((1, 1), np.pi / 2, dtype=float))
     )
@@ -486,6 +488,7 @@ def test_ant_array_not_in_antnums(gain_data):
     gain_data.telescope.antenna_positions = gain_data.telescope.antenna_positions[1:, :]
     gain_data.telescope.feed_array = gain_data.telescope.feed_array[1:, :]
     gain_data.telescope.feed_angle = gain_data.telescope.feed_angle[1:, :]
+    gain_data.telescope.mount_type = gain_data.telescope.mount_type[1:]
     if gain_data.telescope.antenna_diameters is not None:
         gain_data.telescope.antenna_diameters = gain_data.telescope.antenna_diameters[
             1:

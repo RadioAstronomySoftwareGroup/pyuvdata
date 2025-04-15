@@ -62,6 +62,7 @@ class MSCal(UVCal):
         *,
         default_x_orientation=None,
         default_jones_array=None,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -384,6 +385,7 @@ class MSCal(UVCal):
                 [field_id_map[idx] for idx in self.phase_center_id_array]
             )
 
+        x_orientation = None
         if "pyuvdata_nfeeds" in main_keywords:
             self.telescope.Nfeeds = main_keywords["pyuvdata_nfeeds"]
             self.telescope.feed_array = (
@@ -399,11 +401,6 @@ class MSCal(UVCal):
                 warnings.warn(
                     'Unknown x_orientation basis for solutions, assuming "east".'
                 )
-            self.telescope.set_feeds_from_x_orientation(
-                x_orientation=x_orientation,
-                polarization_array=self.jones_array,
-                flex_polarization_array=self.flex_jones_array,
-            )
 
         # Use if this is a delay soln
         if self.cal_type == "gain":
@@ -437,6 +434,11 @@ class MSCal(UVCal):
                     setattr(self, name, param[..., good_idx : good_idx + 1])
 
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
+
+        # Skip check since we're going to run it below
+        self.set_telescope_params(
+            x_orientation=x_orientation, mount_type=default_mount_type, run_check=False
+        )
 
         if run_check:
             self.check(

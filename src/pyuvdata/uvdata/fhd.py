@@ -41,6 +41,7 @@ class FHD(UVData):
         settings_file: str | None = None,
         background_lsts=True,
         read_data=True,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -298,7 +299,31 @@ class FHD(UVData):
                 ]
             self.telescope.Nants = len(self.telescope.antenna_names)
 
-        self.set_telescope_params()
+        # Polarization information
+        lin_pol_order = ["xx", "yy", "xy", "yx"]
+        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1, strict=True))
+        pol_list = []
+        if read_data:
+            for pol in lin_pol_order:
+                if pol in vis_data:
+                    pol_list.append(linear_pol_dict[pol])
+            self.polarization_array = np.asarray(pol_list)
+        else:
+            # Use Npols because for FHD, npol fully specifies which pols to use
+            pol_strings = lin_pol_order[: self.Npols]
+            self.polarization_array = np.asarray(
+                [linear_pol_dict[pol] for pol in pol_strings]
+            )
+
+        if self.telescope.name.lower() == "mwa":
+            # Setting this explicitly to avoid superfluous warnings, given that MWA
+            # seems to be the most common telescope to pass through FHD
+            self.telescope.mount_type = ["phased"] * self.telescope.Nants
+            self.telescope.set_feeds_from_x_orientation(
+                x_orientation="east", polarization_array=self.polarization_array
+            )
+
+        self.set_telescope_params(mount_type=default_mount_type)
 
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(
@@ -352,21 +377,6 @@ class FHD(UVData):
         self.uvw_array[:, 0] = (-1) * params["UU"][0] * const.c.to_value("m/s")
         self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to_value("m/s")
         self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to_value("m/s")
-
-        lin_pol_order = ["xx", "yy", "xy", "yx"]
-        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1, strict=True))
-        pol_list = []
-        if read_data:
-            for pol in lin_pol_order:
-                if pol in vis_data:
-                    pol_list.append(linear_pol_dict[pol])
-            self.polarization_array = np.asarray(pol_list)
-        else:
-            # Use Npols because for FHD, npol fully specifies which pols to use
-            pol_strings = lin_pol_order[: self.Npols]
-            self.polarization_array = np.asarray(
-                [linear_pol_dict[pol] for pol in pol_strings]
-            )
 
         # history: add the first few lines from the settings file
         if settings_file is not None:

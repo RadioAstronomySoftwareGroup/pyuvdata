@@ -473,6 +473,7 @@ class UVH5(UVData):
         self,
         filename: str | Path | FastUVH5Meta,
         *,
+        default_mount_type: str | None = None,
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
@@ -509,12 +510,9 @@ class UVH5(UVData):
             "antenna_numbers",
             "antenna_positions",
         ]
+        # Skip this check for now since we're repeating it below
         self.telescope = Telescope.from_hdf5(
-            filename,
-            required_keys=required_telescope_keys,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
+            filename, required_keys=required_telescope_keys, run_check=False
         )
         self._set_telescope_requirements()
 
@@ -654,6 +652,7 @@ class UVH5(UVData):
         # set any extra telescope params
         self.set_telescope_params(
             x_orientation=meta.x_orientation,
+            mount_type=default_mount_type,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -1029,6 +1028,7 @@ class UVH5(UVData):
         multidim_index=False,
         remove_flex_pol=True,
         background_lsts=True,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1070,6 +1070,7 @@ class UVH5(UVData):
         # open hdf5 file for reading
         self._read_header(
             meta,
+            default_mount_type=default_mount_type,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,

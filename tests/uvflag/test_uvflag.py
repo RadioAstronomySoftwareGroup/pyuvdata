@@ -36,6 +36,13 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore:Fixing auto-correlations to be be real-only",
 )
 
+hera_tel_warning = (
+    "telescope_location, antenna_positions, mount_type, antenna_diameters are "
+    "not set or are being overwritten. telescope_location, antenna_positions, "
+    "mount_type, antenna_diameters are set using values from known telescopes "
+    "for HERA."
+)
+
 
 @pytest.fixture(scope="session")
 def uvdata_obj_main():
@@ -43,6 +50,7 @@ def uvdata_obj_main():
     with check_warnings(
         UserWarning,
         match=[
+            "mount_type are not set or are being overwritten.",
             "Fixing auto-correlations to be be real-only",
             "The uvw_array does not match the expected",
         ],
@@ -90,12 +98,7 @@ def uvdata_obj(uvdata_obj_main):
 @pytest.fixture(scope="session")
 def uvcal_obj_main():
     uvc = UVCal()
-    with check_warnings(
-        UserWarning,
-        match="telescope_location, antenna_positions, antenna_diameters are "
-        "not set or are being overwritten. telescope_location, antenna_positions, "
-        "antenna_diameters are set using values from known telescopes for HERA.",
-    ):
+    with check_warnings(UserWarning, match=hera_tel_warning):
         uvc.read_calfits(test_c_file)
 
     yield uvc
@@ -605,14 +608,7 @@ def test_from_uvcal_error(uvdata_obj):
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
 
     # convert delay object to future array shapes, drop freq_array, set Nfreqs=1
-    with check_warnings(
-        UserWarning,
-        match=(
-            "telescope_location, antenna_positions, antenna_diameters are not "
-            "set or are being overwritten. telescope_location, antenna_positions, "
-            "antenna_diameters are set using values from known telescopes for HERA."
-        ),
-    ):
+    with check_warnings(UserWarning, match=hera_tel_warning):
         delay_object.read_calfits(delayfile)
 
     delay_object.freq_array = None
@@ -1043,9 +1039,9 @@ def test_read_write_loop_missing_telescope_info(
         with check_warnings(
             UserWarning,
             match="telescope_location, Nants, antenna_names, antenna_numbers, "
-            "antenna_positions, antenna_diameters are not set or are being "
+            "antenna_positions, mount_type, antenna_diameters are not set or are being "
             "overwritten. telescope_location, Nants, antenna_names, "
-            "antenna_numbers, antenna_positions, antenna_diameters are set "
+            "antenna_numbers, antenna_positions, mount_type, antenna_diameters are set "
             "using values from known telescopes for HERA.",
         ):
             uv.set_telescope_params(overwrite=True)
@@ -1054,20 +1050,7 @@ def test_read_write_loop_missing_telescope_info(
             ant_inds_keep = np.nonzero(
                 np.isin(uv.telescope.antenna_numbers, uv.ant_array)
             )[0]
-            uv.telescope.antenna_names = uv.telescope.antenna_names[ant_inds_keep]
-            uv.telescope.antenna_numbers = uv.telescope.antenna_numbers[ant_inds_keep]
-            uv.telescope.antenna_positions = uv.telescope.antenna_positions[
-                ant_inds_keep
-            ]
-            if uv.telescope.antenna_diameters is not None:
-                uv.telescope.antenna_diameters = uv.telescope.antenna_diameters[
-                    ant_inds_keep
-                ]
-            if uv.telescope.feed_array is not None:
-                uv.telescope.feed_array = uv.telescope.feed_array[ant_inds_keep]
-            if uv.telescope.feed_angle is not None:
-                uv.telescope.feed_angle = uv.telescope.feed_angle[ant_inds_keep]
-            uv.telescope.Nants = ant_inds_keep.size
+            uv.telescope._select_along_param_axis({"Nants": ant_inds_keep})
             uv.check()
         else:
             uv.select(
@@ -1148,7 +1131,14 @@ def test_read_write_loop_missing_telescope_info(
 def test_missing_telescope_info_mwa(test_outfile):
     mwa_uvfits = os.path.join(DATA_PATH, "1133866760.uvfits")
     metafits = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles", "1131733552.metafits")
-    uvd = UVData.from_file(mwa_uvfits)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "mount_type, feed_array, feed_angle are not set",
+            "Fixing auto-correlations to be be real-only",
+        ],
+    ):
+        uvd = UVData.from_file(mwa_uvfits)
     uvf = UVFlag(uvd, waterfall=True)
 
     uvf.write(test_outfile, clobber=True)
@@ -1470,8 +1460,9 @@ def test_init_list(uvdata_obj):
     with check_warnings(
         UserWarning,
         match=[
-            "UVParameter instrument does not match. Combining anyway.",
-            "UVParameter antenna_diameters does not match. Combining anyway.",
+            "UVParameter Telescope.instrument does not match. Continuing anyways.",
+            "UVParameter Telescope.antenna_diameters does not match. Continuing anyway",
+            "UVParameter Telescope.mount_type does not match. Continuing anyways.",
         ],
     ):
         uvf = UVFlag([uv, test_f_file])
@@ -1514,10 +1505,11 @@ def test_read_multiple_files(uvdata_obj, test_outfile):
     uvf.write(test_outfile, clobber=True)
 
     warn_msg = [
-        "UVParameter instrument does not match. Combining anyway.",
-        "UVParameter antenna_diameters does not match. Combining anyway.",
+        "UVParameter Telescope.instrument does not match. Continuing anyways.",
+        "UVParameter Telescope.antenna_diameters does not match. Continuing anyways.",
+        "UVParameter Telescope.mount_type does not match. Continuing anyways.",
     ]
-    warn_type = [UserWarning] * 2
+    warn_type = [UserWarning] * 3
 
     with check_warnings(warn_type, match=warn_msg):
         uvf.read([test_outfile, test_f_file])
@@ -1779,16 +1771,23 @@ def test_add_antenna(uvcal_obj, diameters):
         uv2.telescope.antenna_diameters = None
         uv2.telescope.feed_array = None
         uv2.telescope.feed_angle = None
+        uv2.telescope.mount_type = None
 
     if diameters == "both":
-        warn_type = None
-        warn_msg = ""
+        warn_type = UserWarning
+        warn_msg = [
+            "UVParameter Telescope.antenna_names does not match. Continuing anyway.",
+            "UVParameter Telescope.antenna_positions does not match. Continuing anyway",
+        ]
     else:
         warn_type = UserWarning
         warn_msg = [
-            "UVParameter antenna_diameters does not match. Combining anyway.",
-            "UVParameter feed_array does not match. Combining anyway.",
-            "UVParameter feed_angle does not match. Combining anyway.",
+            "UVParameter Telescope.antenna_names does not match. Continuing anyway.",
+            "UVParameter Telescope.antenna_positions does not match. Continuing anyway",
+            "UVParameter Telescope.antenna_diameters does not match. Continuing anyway",
+            "UVParameter Telescope.feed_array does not match. Continuing anyway.",
+            "UVParameter Telescope.feed_angle does not match. Continuing anyway.",
+            "UVParameter Telescope.mount_type does not match. Continuing anyway.",
         ]
 
     with check_warnings(warn_type, match=warn_msg):
@@ -1798,6 +1797,7 @@ def test_add_antenna(uvcal_obj, diameters):
         assert uv3.telescope.antenna_diameters is None
         assert uv3.telescope.feed_array is None
         assert uv3.telescope.feed_angle is None
+        assert uv3.telescope.mount_type is None
 
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
@@ -1994,11 +1994,7 @@ def test_add_errors(uvdata_obj, uvcal_obj):
 
     uv3 = uv1.copy()
     uv3.telescope.name = "foo"
-    with pytest.raises(
-        ValueError,
-        match="telescope_name is not the same on the two objects. The value on this "
-        "object is HERA; the value on the other object is foo.",
-    ):
+    with pytest.raises(ValueError, match="UVParameter Telescope.name does not match."):
         uv1.__add__(uv3)
 
     # Invalid axes
@@ -2477,8 +2473,7 @@ def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
 
     with check_warnings(
         UserWarning,
-        match=["telescope_location, Nants, antenna_names, antenna_numbers, "] * 2
-        + ["Nants has changed, setting feed_array and feed_angle automatically"],
+        match=["telescope_location, Nants, antenna_names, antenna_numbers, "] * 2,
     ):
         uvf.set_telescope_params(overwrite=True)
         uv.set_telescope_params(overwrite=True)

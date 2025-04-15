@@ -189,9 +189,6 @@ def new_uvbeam(
 
         uvb.Nfeeds = uvb.feed_array.size
 
-    if x_orientation is not None:
-        uvb.set_feeds_from_x_orientation(x_orientation)
-
     if (nside is not None) and (axis1_array is not None or axis2_array is not None):
         raise ValueError(
             "Provide *either* nside (and optionally healpix_pixel_array and "
@@ -397,6 +394,9 @@ def new_uvbeam(
         uvb.data_array = data_array
     else:
         uvb.data_array = np.zeros(data_shape, dtype=data_type)
+
+    if x_orientation is not None:
+        uvb.set_feeds_from_x_orientation(x_orientation)
 
     history += (
         f"Object created by new_uvbeam() at {Time.now().iso} using "

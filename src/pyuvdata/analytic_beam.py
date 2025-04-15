@@ -810,20 +810,17 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
     feed_angle: npt.npt.ArrayLike[float] | None = field(
         default=None, repr=False, compare=False
     )
-    mount_type: (
-        Literal[
-            "alt-az",
-            "equatorial",
-            "orbiting",
-            "x-y",
-            "alt-az+nasmyth-r",
-            "alt-az+nasmyth-l",
-            "phased",
-            "fixed",
-            "other",
-        ]
-        | None
-    ) = field(default="fixed", repr=False, compare=True)
+    mount_type: Literal[
+        "alt-az",
+        "equatorial",
+        "orbiting",
+        "x-y",
+        "alt-az+nasmyth-r",
+        "alt-az+nasmyth-l",
+        "phased",
+        "fixed",
+        "other",
+    ] = field(default="fixed", repr=False, compare=True)
 
     # the basis vector type doesn't matter for unpolarized beams, just hardcode
     # it here so subclasses don't have to deal with it.

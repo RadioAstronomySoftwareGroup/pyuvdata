@@ -226,7 +226,8 @@ def test_read_mwa_read_cotter():
         remove_coarse_band=False,
         remove_flagged_ants=False,
     )
-    cotter_uv.read(filelist[6])
+    with check_warnings(UserWarning, "mount_type, feed_array, feed_angle are not set"):
+        cotter_uv.read(filelist[6])
     # cotter doesn't record the auto xy polarizations
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
     # fix these before testing data_array
@@ -1032,7 +1033,9 @@ def test_van_vleck_int():
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    with check_warnings(UserWarning, "mount_type, feed_array, feed_angle are not set"):
+        uv2.read(filelist[10])
+
     np.testing.assert_allclose(
         uv1.data_array,
         uv2.data_array,
@@ -1056,7 +1059,8 @@ def test_van_vleck_cheby():
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    with check_warnings(UserWarning, "mount_type, feed_array, feed_angle are not set"):
+        uv2.read(filelist[10])
 
     # select only good ants
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)

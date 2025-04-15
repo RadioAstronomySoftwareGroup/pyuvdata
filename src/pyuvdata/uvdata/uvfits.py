@@ -368,6 +368,7 @@ class UVFITS(UVData):
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -731,6 +732,7 @@ class UVFITS(UVData):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                mount_type=default_mount_type,
             )
 
             # Now read in the random parameter info

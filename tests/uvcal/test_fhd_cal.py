@@ -204,6 +204,7 @@ def test_read_fhdcal_multimode():
     return
 
 
+@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
@@ -290,6 +291,7 @@ def test_unknown_telescope():
             obs_file=os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
             layout_file=layout_testfile,
             settings_file=settings_testfile,
+            default_mount_type="fixed",
         )
     assert fhd_cal.telescope.name == "foo"
 

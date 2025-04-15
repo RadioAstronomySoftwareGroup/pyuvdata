@@ -51,7 +51,8 @@ def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv_object.read(testfile)
+    with check_warnings(UserWarning, match="mount_type are not set"):
+        uv_object.read(testfile)
 
     yield uv_object
 
@@ -69,7 +70,15 @@ def paper_miriad_main():
     """Read in PAPER miriad file."""
     pytest.importorskip("pyuvdata.uvdata.aipy_extracts", exc_type=ImportError)
     uv_in = UVData()
-    uv_in.read(paper_miriad_file)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "mount_type, feed_array, feed_angle are not set",
+            "Altitude is not present in Miriad file",
+            "The uvw_array does not match",
+        ],
+    ):
+        uv_in.read(paper_miriad_file)
 
     yield uv_in
 
@@ -179,8 +188,9 @@ def uv_phase_comp_main():
     with check_warnings(
         UserWarning,
         match=[
+            "mount_type, feed_array, feed_angle are not set or are being overwritten",
             "Fixing auto-correlations to be be real-only, after some imaginary "
-            "values were detected in data_array."
+            "values were detected in data_array.",
         ]
         * 2,
     ):

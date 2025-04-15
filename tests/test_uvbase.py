@@ -630,7 +630,9 @@ def test_setattr_old_telescope():
         "with a call to Telescope.set_feeds_from_x_orientation()."
     )
 
-    new_telescope = Telescope.from_known_telescopes("hera")
+    new_telescope = Telescope.from_known_telescopes(
+        "hera", feed_array=["x", "y"], feed_angle=[np.pi / 2, 0]
+    )
 
     for param, tel_param in old_telescope_metadata_attrs.items():
         if tel_param is not None:

@@ -55,6 +55,7 @@ def uvbeam_data():
         "Nfeeds",
         "feed_array",
         "feed_angle",
+        "mount_type",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -69,7 +70,6 @@ def uvbeam_data():
         "nside",
         "ordering",
         "pixel_array",
-        "mount_type",
         "polarization_array",
         "basis_vector_array",
         "extra_keywords",
@@ -3078,7 +3078,7 @@ def test_generic_read(filename):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
     # going to check in a second anyway, no need to double check.
-    uvb.read(filename, run_check=False)
+    uvb.read(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:
@@ -3194,8 +3194,8 @@ def test_from_file(filename):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()
     # don't run checks because of casa_beamfits, we'll do that later
-    uvb2 = UVBeam.from_file(filename, run_check=False)
-    uvb.read(filename, run_check=False)
+    uvb2 = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
+    uvb.read(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:
@@ -3231,6 +3231,7 @@ def test_yaml_constructor(filename, path_var, file_list):
         input_yaml = f"""
             beam: !UVBeam
                 filename: {filename}
+                mount_type: fixed
                 run_check: False
             """
     else:
@@ -3239,13 +3240,14 @@ def test_yaml_constructor(filename, path_var, file_list):
             beam: !UVBeam
                 filename: {fname_use}
                 path_variable: pyuvdata.data.DATA_PATH
+                mount_type: fixed
                 run_check: False
             """
 
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
 
     # don't run checks because of casa_beamfits, we'll do that later
-    uvb = UVBeam.from_file(filename, run_check=False)
+    uvb = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:

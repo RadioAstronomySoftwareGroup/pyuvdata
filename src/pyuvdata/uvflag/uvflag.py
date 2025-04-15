@@ -28,6 +28,7 @@ telescope_params = {
     "antenna_diameters": "antenna_diameters",
     "feed_array": "feed_array",
     "feed_angle": "feed_angle",
+    "mount_type": "mount_type",
     "instrument": "instrument",
 }
 
@@ -588,6 +589,7 @@ class UVFlag(UVBase):
         self.telescope._instrument.required = False
         self.telescope._feed_array.required = False
         self.telescope._feed_angle.required = False
+        self.telescope._mount_type.required = False
 
     @property
     def _data_params(self):
@@ -946,6 +948,7 @@ class UVFlag(UVBase):
         self,
         *,
         x_orientation=None,
+        mount_type=None,
         overwrite=False,
         warn=True,
         run_check=True,
@@ -978,8 +981,10 @@ class UVFlag(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            mount_type=mount_type,
             x_orientation=x_orientation,
             polarization_array=self.polarization_array,
+            override_known_params=False,
         )
 
     def antpair2ind(self, ant1, ant2):
@@ -1972,16 +1977,31 @@ class UVFlag(UVBase):
         ax = axis_nums[axis][type_nums[self.type]]
 
         compatibility_params = ["telescope_name", "telescope_location"]
-        warning_params = ["instrument", "feed_array", "feed_angle", "antenna_diameters"]
+        warning_params = [
+            "instrument",
+            "feed_array",
+            "feed_angle",
+            "antenna_diameters",
+            "mount_type",
+        ]
 
         if axis != "frequency":
             compatibility_params.extend(
                 ["freq_array", "channel_width", "spw_array", "flex_spw_id_array"]
             )
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis not in ["polarization", "pol", "jones"]:
             compatibility_params.extend(["polarization_array"])
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis != "time":
             compatibility_params.extend(["time_array", "lst_array"])
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis != "antenna" and self.type == "antenna":
             compatibility_params.extend(
                 ["ant_array", "antenna_names", "antenna_numbers", "antenna_positions"]
@@ -2001,8 +2021,7 @@ class UVFlag(UVBase):
         for param in compatibility_params + warning_params:
             # compare the UVParameter objects to properly handle tolerances
             if param in telescope_params:
-                this_param = getattr(self.telescope, "_" + telescope_params[param])
-                other_param = getattr(other.telescope, "_" + telescope_params[param])
+                continue
             else:
                 this_param = getattr(self, "_" + param)
                 other_param = getattr(other, "_" + param)
@@ -2017,6 +2036,8 @@ class UVFlag(UVBase):
                         f"this object is {this_param.value}; the value on the "
                         f"other object is {other_param.value}."
                     )
+
+        this.telescope.__iadd__(other.telescope, warning_params=warning_params)
 
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -2060,58 +2081,6 @@ class UVFlag(UVBase):
                 )
             this.ant_array = np.concatenate([this.ant_array, other.ant_array])
             this.Nants_data = len(this.ant_array)
-            temp_ant_nums = np.concatenate(
-                [this.telescope.antenna_numbers, other.telescope.antenna_numbers]
-            )
-            temp_ant_names = np.concatenate(
-                [this.telescope.antenna_names, other.telescope.antenna_names]
-            )
-            temp_ant_pos = np.concatenate(
-                [this.telescope.antenna_positions, other.telescope.antenna_positions],
-                axis=0,
-            )
-            this.telescope.antenna_numbers, unique_inds = np.unique(
-                temp_ant_nums, return_index=True
-            )
-            this.telescope.antenna_names = temp_ant_names[unique_inds]
-            this.telescope.antenna_positions = temp_ant_pos[unique_inds]
-            this.telescope.Nants = len(this.telescope.antenna_numbers)
-
-            if (
-                this.telescope.antenna_diameters is not None
-                and other.telescope.antenna_diameters is not None
-            ):
-                temp_ant_diameters = np.concatenate(
-                    [
-                        this.telescope.antenna_diameters,
-                        other.telescope.antenna_diameters,
-                    ],
-                    axis=0,
-                )
-                this.telescope.antenna_diameters = temp_ant_diameters[unique_inds]
-            else:
-                this.telescope.antenna_diameters = None
-            if (
-                this.telescope.feed_array is not None
-                and other.telescope.feed_array is not None
-            ):
-                temp_feed_array = np.concatenate(
-                    [this.telescope.feed_array, other.telescope.feed_array], axis=0
-                )
-                this.telescope.feed_array = temp_feed_array[unique_inds]
-            else:
-                this.telescope.feed_array = None
-            if (
-                this.telescope.feed_angle is not None
-                and other.telescope.feed_angle is not None
-            ):
-                temp_feed_angle = np.concatenate(
-                    [this.telescope.feed_angle, other.telescope.feed_angle], axis=0
-                )
-                this.telescope.feed_angle = temp_feed_angle[unique_inds]
-            else:
-                this.telescope.feed_angle = None
-
         elif axis == "frequency":
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array], axis=-1

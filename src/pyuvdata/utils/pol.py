@@ -943,10 +943,10 @@ def get_x_orientation_from_feeds(feed_array, feed_angle, tols=None):
     # Anything that's not 'x' should be oriented straight up (0 deg) for "east"
     # orientation, otherwise at -90 deg for "north".
     if np.allclose(feed_angle, np.where(x_mask, np.pi / 2, 0), rtol=rtol, atol=atol):
-        # x is horizontal
+        # x is aligned toward the east, y toward the north
         return "east"
-    if np.allclose(feed_angle, np.where(x_mask, 0, -np.pi / 2), rtol=rtol, atol=atol):
-        # x is vertical for observer ("east is up"!)
+    if np.allclose(feed_angle, np.where(x_mask, 0, np.pi / 2), rtol=rtol, atol=atol):
+        # x is aligned toward the north, y toward the east
         return "north"
 
     # No match? Then time to declare defeat.
@@ -1068,6 +1068,6 @@ def get_feeds_from_x_orientation(
     if x_orientation == "east":
         feed_angle[x_mask] = np.pi / 2
     if x_orientation == "north":
-        feed_angle[~x_mask] = -np.pi / 2
+        feed_angle[~x_mask] = np.pi / 2
 
     return Nfeeds, feed_array, feed_angle

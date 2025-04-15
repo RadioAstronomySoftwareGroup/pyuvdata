@@ -22,9 +22,10 @@ def gain_data_main():
     with check_warnings(
         UserWarning,
         match=[
-            "telescope_location, antenna_positions, antenna_diameters are not "
-            "set or are being overwritten. telescope_location, antenna_positions, "
-            "antenna_diameters are set using values from known telescopes for HERA."
+            "telescope_location, antenna_positions, mount_type, antenna_diameters are "
+            "not set or are being overwritten. telescope_location, antenna_positions, "
+            "mount_type, antenna_diameters are set using values from known telescopes "
+            "for HERA."
         ],
     ):
         gain_object = UVCal.from_file(gainfile)
@@ -50,9 +51,10 @@ def delay_data_main():
     with check_warnings(
         UserWarning,
         match=[
-            "telescope_location, antenna_positions, antenna_diameters are not "
-            "set or are being overwritten. telescope_location, antenna_positions, "
-            "antenna_diameters are set using values from known telescopes for HERA."
+            "telescope_location, antenna_positions, mount_type, antenna_diameters are "
+            "not set or are being overwritten. telescope_location, antenna_positions, "
+            "mount_type, antenna_diameters are set using values from known telescopes "
+            "for HERA."
         ],
     ):
         delay_object = UVCal.from_file(delayfile)
