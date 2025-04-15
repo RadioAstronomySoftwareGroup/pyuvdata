@@ -189,7 +189,9 @@ def test_read_yaml_override(cst_efield_2freq_mod):
             "the value in the settings yaml file."
         ),
     ):
-        beam2.read_cst_beam(cst_yaml_file, beam_type="efield", telescope_name="test")
+        beam2.read_cst_beam(
+            cst_yaml_file, beam_type="efield", telescope_name="test", mount_type="fixed"
+        )
 
     assert beam1 == beam2
 
@@ -294,6 +296,7 @@ def test_read_yaml_multi_pol(tmp_path):
             telescope_name="HERA",
             feed_name="Dipole",
             feed_version="1.0",
+            mount_type="fixed",
             model_name="Dipole - Rigging height 4.9 m",
             model_version="1.0",
             x_orientation="east",
@@ -383,6 +386,7 @@ def test_read_power(cst_power_2freq):
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -426,6 +430,7 @@ def test_read_power_single_freq(cst_power_1freq):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
@@ -457,6 +462,7 @@ def test_read_power_multi_pol():
         feed_pol=np.array(["xx", "yy"]),
         feed_array=np.array(["x", "y"]),
         feed_angle=np.array([0, np.pi / 2]),
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -477,6 +483,7 @@ def test_read_power_multi_pol():
         beam_type="power",
         frequency=[150e6],
         feed_pol=np.array(["xy"]),
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -569,6 +576,7 @@ def test_read_errors(files, kwargs, err_msg):
             "feed_version": "0.1",
             "model_name": "E-field pattern - Rigging height 4.9m",
             "model_version": "1.0",
+            "mount_type": "fixed",
         }
     )
 
@@ -595,6 +603,7 @@ def test_read_efield(cst_efield_2freq):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
         )
@@ -617,6 +626,7 @@ def test_read_efield(cst_efield_2freq):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
@@ -641,6 +651,7 @@ def test_read_efield(cst_efield_2freq):
         beam_type="efield",
         frequency=[150e6],
         feed_pol=["x", "y"],
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -718,6 +729,7 @@ def test_no_deg_units(tmp_path):
             frequency=np.array([150e6]),
             feed_pol="y",
             feed_angle=0.0,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -752,6 +764,7 @@ def test_no_deg_units(tmp_path):
             frequency=np.array([150e6]),
             feed_pol="y",
             feed_angle=np.pi / 2,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -784,6 +797,7 @@ def test_no_deg_units(tmp_path):
             frequency=np.array([150e6]),
             feed_pol="y",
             feed_angle=[0.0],
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -819,6 +833,7 @@ def test_no_deg_units(tmp_path):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
         )
@@ -836,6 +851,7 @@ def test_no_deg_units(tmp_path):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
         )
@@ -856,6 +872,7 @@ def test_no_deg_units(tmp_path):
             frequency=np.array([150e6]),
             feed_pol="y",
             feed_angle=0.0,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -935,6 +952,7 @@ def test_wrong_column_names(tmp_path):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             x_orientation="east",
@@ -961,6 +979,7 @@ def test_wrong_column_names(tmp_path):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             x_orientation="east",

@@ -42,7 +42,7 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 def hera_beam_casa():
     beam_in = UVBeam()
     casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
-    beam_in.read_beamfits(casa_file, run_check=False)
+    beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
 
     # fill in missing parameters
     beam_in.data_normalization = "peak"

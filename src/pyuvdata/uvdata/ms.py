@@ -61,7 +61,7 @@ class MS(UVData):
         fix_autos=False,
     ):
         """Write a CASA measurement set (MS)."""
-        if not casa_present:  # pragma: no cover
+        if not casa_present:
             raise ImportError(no_casa_message) from casa_error
 
         if any(
@@ -808,6 +808,7 @@ class MS(UVData):
         data_column="DATA",
         pol_order="AIPS",
         background_lsts=True,
+        default_mount_type=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1003,6 +1004,7 @@ class MS(UVData):
 
         self.set_telescope_params(
             x_orientation=x_orientation,
+            mount_type=default_mount_type,
             check_extra=check_extra,
             run_check=run_check,
             run_check_acceptability=run_check_acceptability,

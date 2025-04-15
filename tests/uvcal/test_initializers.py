@@ -24,6 +24,7 @@ def uvd_kw():
             location=EarthLocation.from_geodetic(0, 0, 0),
             name="mock",
             instrument="mock",
+            mount_type="fixed",
             antenna_positions={
                 0: [0.0, 0.0, 0.0],
                 1: [0.0, 0.0, 1.0],
@@ -54,6 +55,7 @@ def uvc_simplest_no_telescope():
         "telescope_name": "mock",
         "x_orientation": "n",
         "feeds": ["x", "y"],
+        "mount_type": "fixed",
         "antenna_positions": {
             0: [0.0, 0.0, 0.0],
             1: [0.0, 0.0, 1.0],
@@ -76,6 +78,7 @@ def uvc_simplest():
             name="mock",
             x_orientation="n",
             feeds=["x", "y"],
+            mount_type="fixed",
             antenna_positions={
                 0: [0.0, 0.0, 0.0],
                 1: [0.0, 0.0, 1.0],
@@ -102,6 +105,7 @@ def uvc_simplest_moon():
             name="mock",
             x_orientation="n",
             feeds=["x", "y"],
+            mount_type="fixed",
             antenna_positions={
                 0: [0.0, 0.0, 0.0],
                 1: [0.0, 0.0, 1.0],
@@ -284,6 +288,7 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
             1: uvd_kw["telescope"].antenna_positions[1],
         },
         antenna_diameters=[10.0, 10.0],
+        mount_type=["fixed", "fixed"],
         **uvc_only_kw,
     )
 

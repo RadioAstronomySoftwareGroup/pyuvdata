@@ -21,8 +21,9 @@ only required for efield beams).
 parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
 polarization and orientation of the detectors for a given antenna.
 - The `Telescope.mount_type` and `UVBeam.mount_type` parameters have been added, which
-describe the mount and optics of a given antenna (e.g., HERA/MWA are "fixed", VLA/ALMA
-are "alt-az").
+describe the mount and optics of a given antenna (e.g., HERA is "fixed", MWA is
+"phased",VLA/ALMA are "alt-az"). These new parameters are required whenever `feed_array`
+and `feed_angle` are set on these objects (always for `UVBeam`).
 - The `Telescope.get_x_orientation_from_feeds` method has been added, which returns
 a string (either "east" or "north") based on values present in `Telescope.feed_array`
 and `Telescope.feed_angle` (mimicking the behavior of getting the now-defunct

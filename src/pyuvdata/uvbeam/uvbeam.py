@@ -300,7 +300,6 @@ class UVBeam(UVBase):
         self._mount_type = uvp.UVParameter(
             "mount_type",
             description=desc,
-            required=False,
             expected_type=str,
             acceptable_vals=[
                 "alt-az",
@@ -685,6 +684,13 @@ class UVBeam(UVBase):
                 DeprecationWarning,
             )
             self.set_feeds_from_x_orientation("east")
+        if self.mount_type is None:
+            warnings.warn(
+                "The mount_type parameter must be set for UVBeam objects, setting to "
+                '"fixed" by default for now. This will become an error in version 2.4.',
+                DeprecationWarning,
+            )
+            self.mount_type = "fixed"
 
     def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
         """
@@ -2833,10 +2839,7 @@ class UVBeam(UVBase):
             "_loss_array",
             "_mismatch_array",
             "_s_parameters",
-            "_mount_type",
         ]
-        if self.beam_type != "efield":
-            optional_params.extend(["_feed_array", "_feed_angle"])
 
         for attr in optional_params:
             this_attr = getattr(this, attr)
@@ -3615,6 +3618,21 @@ class UVBeam(UVBase):
             If given, the lower and upper limit of the frequencies to read in. Default
             is to read in all frequencies. Restricting the frequencies reduces peak
             memory usage.
+        mount_type : str
+            Antenna mount type to use, which describes the optics of the antenna in
+            question, if the keyword is not found in the BeamFITS file being loaded.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         az_range : tuple of float in deg
             The azimuth range to read in, if the beam is specified in az/za coordinates.
             Default is to read in all azimuths. Restricting the azimuth reduces peak
@@ -4235,13 +4253,14 @@ class UVBeam(UVBase):
         za_range=None,
         # beamfits & mwa parameters
         freq_range=None,
+        # beamfits & cst parameters
+        mount_type=None,
         # cst parameters
         beam_type="power",
         feed_pol=None,
         feed_array=None,
         feed_angle=None,
         rotate_pol=None,
-        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -4351,6 +4370,25 @@ class UVBeam(UVBase):
             type files. For beamfits, this will cause a *partial read* (i.e. reduce
             peak memory usage).
 
+        Beamfits & CST
+        --------------
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
+            Required for cst file types, used if mount information not present in header
+            for beamfits file types.
+
         CST
         ---
         beam_type : str
@@ -4378,21 +4416,6 @@ class UVBeam(UVBase):
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
-            Only applies to cst file types.
-        mount_type : str
-            Antenna mount type, which describes the optics of the antenna in question.
-            Supported options include: "alt-az" (primary rotates in azimuth and
-            elevation), "equatorial" (primary rotates in hour angle and declination)
-            "orbiting" (antenna is in motion, and its orientation depends on orbital
-            parameters), "x-y" (primary rotates first in the plane connecting east,
-            west, and zenith, and then perpendicular to that plane),
-            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
-            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
-            tertiary mirror), "phased" (antenna is "electronically steered" by
-            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
-            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
-            (also referred to in some formats as "bizarre"). See the "Conventions"
-            page of the documentation for further details.
             Only applies to cst file types.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
@@ -4668,6 +4691,7 @@ class UVBeam(UVBase):
                         az_range=az_range,
                         za_range=za_range,
                         freq_range=freq_range,
+                        mount_type=mount_type,
                     )
 
     @classmethod
@@ -4806,7 +4830,9 @@ def _uvbeam_representer(dumper, beam):
     if len(files_use) == 1:
         files_use = files_use[0]
 
-    mapping = {"filename": files_use}
+    # Add mount_type, since it's a new required keyword that some file formats did
+    # not originally support.
+    mapping = {"filename": files_use, "mount_type": beam.mount_type}
 
     return dumper.represent_mapping("!UVBeam", mapping)
 

@@ -629,6 +629,7 @@ class UVCal(UVBase):
         self.telescope._instrument.required = False
         self.telescope._feed_array.required = True
         self.telescope._feed_angle.required = True
+        self.telescope._mount_type.required = True
 
     @staticmethod
     @combine_docstrings(initializers.new_uvcal, style=DocstringStyle.NUMPYDOC)
@@ -1105,6 +1106,7 @@ class UVCal(UVBase):
         self,
         *,
         x_orientation=None,
+        mount_type=None,
         overwrite=False,
         warn=True,
         run_check=True,
@@ -1154,9 +1156,11 @@ class UVCal(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
-            x_orientation=x_orientation,
             polarization_array=self.jones_array,
             flex_polarization_array=self.flex_jones_array,
+            x_orientation=x_orientation,
+            mount_type=mount_type,
+            override_known_params=False,
         )
 
     def _set_lsts_helper(self, *, astrometry_library=None):
@@ -4699,6 +4703,8 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         # file-type specific parameters
+        # All types
+        default_mount_type=None,
         # FHD
         obs_file=None,
         layout_file=None,
@@ -4963,6 +4969,7 @@ class UVCal(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 # file-type specific parameters
+                default_mount_type=default_mount_type,
                 # FHD
                 obs_file=obs_file_use,
                 layout_file=layout_file_use,
@@ -5008,6 +5015,7 @@ class UVCal(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     # file-type specific parameters
+                    default_mount_type=default_mount_type,
                     # FHD
                     obs_file=obs_file_use,
                     layout_file=layout_file_use,
@@ -5095,6 +5103,7 @@ class UVCal(UVBase):
                     filename,
                     read_data=read_data,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -5110,6 +5119,7 @@ class UVCal(UVBase):
                     raw=raw,
                     read_data=read_data,
                     extra_history=extra_history,
+                    default_mount_type=default_mount_type,
                     background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
@@ -5132,6 +5142,7 @@ class UVCal(UVBase):
                     phase_center_ids=phase_center_ids,
                     catalog_names=catalog_names,
                     read_data=read_data,
+                    default_mount_type=default_mount_type,
                     background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
@@ -5143,6 +5154,7 @@ class UVCal(UVBase):
                     filename,
                     default_x_orientation=default_x_orientation,
                     default_jones_array=default_jones_array,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

@@ -665,10 +665,8 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
                 "Altitude is not present in Miriad file, "
                 "using known location values for SZA."
             ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
+            "The uvw_array does not match the expected values",
+            "mount_type, feed_array, feed_angle, antenna_diameters are not set",
         ],
     ):
         miriad_uv.read(carma_file)

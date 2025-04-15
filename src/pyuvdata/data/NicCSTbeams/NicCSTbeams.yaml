@@ -13,6 +13,7 @@ filenames: ['HERA_NicCST_150MHz.txt', 'HERA_NicCST_123MHz.txt']
 # Can be a list of the same length as filenames
 feed_pol: x
 x_orientation: east
+mount_type: fixed
 sim_beam_type: E-farfield
 layout: 1 antenna
 port_num: 1
