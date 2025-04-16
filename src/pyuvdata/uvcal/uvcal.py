@@ -1129,6 +1129,20 @@ class UVCal(UVBase):
             position angle of 90 degrees with respect to zenith/north). Ignored if
             "x_orientation" is relevant entry for the known telescope, or if set to
             None.
+        mount_type : str or None
+            String describing the mount amount type, which describes the optics.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination),
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
             the values from the known telescope. Default is False.
