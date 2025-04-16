@@ -4361,17 +4361,6 @@ class UVBeam(UVBase):
             coordinates. Default is to read in all za. Restricting the za reduces peak
             memory. Only used for beamfits files that have their coordinates
             in az/za grid.
-
-        Beamfits & MWA
-        --------------
-        freq_range : array_like of float
-            Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
-            type files. For beamfits, this will cause a *partial read* (i.e. reduce
-            peak memory usage).
-
-        Beamfits & CST
-        --------------
         mount_type : str
             Antenna mount type, which describes the optics of the antenna in question.
             Supported options include: "alt-az" (primary rotates in azimuth and
@@ -4388,6 +4377,14 @@ class UVBeam(UVBase):
             page of the documentation for further details.
             Required for cst file types, used if mount information not present in header
             for beamfits file types.
+
+        Beamfits & MWA
+        --------------
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
+            type files. For beamfits, this will cause a *partial read* (i.e. reduce
+            peak memory usage).
 
         CST
         ---
@@ -4455,6 +4452,22 @@ class UVBeam(UVBase):
             Only used if the file is a yaml file. Indicates which frequencies
             to include (only read in files for those frequencies)
             Only applies to cst file types.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
+            Required for cst file types, used if mount information not present in header
+            for beamfits file types.
 
         MWA
         ---
