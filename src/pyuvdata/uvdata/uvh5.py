@@ -1028,7 +1028,7 @@ class UVH5(UVData):
         multidim_index=False,
         remove_flex_pol=True,
         background_lsts=True,
-        default_mount_type=None,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,

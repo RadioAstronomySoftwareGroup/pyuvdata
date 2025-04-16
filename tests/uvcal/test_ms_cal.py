@@ -210,9 +210,6 @@ def test_ms_default_setting():
     with check_warnings(UserWarning, match=sma_warnings):
         uvc2.read(testfile)
 
-    print(uvc1.telescope.feed_array)
-    print(uvc2.telescope.feed_array)
-
     assert uvc1.telescope.get_x_orientation_from_feeds() == "north"
     assert uvc2.telescope.get_x_orientation_from_feeds() == "east"
     assert np.array_equal(uvc1.jones_array, [-1, -2])

@@ -634,7 +634,7 @@ class CalH5(UVCal):
         catalog_names=None,
         read_data=True,
         gain_array_dtype=np.complex128,
-        default_mount_type=None,
+        default_mount_type="other",
         background_lsts=True,
         run_check=True,
         check_extra=True,

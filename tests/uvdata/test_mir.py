@@ -143,7 +143,8 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
-def test_read_mir_write_ms(sma_mir, tmp_path):
+@pytest.mark.parametrize("use_feeds", [True, False])
+def test_read_mir_write_ms(sma_mir, tmp_path, use_feeds):
     """
     Mir to uvfits loopback test.
 
@@ -153,6 +154,11 @@ def test_read_mir_write_ms(sma_mir, tmp_path):
     pytest.importorskip("casacore")
     testfile = os.path.join(tmp_path, "outtest_mir.ms")
     ms_uv = UVData()
+
+    if not use_feeds:
+        sma_mir.telescope.feed_array = None
+        sma_mir.telescope.feed_angle = None
+        sma_mir.telescope.Nfeeds = None
 
     sma_mir.write_ms(testfile, clobber=True)
     ms_uv.read(testfile)

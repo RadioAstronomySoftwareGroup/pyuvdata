@@ -41,7 +41,7 @@ class FHD(UVData):
         settings_file: str | None = None,
         background_lsts=True,
         read_data=True,
-        default_mount_type=None,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
