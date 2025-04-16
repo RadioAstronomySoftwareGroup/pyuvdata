@@ -2059,16 +2059,11 @@ class UVFlag(UVBase):
                 this_param = getattr(self, "_" + param)
                 other_param = getattr(other, "_" + param)
             if this_param.value is not None and this_param != other_param:
-                if param in warning_params:
-                    warnings.warn(
-                        "UVParameter " + param + " does not match. Combining anyway."
-                    )
-                else:
-                    raise ValueError(
-                        f"{param} is not the same on the two objects. The value on "
-                        f"this object is {this_param.value}; the value on the "
-                        f"other object is {other_param.value}."
-                    )
+                strict = param not in warning_params
+                msg = f"UVParameter {param} does not match." + (
+                    "Combining anyway." if strict else "Cannot combine objects."
+                )
+                utils.tools._strict_raise(err_msg=msg, strict=strict)
 
         this.telescope.__iadd__(other.telescope, warning_params=warning_params)
 
