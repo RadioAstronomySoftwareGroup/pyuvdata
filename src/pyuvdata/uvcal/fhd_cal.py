@@ -38,7 +38,7 @@ class FHDCal(UVCal):
         settings_file=None,
         raw=True,
         read_data=True,
-        default_mount_type=None,
+        default_mount_type="other",
         background_lsts=True,
         extra_history=None,
         run_check=True,

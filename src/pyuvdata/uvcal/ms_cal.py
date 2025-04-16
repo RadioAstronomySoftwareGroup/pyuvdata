@@ -62,7 +62,7 @@ class MSCal(UVCal):
         *,
         default_x_orientation=None,
         default_jones_array=None,
-        default_mount_type=None,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,

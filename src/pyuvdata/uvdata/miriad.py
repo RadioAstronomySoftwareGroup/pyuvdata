@@ -744,7 +744,7 @@ class Miriad(UVData):
         projected=None,
         correct_lat_lon=True,
         background_lsts=True,
-        default_mount_type=None,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
