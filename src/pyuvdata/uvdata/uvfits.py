@@ -368,7 +368,7 @@ class UVFITS(UVData):
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
-        default_mount_type=None,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1286,6 +1286,8 @@ class UVFITS(UVData):
         # ADD the ANTENNA table
         staxof = np.zeros(self.telescope.Nants)
 
+        # If unknown, default to alt-az (0) as the default (as it was before)
+        mntsta = np.zeros(self.telescope.Nants)
         if self.telescope.mount_type is not None:
             mntsta = np.array(
                 [
@@ -1293,9 +1295,6 @@ class UVFITS(UVData):
                     for mount in self.telescope.mount_type
                 ]
             )
-        else:
-            # If not known, set alt-az (0) as the default (as it was before)
-            mntsta = np.zeros(self.telescope.Nants)
 
         polaa = np.full(self.telescope.Nants, 0.0)
         polab = np.full(self.telescope.Nants, 0.0)

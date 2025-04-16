@@ -8917,6 +8917,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9150,6 +9154,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9248,6 +9256,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9589,6 +9601,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9757,6 +9773,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         blt_order : tuple of str or "determine", optional
@@ -9857,9 +9877,8 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        default_mount_type="other",
         # file-type specific parameters
-        # Multiple
-        default_mount_type=None,
         # miriad
         projected=None,
         correct_lat_lon=True,
@@ -10076,6 +10095,12 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here. Note that
+            this parameter is not used for reading in MIR and MWACorrFITS files, since
+            those only originate from a single known telescope per format.
 
         Miriad
         ------

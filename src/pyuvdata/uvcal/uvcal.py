@@ -4427,6 +4427,10 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -4529,6 +4533,10 @@ class UVCal(UVBase):
             Option to check acceptable range of the values of parameters after
             reading in the file (the default is True, meaning the acceptable
             range check will be done). Ignored if read_data is False.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
@@ -4602,6 +4610,10 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -4636,32 +4648,36 @@ class UVCal(UVBase):
 
         Parameters
         ----------
-            filename : str
-                The measurement set to read from.
-            run_check : bool
-                Option to check for the existence and proper shapes of
-                parameters after reading in the file.
-            default_x_orientation : str
-                By default, if not found on read, the x_orientation parameter will be
-                set to "east" and a warning will be raised. However, if a value for
-                default_x_orientation is provided, it will be used instead and the
-                warning will be suppressed.
-            default_jones_array : ndarray of int
-                By default, if not found on read, the jones_array parameter will be
-                set to [-5, -6] (linear pols) and a warning will be raised. However,
-                if a value for default_jones_array is provided, it will be used instead
-                and the warning will be suppressed.
-            check_extra : bool
-                Option to check optional parameters as well as required ones.
-            run_check_acceptability : bool
-                Option to check acceptable range of the values of
-                parameters after reading in the file.
-            astrometry_library : str
-                Library used for calculating LSTs. Allowed options are 'erfa' (which
-                uses the pyERFA), 'novas' (which uses the python-novas library), and
-                'astropy' (which uses the astropy utilities). Default is erfa unless
-                the telescope_location frame is MCMF (on the moon), in which case the
-                default is astropy.
+        filename : str
+            The measurement set to read from.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        default_x_orientation : str
+            By default, if not found on read, the x_orientation parameter will be
+            set to "east" and a warning will be raised. However, if a value for
+            default_x_orientation is provided, it will be used instead and the
+            warning will be suppressed.
+        default_jones_array : ndarray of int
+            By default, if not found on read, the jones_array parameter will be
+            set to [-5, -6] (linear pols) and a warning will be raised. However,
+            if a value for default_jones_array is provided, it will be used instead
+            and the warning will be suppressed.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which
+            uses the pyERFA), 'novas' (which uses the python-novas library), and
+            'astropy' (which uses the astropy utilities). Default is erfa unless
+            the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
         """
         from . import ms_cal
 
@@ -4702,9 +4718,9 @@ class UVCal(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        default_mount_type="other",
         # file-type specific parameters
         # All types
-        default_mount_type=None,
         # FHD
         obs_file=None,
         layout_file=None,
@@ -4821,6 +4837,10 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
 
         FHD
         ---

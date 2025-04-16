@@ -196,11 +196,66 @@ def test_update_params_from_known():
             antenna_diameters=hera_tel.antenna_diameters[0:10]
         )
     assert hera_tel_test.antenna_diameters is None
+
+    hera_tel_test._select_along_param_axis({"Nants": [0]})
+    assert hera_tel != hera_tel_test
+    with check_warnings(
+        UserWarning,
+        [
+            "telescope_location, Nants, antenna_names, antenna_numbers, "
+            "antenna_positions, antenna_diameters are not set"
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            overwrite=True, mount_type=None
+        )
+
     with check_warnings(
         DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
     ):
         assert hera_tel_test.x_orientation == "east"
         assert hera_tel_test.get_x_orientation_from_feeds() == "east"
+
+    hera_tel_test.antenna_diameters = hera_tel.antenna_diameters
+    hera_tel_test.feed_array = None
+    hera_tel_test.feed_angle = None
+    hera_tel_test.mount_type = None
+    with check_warnings(
+        UserWarning,
+        match=[
+            "mount_type is not set because the number of mount_type "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+            "feed_array is not set because the number of feed_array "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+            "feed_angle is not set because the number of feed_angle "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            mount_type=hera_tel.mount_type[0:10],
+            feed_array=hera_tel.feed_array[0:10],
+            feed_angle=hera_tel.feed_angle[0:10],
+        )
+
+    hera_tel_test.mount_type = ["fixed"] * hera_tel_test.Nants
+    hera_tel_test.mount_type[0] = "phased"
+    with check_warnings(
+        UserWarning,
+        [
+            "telescope_location, Nants, antenna_names, antenna_numbers, "
+            "antenna_positions, antenna_diameters are not set",
+            "Nants has changed, but no information present in the "
+            "known telescopes to set mount_type",
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            overwrite=True, mount_type=None
+        )
+
+    assert hera_tel_test.mount_type is None
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
     mwa_tel2 = Telescope()
@@ -544,21 +599,31 @@ def test_update_without_warning():
     unignore_telescope_param_update_warnings_for("hera")
 
 
+@pytest.mark.parametrize("warn", [True, False])
 @pytest.mark.parametrize("drop_param", ["feed_angle", "feed_array", "mount_type"])
-def test_feed_errs(simplest_working_params, drop_param):
+def test_feed_errs(simplest_working_params, drop_param, warn):
     tel = Telescope.new(**simplest_working_params)
     tel.Nfeeds = 2
-    if drop_param != "feed_angle":
-        tel.feed_angle = np.zeros((tel.Nants, tel.Nfeeds))
+    if not warn:
+        tel._feed_array.required = drop_param != "feed_array"
+        tel._feed_angle.required = drop_param != "feed_angle"
+        tel._mount_type.required = drop_param != "mount_type"
     if drop_param != "feed_array":
         tel.feed_array = np.full((tel.Nants, tel.Nfeeds), "x")
+    if drop_param != "feed_angle":
+        tel.feed_angle = np.zeros((tel.Nants, tel.Nfeeds))
     if drop_param != "mount_type":
         tel.mount_type = ["fixed"] * tel.Nants
-    with pytest.raises(
-        ValueError,
-        match="Parameter feed_array, feed_angle, and mount_type must be set together.",
-    ):
-        tel.check()
+    msg = "Parameter feed_array, feed_angle, and mount_type must be set together."
+    if warn:
+        with check_warnings(UserWarning, match=msg):
+            tel.check()
+        assert tel.feed_array is None
+        assert tel.feed_angle is None
+        assert tel.mount_type is None
+    else:
+        with pytest.raises(ValueError, match=msg):
+            tel.check()
 
 
 def test_feed_order_error(simplest_working_params):

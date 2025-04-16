@@ -19,7 +19,7 @@ from astropy.coordinates import Angle, EarthLocation
 from . import parameter as uvp, utils
 from .data import DATA_PATH
 from .utils.io import antpos, hdf5 as hdf5_utils
-from .utils.tools import slicify
+from .utils.tools import _strict_raise, slicify
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
@@ -234,6 +234,12 @@ def known_telescope_location(name: str, return_citation: bool = False, **kwargs)
         Name of the telescope
     return_citation : bool
         Option to return the citation.
+    location : EarthLocation or MoonLocation
+        Location of the telescope, can be used to overwrite or supplement information in
+        the KNOWN_TELESCOPES dictionary.
+    citation : str
+        Source of location information, can be used to overwrite or supplement
+        information in the KNOWN_TELESCOPES dictionary.
 
     Returns
     -------
@@ -653,13 +659,23 @@ class Telescope(UVBase):
         )
 
         # If using feed_angle, make sure feed_array is set (and visa-versa)
-        param_check = [
-            p is not None for p in [self.feed_array, self.feed_angle, self.mount_type]
-        ]
-        if any(param_check[0:2]) and not all(param_check):
-            raise ValueError(
-                "Parameter feed_array, feed_angle, and mount_type must be set together."
+        if (self.feed_array is not None or self.feed_angle is not None) and (
+            self.feed_array is None
+            or self.feed_angle is None
+            or self.mount_type is None
+        ):
+            strict = (
+                self._feed_array.required
+                or self._feed_angle.required
+                or self._mount_type.required
             )
+            msg = (
+                "Parameter feed_array, feed_angle, and mount_type must be set together."
+            ) + ("" if strict else " Unsetting optional parameters.")
+            _strict_raise(err_msg=msg, strict=strict)
+            # If we got to this point, only a warning raised, so unset the offending
+            # parameter(s) and move on along.
+            self.feed_array = self.feed_angle = self.mount_type = None
 
         if run_check_acceptability:
             # Check antenna positions
@@ -679,10 +695,10 @@ class Telescope(UVBase):
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
+        override_known_params: bool = True,
         feeds: str | list[str] | None = None,
         polarization_array: np.ndarray | None = None,
         flex_polarization_array: np.ndarray | None = None,
-        override_known_params: bool = True,
         **kwargs,
     ):
         """
@@ -710,12 +726,20 @@ class Telescope(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             updating.
+        override_known_params : bool
+            Normally, when passing arguments for individual parameters for the Telescope
+            object, they will be used over what is present in the KNOWN_TELESCOPES dict.
+            However, if set to False, the information in the KNOWN_TELESCOPES dict is
+            used if/when present, even if supplied as an argument when calling this
+            method. Default is True.
         x_orientation : str
             String describing how the x-orientation is oriented. Must be either "north"/
             "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
             respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
             position angle of 90 degrees with respect to zenith/north). Ignored if
-            "x_orientation" is relevant entry for the KNOWN_TELESCOPES dict.
+            "x_orientation" is relevant entry for the KNOWN_TELESCOPES dict, or if
+            feed_array and feed_angle supplied (either by passing an argument or in the
+            KNOWN_TELESCOPES dict).
         feeds : list of str or None
             List of strings denoting feed orientations/polarizations. Must be one of
             "x", "y", "l", "r" (the former two for linearly polarized feeds, the latter
@@ -733,12 +757,70 @@ class Telescope(UVBase):
             scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
             polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
             feeds present if not supplied.
-        override_known_params : bool
-            Normally, when passing arguments for individual parameters for the Telescope
-            object, they will be used over what is present in the KNOWN_TELESCOPES dict.
-            However, if set to False, the information in the KNOWN_TELESCOPES dict is
-            used if/when present, even if supplied as an argument when calling this
-            method.
+        location : EarthLocation or MoonLocation
+            Location of the telescope (phase reference position).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        citation : str
+            Source of telescope information.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_positions_file : str
+            Path to a csv-formatted file containing a total of five columns, which
+            describe (on a per-antenna basis) the name, number, and x/y/z location
+            (relative to the phase center, units of meters) of each antenna.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        Nants : int
+            Number of antennas present in the telescope.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_numbers : array-like of int
+            Antenna numbers that correspond to entries in antenna_names, array-like
+            of shape (Nants,), dtype int.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_names : array-like of str
+            Names of the antennas present in the telescope object, array-like of shape
+            (Nants,), dtype str.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_positions : array of float
+            Coordinates of antennas relative to the telescope location, shape
+            (Nants, 3), dtype float, units meters.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        mount_type : str or array-like of str
+            Antenna mount type, which describes the optics for each antenna. Can either
+            be supplied on a per-antenna basis, in which case an array of shape (Nants,)
+            with dtype str is expected, or if all antennas share the same optics type, a
+            single string can be provided (see supported types in the documentation for
+            `Telescope.mount_type`).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        feed_array : array-like of str
+            Feed types present within each telescope in terms of polarization response,
+            must be one of "r", "l", "x", or "y". Can be supplied on a per-antenna
+            basis, in which case an array of shape (Nants, Nfeeds) is expected, or if
+            the same for all antennas, an array of shape (Nfeeds,) can be provided (
+            note that Nfeeds cannot be greater than 2).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        feed_angle : array-like of float
+            Relative receptor angle for each feed (see more information about his in the
+            documentation for `Telescope.feed_angle`). Can be supplied on a per-antenna
+            basis, in which case an array of shape (Nants, Nfeeds) is expected, or if
+            the same for all antennas, an array of shape (Nfeeds,) can be provided (
+            note that Nfeeds cannot be greater than 2). Expected dtype is float.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_diameters : float or array-like of float
+            Diameter of the antennas within the telescope, dtype float, units of meters.
+            Can be supplied on a per-antenna basis, in which case an array of shape
+            (Nants,) is expected, or if the same for all antennas, a single float can
+            be provided.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
 
         Raises
         ------
@@ -860,9 +942,17 @@ class Telescope(UVBase):
                             self.antenna_numbers = ant_info["antenna_numbers"][
                                 telescope_ant_inds
                             ]
-
-            if "Nants" in telescope_dict and (overwrite or self.Nants is None):
-                self.Nants = telescope_dict["Nants"]
+            else:
+                for param in [
+                    "Nants",
+                    "antenna_positions",
+                    "antenna_names",
+                    "antenna_numbers",
+                ]:
+                    write_check = overwrite or getattr(self, param) is None
+                    if param in telescope_dict and write_check:
+                        setattr(self, param, telescope_dict[param])
+                        known_telescope_list.append(param)
 
             if "mount_type" in telescope_dict and (
                 overwrite or self.mount_type is None
@@ -998,14 +1088,13 @@ class Telescope(UVBase):
                     if np.all(param.value == param.value[tuple(slice_grp)]):
                         new_val = np.tile(param.value[tuple(slice_grp)], tile_grp)
 
-                if new_val is not None:
-                    param.value = new_val
-                    param.setter(self)
-                elif warn:
+                param.value = new_val
+                param.setter(self)
+                if warn and new_val is None:
                     warnings.warn(
                         "Nants has changed, but no information present in the known "
                         f"telescopes to set {param.name}, and entries of {param.name} "
-                        "vary on a per-antenna basis -- leaving unchanged."
+                        "vary on a per-antenna basis -- setting to None."
                     )
 
         if run_check:
@@ -1036,6 +1125,101 @@ class Telescope(UVBase):
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters.
+        x_orientation : str
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the KNOWN_TELESCOPES dict, or if
+            feed_array and feed_angle supplied (either by passing an argument or in the
+            KNOWN_TELESCOPES dict).
+        feeds : list of str or None
+            List of strings denoting feed orientations/polarizations. Must be one of
+            "x", "y", "l", "r" (the former two for linearly polarized feeds, the latter
+            for circularly polarized feeds). Default assumes a pair of linearly
+            polarized feeds (["x", "y"]).
+        polarization_array : array-like of int or None
+            Array listing the polarization codes present, based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied, ignored if flex_polarization_array is set
+            to anything but None.
+        flex_polarization_array : array-like of int or None
+            Array listing the polarization codes present per spectral window (used with
+            certain "flexible-polarization" objects), based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied.
+        override_known_params : bool
+            Normally, when passing arguments for individual parameters for the Telescope
+            object, they will be used over what is present in the KNOWN_TELESCOPES dict.
+            However, if set to False, the information in the KNOWN_TELESCOPES dict is
+            used if/when present, even if supplied as an argument when calling this
+            method.
+        location : EarthLocation or MoonLocation
+            Location of the telescope (phase reference position).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        citation : str
+            Source of telescope information.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_positions_file : str
+            Path to a csv-formatted file containing a total of five columns, which
+            describe (on a per-antenna basis) the name, number, and x/y/z location
+            (relative to the phase center, units of meters) of each antenna.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        Nants : int
+            Number of antennas present in the telescope.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_numbers : array-like of int
+            Antenna numbers that correspond to entries in antenna_names, array-like
+            of shape (Nants,), dtype int.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_names : array-like of str
+            Names of the antennas present in the telescope object, array-like of shape
+            (Nants,), dtype str.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_positions : array of float
+            Coordinates of antennas relative to the telescope location, shape
+            (Nants, 3), dtype float, units meters.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        mount_type : str or array-like of str
+            Antenna mount type, which describes the optics for each antenna. Can either
+            be supplied on a per-antenna basis, in which case an array of shape (Nants,)
+            with dtype str is expected, or if all antennas share the same optics type, a
+            single string can be provided (see supported types in the documentation for
+            `Telescope.mount_type`).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        feed_array : array-like of str
+            Feed types present within each telescope in terms of polarization response,
+            must be one of "r", "l", "x", or "y". Can be supplied on a per-antenna
+            basis, in which case an array of shape (Nants, Nfeeds) is expected, or if
+            the same for all antennas, an array of shape (Nfeeds,) can be provided (
+            note that Nfeeds cannot be greater than 2).
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        feed_angle : array-like of float
+            Relative receptor angle for each feed (see more information about his in the
+            documentation for `Telescope.feed_angle`). Can be supplied on a per-antenna
+            basis, in which case an array of shape (Nants, Nfeeds) is expected, or if
+            the same for all antennas, an array of shape (Nfeeds,) can be provided (
+            note that Nfeeds cannot be greater than 2). Expected dtype is float.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
+        antenna_diameters : float or array-like of float
+            Diameter of the antennas within the telescope, dtype float, units of meters.
+            Can be supplied on a per-antenna basis, in which case an array of shape
+            (Nants,) is expected, or if the same for all antennas, a single float can
+            be provided.
+            Ignored if information is present in KNOWN_TELESCOPES dict and
+            override_known_params=False.
 
         Returns
         -------
@@ -1466,6 +1650,12 @@ class Telescope(UVBase):
         ----------
         other : Telescope object
             Another Telescope object which will be added to self.
+        warning_params : list of str
+            By default, when parameters are from the two objects are incompatible, an
+            error is thrown if the parameter is required, otherwise the parameter on
+            the returned object is set to None and a warning is raised. However, one can
+            a list of strings to explicitly specify which parameters to allow to raise a
+            warning versus an error.
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
@@ -1743,6 +1933,12 @@ class Telescope(UVBase):
         ----------
         other : Telescope object
             Another Telescope object which will be added to self.
+        warning_params : list of str
+            By default, when parameters are from the two objects are incompatible, an
+            error is thrown if the parameter is required, otherwise the parameter on
+            the returned object is set to None and a warning is raised. However, one can
+            a list of strings to explicitly specify which parameters to allow to raise a
+            warning versus an error.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
