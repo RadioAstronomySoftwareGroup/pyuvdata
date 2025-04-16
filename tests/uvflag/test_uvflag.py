@@ -2006,6 +2006,11 @@ def test_add_errors(uvdata_obj, uvcal_obj):
     with pytest.raises(ValueError, match="concatenated along baseline axis."):
         uv2.__add__(uv2, axis="baseline")
 
+    uv3.telescope.name = uv1.telescope.name
+    uv1.freq_array += 1e3
+    with pytest.raises(ValueError, match="UVParameter freq_array does not match"):
+        uv1.__add__(uv3, axis="baseline")
+
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_inplace_add():
