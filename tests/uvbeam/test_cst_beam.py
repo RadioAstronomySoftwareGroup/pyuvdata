@@ -184,13 +184,21 @@ def test_read_yaml_override(cst_efield_2freq_mod):
 
     with check_warnings(
         UserWarning,
-        match=(
+        match=[
             "The telescope_name keyword is set, overriding "
-            "the value in the settings yaml file."
-        ),
+            "the value in the settings yaml file.",
+            "The mount_type keyword is set",
+            "The feed_pol keyword is set",
+        ],
     ):
         beam2.read_cst_beam(
-            cst_yaml_file, beam_type="efield", telescope_name="test", mount_type="fixed"
+            cst_yaml_file,
+            beam_type="efield",
+            telescope_name="test",
+            mount_type="fixed",
+            feed_pol="x",
+            feed_array="x",
+            feed_angle=[np.pi / 2],
         )
 
     assert beam1 == beam2
