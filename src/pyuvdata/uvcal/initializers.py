@@ -30,6 +30,7 @@ def new_uvcal(
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
     telescope: Telescope | None = None,
+    update_telescope_from_known: bool = True,
     # do not type hint here because MoonLocations are allowed but we don't
     # want to import them just for this.
     telescope_location=None,
@@ -103,6 +104,11 @@ def new_uvcal(
         Telescope object containing the telescope-related metadata including
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
+    update_telescope_from_known : bool
+        If set to True, then the method will fill in any missing fields/information on
+        the Telescope object if the name is recognized. If set to True, the method
+        will only construct the UVData.Telescope object with the information directly
+        supplied. Default is True.
     telescope_location : EarthLocation or MoonLocation object
         Deprecated. Telescope location as an astropy EarthLocation object or
         MoonLocation object. Not required or used if a Telescope object is
@@ -125,9 +131,9 @@ def new_uvcal(
         object is passed to `telescope`.
     feed_angle : array-like of float or None
         Orientation of the feed with respect to zenith (or with respect to north if
-        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
-        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds),
-        dtype float. Not used if a Telescope object is passed to `telescope`.
+        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+        and y-polarization (and l- and r-polarizations) is nominally 0. Shape (Nants,
+        Nfeeds), dtype float. Not used if a Telescope object is passed to `telescope`.
     antenna_positions : ndarray of float or dict of ndarray of float
         Deprecated. Array of antenna positions in ECEF coordinates in meters.
         If a dict, keys can either be antenna numbers or antenna names, and values are
@@ -225,6 +231,22 @@ def new_uvcal(
             "an error in version 3.2",
             DeprecationWarning,
         )
+        telescope = Telescope.new(
+            name=telescope_name,
+            location=telescope_location,
+            antenna_positions=antenna_positions,
+            antenna_names=antenna_names,
+            antenna_numbers=antenna_numbers,
+            antname_format=antname_format,
+            instrument=instrument,
+            x_orientation=x_orientation,
+            feeds=feeds,
+            feed_angle=feed_angle,
+            feed_array=feed_array,
+            mount_type=mount_type,
+            antenna_diameters=antenna_diameters,
+            update_from_known=update_telescope_from_known,
+        )
     else:
         required_on_tel = [
             "antenna_positions",
@@ -241,23 +263,8 @@ def new_uvcal(
                 raise ValueError(
                     f"{key} must be set on the Telescope object passed to `telescope`."
                 )
-
-    if telescope is None:
-        telescope = Telescope.new(
-            name=telescope_name,
-            location=telescope_location,
-            antenna_positions=antenna_positions,
-            antenna_names=antenna_names,
-            antenna_numbers=antenna_numbers,
-            antname_format=antname_format,
-            instrument=instrument,
-            x_orientation=x_orientation,
-            feeds=feeds,
-            feed_angle=feed_angle,
-            feed_array=feed_array,
-            mount_type=mount_type,
-            antenna_diameters=antenna_diameters,
-        )
+        if update_telescope_from_known:
+            telescope.update_params_from_known_telescopes()
 
     if ant_array is None:
         ant_array = telescope.antenna_numbers
