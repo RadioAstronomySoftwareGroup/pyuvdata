@@ -285,11 +285,12 @@ def new_uvdata(
     freq_array: np.ndarray,
     polarization_array: np.ndarray | list[str | int] | tuple[str | int],
     times: np.ndarray,
-    telescope: Telescope | None = None,
     antpairs: Sequence[tuple[int, int]] | np.ndarray | None = None,
     do_blt_outer: bool | None = None,
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
+    telescope: Telescope | None = None,
+    update_telescope_from_known: bool = True,
     # do not type hint here because MoonLocations are allowed but we don't
     # want to import them just for this.
     telescope_location=None,
@@ -333,6 +334,11 @@ def new_uvdata(
         Telescope object containing the telescope-related metadata including
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
+    update_telescope_from_known : bool
+        If set to True, then the method will fill in any missing fields/information on
+        the Telescope object if the name is recognized. If set to True, the method
+        will only construct the UVData.Telescope object with the information directly
+        supplied. Default is True.
     antpairs : sequence of 2-tuples of int or 2D array of int, optional
         Antenna pairs in the data. If an ndarray, must have shape (N antpairs, 2).
         These may be the *unique* antpairs of the data if
@@ -491,6 +497,18 @@ def new_uvdata(
             "an error in version 3.2",
             DeprecationWarning,
         )
+        telescope = Telescope.new(
+            name=telescope_name,
+            location=telescope_location,
+            antenna_positions=antenna_positions,
+            antenna_names=antenna_names,
+            antenna_numbers=antenna_numbers,
+            antname_format=antname_format,
+            instrument=telescope_name if instrument is None else instrument,
+            x_orientation=x_orientation,
+            antenna_diameters=antenna_diameters,
+            update_from_known=update_telescope_from_known,
+        )
     else:
         required_on_tel = [
             "name",
@@ -506,21 +524,8 @@ def new_uvdata(
                 raise ValueError(
                     f"{key} must be set on the Telescope object passed to `telescope`."
                 )
-
-    if telescope is None:
-        if instrument is None:
-            instrument = telescope_name
-        telescope = Telescope.new(
-            name=telescope_name,
-            location=telescope_location,
-            antenna_positions=antenna_positions,
-            antenna_names=antenna_names,
-            antenna_numbers=antenna_numbers,
-            antname_format=antname_format,
-            instrument=instrument,
-            x_orientation=x_orientation,
-            antenna_diameters=antenna_diameters,
-        )
+        if update_telescope_from_known:
+            telescope.update_params_from_known_telescopes()
 
     lst_array, integration_time = get_time_params(
         telescope_location=telescope.location,

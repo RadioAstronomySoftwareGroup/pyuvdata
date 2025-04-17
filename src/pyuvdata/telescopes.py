@@ -848,20 +848,19 @@ class Telescope(UVBase):
             if override_known_params or key not in telescope_dict:
                 value = kwargs[key]
                 telescope_dict[key] = value
-                direct_set_list.append(key)
                 if value is None:
                     del telescope_dict[key]
+                else:
+                    direct_set_list.append(key)
 
         # first deal with location.
         if overwrite or self.location is None:
-            location, citation = known_telescope_location(
+            self.location, self.citation = known_telescope_location(
                 self.name, return_citation=True, **kwargs
             )
-            self.location = location
-            self.citation = citation
-            if "astropy sites" in citation:
+            if self.citation is not None and "astropy sites" in self.citation:
                 astropy_sites_list.append("telescope_location")
-            else:
+            elif self.location is not None:
                 known_telescope_list.append("telescope_location")
 
         # check for extra info
@@ -944,15 +943,17 @@ class Telescope(UVBase):
                             ]
             else:
                 for param in [
-                    "Nants",
                     "antenna_positions",
                     "antenna_names",
                     "antenna_numbers",
+                    "Nants",
                 ]:
                     write_check = overwrite or getattr(self, param) is None
                     if param in telescope_dict and write_check:
                         setattr(self, param, telescope_dict[param])
                         known_telescope_list.append(param)
+                        if "Nants" not in telescope_dict and param != "Nants":
+                            telescope_dict["Nants"] = len(telescope_dict[param])
 
             if "mount_type" in telescope_dict and (
                 overwrite or self.mount_type is None
@@ -1070,6 +1071,7 @@ class Telescope(UVBase):
                 if (
                     param.value is None
                     or param.name in known_telescope_list
+                    or param.name in direct_set_list
                     or not (isinstance(param.form, tuple) and "Nants" in param.form)
                 ):
                     continue
@@ -1269,6 +1271,7 @@ class Telescope(UVBase):
         ]
         | list[str]
         | None = None,
+        update_from_known: bool = True,
     ):
         """
         Initialize a new Telescope object from keyword arguments.
@@ -1316,10 +1319,10 @@ class Telescope(UVBase):
             all antennas in the object.
         feed_angle : array-like of float or None
             Orientation of the feed with respect to zenith (or with respect to north if
-            pointed at zenith). Units is in rads, vertical polarization is nominally 0,
-            and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds),
-            dtype float.  Can also be shape (Nfeeds,), in which case the same values for
-            feed_angle are used for all antennas in the object.
+            pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+            and x-polarization (as well as r- and l-polarizations) is nominally pi / 2.
+            Shape (Nants, Nfeeds), dtype float.  Can also be shape (Nfeeds,), in which
+            case the same values for feed_angle are used for all antennas in the object.
         mount_type : str or array-like of str
             Antenna mount type, which describes the optics of the antenna in question.
             Supported options include: "alt-az" (primary rotates in azimuth and
@@ -1336,6 +1339,11 @@ class Telescope(UVBase):
             page of the documentation for further details. Shape (Nants,), dtype str.
             Can also provide a single string, in which case the same mount_type is
             used for all antennas in the object.
+        update_from_known : bool
+            If set to True and the telescope name is found in the KNOWN_TELESCOPES
+            dictionary, then any missing parameters will be filled in using the
+            information from said dictionary if available. Otherwise if set to False,
+            any missing parameters are left set to None. Default is True.
 
         Returns
         -------
@@ -1385,6 +1393,9 @@ class Telescope(UVBase):
 
         if antenna_diameters is not None:
             tel_obj.antenna_diameters = np.asarray(antenna_diameters)
+
+        if update_from_known:
+            tel_obj.update_params_from_known_telescopes()
 
         tel_obj.check()
 

@@ -26,6 +26,7 @@ def new_uvbeam(
     model_version: str = "0.0",
     feed_array: npt.NDArray[str] | None = None,
     feed_angle: npt.NDArray[float] | None = None,
+    mount_type: str | None = "fixed",
     polarization_array: (
         npt.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
     ) = None,
@@ -81,8 +82,22 @@ def new_uvbeam(
         Array of feed orientations. Options are: n/e or x/y or r/l.
     feed_angle : ndarray of float
         Orientation of the feed with respect to zenith (or with respect to north if
-        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
-        and horizontal polarization is nominally pi / 2.
+        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+        and y-polarization (as well as l- and r-polarizations) are nominally 0.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.  Default is "fixed".
     polarization_array : ndarray of str or int
         Array of polarization integers or strings (eg. 'xx' or 'ee'). Must be
         provided for a power beam, otherwise an efield beam is assumed.
@@ -188,6 +203,9 @@ def new_uvbeam(
             x_orientation = "east"
 
         uvb.Nfeeds = uvb.feed_array.size
+
+    if mount_type is not None:
+        uvb.mount_type = mount_type
 
     if (nside is not None) and (axis1_array is not None or axis2_array is not None):
         raise ValueError(

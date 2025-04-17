@@ -918,9 +918,9 @@ def get_x_orientation_from_feeds(feed_array, feed_angle, tols=None):
         Shape (Nants, Nfeeds) or (Nfeeds,), must match that of feed_angle, dtype str.
     feed_angle : array-like of float
         Orientation of the feed with respect to zenith (or with respect to north if
-        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
-        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds) or
-        (Nfeeds,), must match that of feed_array, dtype float.
+        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+        and y-polarization (and l- and r-polarizations) is nominally 0. Shape (Nants,
+        Nfeeds) or (Nfeeds,), must match that of feed_array, dtype float.
     tols : tuple of float
         Tolerances for feed_angle, used with `isclose`.
 
@@ -1008,9 +1008,9 @@ def get_feeds_from_x_orientation(
         is None).
     feed_angle : array-like of float
         Orientation of the feed with respect to zenith (or with respect to north if
-        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
-        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds) (or None
-        of x_orientation is None).
+        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+        and y-polarization (and l- and r-polarizations) is nominally 0.
+        Shape (Nants, Nfeeds) (or None of x_orientation is None).
     """
     if x_orientation is None:
         # If x_orientation is None, then there isn't anything to determine
