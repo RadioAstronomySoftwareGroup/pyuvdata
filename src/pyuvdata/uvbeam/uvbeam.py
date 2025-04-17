@@ -3867,13 +3867,16 @@ class UVBeam(UVBase):
                 "model_name": model_name,
                 "model_version": model_version,
                 "history": history,
+                "x_orientation": x_orientation,
+                "feed_array": feed_array,
+                "feed_angle": feed_angle,
+                "mount_type": mount_type,
             }
             if "ref_imp" in settings_dict:
                 overriding_keywords["reference_impedance"] = reference_impedance
-            if "x_orientation" in settings_dict:
-                overriding_keywords["x_orientation"] = x_orientation
+
             for key, val in overriding_keywords.items():
-                if val is not None:
+                if key in settings_dict and val is not None:
                     warnings.warn(
                         f"The {key} keyword is set, overriding the "
                         "value in the settings yaml file."
@@ -3995,20 +3998,19 @@ class UVBeam(UVBase):
             feed_pol = feed_pol[0]
 
         if feed_array is not None:
-            if beam_type == "power":
-                if isinstance(feed_array, np.ndarray) and (feed_array.ndim > 1):
-                    raise ValueError("feed_array cannot be a multi-dimensional array.")
-            else:
+            if isinstance(feed_array, np.ndarray) and (feed_array.ndim > 1):
+                raise ValueError("feed_array cannot be a multi-dimensional array.")
+            if beam_type != "power" and np.any(feed_array != feed_pol):
                 raise ValueError(
                     "Cannot set feed_array for efield beams in read_cst_beam, use "
                     "feed_pol instead."
                 )
-            feed_array = np.asarray(feed_array).reshape(-1)
+            feed_array = np.atleast_1d(feed_array)
 
         if feed_angle is not None:
             if isinstance(feed_angle, np.ndarray) and (feed_angle.ndim > 1):
                 raise ValueError("feed_angle cannot be a multi-dimensional array.")
-            feed_angle = np.asarray(feed_angle).reshape(-1)
+            feed_angle = np.atleast_1d(feed_angle)
 
             if beam_type == "efield":
                 exp_len = len(feed_pol) if isinstance(feed_pol, list | tuple) else 1
