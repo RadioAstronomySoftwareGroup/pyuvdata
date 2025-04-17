@@ -805,3 +805,16 @@ def test_telescope_mount_feed_multicast(simplest_working_params):
     )
 
     assert tel == tel2
+
+
+def test_known_telescopes_keywords(simplest_working_params):
+    tel1 = Telescope.new(**simplest_working_params)
+    tel2 = Telescope.from_known_telescopes(
+        name=tel1.name,
+        location=tel1.location,
+        antenna_numbers=tel1.antenna_numbers,
+        antenna_names=tel1.antenna_names,
+        antenna_positions=tel1.antenna_positions,
+    )
+
+    assert tel1 == tel2
