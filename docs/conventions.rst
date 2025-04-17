@@ -111,6 +111,23 @@ separated by 90 degrees (i.e., if ``Telescope.feed_array`` is ``[["x", "y"]]``, 
 one might expect ``Telescope.feed_angle`` to be ``[[np.pi / 2, 0]]`` where the
 "x-orientation" is pointing toward the east).
 
+Azimuth and Pixel Coordinate Systems in ``UVBeam``
+---------------------------
+For describing antenna beams, the ``UVBeam`` object provides several different choices
+for the coordinate system in which the beam data are laid out, as recorded in
+``UVBeam.pixel_coordinate_systems``. However, across all conventions, local east is
+ascribed as the zero-point for the coordinate system, increasing as one moves to north
+(90 degrees). It is important to note that this is different than some other parameters,
+such as ``UVBeam.feed_angle``, where for an antenna pointed toward zenith, 0 corresponds
+to local north, and 90 degrees points to local east.
+
+Note that ``UVBeam.axis1_array`` (for an azimuth-based coordinate system) is *different*
+than what is recorded in ``UVBeam.feed_angle`` -- the former describes the direction of
+the beam (i.e., parallel to the direction of propagation of the incoming light), whereas
+the latter is only concerned with the polarization of the beam (measured/described in
+the plane orthogonal to the direction of propagation).
+
+
 Telescope Mount Types
 ---------------------
 As part of the ``Telescope`` object, one can specify ``Telescope.mount_type``, which
