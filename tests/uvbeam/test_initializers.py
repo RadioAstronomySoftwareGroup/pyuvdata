@@ -379,11 +379,8 @@ def test_mount_init(uvb_azza_efield_kw):
     uvb = UVBeam.new(**uvb_azza_efield_kw)
     assert uvb.mount_type == "fixed"
 
-    mod_kwargs = {}
-    for key, value in uvb_azza_efield_kw.items():
-        if key != "mount_type":
-            mod_kwargs[key] = value
+    uvb_azza_efield_kw["mount_type"] = None
 
     with check_warnings(DeprecationWarning, "The mount_type parameter must be set"):
-        uvb = UVBeam.new(**mod_kwargs)
+        uvb = UVBeam.new(**uvb_azza_efield_kw)
     assert uvb.mount_type == "fixed"

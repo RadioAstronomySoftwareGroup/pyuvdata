@@ -114,7 +114,7 @@ class AnalyticBeam:
         summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
         beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
         (also referred to in some formats as "bizarre"). See the "Conventions"
-        page of the documentation for further details.
+        page of the documentation for further details. Default is "fixed".
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
