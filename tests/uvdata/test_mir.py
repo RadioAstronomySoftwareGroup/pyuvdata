@@ -303,7 +303,6 @@ def test_multi_nchan_spw_read(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent with the.")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
-@pytest.mark.filterwarnings("ignore:feed_array, feed_angle are not set")
 @pytest.mark.parametrize("use_feeds", [True, False])
 def test_read_mir_write_ms_flex_pol(mir_data, tmp_path, use_feeds):
     """

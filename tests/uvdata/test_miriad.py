@@ -107,9 +107,6 @@ warn_dict = {
     "projection_false_offset": (
         "projected is False, but RA, Dec is off from lst, latitude by more than 1.0 deg"
     ),
-    "no_mount_feed_info": (
-        "mount_type, feed_array, feed_angle are not set or are being overwritten."
-    ),
 }
 
 
@@ -238,7 +235,6 @@ def test_read_write_read_carma(tmp_path):
                 "using known location values for SZA."
             ),
             warn_dict["uvw_mismatch"],
-            "mount_type, feed_array, feed_angle, antenna_diameters are not set",
         ],
     ):
         uv_in.read(carma_file)
@@ -305,7 +301,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
                 "using known location values for SZA."
             ),
             warn_dict["uvw_mismatch"],
-            "mount_type, feed_array, feed_angle, antenna_diameters are not set",
         ],
     ):
         uv_in.read(carma_file)
@@ -416,7 +411,6 @@ def test_miriad_read_warning_lat_lon_corrected():
                 "altitude value for PAPER and lat/lon from file."
             ),
             warn_dict["uvw_mismatch"],
-            warn_dict["no_mount_feed_info"],
         ],
     ):
         miriad_uv.read(paper_miriad_file, correct_lat_lon=False)
@@ -482,7 +476,6 @@ def test_wronglatlon():
             warn_dict["projection_false_offset"],
             warn_dict["uvw_mismatch"],
             warn_dict["unclear_projection"],
-            warn_dict["no_mount_feed_info"],
         ],
     ):
         uv_in.read(latfile)
@@ -494,7 +487,6 @@ def test_wronglatlon():
             warn_dict["projection_false_offset"],
             warn_dict["uvw_mismatch"],
             warn_dict["unclear_projection"],
-            warn_dict["no_mount_feed_info"],
         ],
     ):
         uv_in.read(lonfile)
@@ -505,7 +497,6 @@ def test_wronglatlon():
             warn_dict["altitude_missing_lat_long"],
             warn_dict["uvw_mismatch"],
             warn_dict["unclear_projection"],
-            warn_dict["no_mount_feed_info"],
         ],
     ):
         uv_in.read(latlonfile, correct_lat_lon=False)
@@ -1307,7 +1298,6 @@ def test_miriad_antenna_diameters(uv_in_paper):
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:It is not clear from the file if the data are")
-@pytest.mark.filterwarnings("ignore:mount_type are not set or are being overwritten")
 def test_miriad_write_read_diameters(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
@@ -1975,7 +1965,6 @@ def test_antpos_units(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:It is not clear from the file if the data are")
-@pytest.mark.filterwarnings("ignore:mount_type are not set or are being overwritten")
 def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format
@@ -2029,7 +2018,6 @@ def test_file_with_bad_extra_words():
             "Altitude is not present in Miriad file, "
             "using known location values for PAPER."
         ),
-        "mount_type, feed_array, feed_angle are not set",
         "Mean of empty slice.",
         "invalid value encountered",
         "npols=4 but found 1 pols in data file",
@@ -2045,7 +2033,7 @@ def test_file_with_bad_extra_words():
         ),
     ]
     warn_category = (
-        [UserWarning] * 2
+        [UserWarning]
         + [RuntimeWarning] * 2
         + [UserWarning]
         + [RuntimeWarning] * 2
@@ -2057,7 +2045,6 @@ def test_file_with_bad_extra_words():
         uv.read_miriad(fname, run_check=False)
 
 
-@pytest.mark.filterwarnings("ignore:mount_type are not set or are being overwritten")
 def test_miriad_read_xorient():
     """
     Read miriad w/ x_orientation keyword present, verify things make sense.

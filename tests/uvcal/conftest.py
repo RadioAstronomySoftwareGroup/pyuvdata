@@ -19,16 +19,7 @@ from . import test_fhd_cal
 def gain_data_main():
     """Read in gain calfits file."""
     gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    with check_warnings(
-        UserWarning,
-        match=[
-            "telescope_location, antenna_positions, mount_type, antenna_diameters are "
-            "not set or are being overwritten. telescope_location, antenna_positions, "
-            "mount_type, antenna_diameters are set using values from known telescopes "
-            "for HERA."
-        ],
-    ):
-        gain_object = UVCal.from_file(gainfile)
+    gain_object = UVCal.from_file(gainfile)
     gain_object.freq_range = None
 
     yield gain_object
@@ -48,16 +39,7 @@ def gain_data(gain_data_main):
 def delay_data_main():
     """Read in delay calfits file."""
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-    with check_warnings(
-        UserWarning,
-        match=[
-            "telescope_location, antenna_positions, mount_type, antenna_diameters are "
-            "not set or are being overwritten. telescope_location, antenna_positions, "
-            "mount_type, antenna_diameters are set using values from known telescopes "
-            "for HERA."
-        ],
-    ):
-        delay_object = UVCal.from_file(delayfile)
+    delay_object = UVCal.from_file(delayfile)
 
     # yield the data for testing, then del after tests finish
     yield delay_object

@@ -170,9 +170,6 @@ def hera_uvh5_xx_main():
         warnings.filterwarnings(
             "ignore", "The uvw_array does not match the expected values"
         )
-        warnings.filterwarnings(
-            "ignore", "mount_type are not set or are being overwritten."
-        )
         hera_uvh5_xx = UVData.from_file(filename)
 
     yield hera_uvh5_xx
@@ -285,12 +282,7 @@ def pyuvsim_redundant_main():
     # read in test file for the compress/inflate redundancy functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", "antenna_diameters are not set or are being overwritten."
-        )
-        warnings.filterwarnings("ignore", "mount_type are not set")
-        uv_object.read(testfile)
+    uv_object.read(testfile)
 
     yield uv_object
 
@@ -812,14 +804,7 @@ def test_hera_diameters(paper_uvh5):
     uv_in = paper_uvh5
 
     uv_in.telescope.name = "HERA"
-    with check_warnings(
-        UserWarning,
-        match=(
-            "antenna_diameters are not set or are being overwritten. "
-            "antenna_diameters are set using values from known telescopes for HERA."
-        ),
-    ):
-        uv_in.set_telescope_params()
+    uv_in.set_telescope_params()
 
     assert uv_in.telescope.name == "HERA"
     assert uv_in.telescope.antenna_diameters is not None
@@ -6342,8 +6327,6 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
     assert uv3 == uv1
 
 
-@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
-@pytest.mark.filterwarnings("ignore:mount_type are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 def test_compress_redundancy_variable_inttime(grid_alg):
     uv0 = UVData()
@@ -6428,7 +6411,6 @@ def test_compress_redundancy_wrong_method(pyuvsim_redundant):
         uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
-@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path):
@@ -8964,7 +8946,6 @@ def test_resample_in_time_partial_flags(bda_test_file):
 
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 def test_downsample_in_time_mwa():
     """
     Test resample in time works with numerical weirdnesses.
@@ -9001,7 +8982,6 @@ def test_downsample_in_time_mwa():
     )
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_warning():
     filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
@@ -9781,24 +9761,20 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     fileList = [testfile, uvh5_file]
     with (
         pytest.raises(KeyError, match=err_msg),
-        check_warnings(UserWarning, match=["Failed to read", "mount_type are not set"]),
+        check_warnings(UserWarning, match="Failed to read"),
     ):
         uv.read(fileList, skip_bad_files=False)
     assert uv != uv_true
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
-    with check_warnings(
-        UserWarning, match=["Failed to read", "mount_type are not set"]
-    ):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(fileList, skip_bad_files=True)
     assert uv == uv_true
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
-    with check_warnings(
-        UserWarning, match=["Failed to read", "mount_type are not set"]
-    ):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
     assert uv == uv_true
@@ -9806,9 +9782,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test that selection happens when there's only one good file in a list
     uv_true2 = uv_true.copy()
     uv_true2.select(freq_chans=np.arange(uv_true.Nfreqs // 2))
-    with check_warnings(
-        UserWarning, match=["Failed to read", "mount_type are not set"]
-    ):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(
             fileList, skip_bad_files=True, freq_chans=np.arange(uv_true.Nfreqs // 2)
         )
@@ -9994,7 +9968,6 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
     assert np.array_equal(pols, pols2)
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 def test_rephase_to_time():
     uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     uvd = UVData()
@@ -11108,7 +11081,6 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("phase_frame", ["icrs", "gcrs"])
 @pytest.mark.parametrize("file_type", ["uvh5", "uvfits", "miriad"])
-@pytest.mark.filterwarnings("ignore:mount_type are not set")
 def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     """
     Test the phase fixing method fix_phase
@@ -11147,7 +11119,6 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     uv_in_bad_copy = uv_in_bad.copy()
     if file_type == "uvh5":
         outfile = bad_data_path
-        read_warn_msg.append("mount_type are not set or are being overwritten.")
     else:
         if file_type == "uvfits":
             outfile = os.path.join(tmp_path, "test_bad_phase.uvfits")
@@ -11163,9 +11134,6 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
 
     with check_warnings(read_warn_type, match=read_warn_msg), warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
-        warnings.filterwarnings(
-            "ignore", "antenna_diameters are not set or are being overwritten."
-        )
         uv_in_bad2 = UVData.from_file(
             outfile, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
         )
@@ -11825,7 +11793,7 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
 @pytest.mark.parametrize(
     ["filename", "msg"],
     [
-        ["zen.2458661.23480.HH.uvh5", "mount_type are not set"],
+        ["zen.2458661.23480.HH.uvh5", ""],
         [
             "sma_test.mir",
             [
@@ -11848,7 +11816,6 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         [
             "carma_miriad",
             [
-                "mount_type, feed_array, feed_angle, antenna_diameters are not set",
                 (
                     "Altitude is not present in Miriad file, using known location"
                     " values for SZA."
@@ -11862,11 +11829,10 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         [
             "1133866760.uvfits",
             [
-                "mount_type, feed_array, feed_angle are not set",
                 (
                     "Fixing auto-correlations to be be real-only, after some imaginary"
                     " values were detected in data_array."
-                ),
+                )
             ],
         ],
         [
@@ -12648,7 +12614,6 @@ def test_select_partial_pol_match(sma_mir, invert):
     assert np.all(np.isin(sma_mir.polarization_array, [-5], invert=invert))
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_near_field_corrections():
     uvfits_raw = os.path.join(DATA_PATH, "1061316296.uvfits")
@@ -12670,7 +12635,6 @@ def test_near_field_corrections():
     assert np.allclose(uvd_raw.uvw_array[:, -1], corr_w)
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 def test_near_field_err():
     uvfits_sample = os.path.join(DATA_PATH, "1061316296.uvfits")
 
@@ -12688,7 +12652,6 @@ def test_near_field_err():
         )
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "file_format, import_check, error_message",

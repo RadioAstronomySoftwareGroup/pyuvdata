@@ -44,23 +44,15 @@ def setup_and_teardown_package():
 def uvcalibrate_init_data_main():
     """Make initial uvcalibrate inputs."""
     uvdata = UVData()
-    with check_warnings(UserWarning, match="mount_type are not set"):
-        uvdata.read(
-            os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
-            file_type="uvh5",
-        )
+    uvdata.read(
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
+        file_type="uvh5",
+    )
 
     uvcal = UVCal()
-    with check_warnings(
-        UserWarning,
-        match="telescope_location, antenna_positions, mount_type, antenna_diameters "
-        "are not set or are being overwritten. telescope_location, antenna_positions, "
-        "mount_type, antenna_diameters are set using values from known telescopes for "
-        "HERA.",
-    ):
-        uvcal.read_calfits(
-            os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-        )
+    uvcal.read_calfits(
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+    )
 
     uvcal.pol_convention = "avg"
     uvcal.gain_scale = "Jy"
@@ -120,7 +112,6 @@ def uvcalibrate_uvdata_oldfiles_main():
     with check_warnings(
         UserWarning,
         match=[
-            "mount_type are not set or are being overwritten.",
             "The uvw_array does not match the expected values",
             "Fixing auto-correlations to be be real-only",
         ],
