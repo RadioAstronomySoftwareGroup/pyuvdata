@@ -20,6 +20,8 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
 
+from .utils.tools import _multidim_ind2sub, _strict_raise
+
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter", "SkyCoordParameter"]
 
 
@@ -246,7 +248,8 @@ class UVParameter:
         Tuple giving a range of allowed magnitudes for elements of value.
     tols : 2-tuple of float
         Relative and absolute tolerances for testing the equality of UVParameters, to be
-        used by np.isclose()
+        used by np.isclose(). Default is (1e-5, 1e-8) if expected_type is either float
+        or complex, otherwise (0, 0).
     strict_type_check : bool
         When True, the input expected_type is used exactly, otherwise a more
         generic type is found to allow changes in precisions or to/from numpy
@@ -266,7 +269,7 @@ class UVParameter:
         expected_type=int,
         acceptable_vals=None,
         acceptable_range=None,
-        tols=(1e-05, 1e-08),
+        tols=None,
         strict_type_check=False,
         ignore_eq_none: bool = False,
         setter: callable | None = None,
@@ -290,7 +293,16 @@ class UVParameter:
             self.strict_type = strict_type_check
         self.acceptable_vals = acceptable_vals
         self.acceptable_range = acceptable_range
-        if np.size(tols) == 1:
+        if tols is None:
+            excl_list = (str, np.bool_, np.integer, np.unsignedinteger, bool, int)
+
+            if isinstance(self.expected_type, list):
+                no_tol = all(issubclass(item, excl_list) for item in self.expected_type)
+            else:
+                no_tol = any(issubclass(item, self.expected_type) for item in excl_list)
+
+            self.tols = (0, 0) if no_tol else (1e-5, 1e-8)
+        elif np.size(tols) == 1:
             # Only one tolerance given, assume absolute, set relative to zero
             self.tols = (0, tols)
         else:
@@ -526,8 +538,10 @@ class UVParameter:
             str_type = False
             if isinstance(self.value, str):
                 str_type = True
-            if isinstance(self.value, list | np.ndarray | tuple) and isinstance(
-                self.value[0], str
+            if isinstance(self.value, list | tuple) and isinstance(self.value[0], str):
+                str_type = True
+            if isinstance(self.value, np.ndarray) and isinstance(
+                self.value.flat[0], str
             ):
                 str_type = True
 
@@ -581,9 +595,15 @@ class UVParameter:
 
             else:
                 if isinstance(self.value, list | np.ndarray | tuple):
-                    if [s.strip() for s in self.value] != [
-                        s.strip() for s in other.value
-                    ]:
+                    this_val = self.value
+                    other_val = other.value
+
+                    # Catch the case that we have a multidim array, use the flat view
+                    if isinstance(this_val, np.ndarray):
+                        this_val = this_val.flat
+                    if isinstance(other_val, np.ndarray):
+                        other_val = other_val.flat
+                    if [s.strip() for s in this_val] != [s.strip() for s in other_val]:
                         if not silent:
                             print(
                                 f"{self.name} parameter value is a list of "
@@ -670,6 +690,9 @@ class UVParameter:
                     # strings need to be converted to lower case
                     if isinstance(self.value, str):
                         value_set = {self.value.lower()}
+                    elif isinstance(self.value, np.ndarray):
+                        # this is an ndarray of unknown dimensions, make it flat
+                        value_set = {x.lower() for x in self.value.flat}
                     else:
                         # this is a list or array of strings, make them all lower case
                         value_set = {x.lower() for x in self.value}
@@ -761,6 +784,166 @@ class UVParameter:
         """
         if self._setter is not None:
             self._setter(inst)
+
+    def get_from_form(self, form_dict: dict, strict: bool | None = None):
+        """
+        Get values along a set of parameterized axes.
+
+        This method should not be called directly by users; instead, it is called by
+        various selection-related functions for selecting a subset of values along
+        a given axis, whose expected shape is given (at least in part) by a named
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants").
+
+        Parameters
+        ----------
+        form_dict : dict
+            Dictionary which maps axes to index arrays, with keys that are matched
+            against entries within UVParameter.form, and values which demark which
+            indices should be selected (must be 1D). Values can also be given as None,
+            in which case no selection is performed along that axis.
+        strict : bool or None
+            Only used if no entries in form_dict match what is present in the form_dict
+            parameter. If set to True, then an error is raised. If set to False, a
+            warning is raised, and the entirety of UVParameter.value is returned. If
+            set to None (default), neither a warning nor error is raised, and the
+            entirety of UVParameter.value is returned.
+
+        Returns
+        -------
+        values : list or ndarray or obj
+            Values based on the positions selected, as specified in form_dict.
+        """
+        # Check the no-op case first
+        if self.value is None or not (
+            isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
+        ):
+            msg = "form_dict does not match anything in UVParameter.form" + (
+                "." if strict else ", returning whole value."
+            )
+            _strict_raise(err_msg=msg, strict=strict)
+            return self.value
+
+        val_slice = [form_dict.get(key, slice(None)) for key in self.form]
+        # Which axes are index lists versus slices?
+        ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
+        extra_axes = {}
+        if len(ind_axes) > 1:
+            for axis in ind_axes:
+                # Allow the first list to be handled with fancy indexing. After
+                # that, it's time to use np.take!
+                extra_axes[axis] = val_slice[axis]
+                val_slice[axis] = slice(None)
+
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+            # If we're working with an ndarray, use take to slice along
+            # the axis that we want to grab from.
+            value = self.value[tuple(val_slice)]
+            if extra_axes:
+                ind_arr, new_shape = _multidim_ind2sub(extra_axes, value.shape)
+                value = value.flat[ind_arr].reshape(new_shape)
+        elif isinstance(self.value, list):
+            # If this is a list, it _should_ always have 1-dimension.
+            assert len(val_slice) == 1, (
+                "Something is wrong, len(UVParameter.form) != 1 when selecting on a "
+                "list, which should not be possible. Please file an "
+                "issue in our GitHub issue log so that we can fix it."
+            )
+            if isinstance(val_slice[0], slice):
+                value = self.value[val_slice[0]]
+            else:
+                value = [self.value[idx] for idx in val_slice[0]]
+        return value
+
+    def set_from_form(
+        self, form_dict: dict, values: list | np.ndarray, strict: bool | None = False
+    ):
+        """
+        Set values along a set of parameterized axes.
+
+        This method should not be called directly by users; instead, it is called by
+        various selection-related functions for setting a subset of values along
+        a given axis, whose expected shape is given (at least in part) by a named
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants").
+
+        Parameters
+        ----------
+        form_dict : dict
+            Dictionary which maps axes to index arrays, with keys that are matched
+            against entries within UVParameter.form, and values which demark which
+            indices should be selected (must be 1D). Values can also be given as None,
+            in which case no selection is performed along that axis.
+        values : list or ndarray
+            Values based on the positions selected, as specified in form_dict.
+        strict : bool or None
+            Only used if no entries in form_dict match what is present in the form_dict
+            parameter. If set to True, then an error is raised. If set to False, a
+            warning is raised, and the entirety of UVParameter.value set to be equal to
+            the values argument. If set to None (default), neither a warning nor error
+            is raised, and the entirety of UVParameter.value is set.
+        """
+        # Check the no-op case first
+        if not (
+            isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
+        ):
+            msg = "form_dict does not match anything in UVParameter.form" + (
+                "." if strict else ", returning whole value."
+            )
+            _strict_raise(err_msg=msg, strict=strict)
+
+            self.value = values
+            return
+
+        # Validate that we actually have something to plug into
+        if self.value is None:
+            raise ValueError("Cannot call set_from_form if UVParameter.value is None.")
+
+        val_slice = [form_dict.get(key, slice(None)) for key in self.form]
+        # Which axes are index lists versus slices?
+        ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
+        extra_axes = {}
+        if len(ind_axes) > 1:
+            for axis in ind_axes:
+                # Allow the first list to be handled with fancy indexing. After
+                # that, it's time to use np.take!
+                extra_axes[axis] = val_slice[axis]
+                val_slice[axis] = slice(None)
+
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+            if extra_axes:
+                # If we have multiple list-based selections, then we slice first and
+                # then use multi_index_ravel to generate indices that we can plug in.
+                # That way we only need to create one extra array whose size is
+                # the same as values (for the indices).
+                temp_arr = self.value[tuple(val_slice)]
+
+                # Make sure this is a view that is connected in memory
+                assert temp_arr.base is (
+                    self.value if self.value.base is None else self.value.base
+                ), (
+                    "Something is wrong, slicing self.value does not return a view "
+                    "on the original array. Please file an issue in our GitHub "
+                    "issue log so that we can fix it."
+                )
+                ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
+
+                # N.b., later if needed we can add mask handling here (e.g., for data
+                # parameters).
+                temp_arr.flat[ind_arr] = values.flat
+            else:
+                # If regular indexing solves this, then that's how we'll roll
+                self.value[tuple(val_slice)] = values
+        elif isinstance(self.value, list):
+            # If this is a list, it _should_ always have 1-dimension.
+            assert len(val_slice) == 1, (
+                "Something is wrong, len(UVParameter.form) != 1 when setting a "
+                "list, which should not be possible. Please file an "
+                "issue in our GitHub issue log so that we can fix it."
+            )
+            if isinstance(val_slice[0], slice):
+                self.value[val_slice[0]] = values
+            else:
+                for idx, ind_val in zip(val_slice[0], values, strict=True):
+                    self.value[idx] = ind_val
 
 
 class AngleParameter(UVParameter):

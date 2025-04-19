@@ -182,11 +182,8 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
             f"to call 'parse_ants': {required_attrs}."
         )
 
-    if x_orientation is None and (
-        hasattr(uv.telescope, "x_orientation")
-        and uv.telescope.x_orientation is not None
-    ):
-        x_orientation = uv.telescope.x_orientation
+    if x_orientation is None:
+        x_orientation = uv.telescope.get_x_orientation_from_feeds()
 
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
     bl_re = f"(^({ant_re}_{ant_re}|{ant_re}),?)"
@@ -432,7 +429,7 @@ def _extract_bls_pol(
     strict : bool or None
         Normally, select will warn when an element of the selection criteria does not
         match any element for the parameter, as long as the selection criteria results
-        in _at least one_ element being selected. However, if set to True, an error is
+        in *at least one* element being selected. However, if set to True, an error is
         thrown if any selection criteria does not match what is given for the object
         parameters element. If set to None, then neither errors nor warnings are raised,
         unless no records are selected. Default is False.

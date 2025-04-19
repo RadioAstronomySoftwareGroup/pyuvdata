@@ -184,12 +184,22 @@ def test_read_yaml_override(cst_efield_2freq_mod):
 
     with check_warnings(
         UserWarning,
-        match=(
+        match=[
             "The telescope_name keyword is set, overriding "
-            "the value in the settings yaml file."
-        ),
+            "the value in the settings yaml file.",
+            "The mount_type keyword is set",
+            "The feed_pol keyword is set",
+        ],
     ):
-        beam2.read_cst_beam(cst_yaml_file, beam_type="efield", telescope_name="test")
+        beam2.read_cst_beam(
+            cst_yaml_file,
+            beam_type="efield",
+            telescope_name="test",
+            mount_type="fixed",
+            feed_pol="x",
+            feed_array="x",
+            feed_angle=[np.pi / 2],
+        )
 
     assert beam1 == beam2
 
@@ -294,6 +304,7 @@ def test_read_yaml_multi_pol(tmp_path):
             telescope_name="HERA",
             feed_name="Dipole",
             feed_version="1.0",
+            mount_type="fixed",
             model_name="Dipole - Rigging height 4.9 m",
             model_version="1.0",
             x_orientation="east",
@@ -383,11 +394,13 @@ def test_read_power(cst_power_2freq):
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        x_orientation="east",
     )
 
     np.testing.assert_allclose(
@@ -425,9 +438,11 @@ def test_read_power_single_freq(cst_power_1freq):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
+            x_orientation="east",
         )
 
     assert beam2.freq_array == [150e6]
@@ -453,6 +468,9 @@ def test_read_power_multi_pol():
         beam_type="power",
         frequency=[150e6],
         feed_pol=np.array(["xx", "yy"]),
+        feed_array=np.array(["x", "y"]),
+        feed_angle=np.array([0, np.pi / 2]),
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
@@ -473,11 +491,13 @@ def test_read_power_multi_pol():
         beam_type="power",
         frequency=[150e6],
         feed_pol=np.array(["xy"]),
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        x_orientation="east",
     )
     np.testing.assert_allclose(beam2.polarization_array, np.array([-7, -8]))
     assert beam2.data_array.shape == (1, 2, 1, 181, 360)
@@ -514,7 +534,12 @@ def test_read_power_multi_pol():
         ],
         [
             [[cst_files[0]], [cst_files[1]]],
-            {"beam_type": "power", "frequency": [150e6, 123e6], "feed_pol": ["x"]},
+            {
+                "beam_type": "power",
+                "frequency": [150e6, 123e6],
+                "feed_pol": ["x"],
+                "x_orientation": "east",
+            },
             "filename can not be a nested list",
         ],
         [
@@ -559,6 +584,7 @@ def test_read_errors(files, kwargs, err_msg):
             "feed_version": "0.1",
             "model_name": "E-field pattern - Rigging height 4.9m",
             "model_version": "1.0",
+            "mount_type": "fixed",
         }
     )
 
@@ -576,19 +602,22 @@ def test_read_efield(cst_efield_2freq):
     assert np.max(np.abs(beam1.data_array)) == 90.97
 
     # test passing in other polarization
-    beam2.read_cst_beam(
-        cst_files,
-        beam_type="efield",
-        frequency=[150e6, 123e6],
-        feed_pol="y",
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with check_warnings(UserWarning, ["Feed information not supplied"] * 2):
+        beam2.read_cst_beam(
+            cst_files,
+            beam_type="efield",
+            frequency=[150e6, 123e6],
+            feed_pol="y",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            mount_type="fixed",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
     assert beam2.feed_array[0] == "y"
     assert beam2.feed_array[1] == "x"
+    np.testing.assert_allclose(beam2.feed_angle, [0.0, np.pi / 2])
     assert beam1.data_array.shape == (2, 2, 2, 181, 360)
     np.testing.assert_allclose(
         beam1.data_array[:, 0, :, :, :],
@@ -605,9 +634,11 @@ def test_read_efield(cst_efield_2freq):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
+            x_orientation="east",
         )
 
     assert beam2.pixel_coordinate_system == "az_za"
@@ -628,11 +659,13 @@ def test_read_efield(cst_efield_2freq):
         beam_type="efield",
         frequency=[150e6],
         feed_pol=["x", "y"],
+        mount_type="fixed",
         telescope_name="TEST",
         feed_name="bob",
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        feed_angle=[0, np.pi / 2],
     )
     assert beam1.data_array.shape == (2, 2, 1, 181, 360)
     np.testing.assert_allclose(
@@ -703,6 +736,8 @@ def test_no_deg_units(tmp_path):
             beam_type="efield",
             frequency=np.array([150e6]),
             feed_pol="y",
+            feed_angle=0.0,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -736,6 +771,8 @@ def test_no_deg_units(tmp_path):
             beam_type="efield",
             frequency=np.array([150e6]),
             feed_pol="y",
+            feed_angle=np.pi / 2,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -767,6 +804,8 @@ def test_no_deg_units(tmp_path):
             beam_type="efield",
             frequency=np.array([150e6]),
             feed_pol="y",
+            feed_angle=[0.0],
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -789,24 +828,38 @@ def test_no_deg_units(tmp_path):
         testfile, data, fmt=new_format, header=new_header + "\n" + line2, comments=""
     )
 
-    with check_warnings(UserWarning, "No frequency provided. Detected frequency is"):
+    with check_warnings(
+        UserWarning,
+        [
+            "Feed information not supplied and x-orientation not specified",
+            "No frequency provided. Detected frequency is",
+        ],
+    ):
         beam1.read_cst_beam(
             cst_files[0],
             beam_type="efield",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
         )
 
-    with check_warnings(UserWarning, "No frequency provided. Detected frequency is"):
+    with check_warnings(
+        UserWarning,
+        [
+            "Feed information not supplied and x-orientation not specified",
+            "No frequency provided. Detected frequency is",
+        ],
+    ):
         beam2.read_cst_beam(
             testfile,
             beam_type="efield",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
         )
@@ -826,6 +879,8 @@ def test_no_deg_units(tmp_path):
             beam_type="efield",
             frequency=np.array([150e6]),
             feed_pol="y",
+            feed_angle=0.0,
+            mount_type="fixed",
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
@@ -905,8 +960,10 @@ def test_wrong_column_names(tmp_path):
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
+            x_orientation="east",
         )
 
     extra_power_header = ""
@@ -926,12 +983,14 @@ def test_wrong_column_names(tmp_path):
         beam1.read_cst_beam(
             testfile,
             beam_type="power",
-            frequency=np.array([150e6]),
+            frequency=[150e6],
             telescope_name="TEST",
             feed_name="bob",
             feed_version="0.1",
+            mount_type="fixed",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
+            x_orientation="east",
         )
 
 
@@ -969,3 +1028,35 @@ def test_hera_yaml():
     beam1.history = beam2.history
 
     assert beam1 == beam2
+
+
+@pytest.mark.parametrize(
+    "kwargs,beam_type,err_msg",
+    [
+        [{"feed_array": ["y"]}, "efield", "Cannot set feed_array for efield beams"],
+        [{"feed_array": np.ones((2, 2))}, "power", "feed_array cannot be a multi-dim"],
+        [{"feed_angle": np.ones((2, 2))}, "power", "feed_angle cannot be a multi-dim"],
+        [{"feed_angle": [0, 0]}, "efield", "feed_pol and feed_angle must contain"],
+        [{"feed_angle": [0, 0]}, "power", "Must set either both or neither"],
+        [
+            {"feed_array": "y", "feed_angle": [0, 0]},
+            "power",
+            "feed_array and feed_angle must contain the same number",
+        ],
+    ],
+)
+def test_read_cst_feed_errors(kwargs, beam_type, err_msg):
+    beam = UVBeam()
+    with pytest.raises(ValueError, match=err_msg):
+        beam.read_cst_beam(
+            cst_files,
+            beam_type=beam_type,
+            frequency=[150e6, 123e6],
+            feed_pol=np.array(["y"]),
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+            **kwargs,
+        )

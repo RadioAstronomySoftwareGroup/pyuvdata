@@ -3,7 +3,6 @@
 
 """Tests for telescope objects and functions."""
 
-import copy
 import os
 import warnings
 
@@ -39,8 +38,22 @@ required_properties = [
     "antenna_numbers",
     "antenna_positions",
 ]
-extra_parameters = ["_antenna_diameters", "_x_orientation", "_instrument"]
-extra_properties = ["antenna_diameters", "x_orientation", "instrument"]
+extra_parameters = [
+    "_antenna_diameters",
+    "_instrument",
+    "_mount_type",
+    "_Nfeeds",
+    "_feed_array",
+    "_feed_angle",
+]
+extra_properties = [
+    "antenna_diameters",
+    "instrument",
+    "mount_type",
+    "Nfeeds",
+    "feed_array",
+    "feed_angle",
+]
 other_attributes = [
     "citation",
     "telescope_location_lat_lon_alt",
@@ -159,33 +172,90 @@ def test_update_params_from_known():
     ):
         tel.update_params_from_known_telescopes()
 
-    hera_tel = Telescope.from_known_telescopes("hera")
-    known_dict = copy.deepcopy(_KNOWN_TELESCOPES)
-    known_dict["HERA"]["antenna_diameters"] = hera_tel.antenna_diameters
-
+    hera_tel = Telescope.from_known_telescopes(
+        "hera", x_orientation="east", feeds=["x", "y"]
+    )
     hera_tel_test = Telescope.from_known_telescopes(
-        "hera", known_telescope_dict=known_dict
+        "hera",
+        antenna_diameters=hera_tel.antenna_diameters,
+        x_orientation="east",
+        feeds=["x", "y"],
     )
     assert hera_tel == hera_tel_test
 
-    known_dict["HERA"]["antenna_diameters"] = hera_tel.antenna_diameters[0:10]
-    known_dict["HERA"]["x_orientation"] = "east"
     hera_tel_test.antenna_diameters = None
     with check_warnings(
         UserWarning,
         match=[
-            "antenna_diameters are not set because the number of antenna_diameters "
+            "antenna_diameters is not set because the number of antenna_diameters "
             "on known_telescopes_dict is more than one and does not match Nants "
-            "for telescope hera.",
-            "x_orientation are not set or are being overwritten. x_orientation "
-            "are set using values from known telescopes for hera.",
+            "for telescope hera."
         ],
     ):
         hera_tel_test.update_params_from_known_telescopes(
-            known_telescope_dict=known_dict
+            antenna_diameters=hera_tel.antenna_diameters[0:10]
         )
     assert hera_tel_test.antenna_diameters is None
-    assert hera_tel_test.x_orientation == "east"
+
+    hera_tel_test._select_along_param_axis({"Nants": [0]})
+    assert hera_tel != hera_tel_test
+    with check_warnings(
+        UserWarning,
+        [
+            "telescope_location, Nants, antenna_names, antenna_numbers, "
+            "antenna_positions, antenna_diameters are not set"
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            overwrite=True, mount_type=None
+        )
+
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        assert hera_tel_test.x_orientation == "east"
+        assert hera_tel_test.get_x_orientation_from_feeds() == "east"
+
+    hera_tel_test.antenna_diameters = hera_tel.antenna_diameters
+    hera_tel_test.feed_array = None
+    hera_tel_test.feed_angle = None
+    hera_tel_test.mount_type = None
+    with check_warnings(
+        UserWarning,
+        match=[
+            "mount_type is not set because the number of mount_type "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+            "feed_array is not set because the number of feed_array "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+            "feed_angle is not set because the number of feed_angle "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            mount_type=hera_tel.mount_type[0:10],
+            feed_array=hera_tel.feed_array[0:10],
+            feed_angle=hera_tel.feed_angle[0:10],
+        )
+
+    hera_tel_test.mount_type = ["fixed"] * hera_tel_test.Nants
+    hera_tel_test.mount_type[0] = "phased"
+    with check_warnings(
+        UserWarning,
+        [
+            "telescope_location, Nants, antenna_names, antenna_numbers, "
+            "antenna_positions, antenna_diameters are not set",
+            "Nants has changed, but no information present in the "
+            "known telescopes to set mount_type",
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            overwrite=True, mount_type=None
+        )
+
+    assert hera_tel_test.mount_type is None
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
     mwa_tel2 = Telescope()
@@ -301,26 +371,24 @@ def test_old_known_tel_dict_keys():
     with check_warnings(DeprecationWarning, match=warn_msg):
         assert KNOWN_TELESCOPES["HERA"]["citation"] == hera_tel.citation
 
-    assert len(KNOWN_TELESCOPES["MWA"]) == 1
+    assert len(KNOWN_TELESCOPES["MWA"]) == 4
     for key, val in KNOWN_TELESCOPES.items():
         assert val == _KNOWN_TELESCOPES[key]
 
 
 def test_get_telescope_no_loc():
-    test_telescope_dict = {"test": {"citation": ""}}
     with pytest.raises(
         KeyError,
         match="Missing location information in known_telescopes_dict "
         "for telescope test.",
     ):
-        Telescope.from_known_telescopes(
-            "test", known_telescope_dict=test_telescope_dict
-        )
+        Telescope.from_known_telescopes("test", citation="")
 
 
 def test_hera_loc():
     hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
     hera_data = UVData()
+
     hera_data.read(hera_file, read_data=False, file_type="uvh5")
 
     telescope_obj = Telescope.from_known_telescopes("HERA")
@@ -466,10 +534,31 @@ def test_bad_antenna_inputs(kwargs, err_msg):
 
 @pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
 def test_passing_xorient(simplest_working_params, xorient):
-    tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
-    if xorient.lower().startswith("e"):
+    with check_warnings(UserWarning, "Unknown polarization basis"):
+        tel = Telescope.new(
+            x_orientation=xorient, mount_type=["fixed"] * 3, **simplest_working_params
+        )
+
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        name = "east" if xorient.lower().startswith("e") else "north"
+        assert tel.x_orientation == name
+        assert tel.get_x_orientation_from_feeds() == name
+
+
+def test_xorient_dep_warning(simplest_working_params):
+    tel = Telescope.new(
+        feeds=["x", "y"],
+        x_orientation="east",
+        mount_type="fixed",
+        **simplest_working_params,
+    )
+    with check_warnings(
+        DeprecationWarning, ["The Telescope.x_orientation attribute is deprecated"] * 3
+    ):
         assert tel.x_orientation == "east"
-    else:
+        tel.x_orientation = "north"
         assert tel.x_orientation == "north"
 
 
@@ -507,3 +596,224 @@ def test_update_without_warning():
         warnings.simplefilter("error")
         t.update_params_from_known_telescopes()
     unignore_telescope_param_update_warnings_for("hera")
+
+
+@pytest.mark.parametrize("warn", [True, False])
+@pytest.mark.parametrize("drop_param", ["feed_angle", "feed_array", "mount_type"])
+def test_feed_errs(simplest_working_params, drop_param, warn):
+    tel = Telescope.new(**simplest_working_params)
+    tel.Nfeeds = 2
+    if not warn:
+        tel._feed_array.required = drop_param != "feed_array"
+        tel._feed_angle.required = drop_param != "feed_angle"
+        tel._mount_type.required = drop_param != "mount_type"
+    if drop_param != "feed_array":
+        tel.feed_array = np.full((tel.Nants, tel.Nfeeds), "x")
+    if drop_param != "feed_angle":
+        tel.feed_angle = np.zeros((tel.Nants, tel.Nfeeds))
+    if drop_param != "mount_type":
+        tel.mount_type = ["fixed"] * tel.Nants
+    msg = "Parameter feed_array, feed_angle, and mount_type must be set together."
+    if warn:
+        with check_warnings(UserWarning, match=msg):
+            tel.check()
+        assert tel.feed_array is None
+        assert tel.feed_angle is None
+        assert tel.mount_type is None
+    else:
+        with pytest.raises(ValueError, match=msg):
+            tel.check()
+
+
+def test_feed_order_error(simplest_working_params):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    mount_type = ["fixed"] * 3
+    tel = Telescope.new(
+        feed_array=feed_array,
+        feed_angle=feed_angle,
+        mount_type=mount_type,
+        **simplest_working_params,
+    )
+
+    with pytest.raises(ValueError, match="order must be one of: 'AIPS', 'CASA', or"):
+        tel.reorder_feeds("XYZ")
+
+
+def test_feed_order_noop(simplest_working_params):
+    # Make sure that no feeds just returns
+    tel = Telescope.new(**simplest_working_params)
+    tel2 = tel.copy()
+
+    with check_warnings(None, match=""):
+        tel.reorder_feeds("AIPS")
+
+    assert tel == tel2
+
+
+@pytest.mark.parametrize(
+    "order,flipped", [["AIPS", True], ["CASA", True], [["l", "r", "x"], False]]
+)
+def test_feed_order(simplest_working_params, order, flipped):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    mount_type = ["fixed"] * 3
+    tel = Telescope.new(
+        feed_array=feed_array,
+        feed_angle=feed_angle,
+        mount_type=mount_type,
+        **simplest_working_params,
+    )
+    feed_array = feed_array.copy()
+    feed_angle = feed_angle.copy()
+
+    tel.reorder_feeds(order=order)
+    assert np.array_equal(tel.feed_array, feed_array[:, :: (-1 if flipped else 1)])
+    assert np.array_equal(tel.feed_angle, feed_angle[:, :: (-1 if flipped else 1)])
+    assert tel.Nfeeds == 2
+
+
+@pytest.mark.parametrize(
+    "kwargs,msg",
+    [
+        [{"order": [0, 1, 2, 3, 4]}, "If order is an index array, it must contain all"],
+        [{"order": [1]}, "If order is an index array, it must contain all"],
+        [{"order": "foo"}, "order must be one of 'number', 'name', '-number', '-name'"],
+    ],
+)
+def test_antenna_order_errors(simplest_working_params, kwargs, msg):
+    tel = Telescope.new(**simplest_working_params)
+    with pytest.raises(ValueError, match=msg):
+        tel.reorder_antennas(**kwargs)
+
+
+@pytest.mark.parametrize("order", ["name", "number"])
+def test_antenna_order(simplest_working_params, order):
+    tel = Telescope.new(**simplest_working_params)
+    tel2 = tel.copy()
+    tel3 = tel.copy()
+
+    # Test no-op
+    tel.reorder_antennas(order=order)
+    assert tel == tel2
+
+    # Test reverse ordering
+    tel.reorder_antennas(order=("-" + order))
+    tel2.reorder_antennas(order=[2, 1, 0])
+    assert tel == tel2
+    assert tel != tel3
+
+    # Reverse the reverse!
+    tel.reorder_antennas(order=order)
+    tel2.reorder_antennas(order=[2, 1, 0])
+    assert tel == tel2
+    assert tel == tel3
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+@pytest.mark.parametrize("axis", ["Nfeeds", "Nants"])
+@pytest.mark.parametrize("scenario", ["overlap", "inv_overlap", "interleave", "concat"])
+def test_telescope_add(add_method, axis, scenario):
+    tel1 = Telescope.from_known_telescopes("hera")
+    # Set the feed information so that we can check it
+    tel1.feed_array = np.array([["x", "y"]] * tel1.Nants)
+    tel1.feed_angle = np.array([[np.pi / 2, 0.0]] * tel1.Nants)
+    tel1.Nfeeds = 2
+
+    tel2 = tel1.copy()
+    check_tel = tel1.copy()
+
+    nitem = getattr(tel1, axis)
+    if scenario == "overlap":
+        tel1_dict = {}
+        tel2_dict = {axis: np.arange(nitem // 2, nitem)}
+    elif scenario == "inv_overlap":
+        tel1_dict = {axis: np.arange(nitem // 2, nitem)}
+        tel2_dict = {}
+    elif scenario == "interleave":
+        tel1_dict = {axis: np.arange(0, nitem, 2)}
+        tel2_dict = {axis: np.arange(1, nitem, 2)}
+    elif scenario == "concat":
+        tel1_dict = {axis: np.arange(0, nitem - 1)}
+        tel2_dict = {axis: np.arange(nitem - 1, nitem)}
+
+    tel1._select_along_param_axis(tel1_dict)
+    tel2._select_along_param_axis(tel2_dict)
+    tel3 = getattr(tel1, add_method)(tel2)
+
+    if axis == "Nants":
+        tel3.reorder_antennas(order="number")
+    elif axis == "Nfeeds":
+        tel3.reorder_feeds(order="AIPS")
+
+    assert tel3 == check_tel
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+def test_telescope_add_noop(simplest_working_params, add_method):
+    tel1 = Telescope.new(**simplest_working_params)
+    tel2 = tel1.copy()
+    tel3 = getattr(tel1, add_method)(tel2)
+    assert tel2 == tel3
+
+
+def test_telescope_add_diff_feeds(simplest_working_params):
+    feed_array = np.array([["l", "r"], ["r", "l"], ["x", "y"]])
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel1 = Telescope.new(
+        feed_array=feed_array,
+        feed_angle=feed_angle,
+        mount_type="fixed",
+        **simplest_working_params,
+    )
+    tel2 = tel1.copy()
+    check_tel = tel1.copy()
+
+    tel1._select_along_param_axis({"Nants": [0, 1]})
+    tel2._select_along_param_axis({"Nants": [2]})
+    tel3 = tel1 + tel2
+    assert check_tel == tel3
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+def test_telescope_add_errs(simplest_working_params, add_method):
+    tel = Telescope.new(**simplest_working_params)
+    with pytest.raises(
+        ValueError, match=r"Only Telescope \(or subclass\) objects can be added"
+    ):
+        getattr(tel, add_method)(None)
+
+    tel2 = tel.copy()
+    tel2.name = "other test"
+    with pytest.raises(ValueError, match="Parameter Telescope.name does not match."):
+        getattr(tel, add_method)(tel2)
+
+
+def test_telescope_mount_feed_multicast(simplest_working_params):
+    tel = Telescope.new(
+        **simplest_working_params,
+        mount_type=["fixed"] * 3,
+        feed_array=np.array([["x", "y"]] * 3),
+        feed_angle=[[0, np.pi / 2]] * 3,
+    )
+    tel2 = Telescope.new(
+        **simplest_working_params,
+        mount_type="fixed",
+        feed_array=["x", "y"],
+        feed_angle=[0, np.pi / 2],
+    )
+
+    assert tel == tel2
+
+
+def test_known_telescopes_keywords(simplest_working_params):
+    tel1 = Telescope.new(**simplest_working_params)
+    tel2 = Telescope.from_known_telescopes(
+        name=tel1.name,
+        location=tel1.location,
+        antenna_numbers=tel1.antenna_numbers,
+        antenna_names=tel1.antenna_names,
+        antenna_positions=tel1.antenna_positions,
+    )
+
+    assert tel1 == tel2

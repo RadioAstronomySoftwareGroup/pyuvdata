@@ -26,7 +26,9 @@ telescope_params = {
     "antenna_numbers": "antenna_numbers",
     "antenna_positions": "antenna_positions",
     "antenna_diameters": "antenna_diameters",
-    "x_orientation": "x_orientation",
+    "feed_array": "feed_array",
+    "feed_angle": "feed_angle",
+    "mount_type": "mount_type",
     "instrument": "instrument",
 }
 
@@ -585,7 +587,9 @@ class UVFlag(UVBase):
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""
         self.telescope._instrument.required = False
-        self.telescope._x_orientation.required = False
+        self.telescope._feed_array.required = False
+        self.telescope._feed_angle.required = False
+        self.telescope._mount_type.required = False
 
     @property
     def _data_params(self):
@@ -835,7 +839,7 @@ class UVFlag(UVBase):
         """Remove unused attributes.
 
         Useful when changing type or mode or to save memory.
-        Will set all non-required attributes to None, except x_orientation,
+        Will set all non-required attributes to None, except feed_array, feed_angle,
         extra_keywords, weights_square_array and filename.
 
         """
@@ -847,7 +851,8 @@ class UVFlag(UVBase):
             "antenna_numbers",
             "antenna_positions",
             "Nants_telescope",
-            "x_orientation",
+            "feed_array",
+            "feed_angle",
             "weights_square_array",
             "extra_keywords",
             "filename",
@@ -942,8 +947,10 @@ class UVFlag(UVBase):
     def set_telescope_params(
         self,
         *,
+        x_orientation=None,
+        mount_type=None,
         overwrite=False,
-        warn=True,
+        warn=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -957,9 +964,42 @@ class UVFlag(UVBase):
 
         Parameters
         ----------
+        x_orientation : str or None
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the known telescope, or if set to
+            None.
+        mount_type : str or None
+            String describing the mount amount type, which describes the optics.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination),
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
             the values from the known telescope.
+        warn : bool
+            Option to issue a warning listing all modified parameters. Default is True
+            if `overwrite=True`, otherwise False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating. Default is True
 
         Raises
         ------
@@ -970,10 +1010,14 @@ class UVFlag(UVBase):
         """
         self.telescope.update_params_from_known_telescopes(
             overwrite=overwrite,
-            warn=warn,
+            warn=overwrite if warn is None else warn,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            mount_type=mount_type,
+            x_orientation=x_orientation,
+            polarization_array=self.polarization_array,
+            override_known_params=False,
         )
 
     def antpair2ind(self, ant1, ant2):
@@ -1078,7 +1122,8 @@ class UVFlag(UVBase):
             list of polarizations (as strings) in the data.
         """
         return utils.polnum2str(
-            self.polarization_array, x_orientation=self.telescope.x_orientation
+            self.polarization_array,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def parse_ants(self, ant_str, *, print_toggle=False):
@@ -1124,7 +1169,7 @@ class UVFlag(UVBase):
             self,
             ant_str=ant_str,
             print_toggle=print_toggle,
-            x_orientation=self.telescope.x_orientation,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def collapse_pol(
@@ -1365,17 +1410,7 @@ class UVFlag(UVBase):
             this_uv_sort = this_order[inv_uv_order]
 
             # do the sorting
-            self.telescope.antenna_numbers = self.telescope.antenna_numbers[
-                this_uv_sort
-            ]
-            if self.telescope.antenna_names is not None:
-                self.telescope.antenna_names = self.telescope.antenna_names[
-                    this_uv_sort
-                ]
-            if self.telescope.antenna_positions is not None:
-                self.telescope.antenna_positions = self.telescope.antenna_positions[
-                    this_uv_sort
-                ]
+            self.telescope.reorder_antennas(order=this_uv_sort)
 
     def to_baseline(
         self,
@@ -1441,7 +1476,7 @@ class UVFlag(UVBase):
             "spw_array",
             "flex_spw_id_array",
         ]
-        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
+        warning_params = ["instrument", "antenna_diameters", "feed_array", "feed_angle"]
 
         # sometimes the antenna sorting for the antenna names/numbers/positions
         # is different. If the sets are the same, re-sort self to match uv
@@ -1459,6 +1494,8 @@ class UVFlag(UVBase):
                 if param in warning_params:
                     warnings.warn(
                         f"{param} is not the same on this object and on uv. "
+                        f"The value on this object is {this_param.value}; "
+                        f"the value on uv is {uv_param.value}."
                         "Keeping the value on this object."
                     )
                 else:
@@ -1670,7 +1707,7 @@ class UVFlag(UVBase):
             "spw_array",
             "flex_spw_id_array",
         ]
-        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
+        warning_params = ["instrument", "feed_array", "feed_angle", "antenna_diameters"]
 
         # sometimes the antenna sorting for the antenna names/numbers/positions
         # is different. If the sets are the same, re-sort self to match uv
@@ -1973,16 +2010,31 @@ class UVFlag(UVBase):
         ax = axis_nums[axis][type_nums[self.type]]
 
         compatibility_params = ["telescope_name", "telescope_location"]
-        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
+        warning_params = [
+            "instrument",
+            "feed_array",
+            "feed_angle",
+            "antenna_diameters",
+            "mount_type",
+        ]
 
         if axis != "frequency":
             compatibility_params.extend(
                 ["freq_array", "channel_width", "spw_array", "flex_spw_id_array"]
             )
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis not in ["polarization", "pol", "jones"]:
             compatibility_params.extend(["polarization_array"])
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis != "time":
             compatibility_params.extend(["time_array", "lst_array"])
+            warning_params.extend(
+                ["antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis != "antenna" and self.type == "antenna":
             compatibility_params.extend(
                 ["ant_array", "antenna_names", "antenna_numbers", "antenna_positions"]
@@ -2002,22 +2054,18 @@ class UVFlag(UVBase):
         for param in compatibility_params + warning_params:
             # compare the UVParameter objects to properly handle tolerances
             if param in telescope_params:
-                this_param = getattr(self.telescope, "_" + telescope_params[param])
-                other_param = getattr(other.telescope, "_" + telescope_params[param])
+                continue
             else:
                 this_param = getattr(self, "_" + param)
                 other_param = getattr(other, "_" + param)
             if this_param.value is not None and this_param != other_param:
-                if param in warning_params:
-                    warnings.warn(
-                        "UVParameter " + param + " does not match. Combining anyway."
-                    )
-                else:
-                    raise ValueError(
-                        f"{param} is not the same on the two objects. The value on "
-                        f"this object is {this_param.value}; the value on the "
-                        f"other object is {other_param.value}."
-                    )
+                strict = param not in warning_params
+                msg = f"UVParameter {param} does not match." + (
+                    "Combining anyway." if strict else "Cannot combine objects."
+                )
+                utils.tools._strict_raise(err_msg=msg, strict=strict)
+
+        this.telescope.__iadd__(other.telescope, warning_params=warning_params)
 
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -2061,38 +2109,6 @@ class UVFlag(UVBase):
                 )
             this.ant_array = np.concatenate([this.ant_array, other.ant_array])
             this.Nants_data = len(this.ant_array)
-            temp_ant_nums = np.concatenate(
-                [this.telescope.antenna_numbers, other.telescope.antenna_numbers]
-            )
-            temp_ant_names = np.concatenate(
-                [this.telescope.antenna_names, other.telescope.antenna_names]
-            )
-            temp_ant_pos = np.concatenate(
-                [this.telescope.antenna_positions, other.telescope.antenna_positions],
-                axis=0,
-            )
-            this.telescope.antenna_numbers, unique_inds = np.unique(
-                temp_ant_nums, return_index=True
-            )
-            this.telescope.antenna_names = temp_ant_names[unique_inds]
-            this.telescope.antenna_positions = temp_ant_pos[unique_inds]
-            this.telescope.Nants = len(this.telescope.antenna_numbers)
-
-            if (
-                this.telescope.antenna_diameters is not None
-                and other.telescope.antenna_diameters is not None
-            ):
-                temp_ant_diameters = np.concatenate(
-                    [
-                        this.telescope.antenna_diameters,
-                        other.telescope.antenna_diameters,
-                    ],
-                    axis=0,
-                )
-                this.telescope.antenna_diameters = temp_ant_diameters[unique_inds]
-            else:
-                this.telescope.antenna_diameters = None
-
         elif axis == "frequency":
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array], axis=-1
@@ -2444,8 +2460,8 @@ class UVFlag(UVBase):
             The polarizations numbers to keep in the object, each value passed
             here should exist in the polarization_array. If passing strings, the
             canonical polarization strings (e.g. "xx", "rr") are supported and if the
-            `x_orientation` attribute is set, the physical dipole strings
-            (e.g. "nn", "ee") are also supported.
+            `telescope.feed_array` and `telescope.feed_angle` attributes are set, the
+            physical dipole strings (e.g. "nn", "ee") are also supported.
         blt_inds : array_like of int, optional
             The baseline-time indices to keep in the object. This is
             not commonly used.
@@ -2458,7 +2474,7 @@ class UVFlag(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -2601,7 +2617,7 @@ class UVFlag(UVBase):
         pol_inds, pol_selections = utils.pol._select_pol_helper(
             polarizations=polarizations,
             obj_pol_array=self.polarization_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
         )
@@ -2790,7 +2806,7 @@ class UVFlag(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -2879,6 +2895,7 @@ class UVFlag(UVBase):
         history="",
         mwa_metafits_file=None,
         telescope_name=None,
+        warn_telescope_params=None,
         use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
@@ -3220,7 +3237,9 @@ class UVFlag(UVBase):
                             "will be filled in from a static csv file containing all "
                             "the antennas that could have been connected."
                         )
-                    self.set_telescope_params(run_check=False)
+                    self.set_telescope_params(
+                        run_check=False, warn=warn_telescope_params
+                    )
 
                 if self.telescope.antenna_numbers is None and self.type in [
                     "baseline",

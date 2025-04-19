@@ -613,7 +613,9 @@ class UVData(UVBase):
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVData."""
         self.telescope._instrument.required = True
-        self.telescope._x_orientation.required = False
+        self.telescope._feed_array.required = False
+        self.telescope._feed_angle.required = False
+        self.telescope._mount_type.required = False
 
     # This is required for eq_coeffs, which has Nants_telescope as one of its
     # shapes. That's to allow us to line up the antenna_numbers/names with
@@ -1476,8 +1478,10 @@ class UVData(UVBase):
     def set_telescope_params(
         self,
         *,
+        x_orientation=None,
+        mount_type=None,
         overwrite=False,
-        warn=True,
+        warn=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1491,9 +1495,42 @@ class UVData(UVBase):
 
         Parameters
         ----------
+        x_orientation : str or None
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the known telescope, or if set to
+            None.
+        mount_type : str or None
+            String describing the mount amount type, which describes the optics.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination),
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
-            the values from the known telescope.
+            the values from the known telescope. Default is False.
+        warn : bool
+            Option to issue a warning listing all modified parameters. Default is True
+            if `overwrite=True`, otherwise False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating. Default is True
 
         Raises
         ------
@@ -1502,10 +1539,15 @@ class UVData(UVBase):
         """
         self.telescope.update_params_from_known_telescopes(
             overwrite=overwrite,
-            warn=warn,
+            warn=overwrite if warn is None else warn,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            x_orientation=x_orientation,
+            mount_type=mount_type,
+            polarization_array=self.polarization_array,
+            flex_polarization_array=self.flex_spw_polarization_array,
+            override_known_params=False,
         )
 
     def _calc_single_integration_time(self):
@@ -2794,7 +2836,9 @@ class UVData(UVBase):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(
                 self.polarization_array
-                == utils.polstr2num(key, x_orientation=self.telescope.x_orientation)
+                == utils.polstr2num(
+                    key, x_orientation=self.telescope.get_x_orientation_from_feeds()
+                )
             )[0]
             if len(pol_ind1) > 0:
                 blt_ind1 = slice(None)
@@ -2841,7 +2885,8 @@ class UVData(UVBase):
                 orig_pol = key[2]
                 if isinstance(key[2], str):
                     pol = utils.polstr2num(
-                        key[2], x_orientation=self.telescope.x_orientation
+                        key[2],
+                        x_orientation=self.telescope.get_x_orientation_from_feeds(),
                     )
                 else:
                     pol = key[2]
@@ -3026,7 +3071,8 @@ class UVData(UVBase):
             list of polarizations (as strings) in the data.
         """
         return utils.polnum2str(
-            self.polarization_array, x_orientation=self.telescope.x_orientation
+            self.polarization_array,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def get_antpairpols(self):
@@ -3825,12 +3871,7 @@ class UVData(UVBase):
                 "index array of length Npols"
             )
 
-        self.polarization_array = self.polarization_array[index_array]
-        if not self.metadata_only:
-            # data array is special and large, take is faster here
-            self.data_array = np.take(self.data_array, index_array, axis=2)
-            self.nsample_array = self.nsample_array[:, :, index_array]
-            self.flag_array = self.flag_array[:, :, index_array]
+        self._select_along_param_axis({"Npols": index_array})
 
         # check if object is self-consistent
         if run_check:
@@ -4087,25 +4128,7 @@ class UVData(UVBase):
         else:
             index_array = order
 
-        index_array = np.asarray(index_array, dtype=int)
-
-        # actually do the reordering
-        self.ant_1_array = self.ant_1_array[index_array]
-        self.ant_2_array = self.ant_2_array[index_array]
-        self.baseline_array = self.baseline_array[index_array]
-        self.uvw_array = self.uvw_array[index_array, :]
-        self.time_array = self.time_array[index_array]
-        self.lst_array = self.lst_array[index_array]
-        self.integration_time = self.integration_time[index_array]
-        self.phase_center_app_ra = self.phase_center_app_ra[index_array]
-        self.phase_center_app_dec = self.phase_center_app_dec[index_array]
-        self.phase_center_frame_pa = self.phase_center_frame_pa[index_array]
-        self.phase_center_id_array = self.phase_center_id_array[index_array]
-
-        if not self.metadata_only:
-            self.data_array = self.data_array[index_array]
-            self.flag_array = self.flag_array[index_array]
-            self.nsample_array = self.nsample_array[index_array]
+        self._select_along_param_axis({"Nblts": index_array})
 
         self.set_rectangularity(force=True)
 
@@ -4198,34 +4221,15 @@ class UVData(UVBase):
             # This only happens if no sorting is needed
             return
 
-        # Now update all of the arrays.
-        self.freq_array = self.freq_array[index_array]
-        if not self.metadata_only:
-            self.data_array = self.data_array[:, index_array, :]
-            self.flag_array = self.flag_array[:, index_array, :]
-            self.nsample_array = self.nsample_array[:, index_array, :]
-        if self.flex_spw_id_array is not None:
-            self.flex_spw_id_array = self.flex_spw_id_array[index_array]
+        self._select_along_param_axis({"Nfreqs": index_array})
 
+        if (self.flex_spw_id_array is not None) and (self.Nspws > 1):
             # Reorder the spw-axis items based on their first appearance in the data
-            unique_index = np.sort(
-                np.unique(self.flex_spw_id_array, return_index=True)[1]
-            )
-            new_spw_array = self.flex_spw_id_array[unique_index]
-            if self.flex_spw_polarization_array is not None:
-                spw_sort_inds = np.zeros_like(self.spw_array)
-                for idx, spw in enumerate(new_spw_array):
-                    spw_sort_inds[idx] = np.nonzero(self.spw_array == spw)[0][0]
-                self.flex_spw_polarization_array = self.flex_spw_polarization_array[
-                    spw_sort_inds
-                ]
-            self.spw_array = new_spw_array
+            # Note that the dict will preserve first order.
+            new_spw = dict.fromkeys(self.flex_spw_id_array)
+            spw_map = {spw: idx for idx, spw in enumerate(self.spw_array)}
+            self._select_along_param_axis({"Nspws": [spw_map[key] for key in new_spw]})
 
-        self.channel_width = self.channel_width[index_array]
-
-        if self.eq_coeffs is not None:
-            self.eq_coeffs = self.eq_coeffs[:, index_array]
-        # check if object is self-consistent
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -5467,7 +5471,7 @@ class UVData(UVBase):
         )
 
         # Define parameters that must be the same to add objects
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -5701,6 +5705,9 @@ class UVData(UVBase):
                 raise ValueError(msg)
 
         # Begin manipulating the objects.
+        # Note that this will check to see if we can merge the telescopes (if they are
+        # different, otherwise the underlying checking is the same).
+        this.telescope += other.telescope
 
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -6156,7 +6163,7 @@ class UVData(UVBase):
         # Because self was at the beginning of the list,
         # all the phase centers are merged into it at the end of this loop
 
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         history_update_string = " Combined data along "
 
@@ -6216,7 +6223,9 @@ class UVData(UVBase):
                         )
 
         # Actually check compatibility parameters
+        tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
+            tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
@@ -6226,6 +6235,8 @@ class UVData(UVBase):
                         + " does not match. Cannot combine objects."
                     )
                     raise ValueError(msg)
+
+        this.telescope = tel_obj
 
         if axis == "freq":
             this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
@@ -6642,7 +6653,7 @@ class UVData(UVBase):
             uv=self,
             ant_str=ant_str,
             print_toggle=print_toggle,
-            x_orientation=self.telescope.x_orientation,
+            x_orientation=self.telescope.get_x_orientation_from_feeds(),
         )
 
     def _select_preprocess(
@@ -6750,7 +6761,7 @@ class UVData(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -6852,7 +6863,7 @@ class UVData(UVBase):
             obj_spw_id_array=self.flex_spw_id_array,
             obj_flex_spw_pol_array=self.flex_spw_polarization_array,
             polarizations=polarizations,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
             warn_spacing=warn_spacing,
@@ -6862,7 +6873,7 @@ class UVData(UVBase):
         pol_inds, pol_selections = utils.pol._select_pol_helper(
             polarizations=polarizations,
             obj_pol_array=self.polarization_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             flex_pol=self.flex_spw_polarization_array is not None,
             invert=invert,
             strict=strict,
@@ -7055,7 +7066,7 @@ class UVData(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -8920,6 +8931,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9153,6 +9168,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9251,6 +9270,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9592,6 +9615,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         astrometry_library : str
@@ -9760,6 +9787,10 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         blt_order : tuple of str or "determine", optional
@@ -9860,6 +9891,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        default_mount_type="other",
         # file-type specific parameters
         # miriad
         projected=None,
@@ -10077,6 +10109,12 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here. Note that
+            this parameter is not used for reading in MIR and MWACorrFITS files, since
+            those only originate from a single known telescope per format.
 
         Miriad
         ------
@@ -10386,6 +10424,11 @@ class UVData(UVBase):
             else:
                 file_test = filename
 
+            if isinstance(file_test, str) and not os.path.exists(file_test):
+                # Adding this b/c otherwise you get a "filetype not determined" error
+                # that I (Karto) have dumbly lost a lot of time to.
+                raise FileNotFoundError(f"File not found, check path for: {file_test}")
+
             if os.path.isdir(file_test):
                 # it's a directory, so it's either miriad, mir, or ms file type
                 if os.path.exists(os.path.join(file_test, "vartable")):
@@ -10537,6 +10580,8 @@ class UVData(UVBase):
                         check_autos=check_autos,
                         fix_autos=fix_autos,
                         # file-type specific parameters
+                        # multiple
+                        default_mount_type=default_mount_type,
                         # miriad
                         projected=projected,
                         correct_lat_lon=correct_lat_lon,
@@ -10673,6 +10718,8 @@ class UVData(UVBase):
                             check_autos=check_autos,
                             fix_autos=fix_autos,
                             # file-type specific parameters
+                            # multiple
+                            default_mount_type=default_mount_type,
                             # miriad
                             projected=projected,
                             correct_lat_lon=correct_lat_lon,
@@ -10994,6 +11041,7 @@ class UVData(UVBase):
                     read_data=read_data,
                     keep_all_metadata=keep_all_metadata,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11047,6 +11095,7 @@ class UVData(UVBase):
                     projected=projected,
                     correct_lat_lon=correct_lat_lon,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11112,6 +11161,7 @@ class UVData(UVBase):
                     settings_file=settings_file,
                     background_lsts=background_lsts,
                     read_data=read_data,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11131,6 +11181,7 @@ class UVData(UVBase):
                     raise_error=raise_error,
                     read_weights=read_weights,
                     allow_flex_pol=allow_flex_pol,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11164,6 +11215,7 @@ class UVData(UVBase):
                     multidim_index=multidim_index,
                     remove_flex_pol=remove_flex_pol,
                     background_lsts=background_lsts,
+                    default_mount_type=default_mount_type,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -11333,7 +11385,7 @@ class UVData(UVBase):
         force_phase=False,
         model_data=None,
         corrected_data=None,
-        flip_conj=False,
+        flip_conj=None,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -11365,9 +11417,12 @@ class UVData(UVBase):
             If set to True, and the UVW coordinates are flipped (i.e., multiplied by
             -1) and the visibilities are complex conjugated prior to write, such that
             the data are written with the "opposite" conjugation scheme to what UVData
-            normally uses.  Note that this is only needed for specific subset of
-            applications that read MS-formated data, and should only be used by expert
-            users. Default is False.
+            normally uses. If set to False, no baseline conjugation is performed. By
+            default, the conjugation scheme is automatically determined by baseline
+            conjugation (e.g., "ant1>ant2" or "ant1<ant2"), see UVData.conjugate_bls for
+            further details). Note that this is only needed for specific subset of
+            applications that read MS-formatted data, and should only be modified by
+            expert users.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
@@ -11424,7 +11479,9 @@ class UVData(UVBase):
         be aware that the `importuvifts` task does not currently support reading in
         data sets where the number of antennas is > 255. If writing out such a data set
         for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
-        instead.
+        instead, as the `importuvfits` has some hard-coded behaviors that are telescope
+        dependent and not consistent with documented standards for UVFITS (including
+        antenna position handling, among other metadata).
 
         Parameters
         ----------

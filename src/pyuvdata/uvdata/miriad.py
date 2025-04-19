@@ -155,6 +155,11 @@ class Miriad(UVData):
             "wwidth",
             "wsystemp",
             "wcorr",
+            "mount",
+            "evector",
+            "nfeeds",
+            "feedang",
+            "feedarr",
         ]
 
         extra_miriad_variables = []
@@ -234,8 +239,6 @@ class Miriad(UVData):
             self.rdate = uv["rdate"].replace("\x00", "")
         if "timesys" in uv.vartable:
             self.timesys = uv["timesys"].replace("\x00", "")
-        if "xorient" in uv.vartable:
-            self.telescope.x_orientation = uv["xorient"].replace("\x00", "")
         if "polconv" in uv.vartable:
             self.pol_convention = uv["polconv"].replace("\x00", "")
         if "bltorder" in uv.vartable:
@@ -243,6 +246,23 @@ class Miriad(UVData):
             self.blt_order = tuple(blt_order_str.split(", "))
             if self.blt_order == ("bda",):
                 self._blt_order.form = (1,)
+        if "mount" in uv.vartable:
+            mount = uv["mount"]
+            if not isinstance(mount, np.ndarray):
+                mount = np.full(uv["nants"], mount)
+            self.telescope.mount_type = [
+                utils.antenna.MOUNT_NUM2STR_DICT[item] for item in mount
+            ]
+        if all(item in uv.vartable for item in ["nfeeds", "feedarr", "feedang"]):
+            self.telescope.Nfeeds = uv["nfeeds"]
+            self.telescope.feed_array = np.array(
+                [
+                    item.strip()
+                    for item in uv["feedarr"].replace("\x00", "")[1:-1].split(",")
+                ],
+                dtype=np.object_,
+            ).reshape(-1, self.telescope.Nfeeds)
+            self.telescope.feed_angle = uv["feedang"].reshape(-1, self.telescope.Nfeeds)
 
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 
@@ -724,6 +744,7 @@ class Miriad(UVData):
         projected=None,
         correct_lat_lon=True,
         background_lsts=True,
+        default_mount_type="other",
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -763,6 +784,12 @@ class Miriad(UVData):
             # don't read in the data. This means the object is incomplete,
             # but that may not matter for many purposes.
             return
+
+        # Capture old x-orientation information for downstream processing
+        if "xorient" in uv.vartable:
+            x_orientation = uv["xorient"].replace("\x00", "")
+        else:
+            x_orientation = self.telescope.get_x_orientation_from_feeds()
 
         selections = []
 
@@ -901,7 +928,7 @@ class Miriad(UVData):
                 (
                     p
                     if isinstance(p, int | np.integer)
-                    else utils.polstr2num(p, x_orientation=self.telescope.x_orientation)
+                    else utils.polstr2num(p, x_orientation=x_orientation)
                 )
                 for p in polarizations
             ]
@@ -1542,6 +1569,8 @@ class Miriad(UVData):
 
         # set any extra info
         self.set_telescope_params(
+            x_orientation=x_orientation,
+            mount_type=default_mount_type,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -1858,9 +1887,23 @@ class Miriad(UVData):
         if self.timesys is not None:
             uv.add_var("timesys", "a")
             uv["timesys"] = self.timesys
-        if self.telescope.x_orientation is not None:
-            uv.add_var("xorient", "a")
-            uv["xorient"] = self.telescope.x_orientation
+        if self.telescope.mount_type is not None:
+            uv.add_var("mount", "d")
+            uv["mount"] = np.array(
+                [
+                    utils.antenna.MOUNT_STR2NUM_DICT[mount]
+                    for mount in self.telescope.mount_type
+                ]
+            )
+        if self.telescope.feed_array is not None:
+            uv.add_var("feedarr", "a")
+            uv["feedarr"] = "[" + ", ".join(self.telescope.feed_array.flat) + "]"
+        if self.telescope.feed_angle is not None:
+            uv.add_var("feedang", "d")
+            uv["feedang"] = self.telescope.feed_angle.flat
+        if self.telescope.Nfeeds is not None:
+            uv.add_var("nfeeds", "i")
+            uv["nfeeds"] = self.telescope.Nfeeds
         if self.pol_convention is not None:
             uv.add_var("polconv", "a")
             uv["polconv"] = self.pol_convention

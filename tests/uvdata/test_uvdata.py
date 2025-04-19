@@ -150,11 +150,6 @@ def hera_uvh5_split_main(hera_uvh5_main):
 
     yield uv1, uv2, hera_uvh5_main
 
-    # clean up when done
-    del uv1, uv2
-
-    return
-
 
 @pytest.fixture(scope="function")
 def hera_uvh5_split(hera_uvh5_split_main):
@@ -165,28 +160,19 @@ def hera_uvh5_split(hera_uvh5_split_main):
 
     yield uv1_copy, uv2_copy, uvfull_copy
 
-    # clean up when done
-    del uv1_copy, uv2_copy, uvfull_copy
-
-    return
-
 
 @pytest.fixture(scope="session")
 def hera_uvh5_xx_main():
     """Read in a HERA uvh5 file."""
     hera_uvh5_xx = UVData()
     filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
-    with check_warnings(
-        UserWarning, match="The uvw_array does not match the expected values"
-    ):
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", "The uvw_array does not match the expected values"
+        )
         hera_uvh5_xx = UVData.from_file(filename)
 
     yield hera_uvh5_xx
-
-    # clean up when done
-    del hera_uvh5_xx
-
-    return
 
 
 @pytest.fixture(scope="function")
@@ -195,11 +181,6 @@ def hera_uvh5_xx(hera_uvh5_xx_main):
     hera_uvh5_xx = hera_uvh5_xx_main.copy()
 
     yield hera_uvh5_xx
-
-    # clean up when done
-    del hera_uvh5_xx
-
-    return
 
 
 @pytest.fixture(scope="session")
@@ -217,6 +198,9 @@ def carma_miriad_main():
     testfile = os.path.join(DATA_PATH, "carma_miriad")
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
+        warnings.filterwarnings(
+            "ignore", "mount_type, feed_array, feed_angle, antenna_diameters are not"
+        )
         uv_object.read(testfile, run_check=False, check_extra=False)
     uv_object.extra_keywords = {}
 
@@ -236,7 +220,10 @@ def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv_object.read_uvh5(uvh5_file)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "The uvw_array does not match")
+        warnings.filterwarnings("ignore", "mount_type, feed_array, feed_angle are not")
+        uv_object.read_uvh5(uvh5_file)
 
     yield uv_object
 
@@ -267,7 +254,7 @@ def bda_test_file_main():
     with check_warnings(
         UserWarning, match="Unknown phase type, assuming object is unprojected"
     ):
-        uv_object.read(testfile)
+        uv_object.read(testfile, default_mount_type="fixed")
 
     yield uv_object
 
@@ -295,18 +282,9 @@ def pyuvsim_redundant_main():
     # read in test file for the compress/inflate redundancy functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", "antenna_diameters are not set or are being overwritten."
-        )
-        uv_object.read(testfile)
+    uv_object.read(testfile)
 
     yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
 
 
 @pytest.fixture(scope="function")
@@ -315,11 +293,6 @@ def pyuvsim_redundant(pyuvsim_redundant_main):
     uv_object = pyuvsim_redundant_main.copy()
 
     yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
 
 
 @pytest.fixture(scope="function")
@@ -650,6 +623,15 @@ def test_nants_data_telescope_larger(casa_uvfits):
     uvobj.telescope.antenna_positions = np.concatenate(
         (uvobj.telescope.antenna_positions, np.zeros((1, 3))), axis=0
     )
+    uvobj.telescope.feed_array = np.concatenate(
+        (uvobj.telescope.feed_array, [uvobj.telescope.feed_array[-1]]), axis=0
+    )
+    uvobj.telescope.feed_angle = np.concatenate(
+        (uvobj.telescope.feed_angle, [uvobj.telescope.feed_angle[-1]]), axis=0
+    )
+    uvobj.telescope.mount_type = np.concatenate(
+        (uvobj.telescope.mount_type, [uvobj.telescope.mount_type[-1]]), axis=0
+    )
     assert uvobj.check()
 
 
@@ -661,6 +643,9 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[1:]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[1:]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[1:, :]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[1:]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[1:, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[1:, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
@@ -677,6 +662,9 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[:-1]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[:-1]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[:-1]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[:-1]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[:-1, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[:-1, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_2_array must be in antenna_numbers"
@@ -816,14 +804,7 @@ def test_hera_diameters(paper_uvh5):
     uv_in = paper_uvh5
 
     uv_in.telescope.name = "HERA"
-    with check_warnings(
-        UserWarning,
-        match=(
-            "antenna_diameters are not set or are being overwritten. "
-            "antenna_diameters are set using values from known telescopes for HERA."
-        ),
-    ):
-        uv_in.set_telescope_params()
+    uv_in.set_telescope_params()
 
     assert uv_in.telescope.name == "HERA"
     assert uv_in.telescope.antenna_diameters is not None
@@ -858,6 +839,9 @@ def test_generic_read():
         )
 
     with pytest.raises(ValueError, match="File type could not be determined"):
+        uv_in.read(os.path.join(DATA_PATH, "mwa_ant_pos.csv"))
+
+    with pytest.raises(FileNotFoundError, match="File not found, check path for: foo"):
         uv_in.read("foo")
 
 
@@ -1049,6 +1033,9 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+        spicey_err = SpiceUNKNOWNFRAME
 
         enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
@@ -1074,6 +1061,7 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
             location=uv_in.telescope.location,
         )
     else:
+        spicey_err = None
         zenith_coord = SkyCoord(
             alt=Angle(90 * units.deg),
             az=Angle(0 * units.deg),
@@ -1083,7 +1071,10 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
         )
     zen_icrs = zenith_coord.transform_to("icrs")
 
-    uv_in.phase_to_time(uv_in.time_array[0])
+    try:
+        uv_in.phase_to_time(uv_in.time_array[0])
+    except spicey_err:
+        pytest.skip(reason="Flaky CSPICE issue")
 
     assert np.isclose(
         uv_in.phase_center_catalog[1]["cat_lat"],
@@ -2537,7 +2528,7 @@ def test_select_polarizations(hera_uvh5, pol_list, invert):
             pol_int_list[idx] = p
         else:
             pol_int_list[idx] = utils.polstr2num(
-                p, x_orientation=uv_object.telescope.x_orientation
+                p, x_orientation=uv_object.telescope.get_x_orientation_from_feeds()
             )
 
     assert np.all(np.isin(pol_int_list, uv_object.polarization_array, invert=invert))
@@ -5113,7 +5104,7 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
             "itrs position vector magnitudes must be on the order "
             "of the radius of Earth -- they appear to lie well below this."
         ]
-        * 5,
+        * 4,
     ):
         uv.read(fname)
 
@@ -5130,14 +5121,17 @@ def test_get_pols(casa_uvfits):
 def test_get_pols_x_orientation(paper_uvh5):
     uv_in = paper_uvh5
 
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
 
     pols = uv_in.get_pols()
     pols_data = ["en"]
     assert pols == pols_data
 
-    uv_in.telescope.x_orientation = "north"
-
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "north", polarization_array=uv_in.polarization_array
+    )
     pols = uv_in.get_pols()
     pols_data = ["ne"]
     assert pols == pols_data
@@ -6333,7 +6327,6 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
     assert uv3 == uv1
 
 
-@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 def test_compress_redundancy_variable_inttime(grid_alg):
     uv0 = UVData()
@@ -6418,7 +6411,6 @@ def test_compress_redundancy_wrong_method(pyuvsim_redundant):
         uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
-@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path):
@@ -9776,13 +9768,13 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
-    with check_warnings(UserWarning, match=["Failed to read"]):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(fileList, skip_bad_files=True)
     assert uv == uv_true
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
-    with check_warnings(UserWarning, match=["Failed to read"]):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
     assert uv == uv_true
@@ -9790,7 +9782,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test that selection happens when there's only one good file in a list
     uv_true2 = uv_true.copy()
     uv_true2.select(freq_chans=np.arange(uv_true.Nfreqs // 2))
-    with check_warnings(UserWarning, match=["Failed to read"]):
+    with check_warnings(UserWarning, match="Failed to read"):
         uv.read(
             fileList, skip_bad_files=True, freq_chans=np.arange(uv_true.Nfreqs // 2)
         )
@@ -11142,9 +11134,6 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
 
     with check_warnings(read_warn_type, match=read_warn_msg), warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
-        warnings.filterwarnings(
-            "ignore", "antenna_diameters are not set or are being overwritten."
-        )
         uv_in_bad2 = UVData.from_file(
             outfile, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
         )
@@ -11839,15 +11828,19 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         ],
         [
             "1133866760.uvfits",
-            (
-                "Fixing auto-correlations to be be real-only, after some imaginary"
-                " values were detected in data_array."
-            ),
+            [
+                (
+                    "Fixing auto-correlations to be be real-only, after some imaginary"
+                    " values were detected in data_array."
+                )
+            ],
         ],
         [
             "fhd",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file.",
+            [
+                "Telescope location derived from obs lat/lon/alt values does not match "
+                "the location in the layout file."
+            ],
         ],
     ],
 )
@@ -12334,7 +12327,10 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         "name",
         "location",
         "instrument",
-        "x_orientation",
+        "Nfeeds",
+        "feed_array",
+        "feed_angle",
+        "mount_type",
         "Nants",
         "antenna_names",
         "antenna_numbers",

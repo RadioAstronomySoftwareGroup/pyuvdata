@@ -38,6 +38,7 @@ class FHDCal(UVCal):
         settings_file=None,
         raw=True,
         read_data=True,
+        default_mount_type="other",
         background_lsts=True,
         extra_history=None,
         run_check=True,
@@ -222,10 +223,6 @@ class FHDCal(UVCal):
             self.telescope.Nants = len(self.telescope.antenna_names)
 
         self.telescope.antenna_names = np.asarray(self.telescope.antenna_names)
-
-        self.telescope.x_orientation = "east"
-
-        self.set_telescope_params()
 
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(
@@ -451,6 +448,13 @@ class FHDCal(UVCal):
             self.jones_array = np.array([-5])
         else:
             self.jones_array = np.array([-5, -6])
+
+        if self.telescope.name == "mwa":
+            # Setting this explicitly to avoid superfluous warnings, given that MWA
+            # seems to be the most common telescope to pass through FHD
+            self.telescope.mount_type = ["phased"] * self.telescope.Nants
+
+        self.set_telescope_params(x_orientation="east", mount_type=default_mount_type)
 
         # for calibration FHD creates gain array of shape (Nfreqs, Nants_telescope)
         # rather than (Nfreqs, Nants_data). This means the antenna array will

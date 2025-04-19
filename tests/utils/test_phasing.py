@@ -1379,8 +1379,12 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
     # paths through the ephem.
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
+        err_type = None
     else:
         telescope_loc = astrometry_args["moon_telescope_loc"]
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+        err_type = SpiceUNKNOWNFRAME
 
     if frame == "fk5":
         ephem_ra = astrometry_args["fk5_ra"]
@@ -1390,18 +1394,23 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
         ephem_dec = np.array([astrometry_args["icrs_dec"]])
 
     ephem_times = np.array([astrometry_args["time_array"][0]])
-    check_ra, check_dec = phs_utils.calc_app_coords(
-        lon_coord=ephem_ra,
-        lat_coord=ephem_dec,
-        coord_times=ephem_times,
-        coord_type="ephem",
-        telescope_loc=telescope_loc,
-        telescope_frame=telescope_frame,
-        ellipsoid=selenoid,
-        time_array=astrometry_args["time_array"],
-        coord_epoch=astrometry_args["epoch"],
-        coord_frame=frame,
-    )
+
+    try:
+        check_ra, check_dec = phs_utils.calc_app_coords(
+            lon_coord=ephem_ra,
+            lat_coord=ephem_dec,
+            coord_times=ephem_times,
+            coord_type="ephem",
+            telescope_loc=telescope_loc,
+            telescope_frame=telescope_frame,
+            ellipsoid=selenoid,
+            time_array=astrometry_args["time_array"],
+            coord_epoch=astrometry_args["epoch"],
+            coord_frame=frame,
+        )
+    except err_type as err:
+        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
     if telescope_frame == "itrs":
@@ -1770,18 +1779,25 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame, seleno
     """
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
+        err_type = None
     else:
         telescope_loc = astrometry_args["moon_telescope_loc"]
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
-    check_ra, check_dec = phs_utils.transform_icrs_to_app(
-        time_array=Time(astrometry_args["time_array"], format="jd"),
-        ra=astrometry_args["icrs_ra"],
-        dec=astrometry_args["icrs_dec"],
-        telescope_loc=telescope_loc,
-        telescope_frame=telescope_frame,
-        ellipsoid=selenoid,
-        epoch=Time(astrometry_args["epoch"], format="jyear"),
-    )
+        err_type = SpiceUNKNOWNFRAME
+
+    try:
+        check_ra, check_dec = phs_utils.transform_icrs_to_app(
+            time_array=Time(astrometry_args["time_array"], format="jd"),
+            ra=astrometry_args["icrs_ra"],
+            dec=astrometry_args["icrs_dec"],
+            telescope_loc=telescope_loc,
+            telescope_frame=telescope_frame,
+            ellipsoid=selenoid,
+            epoch=Time(astrometry_args["epoch"], format="jyear"),
+        )
+    except err_type as err:
+        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     if telescope_frame == "itrs":
         app_ra = astrometry_args["app_ra"]

@@ -210,8 +210,8 @@ def test_short_dipole_beam(az_za_deg_grid):
     np.testing.assert_allclose(power_vals, expected_data, atol=1e-15, rtol=0)
 
     assert (
-        beam.__repr__() == "ShortDipoleBeam(feed_array=array(['e', 'n'], dtype='<U1'), "
-        "x_orientation='east')"
+        beam.__repr__() == "ShortDipoleBeam(feed_array=array(['x', 'y'], dtype='<U1'), "
+        "feed_angle=array([1.57079633, 0.        ]), mount_type='fixed')"
     )
 
 
@@ -224,13 +224,28 @@ def test_shortdipole_feed_error():
     ):
         ShortDipoleBeam(feed_array=["r", "l"])
 
+    with pytest.raises(
+        NotImplementedError,
+        match="ShortDipoleBeams currently only support dipoles aligned to East "
+        "and North, it does not yet have support for arbitrary feed angles.",
+    ):
+        ShortDipoleBeam(feed_angle=[np.deg2rad(30), np.deg2rad(120)])
+
 
 @pytest.mark.parametrize(
     ("feed_array", "x_orientation"),
     [(None, "east"), (["y", "x"], "north"), (["e", "n"], "east"), (["r", "l"], None)],
 )
 def test_uniform_beam(az_za_deg_grid, feed_array, x_orientation):
-    beam = UniformBeam(feed_array=feed_array, x_orientation=x_orientation)
+    if feed_array is not None and "e" in feed_array:
+        exp_warn = DeprecationWarning
+        msg = "Support for physically oriented feeds"
+    else:
+        exp_warn = None
+        msg = ""
+
+    with check_warnings(exp_warn, match=msg):
+        beam = UniformBeam(feed_array=feed_array, x_orientation=x_orientation)
 
     az_vals, za_vals, freqs = az_za_deg_grid
 
@@ -394,8 +409,7 @@ def test_missing_req_methods():
 
 def test_missing_x_orientation():
     with pytest.raises(
-        ValueError,
-        match="x_orientation must be specified for linear polarization feeds",
+        ValueError, match="feed_angle or x_orientation must be specified"
     ):
         UniformBeam(x_orientation=None)
 
@@ -405,7 +419,18 @@ def test_missing_x_orientation():
     [
         (UniformBeam(), UniformBeam(feed_array=["r", "l"]), True),
         (ShortDipoleBeam(), ShortDipoleBeam(x_orientation="north"), False),
+        (ShortDipoleBeam(), ShortDipoleBeam(feed_angle=[np.pi / 2, 0]), True),
+        (
+            ShortDipoleBeam(x_orientation="north"),
+            ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[0, np.pi / 2]),
+            True,
+        ),
         (UniformBeam(), ShortDipoleBeam(), False),
+        (
+            ShortDipoleBeam(mount_type="fixed"),
+            ShortDipoleBeam(mount_type="alt-az"),
+            False,
+        ),
     ],
 )
 def test_beam_equality(beam1, beam2, equal):
@@ -574,3 +599,27 @@ def test_clone():
     beam = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
     new_beam = beam.clone(feed_array=["x"])
     assert new_beam.feed_array == ["x"]
+
+
+def test_get_x_orientation_deprecation():
+    beam = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+
+    with check_warnings(
+        DeprecationWarning,
+        match="The AnalyticBeam.x_orientation attribute is deprecated",
+    ):
+        assert beam.x_orientation == beam.get_x_orientation_from_feeds()
+
+
+def test_set_x_orientation_deprecation():
+    beam1 = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+    beam2 = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+    with check_warnings(
+        DeprecationWarning,
+        match="The AnalyticBeam.x_orientation attribute is deprecated",
+    ):
+        beam1.x_orientation = "east"
+
+    beam2.set_feeds_from_x_orientation("east")
+
+    assert beam1.get_x_orientation_from_feeds() == beam2.get_x_orientation_from_feeds()

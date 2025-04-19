@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import warnings
-from dataclasses import InitVar, astuple, dataclass, field, replace
+from dataclasses import InitVar, dataclass, field, replace
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -42,9 +42,25 @@ def dc_eq(dc1, dc2) -> bool:
         return True
     if dc1.__class__ is not dc2.__class__:
         return NotImplemented  # better than False
-    t1 = astuple(dc1)
-    t2 = astuple(dc2)
-    return all(array_safe_eq(a1, a2) for a1, a2 in zip(t1, t2, strict=True))
+    fields1 = dataclasses.fields(dc1)
+    dict1 = {}
+    for fld in fields1:
+        if fld.compare:
+            dict1[fld.name] = getattr(dc1, fld.name)
+    fields2 = dataclasses.fields(dc2)
+    dict2 = {}
+    for fld in fields2:
+        if fld.compare:
+            dict2[fld.name] = getattr(dc2, fld.name)
+
+    # I can't figure out how to cause this to happen, but I still think it
+    # should be checked.
+    if dict1.keys() != dict2.keys():  # pragma: no cover
+        return False
+    return all(
+        array_safe_eq(a1, a2)
+        for a1, a2 in zip(dict1.values(), dict2.values(), strict=True)
+    )
 
 
 @dataclass(kw_only=True)
@@ -55,34 +71,81 @@ class AnalyticBeam:
     Attributes
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l.
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for polarized beams like the ShortDipoleBeam and matches with the meaning
-        on UVBeam objects.
+        Feeds to define this beam for, e.g. x & y or r & l.
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
 
     Parameters
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l. Default is ["x", "y"].
+        Feeds to define this beam for, e.g. x & y or r & l.
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details. Default is "fixed".
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
+        the power beam.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
         unpolarized analytic beams, but clarifies the orientation of the dipole
         for for polarized beams like the ShortDipoleBeam and matches with the
-        meaning on UVBeam objects
-    include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
-        the power beam.
+        meaning on UVBeam objects. Used to set values of the feed_angle attribute,
+        ignored in feed_angle is provided. Default is "east".
 
     """
 
     feed_array: npt.ArrayLike[str] | None = None
-    x_orientation: Literal["east", "north"] | None = "east"
+    feed_angle: npt.ArrayLike[float] | None = None
+    mount_type: (
+        Literal[
+            "alt-az",
+            "equatorial",
+            "orbiting",
+            "x-y",
+            "alt-az+nasmyth-r",
+            "alt-az+nasmyth-l",
+            "phased",
+            "fixed",
+            "other",
+        ]
+        | None
+    ) = "fixed"
 
     include_cross_pols: InitVar[bool] = True
+    x_orientation: InitVar[Literal["east", "north"] | None] = "east"
 
     basis_vector_type = None
 
@@ -122,11 +185,82 @@ class AnalyticBeam:
 
         cls.__types__[cls.__name__] = cls
 
+    def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
+        """
+        Get x-orientation equivalent value based on feed information.
+
+        Returns
+        -------
+        x_orientation : str
+            One of "east", "north", or None, based on values present in
+            AnalyticBeam.feed_array and AnalyticBeam.feed_angle.
+        """
+        return utils.pol.get_x_orientation_from_feeds(
+            feed_array=self.feed_array, feed_angle=self.feed_angle, tols=[0, 1e-6]
+        )
+
+    def set_feeds_from_x_orientation(self, x_orientation):
+        """
+        Set feed information based on x-orientation value.
+
+        Populates newer parameters describing feed-orientation
+        (`AnalyticBeam.feed_array` and `AnalyticBeam.feed_angle`) based on the "older"
+        x-orientation string. Note that this method will overwrite any previously
+        populated values.
+
+        Parameters
+        ----------
+        x_orientation : str
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north).
+        """
+        pol = self.polarization_array if hasattr(self, "polarization_array") else None
+        _, self.feed_array, self.feed_angle = utils.pol.get_feeds_from_x_orientation(
+            x_orientation=x_orientation,
+            feeds=self.feed_array,
+            polarization_array=pol,
+            nants=0,
+        )
+
+    def __getattribute__(self, __name):
+        """Handle getting old attributes."""
+        if __name == "x_orientation":
+            warnings.warn(
+                "The AnalyticBeam.x_orientation attribute is deprecated, and has "
+                "been superseded by AnalyticBeam.feed_angle and "
+                "AnalyticBeam.feed_array. This will become an error in version 3.4. "
+                "To set the equivalent value in the future, you can substitute "
+                "accessing this parameter with a call to "
+                "AnalyticBeam.get_x_orientation_from_feeds().",
+                DeprecationWarning,
+            )
+            return self.get_x_orientation_from_feeds()
+
+        return super().__getattribute__(__name)
+
+    def __setattr__(self, __name, __value):
+        """Handle setting old attributes."""
+        if __name == "x_orientation":
+            warnings.warn(
+                "The AnalyticBeam.x_orientation attribute is deprecated, and has "
+                "been superseded by UVBeam.feed_angle and AnalyticBeam.feed_array. "
+                "This will become an error in version 3.4. To get the equivalent "
+                "value in the future, you can substitute accessing this parameter "
+                "with a call to AnalyticBeam.set_feeds_from_x_orientation().",
+                DeprecationWarning,
+            )
+            if __value is not None:
+                return self.set_feeds_from_x_orientation(__value)
+
+        return super().__setattr__(__name, __value)
+
     def validate(self):
         """Validate inputs, placeholder for subclasses."""
         pass
 
-    def __post_init__(self, include_cross_pols):
+    def __post_init__(self, include_cross_pols, x_orientation):
         """
         Post-initialization validation and conversions.
 
@@ -148,24 +282,44 @@ class AnalyticBeam:
                         f"got feeds: {self.feed_array}"
                     )
             self.feed_array = np.asarray(self.feed_array)
+            if any(np.isin(self.feed_array, ["e", "n"])):
+                warnings.warn(
+                    'Support for physically oriented feeds (e.g., "n", and "e") has '
+                    "been deprecated, with the only allowed options now available "
+                    'being "x", "y", "l", or "r". The physical orientation of the feed '
+                    "is now recorded in the AnalyticBeam.feed_angle parameter. This "
+                    "will become an error in version 3.4.",
+                    DeprecationWarning,
+                )
+                self.feed_angle = np.where(self.feed_array == "e", np.pi / 2, 0.0)
+                self.feed_array[self.feed_array == "e"] = "x"
+                self.feed_array[self.feed_array == "n"] = "y"
         else:
             self.feed_array = np.asarray(["x", "y"])
 
+        if self.feed_angle is not None:
+            self.feed_angle = np.asarray(self.feed_angle)
+        elif x_orientation is not None:
+            self.set_feeds_from_x_orientation(x_orientation)
+
         linear_pol = False
-        for feed_name in ["x", "y", "e", "n"]:
+        for feed_name in ["x", "y"]:
             if feed_name in self.feed_array:
                 linear_pol = True
 
-        if self.x_orientation is None and linear_pol:
+        if self.feed_angle is None and linear_pol:
             raise ValueError(
-                "x_orientation must be specified for linear polarization feeds"
+                "feed_angle or x_orientation must be specified "
+                "for linear polarization feeds"
             )
 
         if len(self.feed_array) == 1:
             include_cross_pols = False
 
         self.polarization_array = utils.pol.convert_feeds_to_pols(
-            self.feed_array, include_cross_pols, x_orientation=self.x_orientation
+            self.feed_array,
+            include_cross_pols,
+            x_orientation=self.get_x_orientation_from_feeds(),
         )
 
     def __eq__(self, other):
@@ -191,16 +345,18 @@ class AnalyticBeam:
 
     def clone(self, **kw):
         """Create a new instance of the object with updated parameters."""
-        return replace(self, **kw)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", "The AnalyticBeam.x_orientation attribute is deprecated"
+            )
+            return replace(self, **kw)
 
     @property
     def east_ind(self):
         """The index of the east feed in the feed array."""
-        if "e" in self.feed_array:
-            east_name = "e"
-        elif self.x_orientation == "east" and "x" in self.feed_array:
+        if self.get_x_orientation_from_feeds() == "east" and "x" in self.feed_array:
             east_name = "x"
-        elif self.x_orientation == "north" and "y" in self.feed_array:
+        elif self.get_x_orientation_from_feeds() == "north" and "y" in self.feed_array:
             east_name = "y"
         else:
             # this is not a linearly polarized feed
@@ -210,11 +366,9 @@ class AnalyticBeam:
     @property
     def north_ind(self):
         """The index of the north feed in the feed array."""
-        if "n" in self.feed_array:
-            north_name = "n"
-        elif self.x_orientation == "north" and "x" in self.feed_array:
+        if self.get_x_orientation_from_feeds() == "north" and "x" in self.feed_array:
             north_name = "x"
-        elif self.x_orientation == "east" and "y" in self.feed_array:
+        elif self.get_x_orientation_from_feeds() == "east" and "y" in self.feed_array:
             north_name = "y"
         else:
             # this is not a linearly polarized feed
@@ -246,12 +400,10 @@ class AnalyticBeam:
                 (self.Naxes_vec, self.Nfeeds, *grid_shape), dtype=np.complex128
             )
         else:
-            if self.Npols > self.Nfeeds:
-                # crosspols are included
-                dtype_use = np.complex128
-            else:
-                dtype_use = np.float64
-            return np.zeros((1, self.Npols, *grid_shape), dtype=dtype_use)
+            return np.zeros(
+                (1, self.Npols, *grid_shape),
+                dtype=np.complex128 if self.Npols > self.Nfeeds else np.float64,
+            )
 
     def efield_eval(
         self,
@@ -344,16 +496,10 @@ class AnalyticBeam:
         za_grid, _ = np.meshgrid(za_array, freq_array)
         az_grid, f_grid = np.meshgrid(az_array, freq_array)
 
-        if self.Npols > self.Nfeeds:
-            # cross pols are included
-            expected_type = complex
-        else:
-            expected_type = float
-
         if hasattr(self, "_power_eval"):
             return self._power_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
-            ).astype(expected_type)
+            ).astype(complex if self.Npols > self.Nfeeds else float)
         else:
             efield_vals = self._efield_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
@@ -428,11 +574,11 @@ class AnalyticBeam:
             raise ValueError("Beam type must be 'efield' or 'power'")
 
         if beam_type == "efield":
-            feed_array = self.feed_array
             polarization_array = None
         else:
-            feed_array = None
             polarization_array = self.polarization_array
+
+        mount_type = self.mount_type if hasattr(self, "mount_type") else None
 
         if pixel_coordinate_system is not None:
             allowed_coord_sys = list(UVBeam().coordinate_system_dict.keys())
@@ -456,9 +602,10 @@ class AnalyticBeam:
             model_name=self.__repr__(),
             model_version="1.0",
             freq_array=freq_array,
-            feed_array=feed_array,
+            feed_array=self.feed_array,
+            feed_angle=self.feed_angle,
+            mount_type=mount_type,
             polarization_array=polarization_array,
-            x_orientation=self.x_orientation,
             pixel_coordinate_system=pixel_coordinate_system,
             axis1_array=axis1_array,
             axis2_array=axis2_array,
@@ -599,6 +746,8 @@ def _analytic_beam_representer(dumper, beam):
     }
     if "feed_array" in mapping:
         mapping["feed_array"] = mapping["feed_array"].tolist()
+    if "feed_angle" in mapping:
+        mapping["feed_angle"] = mapping["feed_angle"].tolist()
 
     return dumper.represent_mapping("!AnalyticBeam", mapping)
 
@@ -609,7 +758,7 @@ yaml.add_multi_representer(
 yaml.add_multi_representer(AnalyticBeam, _analytic_beam_representer, Dumper=yaml.Dumper)
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class UnpolarizedAnalyticBeam(AnalyticBeam):
     """
     Unpolarized analytic beam base class.
@@ -617,43 +766,86 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
     Attributes
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l.
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for polarized beams like the ShortDipoleBeam and matches with the meaning
-        on UVBeam objects.
+        Feeds to define this beam for, e.g. x & y or r & l.
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
 
     Parameters
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l. Default is ["x", "y"].
+        Feeds to define this beam for, e.g. x & y or r & l. Default is ["x", "y"].
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
+        the power beam.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
         unpolarized analytic beams, but clarifies the orientation of the dipole
         for for polarized beams like the ShortDipoleBeam and matches with the
-        meaning on UVBeam objects
-    include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
-        the power beam.
+        meaning on UVBeam objects. Used to set values of the feed_angle attribute,
+        ignored in feed_angle is provided. Default is "east".
 
     """
 
     feed_array: npt.npt.ArrayLike[str] | None = field(
         default=None, repr=False, compare=False
     )
-    x_orientation: Literal["east", "north"] = field(
-        default="east", repr=False, compare=False
+    feed_angle: npt.npt.ArrayLike[float] | None = field(
+        default=None, repr=False, compare=False
     )
+    mount_type: Literal[
+        "alt-az",
+        "equatorial",
+        "orbiting",
+        "x-y",
+        "alt-az+nasmyth-r",
+        "alt-az+nasmyth-l",
+        "phased",
+        "fixed",
+        "other",
+    ] = field(default="fixed", repr=False, compare=True)
 
     # the basis vector type doesn't matter for unpolarized beams, just hardcode
     # it here so subclasses don't have to deal with it.
     basis_vector_type = "az_za"
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class AiryBeam(UnpolarizedAnalyticBeam):
     """
     A zenith pointed Airy beam.
@@ -742,7 +934,7 @@ def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
     return sigma
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class GaussianBeam(UnpolarizedAnalyticBeam):
     """
     A circular, zenith pointed Gaussian beam.
@@ -898,24 +1090,59 @@ class ShortDipoleBeam(AnalyticBeam):
     Attributes
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
-    x_orientation : str
-        The orientation of the dipole labeled 'x'. The default ("east") means
-        that the x dipole is aligned east-west and that the y dipole is aligned
-        north-south.
+        Feeds to define this beam for, e.g. x & y.
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
 
     Parameters
     ----------
-    feed_array : list of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l. Default is ["e", "n"].
-    x_orientation : str
-        The orientation of the dipole labeled 'x'. The default ("east") means
-        that the x dipole is aligned east-west and that the y dipole is aligned
-        north-south.
+    feed_array : array-like of str
+        Feeds to define this beam for, e.g. x & y or r & l. Default is ["x", "y"]
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-        for the power beam.
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
+        the power beam.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for for polarized beams like the ShortDipoleBeam and matches with the
+        meaning on UVBeam objects. Used to set values of the feed_angle attribute,
+        ignored in feed_angle is provided. Default is "east".
 
     """
 
@@ -924,7 +1151,7 @@ class ShortDipoleBeam(AnalyticBeam):
     def validate(self):
         """Post-initialization validation and conversions."""
         if self.feed_array is None:
-            self.feed_array = ["e", "n"]
+            self.feed_array = ["x", "y"]
 
         allowed_feeds = ["n", "e", "x", "y"]
         for feed in self.feed_array:
@@ -932,6 +1159,16 @@ class ShortDipoleBeam(AnalyticBeam):
                 raise ValueError(
                     f"Feeds must be one of: {allowed_feeds}, "
                     f"got feeds: {self.feed_array}"
+                )
+
+        if self.feed_angle is not None:
+            x_orient = utils.pol.get_x_orientation_from_feeds(
+                feed_array=self.feed_array, feed_angle=self.feed_angle, tols=[0, 1e-6]
+            )
+            if x_orient is None:
+                raise NotImplementedError(
+                    "ShortDipoleBeams currently only support dipoles aligned to East "
+                    "and North, it does not yet have support for arbitrary feed angles."
                 )
 
     def _efield_eval(
@@ -976,7 +1213,7 @@ class ShortDipoleBeam(AnalyticBeam):
         return data_array
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class UniformBeam(UnpolarizedAnalyticBeam):
     """
     A uniform beam.
@@ -993,23 +1230,59 @@ class UniformBeam(UnpolarizedAnalyticBeam):
     Attributes
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l.
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        UniformBeams, which are unpolarized.
+        Feeds to define this beam for, e.g. x & y or r & l.
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
 
     Parameters
     ----------
     feed_array : array-like of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l. Default is ["x", "y"].
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        UniformBeams, which are unpolarized.
+        Feeds to define this beam for, e.g. x & y or r & l. Default is ["x", "y"].
+    feed_angle : array-like of float
+        Position angle of a given feed, units of radians. A feed angle of 0 is
+        typically oriented toward zenith for steerable antennas, otherwise toward
+        north for fixed antennas (e.g., HERA, LWA). More details on this can be found
+        on the "Conventions" page of the docs.
+    mount_type : str
+        Antenna mount type, which describes the optics of the antenna in question.
+        Supported options include: "alt-az" (primary rotates in azimuth and
+        elevation), "equatorial" (primary rotates in hour angle and declination)
+        "orbiting" (antenna is in motion, and its orientation depends on orbital
+        parameters), "x-y" (primary rotates first in the plane connecting east,
+        west, and zenith, and then perpendicular to that plane),
+        "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+        mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+        tertiary mirror), "phased" (antenna is "electronically steered" by
+        summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+        beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+        (also referred to in some formats as "bizarre"). See the "Conventions"
+        page of the documentation for further details.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for for polarized beams like the ShortDipoleBeam and matches with the
+        meaning on UVBeam objects. Used to set values of the feed_angle attribute,
+        ignored in feed_angle is provided. Default is "east".
 
     """
 

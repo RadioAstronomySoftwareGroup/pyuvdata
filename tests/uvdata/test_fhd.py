@@ -189,9 +189,7 @@ def test_read_fhd_write_read_uvfits_no_layout(fhd_data_files, multi):
 
     warn_msg = [
         "The layout_file parameter was not passed, so antenna_postions will "
-        "not be defined and antenna names and numbers might be incorrect.",
-        "antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for mwa.",
+        "not be defined and antenna names and numbers might be incorrect."
     ]
     if multi:
         warn_msg = warn_msg * 2

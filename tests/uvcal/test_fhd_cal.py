@@ -290,6 +290,7 @@ def test_unknown_telescope():
             obs_file=os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
             layout_file=layout_testfile,
             settings_file=settings_testfile,
+            default_mount_type="fixed",
         )
     assert fhd_cal.telescope.name == "foo"
 
@@ -330,15 +331,11 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     assert fhd_cal.history == expected_history
 
     message_list = [
-        "No layout file, antenna_postions will not be defined.",
-        "antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for mwa.",
+        "No layout file, antenna_postions will not be defined."
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
-    warning_list = [UserWarning] * (3 * nfiles - 1)
-
     if nfiles == 1:
-        with check_warnings(warning_list, match=message_list):
+        with check_warnings(UserWarning, match=message_list):
             fhd_cal.read_fhd_cal(
                 cal_file=cal_file, obs_file=obs_file, settings_file=settings_file
             )

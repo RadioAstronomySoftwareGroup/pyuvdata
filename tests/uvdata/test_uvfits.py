@@ -147,7 +147,7 @@ def test_group_param_precision(tmp_path, uvw_double):
         DATA_PATH, "2018-03-21-01_26_33_0004384620257280_000000_downselected.ms"
     )
     uvd = UVData()
-    uvd.read(lwa_file)
+    uvd.read(lwa_file, default_mount_type="fixed")
 
     testfile = os.path.join(tmp_path, "lwa_testfile.uvfits")
     uvd.write_uvfits(testfile, uvw_double=uvw_double)
@@ -713,8 +713,12 @@ def test_uvfits_optional_params(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if optional params are set, they are read back out properly
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     uv_in.telescope.pol_convention = "sum"
+    # Order feeds in AIPS convention for round-tripping
+    uv_in.telescope.reorder_feeds("AIPS")
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
 
@@ -1496,7 +1500,7 @@ def test_cotter_telescope_frame(tmp_path):
 
     with check_warnings(
         UserWarning,
-        ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         uvd1.read_uvfits(write_file, read_data=False)
 
@@ -1560,7 +1564,7 @@ def test_mwax_birli_frame(tmp_path):
         hdu_list.writeto(outfile)
     with check_warnings(
         UserWarning,
-        ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         UVData.from_file(outfile, read_data=False)
 
@@ -1574,7 +1578,7 @@ def test_mwax_missing_frame_comment(tmp_path):
         hdu_list.writeto(outfile)
     with check_warnings(
         UserWarning,
-        ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         UVData.from_file(outfile, read_data=False)
 
@@ -1789,3 +1793,10 @@ def test_miriad_convention(tmp_path):
     uv2.baseline_array = uv2.antnums_to_baseline(uv2.ant_1_array, uv2.ant_2_array)
 
     assert uv2 == uv
+
+
+def test_feed_err(sma_mir, tmp_path):
+    outpath = os.path.join(tmp_path, "feed_err")
+    sma_mir.telescope.feed_array.flat[0] = "k"
+    with pytest.raises(ValueError, match="UVFITS only supports"):
+        sma_mir.write_uvfits(outpath, run_check=False)

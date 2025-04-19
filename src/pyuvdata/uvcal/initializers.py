@@ -30,11 +30,16 @@ def new_uvcal(
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
     telescope: Telescope | None = None,
+    update_telescope_from_known: bool = True,
     # do not type hint here because MoonLocations are allowed but we don't
     # want to import them just for this.
     telescope_location=None,
     telescope_name: str | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
+    feeds: Literal["x", "y", "l", "r"] | list[str] | None = None,
+    feed_array: np.ndarray | None = None,
+    feed_angle: np.ndarray | None = None,
+    mount_type: list | None = None,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
     antenna_names: list[str] | None = None,
     antenna_numbers: list[int] | None = None,
@@ -99,6 +104,11 @@ def new_uvcal(
         Telescope object containing the telescope-related metadata including
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
+    update_telescope_from_known : bool
+        If set to True, then the method will fill in any missing fields/information on
+        the Telescope object if the name is recognized. If set to True, the method
+        will only construct the UVData.Telescope object with the information directly
+        supplied. Default is True.
     telescope_location : EarthLocation or MoonLocation object
         Deprecated. Telescope location as an astropy EarthLocation object or
         MoonLocation object. Not required or used if a Telescope object is
@@ -110,6 +120,20 @@ def new_uvcal(
         Deprecated. Orientation of the x-axis. Options are 'east', 'north',
         'e', 'n', 'ew', 'ns'. Not required or used if a Telescope object is
         passed to `telescope`.
+    feeds : list of str or None:
+        List of feeds present in the Telescope, which must be one of "x", "y", "l",
+        "r". Length of the list must be either 1 or 2. Used to populate feed_array
+        and feed_angle parameters if only supplying x_orientation, default is
+        ["x", "y"]. Not used if a Telescope object is passed to `telescope`.
+    feed_array : array-like of str or None
+        List of feeds for each antenna in the Telescope object, must be one of
+        "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str. Not used if a Telescope
+        object is passed to `telescope`.
+    feed_angle : array-like of float or None
+        Orientation of the feed with respect to zenith (or with respect to north if
+        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
+        and y-polarization (and l- and r-polarizations) is nominally 0. Shape (Nants,
+        Nfeeds), dtype float. Not used if a Telescope object is passed to `telescope`.
     antenna_positions : ndarray of float or dict of ndarray of float
         Deprecated. Array of antenna positions in ECEF coordinates in meters.
         If a dict, keys can either be antenna numbers or antenna names, and values are
@@ -207,21 +231,6 @@ def new_uvcal(
             "an error in version 3.2",
             DeprecationWarning,
         )
-    else:
-        required_on_tel = [
-            "antenna_positions",
-            "antenna_names",
-            "antenna_numbers",
-            "Nants",
-            "x_orientation",
-        ]
-        for key in required_on_tel:
-            if getattr(telescope, key) is None:
-                raise ValueError(
-                    f"{key} must be set on the Telescope object passed to `telescope`."
-                )
-
-    if telescope is None:
         telescope = Telescope.new(
             name=telescope_name,
             location=telescope_location,
@@ -231,8 +240,31 @@ def new_uvcal(
             antname_format=antname_format,
             instrument=instrument,
             x_orientation=x_orientation,
+            feeds=feeds,
+            feed_angle=feed_angle,
+            feed_array=feed_array,
+            mount_type=mount_type,
             antenna_diameters=antenna_diameters,
+            update_from_known=update_telescope_from_known,
         )
+    else:
+        required_on_tel = [
+            "antenna_positions",
+            "antenna_names",
+            "antenna_numbers",
+            "Nants",
+            "feed_array",
+            "feed_angle",
+            "mount_type",
+            "Nfeeds",
+        ]
+        for key in required_on_tel:
+            if getattr(telescope, key) is None:
+                raise ValueError(
+                    f"{key} must be set on the Telescope object passed to `telescope`."
+                )
+        if update_telescope_from_known:
+            telescope.update_params_from_known_telescopes()
 
     if ant_array is None:
         ant_array = telescope.antenna_numbers
@@ -304,7 +336,7 @@ def new_uvcal(
         jones_array = np.array(jones_array)
         if jones_array.dtype.kind != "i":
             jones_array = utils.jstr2num(
-                jones_array, x_orientation=telescope.x_orientation
+                jones_array, x_orientation=telescope.get_x_orientation_from_feeds()
             )
 
     history += (
@@ -514,6 +546,7 @@ def new_uvcal_from_uvdata(
         kwargs["spw_array"] = spw_array
 
     new_telescope = uvdata.telescope.copy()
+    sort_tel = False
 
     # Figure out how to mesh the antenna parameters given with those in the uvd
     if "antenna_positions" not in kwargs:
@@ -541,28 +574,8 @@ def new_uvcal_from_uvdata(
                     if v in antenna_names
                 ]
 
-            antenna_numbers = np.asarray(new_telescope.antenna_numbers)[idx]
-            antenna_names = np.asarray(new_telescope.antenna_names)[idx]
-            antenna_positions = new_telescope.antenna_positions[idx]
-            if (
-                new_telescope.antenna_diameters is not None
-                and "antenna_diameters" not in kwargs
-            ):
-                antenna_diameters = new_telescope.antenna_diameters[idx]
-            elif "antenna_diameters" in kwargs:
-                antenna_diameters = kwargs.pop("antenna_diameters")
-            else:
-                antenna_diameters = None
-
-            # Sort them, because that's what the old function did
-            sort_idx = np.argsort(antenna_numbers)
-            new_telescope.antenna_numbers = np.asarray(antenna_numbers)[sort_idx]
-            new_telescope.antenna_names = np.asarray(antenna_names)[sort_idx]
-            new_telescope.antenna_positions = antenna_positions[sort_idx]
-            if antenna_diameters is not None:
-                new_telescope.antenna_diameters = antenna_diameters
-            new_telescope.Nants = new_telescope.antenna_numbers.size
-
+            new_telescope._select_along_param_axis({"Nants": idx})
+            sort_tel = True
     else:
         ant_metadata_kwargs = {}
         for param in [
@@ -587,19 +600,27 @@ def new_uvcal_from_uvdata(
         "telescope_location": "location",
         "instrument": "instrument",
         "antenna_diameters": "antenna_diameters",
+        "feed_array": "feed_array",
+        "feed_angle": "feed_angle",
+        "mount_type": "mount_type",
     }
     for param, tele_name in other_tele_params.items():
         if param in kwargs:
             setattr(new_telescope, tele_name, kwargs.pop(param))
 
     if "x_orientation" in kwargs:
-        new_telescope.x_orientation = utils.XORIENTMAP[
-            kwargs.pop("x_orientation").lower()
-        ]
-    if new_telescope.x_orientation is None:
-        raise ValueError(
-            "x_orientation must be provided if it is not set on the UVData object."
+        new_telescope.set_feeds_from_x_orientation(
+            kwargs.pop("x_orientation"),
+            polarization_array=uvdata.polarization_array,
+            flex_polarization_array=uvdata.flex_spw_polarization_array,
         )
+
+    if new_telescope.feed_array is None or new_telescope.feed_angle is None:
+        raise ValueError(
+            "Telescope feed info must be provided if not set on the UVData object."
+        )
+    if sort_tel:
+        new_telescope.reorder_antennas("number", run_check=False)
 
     ant_array = kwargs.pop(
         "ant_array", np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
