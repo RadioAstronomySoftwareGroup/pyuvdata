@@ -1481,7 +1481,7 @@ class UVData(UVBase):
         x_orientation=None,
         mount_type=None,
         overwrite=False,
-        warn=True,
+        warn=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1520,8 +1520,8 @@ class UVData(UVBase):
             Option to overwrite existing telescope-associated parameters with
             the values from the known telescope. Default is False.
         warn : bool
-            Option to issue a warning listing all modified parameters.
-            Defaults to True.
+            Option to issue a warning listing all modified parameters. Default is True
+            if `overwrite=True`, otherwise False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after updating. Default is True.
@@ -1539,7 +1539,7 @@ class UVData(UVBase):
         """
         self.telescope.update_params_from_known_telescopes(
             overwrite=overwrite,
-            warn=warn,
+            warn=overwrite if warn is None else warn,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,

@@ -950,7 +950,7 @@ class UVFlag(UVBase):
         x_orientation=None,
         mount_type=None,
         overwrite=False,
-        warn=True,
+        warn=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -989,8 +989,8 @@ class UVFlag(UVBase):
             Option to overwrite existing telescope-associated parameters with
             the values from the known telescope.
         warn : bool
-            Option to issue a warning listing all modified parameters.
-            Defaults to True.
+            Option to issue a warning listing all modified parameters. Default is True
+            if `overwrite=True`, otherwise False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after updating. Default is True.
@@ -1010,7 +1010,7 @@ class UVFlag(UVBase):
         """
         self.telescope.update_params_from_known_telescopes(
             overwrite=overwrite,
-            warn=warn,
+            warn=overwrite if warn is None else warn,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -2895,6 +2895,7 @@ class UVFlag(UVBase):
         history="",
         mwa_metafits_file=None,
         telescope_name=None,
+        warn_telescope_params=None,
         use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
@@ -3236,7 +3237,9 @@ class UVFlag(UVBase):
                             "will be filled in from a static csv file containing all "
                             "the antennas that could have been connected."
                         )
-                    self.set_telescope_params(run_check=False)
+                    self.set_telescope_params(
+                        run_check=False, warn=warn_telescope_params
+                    )
 
                 if self.telescope.antenna_numbers is None and self.type in [
                     "baseline",

@@ -189,9 +189,7 @@ def test_read_fhd_write_read_uvfits_no_layout(fhd_data_files, multi):
 
     warn_msg = [
         "The layout_file parameter was not passed, so antenna_postions will "
-        "not be defined and antenna names and numbers might be incorrect.",
-        "antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for mwa.",
+        "not be defined and antenna names and numbers might be incorrect."
     ]
     if multi:
         warn_msg = warn_msg * 2
@@ -230,10 +228,7 @@ def test_fhd_antenna_pos(fhd_data):
 
     cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     cotter_obj = UVData()
-    with check_warnings(
-        UserWarning, match="mount_type, feed_array, feed_angle are not set"
-    ):
-        cotter_obj.read(cotter_file)
+    cotter_obj.read(cotter_file)
 
     # don't test antenna_numbers, they will not match.
     # mwa_corr_fits now uses antenna_numbers that correspond to antenna_names
@@ -793,10 +788,7 @@ def test_conjugation():
     del file_dict["model_files"]
 
     uvfits_uv = UVData()
-    with check_warnings(
-        UserWarning, match="mount_type, feed_array, feed_angle are not set"
-    ):
-        uvfits_uv.read(uvfits_file)
+    uvfits_uv.read(uvfits_file)
 
     fhd_uv = UVData()
     with check_warnings(

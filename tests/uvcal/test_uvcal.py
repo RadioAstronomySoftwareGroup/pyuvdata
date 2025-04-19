@@ -3322,12 +3322,7 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    with check_warnings(
-        UserWarning,
-        match="antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for HERA.",
-    ):
-        gain_data2 = UVCal.from_file(write_file2)
+    gain_data2 = UVCal.from_file(write_file2)
 
     assert gain_data2.telescope.antenna_positions is not None
     assert gain_data == gain_data2

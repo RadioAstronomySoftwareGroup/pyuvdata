@@ -31,16 +31,8 @@ pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + 
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values for HERA.",
-    "ignore:antenna_positions are not set or are being overwritten. Using known values",
     "ignore:The uvw_array does not match the expected values",
     "ignore:Fixing auto-correlations to be be real-only",
-)
-
-hera_tel_warning = (
-    "telescope_location, antenna_positions, mount_type, antenna_diameters are "
-    "not set or are being overwritten. telescope_location, antenna_positions, "
-    "mount_type, antenna_diameters are set using values from known telescopes "
-    "for HERA."
 )
 
 
@@ -50,7 +42,6 @@ def uvdata_obj_main():
     with check_warnings(
         UserWarning,
         match=[
-            "mount_type are not set or are being overwritten.",
             "Fixing auto-correlations to be be real-only",
             "The uvw_array does not match the expected",
         ],
@@ -98,8 +89,7 @@ def uvdata_obj(uvdata_obj_main):
 @pytest.fixture(scope="session")
 def uvcal_obj_main():
     uvc = UVCal()
-    with check_warnings(UserWarning, match=hera_tel_warning):
-        uvc.read_calfits(test_c_file)
+    uvc.read_calfits(test_c_file)
 
     yield uvc
 
@@ -608,8 +598,7 @@ def test_from_uvcal_error(uvdata_obj):
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
 
     # convert delay object to future array shapes, drop freq_array, set Nfreqs=1
-    with check_warnings(UserWarning, match=hera_tel_warning):
-        delay_object.read_calfits(delayfile)
+    delay_object.read_calfits(delayfile)
 
     delay_object.freq_array = None
     delay_object.channel_width = None
@@ -823,7 +812,6 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
-@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize(
     ["uvf_type", "param_list", "warn_type", "msg", "uv_mod"],
     [
@@ -842,24 +830,11 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
         (
             "baseline",
             ["latitude", "longitude", "altitude"],
-            UserWarning,
-            [
-                "telescope_location are not set or are being overwritten. "
-                "telescope_location are set using values from known telescopes "
-                "for HERA."
-            ],
+            None,
+            "",
             "reset_telescope_params",
         ),
-        (
-            "baseline",
-            ["antenna_names"],
-            UserWarning,
-            [
-                "antenna_names are not set or are being overwritten. "
-                "antenna_names are set using values from known telescopes for HERA."
-            ],
-            "reset_telescope_params",
-        ),
+        ("baseline", ["antenna_names"], None, "", "reset_telescope_params"),
         (
             "baseline",
             ["antenna_names"],
@@ -871,26 +846,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
             ],
             "change_ant_numbers",
         ),
-        (
-            "baseline",
-            ["antenna_numbers"],
-            UserWarning,
-            [
-                "antenna_numbers are not set or are being overwritten. "
-                "antenna_numbers are set using values from known telescopes for HERA."
-            ],
-            "reset_telescope_params",
-        ),
-        (
-            "baseline",
-            ["antenna_positions"],
-            UserWarning,
-            [
-                "antenna_positions are not set or are being overwritten. "
-                "antenna_positions are set using values from known telescopes for HERA."
-            ],
-            "reset_telescope_params",
-        ),
+        ("baseline", ["antenna_numbers"], None, "", "reset_telescope_params"),
+        ("baseline", ["antenna_positions"], None, "", "reset_telescope_params"),
         ("baseline", ["Nants_telescope"], None, [], "reset_telescope_params"),
         (
             "waterfall",
@@ -937,13 +894,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
         (
             "baseline",
             ["antenna_names", "antenna_numbers", "antenna_positions"],
-            UserWarning,
-            [
-                "Nants, antenna_names, antenna_numbers, antenna_positions are "
-                "not set or are being overwritten. Nants, antenna_names, "
-                "antenna_numbers, antenna_positions are set using values from "
-                "known telescopes for HERA."
-            ],
+            None,
+            "",
             "reset_telescope_params",
         ),
         (
@@ -958,16 +910,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
             ],
             None,
         ),
-        (
-            "baseline",
-            ["antenna_names"],
-            UserWarning,
-            [
-                "antenna_names are not set or are being overwritten. "
-                "antenna_names are set using values from known telescopes for HERA."
-            ],
-            None,
-        ),
+        ("baseline", ["antenna_names"], None, "", None),
         (
             "baseline",
             ["antenna_numbers"],
@@ -1132,11 +1075,7 @@ def test_missing_telescope_info_mwa(test_outfile):
     mwa_uvfits = os.path.join(DATA_PATH, "1133866760.uvfits")
     metafits = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles", "1131733552.metafits")
     with check_warnings(
-        UserWarning,
-        match=[
-            "mount_type, feed_array, feed_angle are not set",
-            "Fixing auto-correlations to be be real-only",
-        ],
+        UserWarning, match="Fixing auto-correlations to be be real-only"
     ):
         uvd = UVData.from_file(mwa_uvfits)
     uvf = UVFlag(uvd, waterfall=True)
@@ -1161,10 +1100,7 @@ def test_missing_telescope_info_mwa(test_outfile):
             "which contains information about which antennas were connected when the "
             "data were taken. Since that was not passed, the antenna metadata will be "
             "filled in from a static csv file containing all the antennas that could "
-            "have been connected.",
-            "Nants, antenna_names, antenna_numbers, antenna_positions are not "
-            "set or are being overwritten. Nants, antenna_names, antenna_numbers, "
-            "antenna_positions are set using values from known telescopes for mwa.",
+            "have been connected."
         ],
     ):
         uvf2 = UVFlag(test_outfile, telescope_name="mwa")
@@ -1635,12 +1571,7 @@ def test_set_telescope_params(uvdata_obj):
 
     uvf = UVFlag(uvd2)
     uvf.telescope.antenna_positions = None
-    with check_warnings(
-        UserWarning,
-        match="antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for HERA.",
-    ):
-        uvf.set_telescope_params()
+    uvf.set_telescope_params()
 
     uvf = UVFlag(uvd2)
     uvf.telescope.name = "foo"

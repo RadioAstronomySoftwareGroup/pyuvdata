@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import tempfile
-import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -30,7 +29,6 @@ from ..utils.test_coordinates import frame_selenoid
 pytestmark = [
     pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad"),
     pytest.mark.filterwarnings("ignore:Telescope EVLA is not"),
-    pytest.mark.filterwarnings("ignore:mount_type are not set"),
 ]
 
 
@@ -39,9 +37,7 @@ def uv_uvh5_main():
     # read in a uvh5 test file
     uv_uvh5 = UVData()
     uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", "mount_type are not set")
-        uv_uvh5.read_uvh5(uvh5_filename)
+    uv_uvh5.read_uvh5(uvh5_filename)
     return uv_uvh5
 
 
@@ -416,7 +412,6 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     return
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 def test_uvh5_addition():
     inputfiles = [
         os.path.join(

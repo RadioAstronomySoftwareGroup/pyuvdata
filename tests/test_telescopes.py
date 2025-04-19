@@ -389,8 +389,7 @@ def test_hera_loc():
     hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
     hera_data = UVData()
 
-    with check_warnings(UserWarning, match="mount_type are not set"):
-        hera_data.read(hera_file, read_data=False, file_type="uvh5")
+    hera_data.read(hera_file, read_data=False, file_type="uvh5")
 
     telescope_obj = Telescope.from_known_telescopes("HERA")
 

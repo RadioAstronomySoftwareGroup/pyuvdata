@@ -29,7 +29,6 @@ sma_warnings = [
     "Unknown polarization basis for solutions, jones_array values may be spurious.",
     "Unknown x_orientation basis for solutions, assuming",
     "Setting telescope_location to value in known_telescopes for SMA.",
-    "mount_type are not set or are being overwritten.",
 ]
 
 
@@ -329,7 +328,7 @@ def test_ms_tcal_read_write(tmp_path):
     datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
     testfile = os.path.join(tmp_path, "tcal_read_write.ms")
 
-    with check_warnings(UserWarning, match=sma_warnings[0:3]):
+    with check_warnings(UserWarning, match=sma_warnings):
         uvc = UVCal.from_file(datafile)
 
     uvc.write_ms_cal(testfile)
@@ -343,7 +342,7 @@ def test_ms_polcal_read_write(tmp_path):
     datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
     testfile = os.path.join(tmp_path, "polcal_read_write.ms")
 
-    with check_warnings(UserWarning, match=sma_warnings[1:3]):
+    with check_warnings(UserWarning, match=sma_warnings[1:]):
         uvc = UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
 
     uvc.write_ms_cal(testfile)
@@ -356,7 +355,7 @@ def test_ms_polcal_read_write(tmp_path):
 def test_ms_polcal_jones_warning():
     datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
     with check_warnings(
-        UserWarning, match=["Cross-handed Jones terms expected"] + sma_warnings[1:3]
+        UserWarning, match=["Cross-handed Jones terms expected"] + sma_warnings[1:]
     ):
         UVCal.from_file(datafile, default_jones_array=np.array([-1, -2]))
 
@@ -364,7 +363,7 @@ def test_ms_polcal_jones_warning():
 def test_ms_nonpolcal_jones_warning():
     datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
     with check_warnings(
-        UserWarning, match=["Same-handed Jones terms expected"] + sma_warnings[1:3]
+        UserWarning, match=["Same-handed Jones terms expected"] + sma_warnings[1:]
     ):
         UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
 
