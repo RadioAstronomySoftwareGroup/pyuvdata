@@ -58,6 +58,8 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Warnings related to setting of parameters from known telescopes when instantiating
+`UVData`, `UVCal`, and `UVFlag` objects are now turned off by default.
 - `feed_array` (and by association, `feed_angle` and `Nfeeds`) is now a required
 parameter for `UVBeam`.
 - Default for `UVParameter.tols` when the expected type is int, bool, or str is
