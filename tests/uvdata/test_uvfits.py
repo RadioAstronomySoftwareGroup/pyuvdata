@@ -193,7 +193,6 @@ def test_group_param_precision(tmp_path, uvw_double):
     )
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 def test_break_read_uvfits(tmp_path):
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
@@ -1168,7 +1167,6 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
     assert uvfits_uv == uvfits_uv2
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:Required Antenna keyword 'FRAME'")
 @pytest.mark.filterwarnings("ignore:telescope_location is not set")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1502,10 +1500,7 @@ def test_cotter_telescope_frame(tmp_path):
 
     with check_warnings(
         UserWarning,
-        [
-            "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
-            "mount_type, feed_array, feed_angle are not set",
-        ],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         uvd1.read_uvfits(write_file, read_data=False)
 
@@ -1569,10 +1564,7 @@ def test_mwax_birli_frame(tmp_path):
         hdu_list.writeto(outfile)
     with check_warnings(
         UserWarning,
-        [
-            "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
-            "mount_type, feed_array, feed_angle are not set",
-        ],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         UVData.from_file(outfile, read_data=False)
 
@@ -1586,10 +1578,7 @@ def test_mwax_missing_frame_comment(tmp_path):
         hdu_list.writeto(outfile)
     with check_warnings(
         UserWarning,
-        [
-            "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
-            "mount_type, feed_array, feed_angle are not set",
-        ],
+        "Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'.",
     ):
         UVData.from_file(outfile, read_data=False)
 

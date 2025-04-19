@@ -204,7 +204,6 @@ def test_read_fhdcal_multimode():
     return
 
 
-@pytest.mark.filterwarnings("ignore:mount_type, feed_array, feed_angle are not set")
 @pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
@@ -332,15 +331,11 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     assert fhd_cal.history == expected_history
 
     message_list = [
-        "No layout file, antenna_postions will not be defined.",
-        "antenna_positions are not set or are being overwritten. "
-        "antenna_positions are set using values from known telescopes for mwa.",
+        "No layout file, antenna_postions will not be defined."
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
-    warning_list = [UserWarning] * (3 * nfiles - 1)
-
     if nfiles == 1:
-        with check_warnings(warning_list, match=message_list):
+        with check_warnings(UserWarning, match=message_list):
             fhd_cal.read_fhd_cal(
                 cal_file=cal_file, obs_file=obs_file, settings_file=settings_file
             )
