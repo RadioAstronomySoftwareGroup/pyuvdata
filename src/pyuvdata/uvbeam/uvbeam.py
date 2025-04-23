@@ -4351,7 +4351,7 @@ class UVBeam(UVBase):
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
 
-        Beamfits
+        BeamFITS
         --------
         az_range : tuple of float in deg
             The azimuth range to read in, if the beam is specified in az/za coordinates.
@@ -4379,14 +4379,10 @@ class UVBeam(UVBase):
             page of the documentation for further details.
             Required for cst file types, used if mount information not present in header
             for beamfits file types.
-
-        Beamfits & MWA
-        --------------
         freq_range : array_like of float
             Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
-            type files. For beamfits, this will cause a *partial read* (i.e. reduce
-            peak memory usage).
+            frequencies. Must be length 2. This will cause a *partial read* (i.e.
+            reduce peak memory usage).
 
         CST
         ---
@@ -4484,6 +4480,9 @@ class UVBeam(UVBase):
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
             Only applies to mwa_beam type files.
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2.
 
         Raises
         ------
