@@ -4734,7 +4734,6 @@ class UVCal(UVBase):
         run_check_acceptability=True,
         default_mount_type="other",
         # file-type specific parameters
-        # All types
         # FHD
         obs_file=None,
         layout_file=None,

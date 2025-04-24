@@ -1665,8 +1665,8 @@ class Telescope(UVBase):
             By default, when parameters are from the two objects are incompatible, an
             error is thrown if the parameter is required, otherwise the parameter on
             the returned object is set to None and a warning is raised. However, one can
-            a list of strings to explicitly specify which parameters to allow to raise a
-            warning versus an error.
+            pass a list of strings to explicitly specify which parameters to allow to
+            raise a warning versus an error.
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
@@ -1948,8 +1948,8 @@ class Telescope(UVBase):
             By default, when parameters are from the two objects are incompatible, an
             error is thrown if the parameter is required, otherwise the parameter on
             the returned object is set to None and a warning is raised. However, one can
-            a list of strings to explicitly specify which parameters to allow to raise a
-            warning versus an error.
+            pass a list of strings to explicitly specify which parameters to allow to
+            raise a warning versus an error.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after combining objects.
