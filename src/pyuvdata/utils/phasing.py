@@ -2053,12 +2053,13 @@ def calc_app_coords(
         and `lat_coord` values to those times listed in `time_array`.
     coord_type : str
         Type of source to calculate coordinates for. Must be one of:
-            "sidereal" (fixed RA/Dec),
-            "ephem" (RA/Dec that moves with time),
-            "driftscan" (fixed az/el position),
-            "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
-            "near_field" (equivalent to sidereal, with the addition of
-                near-field corrections)
+
+            - "sidereal" (fixed RA/Dec),
+            - "ephem" (RA/Dec that moves with time),
+            - "driftscan" (fixed az/el position),
+            - "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
+            - "near_field" (equivalent to sidereal, with the addition of
+              near-field corrections)
     time_array : float or ndarray of float or Time object
         Times for which the apparent coordinates are to be calculated, in UTC JD.
         If more than a single element, must be the same shape as lon_coord and
