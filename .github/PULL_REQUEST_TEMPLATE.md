@@ -32,14 +32,14 @@ Bug fix checklist:
 New feature checklist:
 - [ ] I have added or updated the docstrings associated with my feature using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the tutorial to highlight my new feature (if appropriate).
-- [ ] I have added tests to cover my new feature.
+- [ ] I have added/updated tests to cover my new feature.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 Breaking change checklist:
 - [ ] I have updated the docstrings associated with my change using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the tutorial to reflect my changes (if appropriate).
 - [ ] My change includes backwards compatibility and deprecation warnings (if possible).
-- [ ] I have added tests to cover my changes.
+- [ ] I have added/updated tests to cover my changes.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 Documentation change checklist:
@@ -56,5 +56,5 @@ Build or continuous integration change checklist:
 Other:
 - [ ] I have updated any docstrings associated with my change using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the readme and/or tutorial to reflect my changes (if appropriate).
-- [ ] I have added tests to cover my changes (if appropriate).
+- [ ] I have added/updated tests to cover my changes (if appropriate).
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
