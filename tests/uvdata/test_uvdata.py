@@ -5967,6 +5967,19 @@ def test_redundancy_contract_expand(
         method=method, tol=tol, inplace=False, use_grid_alg=grid_alg
     )
     uv2.check()
+    if grid_alg:
+        with check_warnings(
+            UserWarning,
+            match="The use_grid_alg parameter is not set. Defaulting to True to "
+            "use the new gridding based algorithm (developed by the HERA team) "
+            "rather than the older clustering based algorithm. This is change "
+            "to the default, to use the clustering algorithm set "
+            "use_grid_alg=False.",
+        ):
+            uv4 = uv0.compress_by_redundancy(
+                method=method, tol=tol, inplace=False, use_grid_alg=None
+            )
+        assert uv4 == uv2
 
     if method == "average":
         gp_bl_use = []
