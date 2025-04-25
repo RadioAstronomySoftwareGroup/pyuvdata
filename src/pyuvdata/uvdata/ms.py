@@ -819,13 +819,9 @@ class MS(UVData):
         allow_flex_pol=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in a CASA measurement set."""
-        # Check for defunct keyword here
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if not casa_present:
             raise ImportError(no_casa_message) from casa_error
 

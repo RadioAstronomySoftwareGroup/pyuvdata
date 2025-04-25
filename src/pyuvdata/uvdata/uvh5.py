@@ -1037,7 +1037,6 @@ class UVH5(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         blt_order: tuple[str] | Literal["determine"] | None = None,
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
@@ -1045,9 +1044,6 @@ class UVH5(UVData):
         astrometry_library: str | None = None,
     ):
         """Read in data from a UVH5 file."""
-        # Check for defunct keyword
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if isinstance(filename, FastUVH5Meta):
             meta = filename
             filename = str(meta.path)

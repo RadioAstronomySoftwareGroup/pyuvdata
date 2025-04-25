@@ -19,21 +19,6 @@ from .utils.tools import _get_iterable, slicify
 
 __all__ = ["UVBase"]
 
-# the old names of attributes as keys, values are the names on the telescope object
-old_telescope_metadata_attrs = {
-    "telescope_name": "name",
-    "telescope_location": None,
-    "telescope_location_lat_lon_alt": None,
-    "telescope_location_lat_lon_alt_degrees": None,
-    "instrument": "instrument",
-    "Nants_telescope": "Nants",
-    "antenna_names": "antenna_names",
-    "antenna_numbers": "antenna_numbers",
-    "antenna_positions": "antenna_positions",
-    "x_orientation": "x_orientation",
-    "antenna_diameters": "antenna_diameters",
-}
-
 
 def _warning(msg, *a, **kwargs):
     """
@@ -139,80 +124,6 @@ class UVBase:
         """
         self.__dict__ = state
         self._setup_parameters()
-
-    def __getattr__(self, __name):
-        """Handle old names for telescope metadata."""
-        if __name in old_telescope_metadata_attrs:
-            if hasattr(self, "telescope"):
-                if old_telescope_metadata_attrs[__name] is not None:
-                    tel_param = old_telescope_metadata_attrs[__name]
-                else:
-                    tel_param = "location"
-                warnings.warn(
-                    f"The UVData.{__name} attribute now just points to the "
-                    f"{tel_param} attribute on the telescope object (at "
-                    "UVData.telescope). Accessing it this way is deprecated, "
-                    "please access it via the telescope object. This will "
-                    "become an error in version 3.2.",
-                    DeprecationWarning,
-                )
-
-                tel_name = old_telescope_metadata_attrs[__name]
-                if tel_name is not None:
-                    # if it's a simple remapping, just return the value
-                    ret_val = getattr(self.telescope, tel_name)
-                else:
-                    # handle location related stuff
-                    if __name == "telescope_location":
-                        ret_val = self.telescope._location.xyz()
-                    elif __name == "telescope_location_lat_lon_alt":
-                        ret_val = self.telescope._location.lat_lon_alt()
-                    elif __name == "telescope_location_lat_lon_alt_degrees":
-                        ret_val = self.telescope._location.lat_lon_alt_degrees()
-                return ret_val
-        elif __name == "future_array_shapes":
-            warnings.warn(
-                f"The {__name} attribute is now deprecated, as all UVBase "
-                "objects use future array shapes. This will become an error in "
-                "version 3.2.",
-                DeprecationWarning,
-            )
-            # Always true as of v3.0
-            return True
-
-        return super().__getattribute__(__name)
-
-    def __setattr__(self, __name, __value):
-        """Handle old names for telescope metadata."""
-        if __name in old_telescope_metadata_attrs and hasattr(self, "telescope"):
-            if old_telescope_metadata_attrs[__name] is not None:
-                tel_param = old_telescope_metadata_attrs[__name]
-            else:
-                tel_param = "location"
-            warnings.warn(
-                f"The UVData.{__name} attribute now just points to the "
-                f"{tel_param} attribute on the telescope object (at "
-                "UVData.telescope). Accessing it this way is deprecated, "
-                "please access it via the telescope object. This will "
-                "become an error in version 3.2.",
-                DeprecationWarning,
-            )
-
-            tel_name = old_telescope_metadata_attrs[__name]
-            if tel_name is not None:
-                # if it's a simple remapping, just set the value
-                setattr(self.telescope, tel_name, __value)
-            else:
-                # handle location related stuff
-                if __name == "telescope_location":
-                    self.telescope._location.set_xyz(__value)
-                elif __name == "telescope_location_lat_lon_alt":
-                    self.telescope._location.set_lat_lon_alt(__value)
-                elif __name == "telescope_location_lat_lon_alt_degrees":
-                    self.telescope._location.set_lat_lon_alt_degrees(__value)
-            return
-
-        return super().__setattr__(__name, __value)
 
     def prop_fget(self, param_name):
         """
@@ -842,40 +753,6 @@ class UVBase:
 
         """
         return copy.deepcopy(self)
-
-    def _set_future_array_shapes(self, use_future_array_shapes=None):
-        """
-        Set future_array_shapes to True and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by file-reading methods and `use_future_array_shapes` to indicate the
-        `future_array_shapes` is True and define expected parameter shapes.
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        if use_future_array_shapes is None:
-            # This basically wraps no-ops when no argument is passed.
-            return
-
-        if not use_future_array_shapes:
-            raise ValueError(
-                'The future is now! So-called "current" array shapes no longer '
-                'supported, must use "future" array shapes (spw-axis dropped).'
-            )
-        warnings.warn(
-            (
-                "Future array shapes are now always used, setting/calling "
-                "use_future_array_shapes will result in an error in version 3.2."
-            ),
-            DeprecationWarning,
-        )
-
-    def use_future_array_shapes(self):
-        """
-        Change the array shapes of this object to match the planned future shapes.
-
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        self._set_future_array_shapes(True)
 
     def _select_along_param_axis(self, param_dict: dict):
         """

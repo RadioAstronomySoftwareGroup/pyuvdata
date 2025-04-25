@@ -1523,13 +1523,9 @@ class MWACorrFITS(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in MWA correlator gpu box files."""
-        # Check for defunct keyword here
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         metafits_file = None
         ppds_file = None
         obs_id = None

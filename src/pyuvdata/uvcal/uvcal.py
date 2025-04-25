@@ -4445,8 +4445,6 @@ class UVCal(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -4551,9 +4549,6 @@ class UVCal(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -4628,8 +4623,6 @@ class UVCal(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -4713,7 +4706,6 @@ class UVCal(UVBase):
         file_type=None,
         read_data=True,
         background_lsts=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
         # selecting parameters
         antenna_nums=None,
@@ -4776,8 +4768,6 @@ class UVCal(UVBase):
             False results in a metadata only object.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -4884,9 +4874,6 @@ class UVCal(UVBase):
             and the warning will be suppressed.
 
         """
-        # Check for the defunct keyword up front
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if isinstance(filename, list | tuple | np.ndarray):
             for ind in range(len(filename)):
                 if isinstance(filename[ind], list | tuple | np.ndarray):

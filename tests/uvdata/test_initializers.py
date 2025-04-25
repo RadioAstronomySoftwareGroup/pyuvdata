@@ -13,7 +13,6 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import Telescope, UVData
-from pyuvdata.testing import check_warnings
 from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
@@ -23,22 +22,6 @@ from pyuvdata.uvdata.initializers import (
 )
 
 from ..utils.test_coordinates import selenoids
-
-
-@pytest.fixture(scope="function")
-def simplest_working_params_no_telescope() -> dict[str, Any]:
-    return {
-        "freq_array": np.linspace(1e8, 2e8, 100),
-        "polarization_array": ["xx", "yy"],
-        "antenna_positions": {
-            0: [0.0, 0.0, 0.0],
-            1: [0.0, 0.0, 1.0],
-            2: [0.0, 0.0, 2.0],
-        },
-        "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
-        "telescope_name": "test",
-        "times": np.linspace(2459855, 2459856, 20),
-    }
 
 
 @pytest.fixture(scope="function")
@@ -82,23 +65,6 @@ def lunar_simple_params() -> dict[str, Any]:
     }
 
 
-def test_simplest_new_uvdata(simplest_working_params_no_telescope: dict[str, Any]):
-    with check_warnings(
-        DeprecationWarning,
-        match="Passing telescope_name, telescope_location, antenna_positions is "
-        "deprecated in favor of passing a Telescope object",
-    ):
-        uvd = UVData.new(**simplest_working_params_no_telescope)
-
-    assert uvd.Nfreqs == 100
-    assert uvd.Npols == 2
-    assert uvd.Nants_data == 3
-    assert uvd.Nbls == 6
-    assert uvd.Ntimes == 20
-    assert uvd.Nblts == 120
-    assert uvd.Nspws == 1
-
-
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
     lunar_simple_params["telescope"].location.ellipsoid = selenoid
@@ -113,10 +79,7 @@ def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: 
     [
         [{"vis_units": "foo"}, "vis_units must be one of"],
         [{"derp": "foo"}, "Keyword argument derp is not a valid UVData attribute"],
-        [
-            {"telescope": None},
-            "antenna_positions is required if telescope is not provided.",
-        ],
+        [{"telescope": None}, "telescope must be a pyuvdata.Telescope object."],
         [
             {
                 "telescope": Telescope.new(

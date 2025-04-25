@@ -161,8 +161,6 @@ class UVFlag(UVBase):
         that do not have the telescope name in them. Setting this parameter for old
         files allows for other telescope metadata to be set from the known
         telescopes. Setting this parameter overrides any telescope name in the file.
-    use_future_array_shapes : bool
-        Defunct option, will result in an error in version 3.2.
     run_check : bool
         Option to check for the existence and proper shapes of parameters
         after creating UVFlag object.
@@ -193,7 +191,6 @@ class UVFlag(UVBase):
         label="",
         telescope_name=None,
         mwa_metafits_file=None,
-        use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -501,9 +498,6 @@ class UVFlag(UVBase):
 
         # set the appropriate telescope attributes as required
         self._set_telescope_requirements()
-
-        # Do one call up front to issue a DeprecationWarning
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
         self.history = ""  # Added to at the end
 
@@ -2896,7 +2890,6 @@ class UVFlag(UVBase):
         mwa_metafits_file=None,
         telescope_name=None,
         warn_telescope_params=None,
-        use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2921,8 +2914,6 @@ class UVFlag(UVBase):
             files allows for other telescope metadata to be set from the known
             telescopes. Setting this parameter overrides any telescope name in the file.
             This should not be set if `mwa_metafits_file` is passed.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after reading data.
@@ -2933,9 +2924,6 @@ class UVFlag(UVBase):
             reading data.
 
         """
-        # Run this check up front once
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # make sure we have an empty object.
         self.__init__()
         if isinstance(filename, tuple | list):
@@ -3422,7 +3410,6 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
-        use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -3445,8 +3432,6 @@ class UVFlag(UVBase):
             History string to attach to object.
         label: str, optional
             String used for labeling the object (e.g. 'FM').
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after creating UVFlag object.
@@ -3473,8 +3458,6 @@ class UVFlag(UVBase):
                 "Input mode must be within acceptable values: "
                 + (", ").join(self._mode.acceptable_vals)
             )
-
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
         self.Nfreqs = indata.Nfreqs
         self.polarization_array = copy.deepcopy(indata.polarization_array)
@@ -3577,7 +3560,6 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
-        use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -3600,8 +3582,6 @@ class UVFlag(UVBase):
             History string to attach to object.
         label: str, optional
             String used for labeling the object (e.g. 'FM').
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after creating UVFlag object.
@@ -3634,8 +3614,6 @@ class UVFlag(UVBase):
                 "Input mode must be within acceptable values: "
                 + (", ").join(self._mode.acceptable_vals)
             )
-
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
         self.Nfreqs = indata.Nfreqs
         self.polarization_array = copy.deepcopy(indata.jones_array)

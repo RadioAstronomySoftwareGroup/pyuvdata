@@ -44,12 +44,9 @@ class FHDCal(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read data from an FHD cal.sav file."""
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if not read_data and settings_file is None:
             raise ValueError("A settings_file must be provided if read_data is False.")
 

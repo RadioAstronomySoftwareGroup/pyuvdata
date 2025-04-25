@@ -48,11 +48,9 @@ class FHD(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a list of FHD files."""
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
         datafiles_dict = {}
         use_model = None
         if isinstance(vis_files, str):
