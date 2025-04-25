@@ -15,7 +15,7 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
 
-@pytest.mark.parametrize("grid_alg", [True, False, None])
+@pytest.mark.parametrize("grid_alg", [True, False])
 def test_redundancy_finder(grid_alg):
     """
     Check that get_baseline_redundancies and get_antenna_redundancies return consistent
@@ -36,18 +36,13 @@ def test_redundancy_finder(grid_alg):
     bl_positions = uvd.uvw_array
     bl_pos_backup = copy.deepcopy(uvd.uvw_array)
 
-    if grid_alg is None:
-        warn_str = (
-            "The use_grid_alg parameter is not set. Defaulting to True to "
-            "use the new gridding based algorithm (developed by the HERA team) "
-            "rather than the older clustering based algorithm. This is change "
-            "to the default, to use the clustering algorithm set "
-            "use_grid_alg=False."
-        )
-        warn_type = UserWarning
-    else:
-        warn_type = None
-        warn_str = ""
+    warn_str = (
+        "The include_conjugates parameter is not set. The default is "
+        "currently False, which produces different groups than the groups "
+        "produced when using the `compress_by_redundancy` method. "
+        "The default will change to True in version 3.4."
+    )
+    warn_type = DeprecationWarning
 
     with (
         pytest.raises(
@@ -127,45 +122,40 @@ def test_redundancy_finder(grid_alg):
 
     antpos = uvd.telescope.get_enu_antpos()
 
-    with check_warnings(warn_type, match=warn_str):
-        baseline_groups_ants, vec_bin_centers, lens = (
-            red_utils.get_antenna_redundancies(
-                uvd.telescope.antenna_numbers,
-                antpos,
-                tol=tol,
-                include_autos=False,
-                use_grid_alg=grid_alg,
-            )
-        )
+    baseline_groups_ants, vec_bin_centers, lens = red_utils.get_antenna_redundancies(
+        uvd.telescope.antenna_numbers,
+        antpos,
+        tol=tol,
+        include_autos=False,
+        use_grid_alg=grid_alg,
+    )
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19
 
     # Check with conjugated baseline redundancies returned
     # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     bl_positions[16, 0] = 0
-    with check_warnings(warn_type, match=warn_str):
-        (baseline_groups, vec_bin_centers, lens, conjugates) = (
-            red_utils.get_baseline_redundancies(
-                uvd.baseline_array,
-                bl_positions,
-                tol=tol,
-                include_conjugates=True,
-                use_grid_alg=grid_alg,
-            )
+    (baseline_groups, vec_bin_centers, lens, conjugates) = (
+        red_utils.get_baseline_redundancies(
+            uvd.baseline_array,
+            bl_positions,
+            tol=tol,
+            include_conjugates=True,
+            use_grid_alg=grid_alg,
         )
+    )
 
     # restore baseline (16,0) and repeat to get correct groups
     bl_positions = bl_pos_backup
-    with check_warnings(warn_type, match=warn_str):
-        (baseline_groups, vec_bin_centers, lens, conjugates) = (
-            red_utils.get_baseline_redundancies(
-                uvd.baseline_array,
-                bl_positions,
-                tol=tol,
-                include_conjugates=True,
-                use_grid_alg=grid_alg,
-            )
+    (baseline_groups, vec_bin_centers, lens, conjugates) = (
+        red_utils.get_baseline_redundancies(
+            uvd.baseline_array,
+            bl_positions,
+            tol=tol,
+            include_conjugates=True,
+            use_grid_alg=grid_alg,
         )
+    )
 
     # Apply flips to compare with get_antenna_redundancies().
     bl_gps_unconj = copy.deepcopy(baseline_groups)

@@ -172,7 +172,7 @@ def find_clusters_grid(location_ids, location_vectors, tol=1.0):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, *, tol=1.0, include_conjugates=False, use_grid_alg=None
+    baselines, baseline_vecs, *, tol=1.0, include_conjugates=None, use_grid_alg=True
 ):
     """
     Find redundant baseline groups.
@@ -186,7 +186,9 @@ def get_baseline_redundancies(
     tol : float
         Absolute tolerance of redundancy, in meters.
     include_conjugates : bool
-        Option to include baselines that are redundant when flipped.
+        Option to include baselines that are redundant under conjugation.
+        Only used if use_antpos is False. Default is currently False but will
+        become True in version 3.4.
     use_grid_alg : bool
         Option to use the gridding based algorithm (developed by the HERA team)
         to find redundancies rather than the older clustering algorithm.
@@ -204,22 +206,20 @@ def get_baseline_redundancies(
         include_conjugates is True
 
     """
-    if use_grid_alg is None:
-        # This was added in v2.4.2 (Feb 2024). It should go away at some point.
-        # Normally it would be in v2.6 or later, but if v3.0 comes out
-        # very soon we could consider delaying the removal of this until v3.1
-        warnings.warn(
-            "The use_grid_alg parameter is not set. Defaulting to True to "
-            "use the new gridding based algorithm (developed by the HERA team) "
-            "rather than the older clustering based algorithm. This is change "
-            "to the default, to use the clustering algorithm set use_grid_alg=False."
-        )
-        use_grid_alg = True
-
     Nbls = baselines.shape[0]
 
     if not baseline_vecs.shape == (Nbls, 3):
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
+
+    if include_conjugates is None:
+        warnings.warn(
+            "The include_conjugates parameter is not set. The default is "
+            "currently False, which produces different groups than the groups "
+            "produced when using the `compress_by_redundancy` method. "
+            "The default will change to True in version 3.4.",
+            DeprecationWarning,
+        )
+        include_conjugates = False
 
     baseline_vecs = deepcopy(baseline_vecs)  # Protect the vectors passed in.
 
@@ -282,7 +282,7 @@ def get_antenna_redundancies(
     *,
     tol=1.0,
     include_autos=False,
-    use_grid_alg=None,
+    use_grid_alg=True,
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -327,18 +327,6 @@ def get_antenna_redundancies(
     the tolerance used here.
 
     """
-    if use_grid_alg is None:
-        # This was added in v2.4.2 (Feb 2024). It should go away at some point.
-        # Normally it would be in v2.6 or later, but if v3.0 comes out
-        # very soon we could consider delaying the removal of this until v3.1
-        warnings.warn(
-            "The use_grid_alg parameter is not set. Defaulting to True to "
-            "use the new gridding based algorithm (developed by the HERA team) "
-            "rather than the older clustering based algorithm. This is change "
-            "to the default, to use the clustering algorithm set use_grid_alg=False."
-        )
-        use_grid_alg = True
-
     Nants = antenna_numbers.size
 
     bls = []
