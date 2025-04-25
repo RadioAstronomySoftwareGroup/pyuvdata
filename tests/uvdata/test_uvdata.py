@@ -5055,30 +5055,21 @@ def test_get_ants(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:This method is deprecated in favor of")
 def test_get_enu_antpos(hera_uvh5_xx):
     uvd = hera_uvh5_xx
     # no center, no pick data ants
-    with check_warnings(
-        DeprecationWarning,
-        match="This method is deprecated in favor of `self.telescope.get_enu_antpos` "
-        "or `self.get_enu_data_ants`. This will become an error in version 3.2",
-    ):
-        antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
-    assert len(ants) == 113
+    antpos = uvd.telescope.get_enu_antpos()
+    assert uvd.telescope.Nants == 113
     assert np.isclose(antpos[0, 0], 19.340211050751535, rtol=0, atol=1e-3)
-    assert ants[0] == 0
-    # test default behavior
-    antpos2, ants = uvd.get_ENU_antpos()
+    assert uvd.telescope.antenna_numbers[0] == 0
 
-    assert np.all(antpos == antpos2)
-    # center
-    antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=False)
-    assert np.isclose(antpos[0, 0], 22.472442651767714, rtol=0, atol=1e-3)
     # pick data ants
-    antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=True)
+    antpos2, ants = uvd.get_enu_data_ants()
     assert ants[0] == 9
-    assert np.isclose(antpos[0, 0], -0.0026981323386223721, rtol=0, atol=1e-3)
+    assert np.isclose(antpos2[0, 0], -34.58975401168747, rtol=0, atol=1e-3)
+
+    data_ant_inds = np.isin(uvd.telescope.antenna_numbers, ants)
+    assert np.all(antpos[data_ant_inds] == antpos2)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

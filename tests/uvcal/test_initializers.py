@@ -8,7 +8,6 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import Telescope, UVCal
-from pyuvdata.testing import check_warnings
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
 
@@ -41,28 +40,6 @@ def uvc_only_kw():
         "cal_style": "redundant",
         "gain_convention": "multiply",
         "x_orientation": "n",
-        "jones_array": "linear",
-        "cal_type": "gain",
-    }
-
-
-@pytest.fixture(scope="function")
-def uvc_simplest_no_telescope():
-    return {
-        "freq_array": np.linspace(100e6, 200e6, 10),
-        "time_array": np.linspace(2459850, 2459851, 12),
-        "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
-        "telescope_name": "mock",
-        "x_orientation": "n",
-        "feeds": ["x", "y"],
-        "mount_type": "fixed",
-        "antenna_positions": {
-            0: [0.0, 0.0, 0.0],
-            1: [0.0, 0.0, 1.0],
-            2: [0.0, 0.0, 2.0],
-        },
-        "cal_style": "redundant",
-        "gain_convention": "multiply",
         "jones_array": "linear",
         "cal_type": "gain",
     }
@@ -119,19 +96,6 @@ def uvc_simplest_moon():
     }
 
 
-def test_new_uvcal_simplest(uvc_simplest_no_telescope):
-    with check_warnings(
-        DeprecationWarning,
-        match="Passing telescope_name, telescope_location, antenna_positions, "
-        "x_orientation is deprecated in favor of passing a Telescope object",
-    ):
-        uvc = UVCal.new(**uvc_simplest_no_telescope)
-    assert uvc.Nants_data == 3
-    assert uvc.telescope.Nants == 3
-    assert uvc.Nfreqs == 10
-    assert uvc.Ntimes == 12
-
-
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_new_uvcal_simple_moon(uvc_simplest_moon, selenoid):
     uvc_simplest_moon["telescope"].location.ellipsoid = selenoid
@@ -186,10 +150,7 @@ def test_new_uvcal_time_range(uvc_simplest):
             {"cal_type": "wrong", "freq_range": [150e6, 180e6], "freq_array": None},
             "cal_type must be either 'gain' or 'delay'",
         ],
-        [
-            {"telescope": None},
-            "antenna_positions is required if telescope is not provided.",
-        ],
+        [{"telescope": None}, "telescope must be a pyuvdata.Telescope object."],
         [
             {
                 "telescope": Telescope.new(

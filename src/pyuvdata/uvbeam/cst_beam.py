@@ -56,7 +56,6 @@ class CSTBeam(UVBeam):
         filename,
         *,
         beam_type="power",
-        use_future_array_shapes=None,
         feed_pol="x",
         feed_array=None,
         feed_angle=None,
@@ -87,9 +86,6 @@ class CSTBeam(UVBeam):
             The cst file to read from.
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to. Defaults to 'x' (meaning x for efield or xx for power
@@ -164,9 +160,6 @@ class CSTBeam(UVBeam):
             fix those values so that they are real-only in data_array.
 
         """
-        # Check for defunct future array shapes call
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]

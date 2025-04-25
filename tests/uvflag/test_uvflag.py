@@ -18,7 +18,6 @@ from pyuvdata import UVCal, UVData, UVFlag, __version__, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.utils.io import hdf5 as hdf5_utils
-from pyuvdata.uvbase import old_telescope_metadata_attrs
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
 from ..utils.test_coordinates import frame_selenoid
@@ -1042,8 +1041,21 @@ def test_read_write_loop_missing_telescope_info(
             )
             uvf2.telescope.antenna_names = uvf.telescope.antenna_names
         else:
+            telescope_params = {
+                "telescope_name": "name",
+                "telescope_location": "location",
+                "Nants_telescope": "Nants",
+                "antenna_names": "antenna_names",
+                "antenna_numbers": "antenna_numbers",
+                "antenna_positions": "antenna_positions",
+                "antenna_diameters": "antenna_diameters",
+                "feed_array": "feed_array",
+                "feed_angle": "feed_angle",
+                "mount_type": "mount_type",
+                "instrument": "instrument",
+            }
             for param in param_list:
-                tel_param = old_telescope_metadata_attrs[param]
+                tel_param = telescope_params[param]
                 if param != "Nants_telescope":
                     assert getattr(uvf2.telescope, tel_param) is None
                 setattr(uvf2.telescope, tel_param, getattr(uv.telescope, tel_param))

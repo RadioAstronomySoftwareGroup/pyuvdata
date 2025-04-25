@@ -491,7 +491,6 @@ class MWABeam(UVBeam):
         self,
         h5filepath,
         *,
-        use_future_array_shapes=None,
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
@@ -503,9 +502,6 @@ class MWABeam(UVBeam):
         fix_auto_power=True,
     ):
         """Read in the full embedded element MWA beam."""
-        # Check for defunct future array shapes call
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # update filename attribute
         basename = os.path.basename(h5filepath)
         self.filename = [basename]

@@ -3394,48 +3394,6 @@ class UVData(UVBase):
 
         return antpos, ants
 
-    def get_ENU_antpos(self, *, center=False, pick_data_ants=False):  # noqa N802
-        """
-        Get antenna positions in East, North, Up coordinates in units of meters.
-
-        Deprecated in favor of `self.telescope.get_enu_antpos()` or
-        `self.get_enu_data_ants` if you only want positions for antennas with data.
-
-        Parameters
-        ----------
-        center : bool
-            If True, subtract median of antenna positions before returning the
-            positions. Note that this will make it so that the antenna positions
-            cannot be reliably converted back to ECEF positions because they will
-            not be only referenced to the telescope location.
-        pick_data_ants : bool
-            If True, return only antennas found in data
-
-        Returns
-        -------
-        antpos : ndarray
-            Antenna positions in East, North, Up coordinates in units of
-            meters, shape=(Nants, 3)
-        ants : ndarray
-            Antenna numbers matching ordering of antpos, shape=(Nants,)
-
-        """
-        warnings.warn(
-            "This method is deprecated in favor of `self.telescope.get_enu_antpos` "
-            "or `self.get_enu_data_ants`. This will become an error in version 3.2",
-            DeprecationWarning,
-        )
-        if pick_data_ants:
-            antpos, ants = self.get_enu_data_ants()
-        else:
-            antpos = self.telescope.get_enu_antpos()
-            ants = self.telescope.antenna_numbers
-
-        if center:
-            antpos -= np.median(antpos, axis=0)
-
-        return antpos, ants
-
     def _set_method_helper(self, dshape, key1, key2=None, key3=None):
         """
         Extract the indices for setting data, flags, or nsample arrays.
@@ -8935,8 +8893,6 @@ class UVData(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9172,8 +9128,6 @@ class UVData(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9274,8 +9228,6 @@ class UVData(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9465,8 +9417,6 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9620,8 +9570,6 @@ class UVData(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9792,8 +9740,6 @@ class UVData(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         blt_order : tuple of str or "determine", optional
             The order of the baseline-time axis *in the file*. This can be determined,
             or read directly from file, however since it has been optional in the past,
@@ -9867,7 +9813,6 @@ class UVData(UVBase):
         background_lsts=True,
         astrometry_library=None,
         ignore_name=False,
-        use_future_array_shapes=None,
         # selecting parameters
         antenna_nums=None,
         antenna_names=None,
@@ -10014,8 +9959,6 @@ class UVData(UVBase):
             combining multiple files, which would otherwise result in an error being
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
 
         Selecting
         ---------
@@ -10389,9 +10332,6 @@ class UVData(UVBase):
             If phase_center_radec is not None and is not length 2.
 
         """
-        # Check for defunct option
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if isinstance(filename, list | tuple | np.ndarray):
             # this is either a list of separate files to read or a list of
             # FHD files or MWA correlator FITS files

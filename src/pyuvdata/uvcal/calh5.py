@@ -639,12 +639,9 @@ class CalH5(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a CalH5 file."""
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if isinstance(filename, FastCalH5Meta):
             meta = filename
             filename = str(meta.path)

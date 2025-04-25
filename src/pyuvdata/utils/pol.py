@@ -24,7 +24,6 @@ __all__ = [
     "jstr2num",
     "jnum2str",
     "conj_pol",
-    "_x_orientation_rep_dict",
     "x_orientation_pol_map",
     "parse_polstr",
     "parse_jpolstr",
@@ -84,23 +83,6 @@ XORIENTMAP = {
     "ew": "east",
     "ns": "north",
 }
-
-
-def _x_orientation_rep_dict(x_orientation):
-    """
-    Create replacement dict based on x_orientation.
-
-    Deprecated. Use x_orientation_pol_map instead.
-
-    """
-    warnings.warn(
-        "This function (_x_orientation_rep_dict) is deprecated, use "
-        "pyuvdata.utils.pol.x_orientation_pol_map instead."
-        " This will become an error in version 3.2",
-        DeprecationWarning,
-    )
-
-    return x_orientation_pol_map(x_orientation)
 
 
 def x_orientation_pol_map(x_orientation: str) -> dict:

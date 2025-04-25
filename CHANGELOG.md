@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.0] - 2025-04-25
+
 ### Added
 - A new page to the docs labeled "Conventions" has been added.
 - The methods `Telescope.__add__` and `Telescope.__iadd__` have been added to allow
@@ -96,6 +98,24 @@ selection (if input to `polarizations` keyword was unordered).
 ### Deprecated
 - The `x_orientation` attribute on `Telescope` and `UVBeam`.
 - The options `"e"` and `"n"` for elements of `feed_array` in `Telescope` and `UVBeam`.
+
+### Removed
+- The `future_array_shapes` attribute on `UVBase` objects.
+- The `use_future_array_shapes` keyword in various class methods.
+- The `use_future_array_shapes` method on `UVBase` objects.
+- Support for accessing the telescope-related metadata through their old attribute
+names on `UVData`, `UVCal` and `UVFlag` rather than via their attributes on the
+attached `Telescope` object (e.g. `UVData.telescope_name` -> `UVData.telescope.name`
+and `UVData.antenna_positions` -> `UVData.telescope.antenna_positions`).
+- Support for passing telescope-related metadata as separate parameters to `UVData.new` and
+`UVCal.new` rather than `Telescope` objects.
+- The `UVData.get_ENU_antpos` method in favor of `UVData.telescope.get_enu_antpos`.
+- The `Telescope.telescope_location` and `Telescope.telescope_name` attributes
+in favor of `Telescope.location` and `Telescope.name`.
+- The `get_telescope` function in favor of the `known_telescope_location` function
+and the `Telescope.from_known_telescopes` classmethod.
+- The KNOWN_TELESCOPE dict in favor of the `known_telescope_location` function
+and the `Telescope.from_known_telescopes` classmethod.
 
 ## [3.1.3] - 2025-01-13
 

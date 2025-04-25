@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-import warnings
-
 import numpy as np
 
 # standard angle tolerance: 1 mas in radians.
@@ -44,81 +42,3 @@ from .phasing import uvw_track_generator  # noqa
 from .pol import *  # noqa
 from .times import get_lst_for_time  # noqa
 from .uvcalibrate import uvcalibrate  # noqa
-
-# deprecated imports
-
-
-def _check_histories(history1, history2):
-    """Check if two histories are the same.
-
-    Deprecated. Use pyuvdata.utils.history._check_histories
-    """
-    from .history import _check_histories
-
-    warnings.warn(
-        "The _check_histories function has moved, please import it from "
-        "pyuvdata.utils.history. This warnings will become an error in version 3.2",
-        DeprecationWarning,
-    )
-
-    return _check_histories(history1, history2)
-
-
-def _fits_gethduaxis(hdu, axis):
-    """
-    Make axis arrays for fits files.
-
-    Deprecated. Use pyuvdata.utils.io.fits._gethduaxis.
-
-    Parameters
-    ----------
-    hdu : astropy.io.fits HDU object
-        The HDU to make an axis array for.
-    axis : int
-        The axis number of interest (1-based).
-
-    Returns
-    -------
-    ndarray of float
-        Array of values for the specified axis.
-
-    """
-    from .io.fits import _gethduaxis
-
-    warnings.warn(
-        "The _fits_gethduaxis function has moved, please import it as "
-        "pyuvdata.utils.io.fits._gethduaxis. This warnings will become an "
-        "error in version 3.2",
-        DeprecationWarning,
-    )
-
-    return _gethduaxis(hdu, axis)
-
-
-def _fits_indexhdus(hdulist):
-    """
-    Get a dict of table names and HDU numbers from a FITS HDU list.
-
-    Deprecated. Use pyuvdata.utils.io.fits._indexhdus.
-
-    Parameters
-    ----------
-    hdulist : list of astropy.io.fits HDU objects
-        List of HDUs to get names for
-
-    Returns
-    -------
-    dict
-        dictionary with table names as keys and HDU number as values.
-
-    """
-    from .io.fits import _indexhdus
-
-    warnings.warn(
-        "The _fits_indexhdus function has moved, please import it as "
-        "pyuvdata.utils.io.fits._indexhdus. This warnings will become an "
-        "error in version 3.2",
-        DeprecationWarning,
-    )
-
-    return _indexhdus(hdulist)

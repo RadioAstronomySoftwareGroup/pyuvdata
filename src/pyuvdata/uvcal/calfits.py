@@ -501,13 +501,9 @@ class CALFITS(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read data from a calfits file."""
-        # Check for deprecated option
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]

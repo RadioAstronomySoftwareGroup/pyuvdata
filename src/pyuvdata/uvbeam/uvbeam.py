@@ -687,7 +687,7 @@ class UVBeam(UVBase):
         if self.mount_type is None:
             warnings.warn(
                 "The mount_type parameter must be set for UVBeam objects, setting to "
-                '"fixed" by default for now. This will become an error in version 2.4.',
+                '"fixed" by default for now. This will become an error in version 3.4.',
                 DeprecationWarning,
             )
             self.mount_type = "fixed"
@@ -3604,8 +3604,6 @@ class UVBeam(UVBase):
         ----------
         filename : str or list of str
             The beamfits file or list of files to read from.
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         run_check : bool
             Option to check for the existence and proper shapes of
             required parameters after reading in the file.
@@ -3707,7 +3705,6 @@ class UVBeam(UVBase):
         filename,
         *,
         beam_type="power",
-        use_future_array_shapes=None,
         feed_pol=None,
         feed_array=None,
         feed_angle=None,
@@ -3765,8 +3762,6 @@ class UVBeam(UVBase):
             override the values in the settings file.
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -4080,7 +4075,6 @@ class UVBeam(UVBase):
             self.read_cst_beam(
                 cst_filename[0],
                 beam_type=beam_type,
-                use_future_array_shapes=use_future_array_shapes,
                 feed_pol=pol,
                 feed_array=feed_array,
                 feed_angle=ang,
@@ -4124,7 +4118,6 @@ class UVBeam(UVBase):
                 beam2.read_cst_beam(
                     f,
                     beam_type=beam_type,
-                    use_future_array_shapes=use_future_array_shapes,
                     feed_pol=pol,
                     feed_array=feed_array,
                     feed_angle=ang,
@@ -4207,8 +4200,6 @@ class UVBeam(UVBase):
             harmonic modes. Download via
             `wget http://ws.mwatelescope.org/static/mwa_full_embedded_element_pattern.h5`
             (This reader is based on https://github.com/MWATelescope/mwa_pb).
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
@@ -4249,7 +4240,6 @@ class UVBeam(UVBase):
         *,
         file_type=None,
         skip_bad_files=False,
-        use_future_array_shapes=None,
         # checking parameters
         run_check=True,
         check_extra=True,
@@ -4333,8 +4323,6 @@ class UVBeam(UVBase):
             the read continues even if one or more files are corrupted. Files
             that produce errors will be printed. Default is False (files will
             not be skipped).
-        use_future_array_shapes : bool
-            Defunct option, will result in an error in version 3.2.
 
         Checking
         --------
@@ -4495,8 +4483,6 @@ class UVBeam(UVBase):
         ValueError
             If the file_type is not set and cannot be determined from the file name.
         """
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         if isinstance(filename, list | tuple | np.ndarray):
             multi = True
         else:

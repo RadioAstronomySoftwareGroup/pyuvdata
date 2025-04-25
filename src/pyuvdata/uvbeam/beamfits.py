@@ -66,7 +66,6 @@ class BeamFITS(UVBeam):
         self,
         filename,
         *,
-        use_future_array_shapes=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -78,9 +77,6 @@ class BeamFITS(UVBeam):
         mount_type=None,
     ):
         """Read the data from a beamfits file."""
-        # Check for defunct future array shapes call
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]

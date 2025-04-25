@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Literal
 
 import numpy as np
@@ -22,6 +21,7 @@ def new_uvcal(
     cal_style: Literal["sky", "redundant"],
     gain_convention: Literal["divide", "multiply"],
     jones_array: np.ndarray | str,
+    telescope: Telescope,
     time_array: np.ndarray | None = None,
     time_range: np.ndarray | None = None,
     freq_array: np.ndarray | None = None,
@@ -29,21 +29,7 @@ def new_uvcal(
     cal_type: Literal["delay", "gain"] | None = None,
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
-    telescope: Telescope | None = None,
     update_telescope_from_known: bool = True,
-    # do not type hint here because MoonLocations are allowed but we don't
-    # want to import them just for this.
-    telescope_location=None,
-    telescope_name: str | None = None,
-    x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
-    feeds: Literal["x", "y", "l", "r"] | list[str] | None = None,
-    feed_array: np.ndarray | None = None,
-    feed_angle: np.ndarray | None = None,
-    mount_type: list | None = None,
-    antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
-    antenna_names: list[str] | None = None,
-    antenna_numbers: list[int] | None = None,
-    antname_format: str = "{0:03d}",
     ant_array: np.ndarray | None = None,
     flex_spw_id_array: np.ndarray | None = None,
     ref_antenna_name: str | None = None,
@@ -58,6 +44,18 @@ def new_uvcal(
 
     Parameters
     ----------
+    cal_style : str
+        Calibration style. Options are 'sky' or 'redundant'.
+    gain_convention : str
+        Gain convention. Options are 'divide' or 'multiply'.
+    jones_array : ndarray of int or str
+        Array of Jones polarization integers. If a string, options are 'linear' or
+        'circular' (which will be converted to the appropriate Jones integers as
+        length-4 arrays).
+    telescope : pyuvdata.Telescope
+        Telescope object containing the telescope-related metadata including
+        telescope name and location, x_orientation and antenna names, numbers
+        and positions.
     time_array : ndarray of float
         Array of times of the center of the integrations, in Julian Date. Only
         one of time_array or time_range should be supplied.
@@ -66,20 +64,15 @@ def new_uvcal(
         two-dimensional array with shape (Ntimes, 2) where the second axis gives
         the start time and stop time (in that order). Only one of time_array or
         time_range should be supplied.
-    cal_style : str
-        Calibration style. Options are 'sky' or 'redundant'.
     freq_array : ndarray of float, optional
         Array of frequencies in Hz. If given, the freq_range parameter is ignored, and
         the cal type is assumed to be "gain".
     freq_range : ndarray of float, optional
         Frequency ranges in Hz. Must be given if ``freq_array`` is not given. If given,
         the calibration is assumed to be wide band. The array shape should be (Nspws, 2)
-    gain_convention : str
-        Gain convention. Options are 'divide' or 'multiply'.
-    jones_array : ndarray of int or str
-        Array of Jones polarization integers. If a string, options are 'linear' or
-        'circular' (which will be converted to the appropriate Jones integers as
-        length-4 arrays).
+    update_telescope_from_known : bool
+        If set to True, then the method will fill in any missing fields/information on
+        the Telescope object if the name is recognized. Default is True.
     cal_type : str, optional
         Calibration type. Options are 'delay', 'gain'. Forced to be 'gain' if
         ``freq_array`` is given, and by *default* set to 'delay' if not.
@@ -100,60 +93,6 @@ def new_uvcal(
         If not provided and freq_array is length-one, the channel_width will be set to
         1 Hz (and a warning issued). If an ndarray is provided, it must have the same
         shape as freq_array.
-    telescope : pyuvdata.Telescope
-        Telescope object containing the telescope-related metadata including
-        telescope name and location, x_orientation and antenna names, numbers
-        and positions.
-    update_telescope_from_known : bool
-        If set to True, then the method will fill in any missing fields/information on
-        the Telescope object if the name is recognized. If set to True, the method
-        will only construct the UVData.Telescope object with the information directly
-        supplied. Default is True.
-    telescope_location : EarthLocation or MoonLocation object
-        Deprecated. Telescope location as an astropy EarthLocation object or
-        MoonLocation object. Not required or used if a Telescope object is
-        passed to `telescope`.
-    telescope_name : str
-        Deprecated. Telescope name. Not required or used if a Telescope object
-        is passed to `telescope`.
-    x_orientation : str
-        Deprecated. Orientation of the x-axis. Options are 'east', 'north',
-        'e', 'n', 'ew', 'ns'. Not required or used if a Telescope object is
-        passed to `telescope`.
-    feeds : list of str or None:
-        List of feeds present in the Telescope, which must be one of "x", "y", "l",
-        "r". Length of the list must be either 1 or 2. Used to populate feed_array
-        and feed_angle parameters if only supplying x_orientation, default is
-        ["x", "y"]. Not used if a Telescope object is passed to `telescope`.
-    feed_array : array-like of str or None
-        List of feeds for each antenna in the Telescope object, must be one of
-        "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str. Not used if a Telescope
-        object is passed to `telescope`.
-    feed_angle : array-like of float or None
-        Orientation of the feed with respect to zenith (or with respect to north if
-        pointed at zenith). Units is in rads, x-polarization is nominally pi / 2,
-        and y-polarization (and l- and r-polarizations) is nominally 0. Shape (Nants,
-        Nfeeds), dtype float. Not used if a Telescope object is passed to `telescope`.
-    antenna_positions : ndarray of float or dict of ndarray of float
-        Deprecated. Array of antenna positions in ECEF coordinates in meters.
-        If a dict, keys can either be antenna numbers or antenna names, and values are
-        position arrays. Keys are interpreted as antenna numbers if they are integers,
-        otherwise they are interpreted as antenna names if strings. You cannot
-        provide a mix of different types of keys.
-        Not required or used if a Telescope object is passed to `telescope`.
-    antenna_names : list of str, optional
-        Deprecated. List of antenna names. Not required or used if a Telescope
-        object is passed to `telescope` or if antenna_positions is a dict with
-        string keys. Otherwise, if not provided, antenna numbers will be used
-        to form the antenna_names, according to the antname_format
-    antenna_numbers : list of int, optional
-        Deprecated. List of antenna numbers. Not required or used if a Telescope
-        object is passed to `telescope` or if antenna_positions is a dict with
-        integer keys. Otherwise, if not provided, antenna names will be used to
-        form the antenna_numbers, but in this case the antenna_names must be
-        strings that can be converted to integers.
-    antname_format : str, optional
-        Deprecated. Format string for antenna names. Default is '{0:03d}'.
     ant_array : ndarray of int, optional
         Array of antenna numbers actually found in data (in the order of the data
         in gain_array etc.)
@@ -198,73 +137,27 @@ def new_uvcal(
 
     uvc = UVCal()
 
-    if telescope is None:
-        required_without_tel = {
-            "antenna_positions": antenna_positions,
-            "telescope_location": telescope_location,
-            "telescope_name": telescope_name,
-            "x_orientation": x_orientation,
-        }
-        for key, value in required_without_tel.items():
-            if value is None:
-                raise ValueError(f"{key} is required if telescope is not provided.")
+    if not isinstance(telescope, Telescope):
+        raise ValueError("telescope must be a pyuvdata.Telescope object.")
 
-        instrument = kwargs.pop("instrument", None)
-        antenna_diameters = kwargs.pop("antenna_diameters", None)
-        old_params = {
-            "telescope_name": telescope_name,
-            "telescope_location": telescope_location,
-            "antenna_positions": antenna_positions,
-            "antenna_names": antenna_names,
-            "antenna_numbers": antenna_numbers,
-            "instrument": instrument,
-            "x_orientation": x_orientation,
-            "antenna_diameters": antenna_diameters,
-        }
-        warn_params = []
-        for param, val in old_params.items():
-            if val is not None:
-                warn_params.append(param)
-        warnings.warn(
-            f"Passing {', '.join(warn_params)} is deprecated in favor of passing "
-            "a Telescope object via the `telescope` parameter. This will become "
-            "an error in version 3.2",
-            DeprecationWarning,
-        )
-        telescope = Telescope.new(
-            name=telescope_name,
-            location=telescope_location,
-            antenna_positions=antenna_positions,
-            antenna_names=antenna_names,
-            antenna_numbers=antenna_numbers,
-            antname_format=antname_format,
-            instrument=instrument,
-            x_orientation=x_orientation,
-            feeds=feeds,
-            feed_angle=feed_angle,
-            feed_array=feed_array,
-            mount_type=mount_type,
-            antenna_diameters=antenna_diameters,
-            update_from_known=update_telescope_from_known,
-        )
-    else:
-        required_on_tel = [
-            "antenna_positions",
-            "antenna_names",
-            "antenna_numbers",
-            "Nants",
-            "feed_array",
-            "feed_angle",
-            "mount_type",
-            "Nfeeds",
-        ]
-        for key in required_on_tel:
-            if getattr(telescope, key) is None:
-                raise ValueError(
-                    f"{key} must be set on the Telescope object passed to `telescope`."
-                )
-        if update_telescope_from_known:
-            telescope.update_params_from_known_telescopes()
+    if update_telescope_from_known:
+        telescope.update_params_from_known_telescopes()
+
+    required_on_tel = [
+        "antenna_positions",
+        "antenna_names",
+        "antenna_numbers",
+        "Nants",
+        "feed_array",
+        "feed_angle",
+        "mount_type",
+        "Nfeeds",
+    ]
+    for key in required_on_tel:
+        if getattr(telescope, key) is None:
+            raise ValueError(
+                f"{key} must be set on the Telescope object passed to `telescope`."
+            )
 
     if ant_array is None:
         ant_array = telescope.antenna_numbers

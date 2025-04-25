@@ -56,15 +56,6 @@ def test_sorted_unique_ops(obj1, obj2, union_result, interset_result, diff_resul
     assert utils.tools._sorted_unique_difference(obj1, obj2) == diff_result
 
 
-def test_deprecated_utils_import():
-    with check_warnings(
-        DeprecationWarning,
-        match="The _check_histories function has moved, please import it from "
-        "pyuvdata.utils.history. This warnings will become an error in version 3.2",
-    ):
-        utils._check_histories("foo", "foo")
-
-
 @pytest.mark.parametrize("strict", [True, False, None])
 def test_strict_raise(strict):
     if strict:

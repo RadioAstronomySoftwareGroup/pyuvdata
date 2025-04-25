@@ -377,13 +377,9 @@ class UVFITS(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in header, metadata and data from a uvfits file."""
-        # Check for defunct keyword
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]

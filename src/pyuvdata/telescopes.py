@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import warnings
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -22,7 +21,7 @@ from .utils.io import antpos, hdf5 as hdf5_utils
 from .utils.tools import _strict_raise, slicify
 from .uvbase import UVBase
 
-__all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
+__all__ = ["Telescope", "known_telescopes", "known_telescope_location"]
 
 # We use astropy sites for telescope locations. The dict below is for
 # telescopes not in astropy sites, or to include extra information for a telescope.
@@ -32,7 +31,7 @@ __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_tel
 # Antenna positions can be specified via a csv file with the following columns:
 # "name" -- antenna name, "number" -- antenna number, "x", "y", "z" -- ECEF coordinates
 # relative to the telescope location.
-_KNOWN_TELESCOPES = {
+KNOWN_TELESCOPES = {
     "PAPER": {
         "location": EarthLocation.from_geodetic(
             lat=Angle("-30d43m17.5s"), lon=Angle("21d25m41.9s"), height=1073.0 * units.m
@@ -117,7 +116,7 @@ _KNOWN_TELESCOPES = {
 
 # Define a (private) dictionary that tracks whether the user wants warnings
 # to be raised on updating known telescopes from params.
-_WARN_STATUS = {k.lower(): True for k in _KNOWN_TELESCOPES}
+_WARN_STATUS = {k.lower(): True for k in KNOWN_TELESCOPES}
 
 
 def ignore_telescope_param_update_warnings_for(tel: str):
@@ -147,45 +146,6 @@ def unignore_telescope_param_update_warnings_for(tel: str):
     _WARN_STATUS[tel] = True
 
 
-# Deprecation to handle accessing old keys of KNOWN_TELESCOPES
-class TelMapping(Mapping):
-    def __init__(self, mapping=()):
-        self._mapping = dict(mapping)
-
-    def __getitem__(self, key):
-        warnings.warn(
-            "Directly accessing the KNOWN_TELESCOPES dict is deprecated. If you "
-            "need a telescope location, use the known_telescope_location function. "
-            "For a full Telescope object use the classmethod "
-            "Telescope.from_known_telescopes. This will become an error in version 3.2",
-            DeprecationWarning,
-        )
-        if key in ["latitude", "longitude", "altitude", "center_xyz"]:
-            if key == "latitude":
-                return self._mapping["location"].lat.rad
-            if key == "longitude":
-                return self._mapping["location"].lon.rad
-            if key == "altitude":
-                return self._mapping["location"].height.to_value("m")
-            if key == "center_xyz":
-                return units.Quantity(self._mapping["location"].geocentric).to_value(
-                    "m"
-                )
-
-        return self._mapping[key]
-
-    def __len__(self):
-        return len(self._mapping)
-
-    def __iter__(self):
-        return iter(self._mapping)
-
-
-KNOWN_TELESCOPES = TelMapping(
-    (name, TelMapping(tel_dict)) for name, tel_dict in _KNOWN_TELESCOPES.items()
-)
-
-
 def known_telescopes():
     """
     Get list of known telescopes.
@@ -196,32 +156,8 @@ def known_telescopes():
         List of known telescope names.
     """
     astropy_sites = [site for site in EarthLocation.get_site_names() if site != ""]
-    known_telescopes = list(set(astropy_sites + list(_KNOWN_TELESCOPES.keys())))
+    known_telescopes = list(set(astropy_sites + list(KNOWN_TELESCOPES.keys())))
     return known_telescopes
-
-
-def get_telescope(telescope_name):
-    """
-    Get Telescope object for a telescope in telescope_dict. Deprecated.
-
-    Parameters
-    ----------
-    telescope_name : str
-        Name of a telescope
-
-    Returns
-    -------
-    Telescope object
-        The Telescope object associated with telescope_name.
-    """
-    warnings.warn(
-        "This method is deprecated and will be removed in version 3.2. If you "
-        "just need a telescope location, use the known_telescope_location function. "
-        "For a full Telescope object use the classmethod "
-        "Telescope.from_known_telescopes.",
-        DeprecationWarning,
-    )
-    return Telescope.from_known_telescopes(telescope_name, run_check=False)
 
 
 def known_telescope_location(name: str, return_citation: bool = False, **kwargs):
@@ -256,9 +192,9 @@ def known_telescope_location(name: str, return_citation: bool = False, **kwargs)
     else:
         telescope_dict = {}
         tel_name = name.lower()
-        for key in _KNOWN_TELESCOPES:
+        for key in KNOWN_TELESCOPES:
             if key.lower() == tel_name:
-                telescope_dict = _KNOWN_TELESCOPES[key]
+                telescope_dict = KNOWN_TELESCOPES[key]
         for key in kwargs:
             if (key == "citation") or (key == "location"):
                 telescope_dict[key] = kwargs[key]
@@ -499,22 +435,7 @@ class Telescope(UVBase):
 
     def __getattr__(self, __name):
         """Handle old names attributes."""
-        if __name == "telescope_location":
-            warnings.warn(
-                "The Telescope.telescope_location attribute is deprecated, use "
-                "Telescope.location instead (which contains an astropy "
-                "EarthLocation object). This will become an error in version 3.2.",
-                DeprecationWarning,
-            )
-            return self._location.xyz()
-        elif __name == "telescope_name":
-            warnings.warn(
-                "The Telescope.telescope_name attribute is deprecated, use "
-                "Telescope.name instead. This will become an error in version 3.2.",
-                DeprecationWarning,
-            )
-            return self.name
-        elif __name == "x_orientation":
+        if __name == "x_orientation":
             warnings.warn(
                 "The Telescope.x_orientation attribute is deprecated, and has "
                 "been superseded by Telescope.feed_angle and Telescope.feed_array. "
@@ -529,22 +450,7 @@ class Telescope(UVBase):
 
     def __setattr__(self, __name, __value):
         """Handle old names for telescope metadata."""
-        if __name == "telescope_location":
-            warnings.warn(
-                "The Telescope.telescope_location attribute is deprecated, use "
-                "Telescope.location instead (which should be set to an astropy "
-                "EarthLocation object). This will become an error in version 3.2.",
-                DeprecationWarning,
-            )
-            self._location.set_xyz(__value)
-        elif __name == "telescope_name":
-            warnings.warn(
-                "The Telescope.telescope_name attribute is deprecated, use "
-                "Telescope.name instead. This will become an error in version 3.2.",
-                DeprecationWarning,
-            )
-            self.name = __value
-        elif __name == "x_orientation":
+        if __name == "x_orientation":
             warnings.warn(
                 "The Telescope.x_orientation attribute is deprecated, and has "
                 "been superseded by Telescope.feed_angle and Telescope.feed_array. "
@@ -837,9 +743,9 @@ class Telescope(UVBase):
             )
         telescope_dict = {}
         tel_name = self.name.lower()
-        for key in _KNOWN_TELESCOPES:
+        for key in KNOWN_TELESCOPES:
             if key.lower() == tel_name:
-                telescope_dict.update(_KNOWN_TELESCOPES[key])
+                telescope_dict.update(KNOWN_TELESCOPES[key])
 
         astropy_sites_list = []
         known_telescope_list = []

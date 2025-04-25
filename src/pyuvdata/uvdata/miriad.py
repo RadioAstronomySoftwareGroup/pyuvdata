@@ -754,13 +754,9 @@ class Miriad(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a miriad file."""
-        # Check for defunct keyword here
-        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
-
         from . import aipy_extracts
 
         if not os.path.exists(filepath):
