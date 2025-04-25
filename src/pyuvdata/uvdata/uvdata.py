@@ -8373,10 +8373,10 @@ class UVData(UVBase):
         *,
         tol=1.0,
         use_antpos=False,
-        include_conjugates=False,
+        include_conjugates=None,
         include_autos=True,
         conjugate_bls=False,
-        use_grid_alg=None,
+        use_grid_alg=True,
     ):
         """
         Get redundant baselines to a given tolerance.
@@ -8394,7 +8394,8 @@ class UVData(UVBase):
             The returned baselines are in the 'u>0' convention.
         include_conjugates : bool
             Option to include baselines that are redundant under conjugation.
-            Only used if use_antpos is False.
+            Only used if use_antpos is False. Default is currently False but will
+            become True in version 3.4.
         include_autos : bool
             Option to include autocorrelations in the full redundancy list.
             Only used if use_antpos is True.
@@ -8404,6 +8405,7 @@ class UVData(UVBase):
         use_grid_alg : bool
             Option to use the gridding based algorithm (developed by the HERA team)
             to find redundancies rather than the older clustering algorithm.
+            Default is True.
 
         Returns
         -------
@@ -8427,19 +8429,6 @@ class UVData(UVBase):
         in the data.
 
         """
-        if use_grid_alg is None:
-            # This was added in v2.4.2 (Feb 2024). It should go away at some point.
-            # Normally it would be in v2.6 or later, but if v3.0 comes out
-            # very soon we could consider delaying the removal of this until v3.1
-            warnings.warn(
-                "The use_grid_alg parameter is not set. Defaulting to True to "
-                "use the new gridding based algorithm (developed by the HERA team) "
-                "rather than the older clustering based algorithm. This is change "
-                "to the default, to use the clustering algorithm set "
-                "use_grid_alg=False."
-            )
-            use_grid_alg = True
-
         if use_antpos:
             antpos = self.telescope.get_enu_antpos()
             result = utils.redundancy.get_antenna_redundancies(
@@ -8497,7 +8486,7 @@ class UVData(UVBase):
         tol=1.0,
         inplace=True,
         keep_all_metadata=True,
-        use_grid_alg=False,
+        use_grid_alg=None,
     ):
         """
         Downselect or average to only have one baseline per redundant group.
@@ -8538,6 +8527,17 @@ class UVData(UVBase):
         allowed_methods = ["select", "average"]
         if method not in allowed_methods:
             raise ValueError(f"method must be one of {allowed_methods}")
+
+        if use_grid_alg is None:
+            # This should be removed in v3.4
+            warnings.warn(
+                "The use_grid_alg parameter is not set. Defaulting to True to "
+                "use the new gridding based algorithm (developed by the HERA team) "
+                "rather than the older clustering based algorithm. This is change "
+                "to the default, to use the clustering algorithm set "
+                "use_grid_alg=False."
+            )
+            use_grid_alg = True
 
         red_gps, _, _, conjugates = self.get_redundancies(
             tol=tol, include_conjugates=True, use_grid_alg=use_grid_alg

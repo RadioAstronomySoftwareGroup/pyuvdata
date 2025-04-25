@@ -58,6 +58,11 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Default redundancy finding algorithm in `UVData.compress_by_redundancy` to match
+the default in `UVData.get_redundancies` and utils redundancy functions.
+- Started the process of changing the default for the `include_conjugates` in
+`UVData.get_redundancies` from False to True (with a deprecation process) to
+match the behavior of `UVData.compress_by_redundancy`.
 - Warnings related to setting of parameters from known telescopes when instantiating
 `UVData`, `UVCal`, and `UVFlag` objects are now turned off by default.
 - `feed_array` (and by association, `feed_angle` and `Nfeeds`) is now a required

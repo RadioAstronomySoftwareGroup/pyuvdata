@@ -1603,7 +1603,7 @@ the baseline array.
   >>> tol = 0.05  # Tolerance in meters
 
   >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol)
+  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, include_conjugates=False)
   >>> print(len(baseline_groups))
   19
 
@@ -1613,7 +1613,7 @@ the baseline array.
   >>> print(len(baseline_groups))
   19
 
-  >>> # Using antenna positions instead
+  >>> # Using antenna positions instead. This has one more group because it includes the autos.
   >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
   >>> print(len(baseline_groups))
   20

@@ -5853,30 +5853,14 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
         uv.select(**kwargs, strict=True)
 
 
-@pytest.mark.parametrize("grid_alg", [True, False, None])
+@pytest.mark.parametrize("grid_alg", [True, False])
 def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
     uv0 = pyuvsim_redundant
 
     old_bl_array = np.copy(uv0.baseline_array)
-    if grid_alg is None:
-        warn_str = (
-            "The use_grid_alg parameter is not set. Defaulting to True to "
-            "use the new gridding based algorithm (developed by the HERA team) "
-            "rather than the older clustering based algorithm. This is change "
-            "to the default, to use the clustering algorithm set "
-            "use_grid_alg=False."
-        )
-        warn_type = UserWarning
-    else:
-        warn_type = None
-        warn_str = ""
-    with check_warnings(warn_type, match=warn_str):
-        red_gps, centers, lengths = uv0.get_redundancies(
-            use_antpos=True,
-            include_autos=False,
-            conjugate_bls=True,
-            use_grid_alg=grid_alg,
-        )
+    red_gps, centers, lengths = uv0.get_redundancies(
+        use_antpos=True, include_autos=False, conjugate_bls=True, use_grid_alg=grid_alg
+    )
     # new and old baseline Numbers are not the same (different conjugation)
     assert not np.allclose(uv0.baseline_array, old_bl_array)
 
@@ -5887,26 +5871,19 @@ def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
 
     # conjugate data differently
     uv0.conjugate_bls(convention="ant1<ant2")
-    with check_warnings(warn_type, match=warn_str):
-        new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
-            use_antpos=True,
-            include_autos=False,
-            include_conjugates=True,
-            use_grid_alg=grid_alg,
-        )
+    new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
+        use_antpos=True,
+        include_autos=False,
+        include_conjugates=True,
+        use_grid_alg=grid_alg,
+    )
 
     assert conjs is None
 
     apos = uv0.telescope.get_enu_antpos()
-    with check_warnings(warn_type, match=warn_str):
-        new_red_gps, new_centers, new_lengths = (
-            utils.redundancy.get_antenna_redundancies(
-                uv0.telescope.antenna_numbers,
-                apos,
-                include_autos=False,
-                use_grid_alg=grid_alg,
-            )
-        )
+    new_red_gps, new_centers, new_lengths = utils.redundancy.get_antenna_redundancies(
+        uv0.telescope.antenna_numbers, apos, include_autos=False, use_grid_alg=grid_alg
+    )
 
     # all redundancy info is the same
     assert red_gps == new_red_gps
@@ -5938,10 +5915,8 @@ def test_redundancy_contract_expand(
         # the test file has groups that are either all not conjugated or all conjugated.
         # need to conjugate some so we have mixed groups to properly test the average
         # method.
-        (orig_red_gps, orig_centers, orig_lengths, orig_conjugates) = (
-            uv0.get_redundancies(
-                tol=tol, include_conjugates=True, use_grid_alg=grid_alg
-            )
+        (orig_red_gps, _, _, _) = uv0.get_redundancies(
+            tol=tol, include_conjugates=True, use_grid_alg=grid_alg
         )
         blt_inds_to_conj = []
         for gp in orig_red_gps:
@@ -5954,7 +5929,7 @@ def test_redundancy_contract_expand(
     # Assign identical data to each redundant group, set up flagging.
     # This must be done after reconjugation because reconjugation can alter the index
     # baseline
-    red_gps, centers, lengths, conjugates = uv0.get_redundancies(
+    red_gps, _, _, conjugates = uv0.get_redundancies(
         tol=tol, include_conjugates=True, use_grid_alg=grid_alg
     )
     index_bls = []
@@ -6494,7 +6469,7 @@ def test_quick_redundant_vs_redundant_test_array(grid_alg, pyuvsim_redundant):
     groups = [sorted(bl for bl in grp if bl != -1) for grp in groups]
     groups.sort()
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(
+    redundant_groups, _, _, _ = uv.get_redundancies(
         tol=tol, include_conjugates=True, use_grid_alg=grid_alg
     )
     redundant_groups.sort()
