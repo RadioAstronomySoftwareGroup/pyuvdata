@@ -9964,6 +9964,14 @@ class UVData(UVBase):
         read (partial read) and checking. Each file type also has its own set of
         optional parameters that are listed at the end of this docstring.
 
+        Note that select on read (partial reading) is not always faster than
+        reading an entire file and then downselecting. Which approach is faster
+        depends on the fraction of data that is selected as well on the relationship
+        between the selection and the internal data ordering in the file. When
+        the select is on a small area of the file or has a regular stride it can
+        be much faster to do the select on read, but in other cases it can be slower.
+        Select on read does generally reduce the memory footprint.
+
         Parameters
         ----------
         filename : str or array_like of str
