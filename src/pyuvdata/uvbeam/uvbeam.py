@@ -1668,9 +1668,11 @@ class UVBeam(UVBase):
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
         reuse_spline : bool
-            Save the interpolation functions for reuse.
-        spline_opts : dict
-            Options (kx, ky, s) for numpy.RectBivariateSpline.
+            Option to save the interpolation functions for reuse, default is False.
+        spline_opts : dict, optional
+            Option to specify (kx, ky, s) for numpy.RectBivariateSpline. Note that
+            this parameter is ignored if this function has been called previously
+            on this object instance and reuse_spline is True.
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
@@ -1855,8 +1857,10 @@ class UVBeam(UVBase):
             Default is all polarizations in self.polarization_array.
         reuse_spline : bool
             Save the interpolation functions for reuse.
-        spline_opts : dict
-            Options (kx, ky, s) for numpy.RectBivariateSpline.
+        spline_opts : dict, optional
+            Option to specify (kx, ky, s) for numpy.RectBivariateSpline. Note that
+            this parameter is ignored if this function has been called previously
+            on this object instance and reuse_spline is True.
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
@@ -2207,10 +2211,12 @@ class UVBeam(UVBase):
         reuse_spline : bool
             Save the interpolation functions for reuse. Only applies for
             `az_za_simple` and `az_za_map_coordinates` interpolation.
-        spline_opts : dict
+        spline_opts : dict, optional
             Provide options to numpy.RectBivariateSpline. This includes spline
             order parameters `kx` and `ky`, and smoothing parameter `s`.
             Applies for `az_za_simple` and `az_za_map_coordinates` interpolation.
+            Note that this parameter is ignored if this function has been called
+            previously on this object instance and reuse_spline is True.
         run_check : bool
             Only used if new_object is True. Option to check for the existence
             and proper shapes of required parameters on the new object.
