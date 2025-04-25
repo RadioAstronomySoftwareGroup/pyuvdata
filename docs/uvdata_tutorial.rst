@@ -1408,6 +1408,14 @@ UVData: Working with large files
 To save on memory and time, pyuvdata supports reading only parts of uvfits, uvh5,
 miriad, and MWA correlator fits files.
 
+Note that select on read (partial reading) is not always faster than reading an
+entire file and then downselecting. Which approach is faster depends on the
+fraction of data that is selected as well on the relationship between the
+selection and the internal data ordering in the file. When the select is on a
+small area of the file or has a regular stride it can be much faster to do the
+select on read, but in other cases it can be slower. Select on read does
+generally reduce the memory footprint.
+
 a) Reading just the metadata of a file
 ******************************************
 For uvh5, uvfits, FHD and MWA correlator fits files, reading in the only the
