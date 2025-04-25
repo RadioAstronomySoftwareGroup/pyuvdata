@@ -3824,12 +3824,12 @@ class UVData(UVBase):
         Parameters
         ----------
         order : str
-            Either a string specifying a canonical ordering ('AIPS' or 'CASA')
+            Either a string specifying a canonical ordering ("AIPS" or "CASA")
             or an index array of length Npols that specifies how to shuffle the
             data (this is not the desired final pol order).
             CASA ordering has cross-pols in between (e.g. XX,XY,YX,YY)
             AIPS ordering has auto-pols followed by cross-pols (e.g. XX,YY,XY,YX)
-            Default ('AIPS') will sort by absolute value of pol values.
+            Default ("AIPS") will sort by absolute value of pol values.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after reordering.
@@ -9132,7 +9132,7 @@ class UVData(UVBase):
             this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
+            list if the altitude is missing. Default is True.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -9216,10 +9216,10 @@ class UVData(UVBase):
             The measurement set root directory to read from.
         data_column : str
             name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'
+            "DATA", "MODEL", or "CORRECTED_DATA". Default is "DATA".
         pol_order : str or None
             Option to specify polarizations order convention, options are
-            'CASA', 'AIPS', or None (no reordering). Default is 'AIPS'.
+            "CASA", "AIPS", or None (no reordering). Default is "AIPS".
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -9378,72 +9378,73 @@ class UVData(UVBase):
             that do not have data associated with them after the select option.
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
-            flag files are submitted.
+            flag files are submitted, False otherwise.
         remove_dig_gains : bool
-            Option to divide out digital gains.
+            Option to divide out digital gains, default is True.
         remove_coarse_band : bool
-            Option to divide out coarse band shape.
+            Option to divide out coarse band shape, default is True.
         correct_cable_len : bool
-            Option to apply a cable delay correction.
+            Option to apply a cable delay correction, default is True.
         correct_van_vleck : bool
-            Option to apply a van vleck correction.
+            Option to apply a van vleck correction, default is False.
         cheby_approx : bool
             Only used if correct_van_vleck is True. Option to implement the van
-            vleck correction with a chebyshev polynomial approximation.
+            vleck correction with a chebyshev polynomial approximation, default is True.
         flag_small_auto_ants : bool
             Only used if correct_van_vleck is True. Option to completely flag any
             antenna for which the autocorrelation falls below a threshold found by
             the Van Vleck correction to indicate bad data. Specifically, the
             threshold used is 0.5 * integration_time * channel_width. If set to False,
             only the times and frequencies at which the auto is below the
-            threshold will be flagged for the antenna.
+            threshold will be flagged for the antenna, default is True.
         phase_to_pointing_center : bool
-            Option to phase to the observation pointing center.
+            Option to phase to the observation pointing center, default is False.
         propagate_coarse_flags : bool
             Option to propagate flags for missing coarse channel integrations
-            across frequency.
+            across frequency, default is True.
         flag_init: bool
             Set to True in order to do routine flagging of coarse channel edges,
             start or end integrations, or the center fine channel of each coarse
-            channel. See associated keywords.
+            channel. See associated keywords, default is True.
         edge_width: float
             Only used if flag_init is True. The width to flag on the edge of
             each coarse channel, in hz. Errors if not equal to integer multiple
-            of channel_width. Set to 0 for no edge flagging.
+            of channel_width. Set to 0 for no edge flagging. Default is 80 kHz (80e3).
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
-            'goodtime', which uses information in the metafits file to determine
+            "goodtime", which uses information in the metafits file to determine
             the length of time that should be flagged. Errors if input is not a
-            float or 'goodtime'. Errors if float input is not equal to an
+            float or "goodtime". Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
             Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging. Errors if not
-            equal to an integer multiple of the integration time.
+            end of the observation. Set to 0 for no flagging, which is the default.
+            Errors if not equal to an integer multiple of the integration time.
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
-            channel of each coarse channel.
+            channel of each coarse channel, default is True.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
             file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
+            Default is True.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         read_data : bool
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
-            a metadata only object.
+            a metadata only object. Default is True.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128
-            (double-precision real and imaginary).
+            (double-precision real and imaginary). Default is np.complex64.
         nsample_array_dtype : numpy dtype
             Datatype to store the output nsample_array as. Must be either
             np.float64 (double-precision), np.float32 (single-precision), or
             np.float16 (half-precision). Half-precision is only recommended for
             cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3).
+            because round-off errors can be quite large (~1e-3). Default is np.float32.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -9457,7 +9458,7 @@ class UVData(UVBase):
             range check will be done).
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+            uvws match antenna positions does not pass. Default is False.
         check_autos : bool
             Check whether any auto-correlations have non-zero imaginary values in
             data_array (which should not mathematically exist). Default is True.
@@ -9746,13 +9747,13 @@ class UVData(UVBase):
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
         multidim_index : bool
-            If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
+            If True, attempt to index the HDF5 dataset simultaneously along all
+            data axes. Otherwise index one axis at-a-time. This only works if
+            data selection is sliceable along all but one axis. If indices are
+            not well-matched to data chunks, this can be slow. Default is False.
         remove_flex_pol : bool
             If True and if the file is a flex_pol file, convert back to a standard
-            UVData object.
+            UVData object. Default is True.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -10102,7 +10103,7 @@ class UVData(UVBase):
             range check will be done). Ignored if read_data is False.
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+            uvws match antenna positions does not pass. Default is False.
         check_autos : bool
             Check whether any auto-correlations have non-zero imaginary values in
             data_array (which should not mathematically exist). Default is True.
@@ -10125,7 +10126,7 @@ class UVData(UVBase):
             this keyword unless you are confident about the contents of the file.
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
+            list if the altitude is missing. Default is True.
         calc_lst : bool
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
@@ -10169,10 +10170,10 @@ class UVData(UVBase):
         --
         data_column : str
             name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'.
+            'DATA', 'MODEL', or 'CORRECTED_DATA'. Default is "DATA".
         pol_order : str or None
             Option to specify polarizations order convention, options are
-            'CASA', 'AIPS', or None (no reordering). Default is 'AIPS'.
+            "CASA", "AIPS", or None (no reordering). Default is "AIPS".
         ignore_single_chan : bool
             Option to ignore single channel spectral windows in measurement sets to
             limit object size. Some measurement sets (e.g., those from ALMA) use single
@@ -10194,7 +10195,7 @@ class UVData(UVBase):
             "correct" metadata in the UVData object. If the problem is with the
             timescale, it will just assume UTC.
         read_weights : bool
-            Read in the weights from the MS file. If false, the method
+            Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
@@ -10209,15 +10210,15 @@ class UVData(UVBase):
             If True, attempt to index the HDF5 dataset simultaneously along all data
             axes. Otherwise index one axis at-a-time. This only works if data selection
             is sliceable along all but one axis. If indices are not well-matched to
-            data chunks, this can be slow.
+            data chunks, this can be slow. Default is False.
         remove_flex_pol : bool
             If True and if the file is a flex_pol file, convert back to a standard
-            UVData object.
+            UVData object. Default is True.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'.
+            data on-disk is not 'c8' or 'c16'. Default is np.complex128.
         blt_order : tuple of str or "determine", optional
             The order of the baseline-time axis *in the file*. This can be determined,
             or read directly from file, however since it has been optional in the past,
@@ -10260,78 +10261,78 @@ class UVData(UVBase):
         --------
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
-            flag files are submitted.
+            flag files are submitted, False otherwise.
         remove_dig_gains : bool
-            Option to divide out digital gains.
+            Option to divide out digital gains, default is True.
         remove_coarse_band : bool
-            Option to divide out coarse band shape.
+            Option to divide out coarse band shape, default is True.
         correct_cable_len : bool
-            Flag to apply cable length correction.
+            Option to apply a cable delay correction, default is True.
         correct_van_vleck : bool
-            Flag to apply a van vleck correction.
+            Option to apply a van vleck correction, default is False.
         cheby_approx : bool
-            Option to implement the van vleck correction with a chebyshev polynomial
-            approximation. Set to False to run the integral version of the correction.
-            Only used if correct_van_vleck is True.
+            Only used if correct_van_vleck is True. Option to implement the van
+            vleck correction with a chebyshev polynomial approximation, default is True.
         flag_small_auto_ants : bool
-            Option to completely flag any antenna for which the autocorrelation falls
-            below a threshold found by the Van Vleck correction to indicate bad data.
-            Specifically, the threshold used is 0.5 * integration_time * channel_width.
-            If set to False, only the times and frequencies at which the auto is below
-            the threshold will be flagged for the antenna.
-            Only used if correct_van_vleck is True.
-        propogate_coarse_flags : bool
-            Option to propogate flags for missing coarse channel integrations
-            across frequency.
+            Only used if correct_van_vleck is True. Option to completely flag any
+            antenna for which the autocorrelation falls below a threshold found by
+            the Van Vleck correction to indicate bad data. Specifically, the
+            threshold used is 0.5 * integration_time * channel_width. If set to False,
+            only the times and frequencies at which the auto is below the
+            threshold will be flagged for the antenna, default is True.
+        phase_to_pointing_center : bool
+            Option to phase to the observation pointing center, default is False.
+        propagate_coarse_flags : bool
+            Option to propagate flags for missing coarse channel integrations
+            across frequency, default is True.
         flag_init: bool
-            Set to True in order to do routine flagging of coarse channel edges, start
-            or end integrations, or the center fine channel of each coarse
-            channel. See associated keywords below.
+            Set to True in order to do routine flagging of coarse channel edges,
+            start or end integrations, or the center fine channel of each coarse
+            channel. See associated keywords, default is True.
         edge_width: float
-            Only used if flag_init is True. Set to the width to flag on the edge of
-            each coarse channel, in hz. Errors if not equal to integer multiple of
-            channel_width. Set to 0 for no edge flagging.
+            Only used if flag_init is True. The width to flag on the edge of
+            each coarse channel, in hz. Errors if not equal to integer multiple
+            of channel_width. Set to 0 for no edge flagging. Default is 80 kHz (80e3).
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
-            'goodtime', which uses information in the metafits file to determine
+            "goodtime", which uses information in the metafits file to determine
             the length of time that should be flagged. Errors if input is not a
-            float or 'goodtime'. Errors if float input is not equal to an
+            float or "goodtime". Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
-            Only used if flag_init is True. Set to the number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging. Errors if not an integer
-            multiple of the integration time.
+            Only used if flag_init is True. The number of seconds to flag at the
+            end of the observation. Set to 0 for no flagging, which is the default.
+            Errors if not equal to an integer multiple of the integration time.
         flag_dc_offset: bool
-            Only used if flag_init is True. Set to True to flag the center fine channel
-            of each coarse channel.
+            Only used if flag_init is True. Set to True to flag the center fine
+            channel of each coarse channel, default is True.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
             file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
-        phase_to_pointing_center : bool
-            Flag to phase to the pointing center.  Cannot be set if phase_center_radec
-            is set to a value.
+            Default is True.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-            precision real and imaginary).
+            np.complex64 (single-precision real and imaginary) or np.complex128
+            (double-precision real and imaginary). Default is np.complex128,
+            **note that this is a different default than on `read_mwa_corr_fits`**.
         nsample_array_dtype : numpy dtype
             Datatype to store the output nsample_array as. Must be either
             np.float64 (double-precision), np.float32 (single-precision), or
             np.float16 (half-precision). Half-precision is only recommended for
             cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3).
+            because round-off errors can be quite large (~1e-3). Default is np.float32.
 
         MIR
         ---
-        corrchunk : int or array-like of int
+        corrchunk : int or array-like of int, optional
             Correlator "chunk" (spectral window) to include when reading data into the
             object, where 0 corresponds to the pseudo-continuum channel.
-        receivers : str or array-like of str
+        receivers : str or array-like of str, optional
             The names of the receivers ("230", "240", "345", "400") to include when
             reading data into the object.
-        sidebands : str or array-like of str
+        sidebands : str or array-like of str, optional
             The names of the sidebands ("l" for lower, "u" for upper) to include when
             reading data into the object.
         mir_select_where : tuple or list of tuples, optional
@@ -10340,7 +10341,7 @@ class UVData(UVBase):
         apply_flags : bool
             If set to True, apply "wideband" flags to the visibilities, which are
             recorded by the realtime system to denote when data are expected to be bad
-            (e.g., antennas not on source, dewar warm). Default it true.
+            (e.g., antennas not on source, dewar warm). Default is True.
         apply_tsys : bool
             If set to False, data are returned as correlation coefficients (normalized
             by the auto-correlations). Default is True, which instead scales the raw
@@ -10359,7 +10360,7 @@ class UVData(UVBase):
         swarm_only : bool
             By default, only SMA SWARM data is loaded. If set to false, this will also
             enable loading of older ASIC data.
-        compass_soln : str
+        compass_soln : str, optional
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are applied prior to any potential spectral
             averaging (as triggered by using the `rechunk` keyword).
