@@ -12,14 +12,16 @@ and uvh5 files and reading of FHD
 ([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility
 save files, SMA Mir files and MWA correlator FITS files.
 
-API documentation and a tutorial is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
+Documentation of the API, conventions used throughout the package, and a tutorial
+is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 # Motivation
 The main goals are:
 
 1. To provide a high quality, well documented path to convert between file formats.
 2. Support the direct use of interferometric datasets from python with minimal software.
-3. Provide precise data definition via both human readable code and high quality documentation.
+3. Provide precise data definitions and convention details via both human
+readable code and high quality documentation.
 
 # Package Details
 pyuvdata has four major user classes:
@@ -39,8 +41,9 @@ Also can convert raw data quality metrics into flags using thresholding.
 tested with ATCA files. Reading/writing Miriad files is not supported on Windows.
 * UVFITS conforms to AIPS memo 117 (as of March 2020).  It is tested against
 FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA's ``importuvfits``
-task does not seem to support >255 antennas. In general, users planning to work
-in CASA should use the measurement set writer instead.
+task does not seem to support >255 antennas. Because of this and other limitations
+to CASA's ``importuvfits`` task, we reccommend that users planning to work in CASA
+avoid using ``importuvfits`` and use the measurement set writer instead.
 * CASA measurement sets, primarily conforming to
 [CASA Memo 229](https://casa.nrao.edu/Memos/229.html), with some elements taken
 from the proposed v3.0 format documented in
@@ -81,6 +84,9 @@ metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
 * MWA Beams (read only support)
 
 ## Known Issues and Planned Improvements
+* Incorporating numba to alleviate bottlenecks and to replace some existing
+cython extensions as appropriate.
+
 See our [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)
 for a full list.
 
