@@ -9,78 +9,80 @@
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad, uvfits, CASA measurement sets
 and uvh5 files and reading of FHD
-([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility save files, SMA Mir files and MWA correlator FITS files.
+([Fast Holographic Deconvolution](https://github.com/EoRImaging/FHD)) visibility
+save files, SMA Mir files and MWA correlator FITS files.
 
 API documentation and a tutorial is hosted on [ReadTheDocs](https://pyuvdata.readthedocs.io).
 
 # Motivation
 The main goals are:
 
-1. To provide a high quality, well documented path to convert between data formats
-2. Support the direct use of datasets from python with minimal software
-3. Provide precise data definition via both human readable code and high quality online documentation
+1. To provide a high quality, well documented path to convert between file formats.
+2. Support the direct use of interferometric datasets from python with minimal software.
+3. Provide precise data definition via both human readable code and high quality documentation.
 
 # Package Details
 pyuvdata has four major user classes:
 
 * UVData: supports interferometric data (visibilities) and associated metadata
 * UVCal: supports interferometric calibration solutions (antenna-based) and
-associated metadata (Note that this is a fairly new object, consider it to be a beta version)
-* UVBeam: supports primary beams (E-field or power) and associated metadata
-(Note that this is a fairly new object, consider it to be a beta version)
+associated metadata.
+* UVBeam: supports primary beams (E-field or power) and associated metadata. A
+number of analytic beam objects are also available and the BeamInterface object
+serves as a unified interface for UVBeam and analytic beam objects.
 * UVFlag: A class to handle the manipulation and combination of flags for data sets.
 Also can convert raw data quality metrics into flags using thresholding.
-(This object is very new and experimental. Consider it to be a beta version)
+(This object is somewhat new and experimental. Consider it to be a beta version)
 
 ## UVData File standard notes
-* miriad has been thoroughly tested with aipy-style miriad files and minimally
-tested with ATCA files
-* uvfits conforms to AIPS memo 117 (as of March 2020).  It is tested against
-FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA uvfits
-import does not seem to support >255 antennas. Users with data sets containing > 255
-antennas should use the measurement set writer instead.
-* CASA measurement sets, primarily conforming to [CASA Memo 229](https://casa.nrao.edu/Memos/229.html), with some elements taken from the proposed v3.0 format documented in [CASA Memo 264](https://casacore.github.io/casacore-notes/264.html). Measurement sets are tested against
-VLA and MWA data sets, (the latter filled via cotter), with some manual verification
-haven been performed against ALMA and SMA data sets, the latter filled using the `importuvfits` task of CASA.
-tested against ALMA-filled datasets and with SMA datasets
-* uvh5 is an HDF5-based file format defined by the HERA collaboration,
+* Miriad has been thoroughly tested with aipy-style Miriad files and minimally
+tested with ATCA files. Reading/writing Miriad files is not supported on Windows.
+* UVFITS conforms to AIPS memo 117 (as of March 2020).  It is tested against
+FHD, CASA, and AIPS. However AIPS is limited to <80 antennas and CASA's ``importuvfits``
+task does not seem to support >255 antennas. In general, users planning to work
+in CASA should use the measurement set writer instead.
+* CASA measurement sets, primarily conforming to
+[CASA Memo 229](https://casa.nrao.edu/Memos/229.html), with some elements taken
+from the proposed v3.0 format documented in
+[CASA Memo 264](https://casacore.github.io/casacore-notes/264.html). Measurement
+sets are tested against datasets from VLA, MWA (filled via ``cotter``),
+ALMA, and SMA (filled using the ``importuvfits`` task). Extensive loopback testing
+has been done to verify that pyuvdata written measurement sets are compatible
+with CASA.
+* UVH5 is an HDF5-based file format defined by the HERA collaboration,
 details in the [uvh5 memo](docs/references/uvh5_memo.pdf). Note that this is a
-somewhat new format, so it may evolve a bit
-but we will strive to make future versions backwards compatible with the current format.
+somewhat new format, so it may evolve a bit but we will strive to make future
+versions backwards compatible with the current format.
 It is probably not compatible with other interferometric HDF5 files defined by other groups.
 * FHD (read-only support, tested against MWA and PAPER data)
 * MIR (read-only support, though experimental write functions are available, tested against SMA data)
 * MWA correlator FITS files (read-only support, tested against Cotter outputs and FHD)
 
 ## UVCal file formats
-* calh5: a new format defined in pyuvdata,  details to come in a forthcoming memo.
-* Measurement Set calibration files (read and write, gains/delay/bandpass supported, beta version).
-Tested against a limited set of SMA, LWA, and VLA calibration files generated in CASA.
-* calfits: a custom format defined in pyuvdata, details in the [calfits_memo](docs/references/calfits_memo.pdf).
-Note that this format was recently defined and may change in coming versions,
-based on user needs. Consider it to be a beta version, but we will strive to
-make future versions backwards compatible with the current format.
+* CalH5: a new an HDF5-based file format defined in pyuvdata, details in the
+[calh5 memo](docs/references/calh5.pdf).
+Note that this format is a somewhat new format, so it may evolve a bit but we
+will strive to make future versions backwards compatible with the current format.
+* Measurement Set calibration files (read and write, gains/delay/bandpass supported,
+beta version). Tested against a limited set of SMA, LWA, and VLA calibration
+files generated in CASA.
+* CalFITS: a custom format defined in pyuvdata, details in the
+[calfits memo](docs/references/calfits_memo.pdf).
+Note that this format does not support all possible UVCal objects, so we prefer
+CalH5 which has full support for all variations of UVCal objects.
 * FHD calibration files (read-only support)
 
 ## UVBeam file formats
-* regularly gridded fits for both E-field and power beams
-* non-standard HEALPix fits for both E-field and power beams (in an ImageHDU
-rather than a binary table to support frequency, polarization and E-field vector axes)
-* read support for CST beam text files, with a defined yaml file format for
+* BeamFITS: a custom format defined in pyuvdata that supports both regularly
+gridded beams and beams on a HEALPix grid for both E-field and power beams,
+details in the [beamfits memo](docs/references/beamfits_memo.pdf).
+* CST beam text files (read only support) with a defined yaml file format for
 metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
-
-## Under Development
-* UVCal: object and calfits file format (beta version)
-* UVBeam: object and beamfits file format (beta version)
-* UVFlag: object and HDF5 file format. (beta version)
-* Mir: object (part of UVData class) (beta version)
-* MirParser: object and python interface for MIR file format (beta version)
+* MWA Beams (read only support)
 
 ## Known Issues and Planned Improvements
-* UVBeam: support phased-array antenna beams (e.g. MWA beams).
-* UVFlag: Adding requires a high level knowledge of individual objects. (see [issue #653](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/653))
-
-For details see the [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues).
+See our [issue log](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues)
+for a full list.
 
 ## Community Guidelines
 Contributions to this package to add new file formats or address any of the
@@ -175,11 +177,24 @@ You can install the optional dependencies via pip by specifying an option
 when you install pyuvdata, as in ```pip install pyuvdata[healpix]```
 which will install all the required packages for using the HEALPix functionality
 in pyuvdata. The options that can be passed in this way are:
-[`astroquery`, `casa`, `cst`, `hdf5_compression`, `healpix`, `lunar`, `novas`, `all`, `test`,
-`doc`, `dev`]. The first set (`astroquery`, `casa`, `cst`, `hdf5_compression`,
-`healpix`, `lunar`, `novas`) enable various specific functionality while `all` will install all
-optional dependencies. The last three (`test`, `doc`, `dev`) may be useful for developers
-of pyuvdata.
+
+- ``astroquery``
+- ``casa``
+- ``cst``
+- ``hdf5_compression``
+- ``healpix``
+- ``lunar``
+- ``novas``
+- ``all``
+- ``test``
+- ``doc``
+- ``dev``
+
+The first set (``astroquery``, ``casa``, ``hdf5_compression``, ``healpix``, ``lunar``,
+and ``novas``) enable various specific functionality while ``all`` will install
+all of the above to enable all functionality. The last three (``test``, ``doc``
+and ``dev``) include everything installed with ``all`` plus packages for testing
+and building the docs which may be useful for developers of pyuvdata.
 
 ### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
@@ -198,7 +213,7 @@ Clone the repository using
 Navigate into the pyuvdata directory and run `pip install .`
 (note that `python setup.py install` does not work).
 Note that this will attempt to automatically install any missing dependencies.
-If you use anaconda or another package manager you might prefer to first install
+If you use conda or another package manager you might prefer to first install
 the dependencies as described in [Dependencies](#dependencies).
 
 To install without dependencies, run `pip install --no-deps .`
@@ -243,15 +258,13 @@ From the source pyuvdata directory run ```pytest``` or ```python -m pytest```.
 Testing of `UVFlag` module requires the `pytest-cases` plug-in.
 
 # API
-The primary interface to data from python is via the UVData object. It provides
-import functionality from all supported file formats (UVFITS, Miriad, UVH5, FHD,
-CASA measurement sets, SMA Mir, MWA correlator FITS) and export to UVFITS, Miriad,
-CASA measurement sets and UVH5 formats and can
-be interacted with directly. Similarly, the primary calibration, beam, and flag
-interfaces are via the UVCal, UVBeam, and UVflag objects. The attributes of the UVData,
-UVCal, UVBeam, and UVFlag objects are described in the UVData Parameters, UVCal Parameters,
-UVBeam Parameters and UVFlag Parameters pages on [ReadTheDocs](https://pyuvdata.readthedocs.io).
-
+pyuvdata is organized around objects that contain all the data and metadata required
+to represent and work with interferometric data, calibration solutions, flags,
+antenna beams and telescope layouts. Each object has the data and metadata as
+attributes along with many useful methods for importing and exporting files and
+manipulating and transforming the data in useful ways. Please see our extensive
+documentation on [ReadTheDocs](https://pyuvdata.readthedocs.io) for tutorials and
+complete API details.
 
 # Maintainers
 pyuvdata is maintained by the RASG Managers, which currently include:
