@@ -15,6 +15,7 @@
 - [ ] Documentation change (documentation changes only)
 - [ ] Version change
 - [ ] Build or continuous integration change
+- [ ] Other
 
 
 ## Checklist:
@@ -26,14 +27,12 @@
 
 Bug fix checklist:
 - [ ] My fix includes a new test that breaks as a result of the bug (if possible).
-- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 New feature checklist:
 - [ ] I have added or updated the docstrings associated with my feature using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
 - [ ] I have updated the tutorial to highlight my new feature (if appropriate).
 - [ ] I have added tests to cover my new feature.
-- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 Breaking change checklist:
@@ -41,17 +40,21 @@ Breaking change checklist:
 - [ ] I have updated the tutorial to reflect my changes (if appropriate).
 - [ ] My change includes backwards compatibility and deprecation warnings (if possible).
 - [ ] I have added tests to cover my changes.
-- [ ] All new and existing tests pass.
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
 
 Documentation change checklist:
 - [ ] Any updated docstrings use the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
-- [ ] If this is a significant change to the readme or other docs, I have checked that they are rendered properly on ReadTheDocs. (you may need help to get this branch to build on RTD, just ask!)
+- [ ] If this is a significant change to the readme or other docs, I have checked that they are rendered properly on ReadTheDocs. You can check this via the RTD CI build.
 
 Version change checklist:
 - [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md) to put all the unreleased changes under the new version (leaving the unreleased section empty).
 - [ ] I have noted any dependency changes since the last version and will update the conda package build accordingly.
 
 Build or continuous integration change checklist:
-- [ ] If required or optional dependencies have changed (including version numbers), I have updated the readme to reflect this.
-- [ ] If this is a new CI setup, I have added the associated badge to the readme and to references/make_index.py (if appropriate).
+- [ ] If required or optional dependencies have changed (including version numbers), I have updated the readme, pyproject.toml, environment.yaml and CI conda yaml files to reflect the changes.
+
+Other:
+- [ ] I have updated any docstrings associated with my change using the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html).
+- [ ] I have updated the readme and/or tutorial to reflect my changes (if appropriate).
+- [ ] I have added tests to cover my changes (if appropriate).
+- [ ] I have updated the [CHANGELOG](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/CHANGELOG.md).
