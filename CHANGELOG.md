@@ -3,9 +3,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
--
-
 ### Fixed
 - A bug in reading in uvfits files with baseline coordinates that have the '--' suffix,
 which is allowed in uvfits files.
