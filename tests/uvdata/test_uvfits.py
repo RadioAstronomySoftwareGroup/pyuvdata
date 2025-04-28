@@ -585,7 +585,7 @@ def test_readwriteread(tmp_path, casa_uvfits, telescope_frame, selenoid):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("uvw_suffix", ["---SIN", "---NCP"])
+@pytest.mark.parametrize("uvw_suffix", ["--", "---SIN", "---NCP"])
 def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
     uv_in = casa_uvfits
     write_file = str(tmp_path / "outtest_casa.uvfits")
