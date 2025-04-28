@@ -121,6 +121,12 @@ class UVFITS(UVData):
         ):
             uvw_names = ["UU", "VV", "WW"]
         elif (
+            "UU--" in vis_hdu.data.parnames
+            and "VV--" in vis_hdu.data.parnames
+            and "WW--" in vis_hdu.data.parnames
+        ):
+            uvw_names = ["UU--", "VV--", "WW--"]
+        elif (
             "UU---SIN" in vis_hdu.data.parnames
             and "VV---SIN" in vis_hdu.data.parnames
             and "WW---SIN" in vis_hdu.data.parnames
@@ -408,7 +414,8 @@ class UVFITS(UVData):
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 self.Nspws = vis_hdr.pop("NAXIS5")
-                self.spw_array = fits_utils._gethduaxis(vis_hdu, 5).astype(np.int64) - 1
+                # By UVFITS definition, this _has_ to be the way this axis is organized
+                self.spw_array = np.arange(self.Nspws)
                 ra_axis = 6
                 dec_axis = 7
             else:
@@ -562,13 +569,15 @@ class UVFITS(UVData):
                 if ant_hdu.header["FRAME"] == "ITRF":
                     # uvfits uses ITRF, astropy uses itrs. They are the same.
                     telescope_frame = "itrs"
-                elif ant_hdu.header["FRAME"] == "????":
+                elif all(key == "?" for key in ant_hdu.header["FRAME"]):
                     # default to itrs, but use the lat/lon/alt to set the location
-                    # if they are available.
+                    # if they are available. Note the above code handles all question
+                    # marks no matter the length.
+                    frame_name = ant_hdu.header["FRAME"]
                     warnings.warn(
-                        "The telescope frame is set to '????', which generally "
-                        "indicates ignorance. Defaulting the frame to 'itrs', but this "
-                        "may lead to other warnings or errors."
+                        f"The telescope frame is set to '{frame_name}', "
+                        "which generally indicates ignorance. Defaulting the frame to "
+                        "'itrs', but this may lead to other warnings or errors."
                     )
                     prefer_lat_lon_alt = True
                     telescope_frame = "itrs"
