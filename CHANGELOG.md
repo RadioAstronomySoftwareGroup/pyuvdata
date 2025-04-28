@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [3.2.0] - 2025-04-25
+## [3.2.0] - 2025-04-28
 
 ### Added
 - A new page to the docs labeled "Conventions" has been added.
@@ -74,7 +74,7 @@ now set to `(0, 0)`, was originally `(1e-5, 1e-8)` (relative and absolute tolera
 respectively).
 - Flex-jones `UVCal` objects now recorded to MeasurementSet format as "T Jones" subtype.
 - Only import lunarsky if needed.
-- `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
+- `UVData.select`, `UVBeam.select`, `UVCal.select`, `UVFlag.select` have been
 significantly refactored and made to behave more uniformly.
 - Allowing `UVParameter.__eq__` to use `UVParameter.compare_value` if the item being
 compared and `UVParameter.value` share the same class.
@@ -87,7 +87,7 @@ written with the wrong conjugation when setting `flip_conj=True`.
 - Bug in `UVData.write_ms` where the baseline conjugation scheme did not conform to
 what CASA nominally expects.
 - Bug in `utils.tools.slicify` and `utils.tools._convert_to_slices` where
-reverse-ordered slices (i.e., where the step was negative) where not correctly handled.
+reverse-ordered slices (i.e., where the step was negative) were not correctly handled.
 - Bug in MWA beams that caused beams pointed away from zenith to be wrong because
 the delays were not assigned to the right dipoles.
 - Bug in `UVData.sum_vis` where it errored if there were different filenames on
