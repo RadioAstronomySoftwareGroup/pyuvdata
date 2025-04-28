@@ -1800,3 +1800,14 @@ def test_feed_err(sma_mir, tmp_path):
     sma_mir.telescope.feed_array.flat[0] = "k"
     with pytest.raises(ValueError, match="UVFITS only supports"):
         sma_mir.write_uvfits(outpath, run_check=False)
+
+
+def test_vlbi_read():
+    with check_warnings(
+        UserWarning,
+        match=["The uvw_array does not match", "The telescope frame is set to '?????'"],
+    ):
+        uvd = UVData.from_file(os.path.join(DATA_PATH, "mojave.uvfits"))
+
+    assert uvd.telescope.instrument == "VLBA"
+    assert uvd.telescope.name == "VLBA"
