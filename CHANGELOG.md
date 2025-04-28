@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+-
+
+### Fixed
+- A bug in reading in uvfits files with baseline coordinates that have the '--' suffix,
+which is allowed in uvfits files.
+- A bug in reading in uvfits files where the antenna frame is given by an arbitrary
+number of repeated '?', which is allowed in uvfits.
+
 ## [3.2.0] - 2025-04-28
 
 ### Added
