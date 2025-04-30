@@ -154,7 +154,9 @@ Required:
 
 * astropy >= 6.0
 * docstring_parser>=0.15
+* cython >=3.0
 * h5py >= 3.4
+* numba >= 0.56
 * numpy >= 1.23
 * pyerfa >= 2.0.1.1
 * python >= 3.10
@@ -234,7 +236,6 @@ you will need the following packages:
 * pytest >= 6.2
 * pytest-cases >= 3.8.3
 * pytest-cov
-* cython >=3.0
 * coverage
 * pre-commit
 * matplotlib
