@@ -63,23 +63,24 @@ bibliography: paper.bib
 # Summary
 pyuvdata is an open-source software package that seeks to provide a well-documented,
 feature-rich interface for many of the different data formats that exist within radio
-interferometry, including support for reading and writing UVH5 [@uvh5], UVFITS
-[@uvfits], MIRIAD [@miriad], and measurement set [@ms] visibility files; and reading of
-FHD [@fhd] and MIR [@mir] visibility save files. Additionally, pyuvdata supports reading
-and writing measurement set, CalFITS [@calfits], and CalH5 [@calh5] calibration
-solutions; and reading of FHD calibration solutions. pyuvdata also provides interfaces
-for and handling of models of antenna primary beams, including reading and writing of
-BeamFITS [@beamfits], and reading CST and MWA beam formats, as well as for flags.
+interferometry, including support for reading and writing the following formats:
+UVH5 [@uvh5], UVFITS [@uvfits], MIRIAD [@miriad], and measurement set [@ms] visibility
+files. It offers read-only support for FHD [@fhd] and MIR [@mir] visibility save files.
+Additionally, pyuvdata supports reading/writing measurement set, CalFITS [@calfits], and
+CalH5 [@calh5] calibration solutions; and reading of FHD calibration solutions. pyuvdata
+also provides interfaces for and handling of models of antenna primary beams, including
+BeamFITS [@beamfits] (read and write), CST (read-only), MWA beam formats (read-only).
+It also provides interfaces for handling of data flags.
 
 # Statement of Need
 There are several standard formats for astronomical interferometric data, but
-converting between them in a stable, repeatable way has historically been
+translating between them in a robust and well-understood way has historically been
 challenging.  This is partially due to conflicting assumptions and standards, giving
 rise to significant (though sometimes subtle) differences between formats.
 Interfacing with different data formats -- like one does when they convert from one
 format to another -- thus requires careful accounting for the complex mathematical
 relationships between both data and metadata to ensure proper data fidelity. This is
-required both for leveraging existing community-favored tools that typically built
+required both for leveraging existing community-favored tools that are typically built
 to interface with a specific data format, as well as analyses requiring bespoke tools
 for specialized types of analyses and simulations leveraging data in a variety of
 formats.
@@ -87,11 +88,12 @@ formats.
 pyuvdata has been designed to facilitate interoperability between different instruments
 and codes by providing high quality, well documented conversion routines as well as an
 interface to interact with interferometric data and simulations directly in Python.
-Originally motivated to support new low frequency instruments (e.g. MWA
-(http://www.mwatelescope.org/), PAPER (http://eor.berkeley.edu/), HERA
-(http://reionization.org/)), the capabilities of pyuvdata have been steadily expanded
+Originally motivated to support new low frequency instruments (e.g. MWA:
+http://www.mwatelescope.org/, PAPER: http://eor.berkeley.edu/, HERA:
+http://reionization.org/), the capabilities of pyuvdata have been steadily expanded
 to support handling of data from several telescopes, ranging from meter to submillimeter
-wavelengths, including SMA, ALMA, SMA, VLA, ATCA, CARMA, LWA, among others.
+wavelengths (including SMA: https://cfa.harvard.edu/sma, ALMA, SMA, VLA, ATCA, CARMA,
+LWA, among others).
 
 # Major updates in this version
 In the time since it was initially published [@pyuvdata_v1], pyuvdata has undergone a
@@ -107,13 +109,15 @@ of the primary beam for antennas within an interferometric array. Supported data
 include BeamFITS, MWA, and CST.
 - The addition of the `UVFlag` class, which provides a container for handling flags/masking
 of bad data for visibility data.
-- Drastically improved handling of astrometry and increased speed and accuracy of algorithms
-used to ``phase-up'' data (i.e., change the sky position where the interferometer is centered
-up on).
+- Drastically improved handling of astrometry.
+- Increased speed and accuracy of algorithms used to ``phase-up'' data (i.e., change
+the sky position where the interferometer is centered up on).
 - Support for several new visibility data formats, including MIR, MS, and MWA/MWAX.
 - Support for data sets containing multiple spectral windows.
 - Support for data sets containing observations of multiple sources/phase centers.
--Many new convenience methods for working with interferometric data, including splitting and combining data sets, averaging in time and frequency and applying calibration solutions and flags.
+- Many new convenience methods for working with interferometric data, including
+splitting and combining data sets, averaging in time and frequency, and applying
+calibration solutions and flags.
 
 # Acknowledgements
 This work was supported by the National Science Foundation (AST-1835421); and by the
