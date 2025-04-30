@@ -922,6 +922,10 @@ def get_x_orientation_from_feeds(feed_array, feed_angle, tols=None):
 
     x_mask = np.isin(feed_array, ["x", "X"])
 
+    # Wrap the feed angle so that everything lands between -45 deg and +135 deg. This
+    # is done to prevent either 0 or 90 deg to be right on the "boundary" of the wrap.
+    feed_angle = np.mod(np.asarray(feed_angle) + (np.pi / 4), np.pi) - (np.pi / 4)
+
     # Anything that's not 'x' should be oriented straight up (0 deg) for "east"
     # orientation, otherwise at -90 deg for "north".
     if np.allclose(feed_angle, np.where(x_mask, np.pi / 2, 0), rtol=rtol, atol=atol):

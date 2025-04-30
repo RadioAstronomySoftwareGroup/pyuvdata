@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- A bug where the `Telescope.get_x_orientation` would not return `"east"` or `"north"`
+if the feed angles if outside of the range of 0 to 90 degrees (e.g. 180 and 270 degrees
+for x- and y-polarization should return "north".).
 - A bug in reading in uvfits files with baseline coordinates that have the '--' suffix,
 which is allowed in uvfits files.
 - A bug in reading in uvfits files where the antenna frame is given by an arbitrary
