@@ -455,6 +455,20 @@ def test_passing_xorient(simplest_working_params, xorient):
         assert tel.get_x_orientation_from_feeds() == name
 
 
+@pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
+@pytest.mark.parametrize("feed_angle_offset", [-np.pi, 0, np.pi])
+def test_x_orient_wrap(simplest_working_params, xorient, feed_angle_offset):
+    with check_warnings(UserWarning, "Unknown polarization basis"):
+        tel = Telescope.new(
+            x_orientation=xorient, mount_type=["fixed"] * 3, **simplest_working_params
+        )
+
+    tel.feed_angle += feed_angle_offset
+
+    name = "east" if xorient.lower().startswith("e") else "north"
+    assert tel.get_x_orientation_from_feeds() == name
+
+
 def test_xorient_dep_warning(simplest_working_params):
     tel = Telescope.new(
         feeds=["x", "y"],
