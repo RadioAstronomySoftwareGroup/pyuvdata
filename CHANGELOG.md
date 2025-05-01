@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.2.1] - 2025-05-01
 
 ### Fixed
 - A bug where the `Telescope.get_x_orientation` would not return `"east"` or `"north"`
