@@ -3327,7 +3327,7 @@ class MirParser:
                 file["bandpassArr"][...].view(np.complex64).reshape(Nrx, Nant, Nwin, -1)
             )  # BP gains (4D array)
 
-            if "crossRxBandpassArr" in file:
+            if ("hasPol" in file) and bool(file["hasPol"][0, 0]):
                 # Multiply last receiver feeds w/ cross-rx bandpass soln
                 bp_arr[-1] *= (
                     file["crossRxBandpassArr"][...].view(np.complex64).reshape(Nwin, -1)
