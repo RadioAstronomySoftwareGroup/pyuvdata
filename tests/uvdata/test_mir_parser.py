@@ -60,6 +60,7 @@ def compass_soln_file(tmp_path_factory):
 
         file["bandpassArr"] = bp_soln.view(np.float32)
         file["crossRxBandpassArr"] = np.full((8, 16384, 2), 0.5**0.5, dtype=np.float32)
+        file["hasPol"] = np.ones((1, 1), dtype=np.uint8)
 
         # Populate the SEFD values, exp shape (Nrx, Nants, Nwin, Nchan)
         file["sefdArr"] = np.ones((2, 2, 8, 16384))
