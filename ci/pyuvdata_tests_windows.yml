@@ -18,7 +18,7 @@ dependencies:
   - pytest-cases>=3.8.3
   - pytest-cov
   - pytest-xdist
-  - cython>=3.0
+  - cython==3.0.*
   - setuptools_scm>=8.1
   - pip
   - pip:

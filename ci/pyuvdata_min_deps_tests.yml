@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - astropy>=6.0
-  - cython>=3.0
+  - cython==3.0.*
   - docstring_parser>=0.15
   - h5py>=3.1
   - numpy>=1.23
