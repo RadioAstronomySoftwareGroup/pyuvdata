@@ -234,7 +234,7 @@ you will need the following packages:
 * pytest >= 6.2
 * pytest-cases >= 3.8.3
 * pytest-cov
-* cython >=3.0
+* cython ==3.0
 * coverage
 * pre-commit
 * matplotlib
