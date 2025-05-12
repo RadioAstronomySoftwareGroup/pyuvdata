@@ -1,5 +1,5 @@
 ---
-title: 'pyuvdata v3: an interface for astronomical interferometeric data sets in Python'
+title: 'pyuvdata v3: an interface for astronomical interferometric data sets in Python'
 tags:
  - radio astronomy
  - UVFITS
