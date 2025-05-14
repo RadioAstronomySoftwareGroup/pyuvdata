@@ -8,7 +8,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: "3.12"
+      versionSpec: "3.13"
 
   - bash: |
       cd ../
@@ -46,7 +46,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.10"
+    PYTHON: "3.13"
     ENV_NAME: hera_qm_tests
     WITH_SUDO: true
 
@@ -90,7 +90,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.10"
+    PYTHON: "3.13"
     ENV_NAME: full_deps
     WITH_SUDO: true
 
@@ -135,7 +135,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.10"
+    PYTHON: "3.12"
     ENV_NAME: pyuvsim_tests_openmpi
     WITH_SUDO: true
 
@@ -180,7 +180,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.10"
+    PYTHON: "3.13"
     ENV_NAME: SSINS_tests
     WITH_SUDO: true
 

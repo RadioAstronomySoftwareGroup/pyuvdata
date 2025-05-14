@@ -154,19 +154,19 @@ Required:
 
 * astropy >= 6.0
 * docstring_parser>=0.15
-* h5py >= 3.4
+* h5py >= 3.7
 * numpy >= 1.23
 * pyerfa >= 2.0.1.1
-* python >= 3.10
+* python >= 3.11
 * pyyaml >= 5.4.1
-* scipy >= 1.8
+* scipy >= 1.9
 * setuptools_scm >= 8.1
 
 Optional:
 
 * astropy-healpix >= 1.0.2 (for working with beams in HEALPix formats)
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
-* hdf5plugin >= 3.2.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
+* hdf5plugin >= 3.3.1 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
 * lunarsky >=0.2.5 (for working with simulated datasets for lunar telescopes)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * python-casacore >= 3.5.2 (for working with CASA measurement sets)

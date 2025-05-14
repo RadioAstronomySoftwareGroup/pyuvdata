@@ -6,14 +6,14 @@ dependencies:
   - astropy-healpix>=1.0.2
   - astroquery>=0.4.4
   - docstring_parser>=0.15
-  - h5py>=3.4
-  - hdf5plugin>=3.2.0
+  - h5py>=3.7
+  - hdf5plugin>=3.3.1
   - matplotlib  # this is just for the doctests.
   - numpy>=1.23
   - pyerfa>=2.0.1.1
   - python-casacore>=3.5.2
   - pyyaml>=5.4.1
-  - scipy>=1.8
+  - scipy>=1.9
   - coverage
   - pytest>=8.2.0
   - pytest-cases>=3.8.3

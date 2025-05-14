@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Updated minimum dependency versions: h5py>=3.7, python>=3.11, scipy>=1.9
+- Updated minimum optional dependency versions: hdf5plugin>=3.3.1
+
 ## [3.2.1] - 2025-05-01
 
 ### Fixed
