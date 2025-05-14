@@ -4,7 +4,7 @@
 [![testing](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions/workflows/macosx_windows_ci.yaml/badge.svg?branch=main)](https://github.com/RadioAstronomySoftwareGroup/pyuvdata/actions)
 [![codecov](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata/badge.svg?branch=main)](https://codecov.io/gh/RadioAstronomySoftwareGroup/pyuvdata)
 [![](https://readthedocs.org/projects/pyuvdata/badge/?version=latest)](https://app.readthedocs.org/projects/pyuvdata/)
-[![DOI](http://joss.theoj.org/papers/10.21105/joss.00140/status.svg)](https://doi.org/10.21105/joss.00140)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07482/status.svg)](https://doi.org/10.21105/joss.07482)
 
 pyuvdata defines a pythonic interface to interferometric data sets.
 Currently pyuvdata supports reading and writing of miriad, uvfits, CASA measurement sets
@@ -111,6 +111,7 @@ as many telescopes as possible.
 * ATCA
 * SMA
 * ATA
+* VLBA
 
 # Versioning
 We use a `generation.major.minor` version number format. We use the `generation`
@@ -129,13 +130,14 @@ subtraction pipelines. Particular focus has been paid to supporting drift and
 phased array modes.
 
 # Citation
-Please cite pyuvdata by citing our JOSS paper:
+Please cite JOSS paper on the current version of pyuvdata:
+
+Keating et al., (2025). pyuvdata v3: an interface for astronomical interferometric data sets in Python. Journal of Open Source Software, 10(109), 7482, https://doi.org/10.21105/joss.07482 [ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H) [Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140H&data_type=BIBTEX&db_key=GEN&nocookieset=1)
+
+The original JOSS paper on pyuvdata should also be cited:
 
 Hazelton et al, (2017), pyuvdata: an interface for astronomical interferometeric
-datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140
-
-[ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H);
-[Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140H&data_type=BIBTEX&db_key=GEN&nocookieset=1)
+datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140 [ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H) [Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140H&data_type=BIBTEX&db_key=GEN&nocookieset=1)
 
 # Installation
 Simple installation via conda is available for users, developers should follow
