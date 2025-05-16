@@ -9,7 +9,7 @@ dependencies:
   - h5py>=3.7
   - hdf5plugin>=3.3.1
   - matplotlib  # this is just for the doctests.
-  - numba>=0.56
+  - numba>=0.57.0
   - numpy>=1.23
   - pyerfa>=2.0.1.1
   - python-casacore>=3.5.2

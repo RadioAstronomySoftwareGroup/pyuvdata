@@ -155,7 +155,7 @@ Required:
 * astropy >= 6.0
 * docstring_parser>=0.15
 * h5py >= 3.7
-* numba >= 0.56
+* numba >= 0.57.0
 * numpy >= 1.23
 * pyerfa >= 2.0.1.1
 * python >= 3.11
