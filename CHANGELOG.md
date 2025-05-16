@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- numba added as a dependency for pyuvdata.
+
 ### Changed
+- Refactored `utils.bls`, replacing cython-based extensions with numba-based routines.
 - Updated minimum dependency versions: h5py>=3.7, python>=3.11, scipy>=1.9
 - Updated minimum optional dependency versions: hdf5plugin>=3.3.1
 
