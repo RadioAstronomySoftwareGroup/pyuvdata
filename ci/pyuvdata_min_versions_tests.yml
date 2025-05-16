@@ -8,7 +8,7 @@ dependencies:
   - docstring_parser==0.15
   - h5py==3.7.0
   - hdf5plugin==3.3.1
-  - numba==0.56.*
+  - numba==0.56.4
   - numpy==1.23.*
   - pyerfa==2.0.1.1
   - python-casacore==3.5.2
