@@ -436,7 +436,7 @@ def test_wronglatlon():
     lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
     latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
     telescopefile = os.path.join(DATA_PATH,
-    'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
+    'zen.2456865.60537_wrongtelescope.xy.uvcRREAA')
     uv_in.read(miriad_file)
     uv_in.select(times=uv_in.time_array[0])
     uv_in.select(freq_chans=[0])
@@ -467,7 +467,7 @@ def test_wronglatlon():
     lonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglon.xy.uvcRREAA")
     latlonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglatlon.xy.uvcRREAA")
     telescopefile = os.path.join(
-        DATA_PATH, "zen.2456865.60537_wrongtelecope.xy.uvcRREAA"
+        DATA_PATH, "zen.2456865.60537_wrongtelescope.xy.uvcRREAA"
     )
     with check_warnings(
         UserWarning,
@@ -1304,13 +1304,13 @@ def test_miriad_write_read_diameters(tmp_path):
     write_file = os.path.join(tmp_path, "outtest_miriad.uv")
     # check for backwards compatibility with old keyword 'diameter' for
     # antenna diameters
-    testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
+    testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
     uv_in.read(testfile_diameters)
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file)
 
     # make sure filenames are what we expect
-    assert uv_in.filename == ["zen.2457698.40355.xx.HH.uvcA"]
+    assert uv_in.filename == ["zen.2457698.40355.xx.HH.uvcAA"]
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
@@ -1970,7 +1970,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     test time_array is converted properly from Miriad format
     """
     # test read-in
-    fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
+    fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
     uvd = UVData()
     uvd.read(fname)
     uvd_t = uvd.time_array.min()

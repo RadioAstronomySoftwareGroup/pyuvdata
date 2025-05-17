@@ -44,14 +44,11 @@ def setup_and_teardown_package():
 def uvcalibrate_init_data_main():
     """Make initial uvcalibrate inputs."""
     uvdata = UVData()
-    uvdata.read(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
-        file_type="uvh5",
-    )
+    uvdata.read(os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5"))
 
     uvcal = UVCal()
     uvcal.read_calfits(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
     )
 
     uvcal.pol_convention = "avg"
@@ -116,7 +113,7 @@ def uvcalibrate_uvdata_oldfiles_main():
             "Fixing auto-correlations to be be real-only",
         ],
     ):
-        uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
+        uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
 
     yield uvd
 
