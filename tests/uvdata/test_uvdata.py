@@ -162,25 +162,26 @@ def hera_uvh5_split(hera_uvh5_split_main):
 
 
 @pytest.fixture(scope="session")
-def hera_uvh5_xx_main():
-    """Read in a HERA uvh5 file."""
-    hera_uvh5_xx = UVData()
-    filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
+def hera_miriad_main():
+    """Read in a HERA miriad file."""
+    hera_miriad = UVData()
+    filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", "The uvw_array does not match the expected values"
         )
-        hera_uvh5_xx = UVData.from_file(filename)
+        warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
+        hera_miriad = UVData.from_file(filename, projected=False)
 
-    yield hera_uvh5_xx
+    yield hera_miriad
 
 
 @pytest.fixture(scope="function")
-def hera_uvh5_xx(hera_uvh5_xx_main):
-    """Make function level HERA uvh5 file based object."""
-    hera_uvh5_xx = hera_uvh5_xx_main.copy()
+def hera_miriad(hera_miriad_main):
+    """Make function level HERA miriad file based object."""
+    hera_miriad = hera_miriad_main.copy()
 
-    yield hera_uvh5_xx
+    yield hera_miriad
 
 
 @pytest.fixture(scope="session")
@@ -216,14 +217,13 @@ def carma_miriad(carma_miriad_main):
 
 
 @pytest.fixture(scope="session")
-def paper_uvh5_main():
+def paper_miriad_main():
     # read in test file for the resampling in time functions
-    uv_object = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
+    paper_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "The uvw_array does not match")
-        warnings.filterwarnings("ignore", "mount_type, feed_array, feed_angle are not")
-        uv_object.read_uvh5(uvh5_file)
+        warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
+        uv_object = UVData.from_file(paper_file)
 
     yield uv_object
 
@@ -234,9 +234,9 @@ def paper_uvh5_main():
 
 
 @pytest.fixture(scope="function")
-def paper_uvh5(paper_uvh5_main):
+def paper_uvh5(paper_miriad_main):
     # read in test file for the resampling in time functions
-    uv_object = paper_uvh5_main.copy()
+    uv_object = paper_miriad_main.copy()
     uv_object.set_rectangularity()
     yield uv_object
 
@@ -560,22 +560,20 @@ def test_check_strict_uvw(casa_uvfits):
         uvobj.check(strict_uvw_antpos_check=True)
 
 
-@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_check_autos_only(hera_uvh5_xx):
+def test_check_autos_only(hera_uvh5):
     """
     Check case where all data is autocorrelations
     """
-    uvobj = hera_uvh5_xx
+    uvobj = hera_uvh5
 
     uvobj.select(blt_inds=np.where(uvobj.ant_1_array == uvobj.ant_2_array)[0])
     assert uvobj.check()
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_check_uvw_array(hera_uvh5_xx):
+def test_check_uvw_array(hera_uvh5):
     # test auto and cross corr uvw_array
-    uvd = hera_uvh5_xx.copy()
+    uvd = hera_uvh5.copy()
     autos = np.isclose(uvd.ant_1_array - uvd.ant_2_array, 0.0)
     auto_inds = np.where(autos)[0]
     cross_inds = np.where(~autos)[0]
@@ -588,7 +586,7 @@ def test_check_uvw_array(hera_uvh5_xx):
         uvd.check()
 
     # make cross have |uvw| zero, assert ValueError
-    uvd = hera_uvh5_xx.copy()
+    uvd = hera_uvh5.copy()
     uvd.uvw_array[cross_inds[0]][:] = 0.0
     with pytest.raises(
         ValueError, match="Some cross-correlations have near-zero uvw_array magnitudes."
@@ -3426,14 +3424,11 @@ def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_add(casa_uvfits, hera_uvh5_xx):
+def test_add_freq(casa_uvfits):
     uv_full = casa_uvfits
 
-    # Add frequencies
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
+    uv1 = uv_full.select(freq_chans=np.arange(0, 32), inplace=False)
+    uv2 = uv_full.select(freq_chans=np.arange(32, 64), inplace=False)
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
     assert utils.history._check_histories(
@@ -3447,11 +3442,8 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # Add frequencies - out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
+    # Other order
+    uv1 = uv_full.select(freq_chans=np.arange(0, 32), inplace=False)
     with check_warnings(
         UserWarning, match=["The uvw_array does not match the expected values"] * 3
     ):
@@ -3459,38 +3451,55 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
-    # Add polarizations
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
-    uv1 += uv2
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific polarizations using pyuvdata. "
-        "Combined data along polarization axis "
-        "using pyuvdata.",
-        uv1.history,
-    )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
 
-    # Add polarizations - out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_pols(casa_uvfits):
+    uv_full = casa_uvfits
+
+    uv1 = uv_full.select(polarizations=uv_full.polarization_array[0:2], inplace=False)
+    uv2 = uv_full.select(polarizations=uv_full.polarization_array[2:4], inplace=False)
+    uv2.history += " testing the history. AIPS WTSCAL = 1.0"
+    uv_new = uv1 + uv2
+    assert utils.history._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Unique part of next "
+        "object history follows.  testing the history.",
+        uv_new.history,
+    )
+    uv_new.history = uv_full.history
+    assert uv_new == uv_full
+
+    uv_new = uv1.__add__(uv2, verbose_history=True)
+    assert utils.history._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows.  " + uv2.history,
+        uv_new.history,
+    )
+
+    # Other order
     uv2 += uv1
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
-    # Add times
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
+    uv2 = uv_full.select(polarizations=uv_full.polarization_array[3], inplace=False)
+    uv1.__iadd__(uv2)
+    uv_ref = uv_full.select(polarizations=uv1.polarization_array[0:3], inplace=False)
+    uv1.history = uv_ref.history
+    assert uv1 == uv_ref
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_times(casa_uvfits):
+    uv_full = casa_uvfits
+
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2])
-    uv2.select(times=times[len(times) // 2 :])
-    uv1 += uv2
+    uv1 = uv_full.select(times=times[0 : len(times) // 2], inplace=False)
+    uv2 = uv_full.select(times=times[len(times) // 2 :], inplace=False)
+    # Add without inplace
+    uv1 = uv1 + uv2
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
@@ -3501,15 +3510,18 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # Add baselines
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_bls(casa_uvfits):
+    uv_full = casa_uvfits
+
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
-    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
-    ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
-    uv1.select(blt_inds=ind1)
-    uv2.select(blt_inds=ind2)
+    ind1 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] in ant_list]
+    ind2 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] not in ant_list]
+    uv1 = uv_full.select(blt_inds=ind1, inplace=False)
+    uv2 = uv_full.select(blt_inds=ind2, inplace=False)
     uv1 += uv2
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
@@ -3522,21 +3534,18 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     assert uv1 == uv_full
 
     # Add baselines - out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
     ants = uv_full.get_ants()
     ants1 = ants[0:6]
     ants2 = ants[6:12]
     ants3 = ants[12:]
 
     # All blts where ant_1 is in list
-    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ants1]
-    ind2 = [i for i in range(uv2.Nblts) if uv2.ant_1_array[i] in ants2]
-    ind3 = [i for i in range(uv3.Nblts) if uv3.ant_1_array[i] in ants3]
-    uv1.select(blt_inds=ind1)
-    uv2.select(blt_inds=ind2)
-    uv3.select(blt_inds=ind3)
+    ind1 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] in ants1]
+    ind2 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] in ants2]
+    ind3 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] in ants3]
+    uv1 = uv_full.select(blt_inds=ind1, inplace=False)
+    uv2 = uv_full.select(blt_inds=ind2, inplace=False)
+    uv3 = uv_full.select(blt_inds=ind3, inplace=False)
     uv3.data_array = uv3.data_array[-1::-1]
     uv3.nsample_array = uv3.nsample_array[-1::-1]
     uv3.flag_array = uv3.flag_array[-1::-1]
@@ -3559,16 +3568,23 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # Add multiple axes
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_multi_axis(casa_uvfits):
+    uv_full = casa_uvfits
+
     uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
-    uv1.select(
-        times=times[0 : len(times) // 2], polarizations=uv1.polarization_array[0:2]
+    uv1 = uv_full.select(
+        times=times[0 : len(times) // 2],
+        polarizations=uv_full.polarization_array[0:2],
+        inplace=False,
     )
-    uv2.select(
-        times=times[len(times) // 2 :], polarizations=uv2.polarization_array[2:4]
+    uv2 = uv_full.select(
+        times=times[len(times) // 2 :],
+        polarizations=uv_full.polarization_array[2:4],
+        inplace=False,
     )
     uv1 += uv2
     assert utils.history._check_histories(
@@ -3604,12 +3620,14 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     assert uv1 == uv_ref
 
     # Another combo
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
     uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
-    uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
+    uv1 = uv_full.select(
+        times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32), inplace=False
+    )
+    uv2 = uv_full.select(
+        times=times[len(times) // 2 :], freq_chans=np.arange(32, 64), inplace=False
+    )
     uv1 += uv2
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
@@ -3643,143 +3661,12 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.history = uv_full.history
     assert uv1 == uv_ref
 
-    # Add without inplace
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2])
-    uv2.select(times=times[len(times) // 2 :])
-    uv1 = uv1 + uv2
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific times using pyuvdata. "
-        "Combined data along baseline-time "
-        "axis using pyuvdata.",
-        uv1.history,
-    )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
 
-    # Check warnings
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(33, 64))
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.__add__(uv2)
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=[0])
-    uv2.select(freq_chans=[3])
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.__iadd__(uv2)
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=[0])
-    uv2.select(freq_chans=[1])
-    uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.__iadd__(uv2)
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[3])
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.__iadd__(uv2)
-
-    # Combining histories
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
-    uv2.history += " testing the history. AIPS WTSCAL = 1.0"
-    uv_new = uv1 + uv2
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
-        "Combined data along polarization axis using pyuvdata. Unique part of next "
-        "object history follows.  testing the history.",
-        uv_new.history,
-    )
-    uv_new.history = uv_full.history
-    assert uv_new == uv_full
-
-    uv_new = uv1.__add__(uv2, verbose_history=True)
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
-        "Combined data along polarization axis using pyuvdata. Next object history "
-        "follows.  " + uv2.history,
-        uv_new.history,
-    )
-
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_add_auto_cross(hera_uvh5):
     # test add of autocorr-only and crosscorr-only objects
-    uv_full = hera_uvh5_xx
+    uv_full = hera_uvh5
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -4194,17 +4081,21 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_fast_concat(casa_uvfits, hera_uvh5_xx):
+def test_fast_concat_freq(casa_uvfits):
     uv_full = casa_uvfits
-
-    # Add frequencies
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 20))
-    uv2.select(freq_chans=np.arange(20, 40))
-    uv3.select(freq_chans=np.arange(40, 64))
-    uv1.fast_concat([uv2, uv3], "freq", inplace=True)
+    print(uv_full.Nfreqs)
+    uv1 = uv_full.select(freq_chans=np.arange(0, 20), inplace=False)
+    uv2 = uv_full.select(freq_chans=np.arange(20, 40), inplace=False)
+    uv3 = uv_full.select(freq_chans=np.arange(40, 64), inplace=False)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "The uvw_array does not match the expected values given the antenna "
+            "positions."
+        ],
+        nwarnings=4,
+    ):
+        uv1.fast_concat([uv2, uv3], "freq", inplace=True)
     # Check history is correct, before replacing and doing a full object check
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
@@ -4218,12 +4109,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv1 == uv_full
 
     # Add frequencies - out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 20))
-    uv2.select(freq_chans=np.arange(20, 40))
-    uv3.select(freq_chans=np.arange(40, 64))
+    uv1 = uv_full.select(freq_chans=np.arange(0, 20), inplace=False)
     with check_warnings(
         UserWarning,
         [
@@ -4248,31 +4134,37 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv2._freq_array == uv_full._freq_array
     assert uv2 == uv_full
 
-    # Add polarizations
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:1])
-    uv2.select(polarizations=uv2.polarization_array[1:3])
-    uv3.select(polarizations=uv3.polarization_array[3:4])
-    uv1.fast_concat([uv2, uv3], "polarization", inplace=True)
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat_pols(casa_uvfits):
+    uv_full = casa_uvfits
+
+    uv1 = uv_full.select(polarizations=uv_full.polarization_array[0:1], inplace=False)
+    uv2 = uv_full.select(polarizations=uv_full.polarization_array[1:3], inplace=False)
+    uv3 = uv_full.select(polarizations=uv_full.polarization_array[3:4], inplace=False)
+
+    uv2.history += " testing the history. AIPS WTSCAL = 1.0"
+    uv_new = uv1.fast_concat([uv2, uv3], "polarization")
     assert utils.history._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific polarizations using pyuvdata. "
-        "Combined data along polarization axis "
-        "using pyuvdata.",
-        uv1.history,
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Unique part of next "
+        "object history follows. testing the history.",
+        uv_new.history,
     )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
+    uv_new.history = uv_full.history
+    assert uv_new == uv_full
+
+    uv_new = uv1.fast_concat([uv2, uv3], "polarization", verbose_history=True)
+    assert utils.history._check_histories(
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
+        "Combined data along polarization axis using pyuvdata. Next object history "
+        "follows." + uv2.history,
+        uv_new.history,
+    )
 
     # Add polarizations - out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:1])
-    uv2.select(polarizations=uv2.polarization_array[1:3])
-    uv3.select(polarizations=uv3.polarization_array[3:4])
+    uv1 = uv_full.select(polarizations=uv_full.polarization_array[0:1], inplace=False)
     with check_warnings(
         UserWarning,
         [
@@ -4291,33 +4183,50 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
-    # Add times
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv3 = uv_full.copy()
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat_times(casa_uvfits):
+    uv_full = casa_uvfits
+
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 3])
-    uv2.select(times=times[len(times) // 3 : (len(times) // 3) * 2])
-    uv3.select(times=times[(len(times) // 3) * 2 :])
-    uv1.fast_concat([uv2, uv3], "blt", inplace=True)
+    uv1 = uv_full.select(times=times[0 : len(times) // 3], inplace=False)
+    uv2 = uv_full.select(
+        times=times[len(times) // 3 : (len(times) // 3) * 2], inplace=False
+    )
+    uv3 = uv_full.select(times=times[(len(times) // 3) * 2 :], inplace=False)
+    uv1 = uv1.fast_concat([uv2, uv3], "blt", inplace=False)
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
-        "Combined data along baseline-time axis "
-        "using pyuvdata.",
+        "Combined data along baseline-time "
+        "axis using pyuvdata.",
         uv1.history,
     )
     uv1.history = uv_full.history
     assert uv1 == uv_full
 
-    # Add baselines
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    # divide in half to keep in order
-    ind1 = np.arange(uv1.Nblts // 2)
-    ind2 = np.arange(uv1.Nblts // 2, uv1.Nblts)
-    uv1.select(blt_inds=ind1)
-    uv2.select(blt_inds=ind2)
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("in_order", [True, False])
+def test_fast_concat_bls(casa_uvfits, in_order):
+    uv_full = casa_uvfits
+
+    if in_order:
+        # divide in half to keep in order
+        ind1 = np.arange(uv_full.Nblts // 2)
+        ind2 = np.arange(uv_full.Nblts // 2, uv_full.Nblts)
+    else:
+        # # add baselines such that Nants_data needs to change
+        ant_list = list(range(15))  # Roughly half the antennas in the data
+        # # All blts where ant_1 is in list
+        ind1 = [i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] in ant_list]
+        ind2 = [
+            i for i in range(uv_full.Nblts) if uv_full.ant_1_array[i] not in ant_list
+        ]
+    uv1 = uv_full.select(blt_inds=ind1, inplace=False)
+    uv2 = uv_full.select(blt_inds=ind2, inplace=False)
     uv1.fast_concat(uv2, "blt", inplace=True)
     assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
@@ -4330,10 +4239,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv1, uv_full
 
     # Add baselines out of order
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(blt_inds=ind1)
-    uv2.select(blt_inds=ind2)
+    uv1 = uv_full.select(blt_inds=ind1, inplace=False)
     uv2.fast_concat(uv1, "blt", inplace=True)
     # test freq & pol arrays equal
     assert uv2._freq_array == uv_full._freq_array
@@ -4360,59 +4266,23 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
-    # add baselines such that Nants_data needs to change
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    ant_list = list(range(15))  # Roughly half the antennas in the data
-    # All blts where ant_1 is in list
-    ind1 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] in ant_list]
-    ind2 = [i for i in range(uv1.Nblts) if uv1.ant_1_array[i] not in ant_list]
-    uv1.select(blt_inds=ind1)
-    uv2.select(blt_inds=ind2)
-    uv2.fast_concat(uv1, "blt", inplace=True)
 
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific baseline-times using pyuvdata. "
-        "Combined data along baseline-time "
-        "axis using pyuvdata.",
-        uv2.history,
-    )
-
-    # test freq & pol arrays equal
-    assert uv2._freq_array == uv_full._freq_array
-    assert uv2._polarization_array == uv_full._polarization_array
-
-    # test Nblt length arrays not equal but same shape
-    assert uv2._ant_1_array != uv_full._ant_1_array
-    assert uv2.ant_1_array.shape == uv_full.ant_1_array.shape
-    assert uv2._ant_2_array != uv_full._ant_2_array
-    assert uv2.ant_2_array.shape == uv_full.ant_2_array.shape
-    assert uv2._uvw_array != uv_full._uvw_array
-    assert uv2.uvw_array.shape == uv_full.uvw_array.shape
-    assert uv2._time_array != uv_full._time_array
-    assert uv2.time_array.shape == uv_full.time_array.shape
-    assert uv2._baseline_array != uv_full._baseline_array
-    assert uv2.baseline_array.shape == uv_full.baseline_array.shape
-    assert uv2._data_array != uv_full._data_array
-    assert uv2.data_array.shape == uv_full.data_array.shape
-
-    # reorder blts to enable comparison
-    uv2.reorder_blts()
-    assert uv2.blt_order == ("time", "baseline")
-    uv2.blt_order = None
-    uv2.history = uv_full.history
-    assert uv2 == uv_full
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat_multi_axis_errors(casa_uvfits):
+    uv_full = casa_uvfits
 
     # Add multiple axes
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
-    uv1.select(
-        times=times[0 : len(times) // 2], polarizations=uv1.polarization_array[0:2]
+    uv1 = uv_full.select(
+        times=times[0 : len(times) // 2],
+        polarizations=uv_full.polarization_array[0:2],
+        inplace=False,
     )
-    uv2.select(
-        times=times[len(times) // 2 :], polarizations=uv2.polarization_array[2:4]
+    uv2 = uv_full.select(
+        times=times[len(times) // 2 :],
+        polarizations=uv_full.polarization_array[2:4],
+        inplace=False,
     )
     with pytest.raises(
         ValueError,
@@ -4421,142 +4291,25 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
         uv1.fast_concat(uv2, "blt", inplace=True)
 
     # Another combo
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
     times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
-    uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
+    uv1 = uv_full.select(
+        times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32), inplace=False
+    )
+    uv2 = uv_full.select(
+        times=times[len(times) // 2 :], freq_chans=np.arange(32, 64), inplace=False
+    )
     with pytest.raises(
         ValueError,
         match="UVParameter freq_array does not match. Cannot combine objects.",
     ):
         uv1.fast_concat(uv2, "blt", inplace=True)
 
-    # Add without inplace
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    times = np.unique(uv_full.time_array)
-    uv1.select(times=times[0 : len(times) // 2])
-    uv2.select(times=times[len(times) // 2 :])
-    uv1 = uv1.fast_concat(uv2, "blt", inplace=False)
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific times using pyuvdata. "
-        "Combined data along baseline-time "
-        "axis using pyuvdata.",
-        uv1.history,
-    )
-    uv1.history = uv_full.history
-    assert uv1 == uv_full
 
-    # Check warnings
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(33, 64))
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.fast_concat(uv1, "freq", inplace=True)
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=[0])
-    uv2.select(freq_chans=[3])
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.fast_concat(uv2, "freq")
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=[0])
-    uv2.select(freq_chans=[1])
-    uv2.freq_array += uv2._channel_width.tols[1] / 2.0
-    with check_warnings(
-        UserWarning,
-        "The uvw_array does not match the expected values given the antenna positions.",
-        nwarnings=3,
-    ):
-        uv1.fast_concat(uv2, "freq")
-
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[3])
-    with check_warnings(
-        UserWarning,
-        [
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-            (
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ),
-        ],
-    ):
-        uv1.fast_concat(uv2, "polarization")
-
-    # Combining histories
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(polarizations=uv1.polarization_array[0:2])
-    uv2.select(polarizations=uv2.polarization_array[2:4])
-    uv2.history += " testing the history. AIPS WTSCAL = 1.0"
-    uv_new = uv1.fast_concat(uv2, "polarization")
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
-        "Combined data along polarization axis using pyuvdata. Unique part of next "
-        "object history follows. testing the history.",
-        uv_new.history,
-    )
-    uv_new.history = uv_full.history
-    assert uv_new == uv_full
-
-    uv_new = uv1.fast_concat(uv2, "polarization", verbose_history=True)
-    assert utils.history._check_histories(
-        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
-        "Combined data along polarization axis using pyuvdata. Next object history "
-        "follows." + uv2.history,
-        uv_new.history,
-    )
-
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_fast_concat_auto_cross(hera_uvh5):
     # test add of autocorr-only and crosscorr-only objects
-    uv_full = hera_uvh5_xx
+    uv_full = hera_uvh5
     bls = uv_full.get_antpairs()
     autos = [bl for bl in bls if bl[0] == bl[1]]
     cross = sorted(set(bls) - set(autos))
@@ -5055,8 +4808,8 @@ def test_get_ants(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_get_enu_antpos(hera_uvh5_xx):
-    uvd = hera_uvh5_xx
+def test_get_enu_antpos(hera_miriad):
+    uvd = hera_miriad
     # no center, no pick data ants
     antpos = uvd.telescope.get_enu_antpos()
     assert uvd.telescope.Nants == 113
@@ -5144,7 +4897,7 @@ def test_get_feedpols(casa_uvfits):
         uv.get_feedpols()
 
 
-def test_parse_ants(casa_uvfits, hera_uvh5_xx):
+def test_parse_ants(casa_uvfits, hera_miriad):
     # Test function to get correct antenna pairs and polarizations
     uv = casa_uvfits
 
@@ -5392,7 +5145,7 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     assert Counter(polarizations) == Counter(pols_expected)
 
     # Test ant_str='auto' on file with auto correlations
-    uv = hera_uvh5_xx
+    uv = hera_miriad
 
     ant_str = "auto"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
@@ -5448,7 +5201,7 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
+def test_select_with_ant_str(casa_uvfits, hera_miriad):
     # Test select function with ant_str argument
     uv = casa_uvfits
     inplace = False
@@ -5738,7 +5491,7 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
     assert Counter(uv2.get_pols()) == Counter(pols)
 
     # Test ant_str = 'auto' on file with auto correlations
-    uv = hera_uvh5_xx
+    uv = hera_miriad
 
     ant_str = "auto"
     ant_nums = [
@@ -9684,7 +9437,7 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
 @pytest.mark.parametrize(
     "read_func,filelist",
     [
-        ("read_miriad", [os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")] * 2),
+        ("read_miriad", [os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")] * 2),
         (
             "read_mwa_corr_fits",
             [[mwa_corr_files[0:2], [mwa_corr_files[0], mwa_corr_files[2]]]],
@@ -9694,7 +9447,10 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
             "read_uvfits",
             [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")] * 2,
         ),
-        ("read_ms", [os.path.join(DATA_PATH, "multi_len_spw.ms")] * 2),
+        (
+            "read_ms",
+            [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")] * 2,
+        ),
         ("read_fhd", []),
     ],
 )

@@ -214,7 +214,7 @@ data-like arrays as well, filled with zeros.
   >>> import os
   >>> from pyuvdata import UVData, UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> uvd_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
+  >>> uvd_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5")
   >>> uvd = UVData.from_file(uvd_file, file_type="uvh5")
   >>> uvc = UVCal.initialize_from_uvdata(uvd, gain_convention="multiply", cal_style="redundant")
   >>> print(uvc.ant_array)
@@ -373,11 +373,11 @@ a) Calibration of UVData by UVCal
   >>> from pyuvdata import UVData, UVCal, utils
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd = UVData.from_file(
-  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
+  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5"),
   ...    file_type="uvh5",
   ... )
   >>> uvc = UVCal.from_file(
-  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
+  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits"),
   ... )
   >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
   >>> # fix the antenna names in the uvcal object to match the uvdata object
@@ -415,7 +415,7 @@ a) Select antennas to keep on UVCal object using the antenna number.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
   >>> cal = UVCal.from_file(filename)
 
   >>> # print all the antennas numbers with data in the original file
@@ -440,7 +440,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
   >>> cal = UVCal.from_file(filename)
 
   >>> # print all the antenna names with data in the original file
@@ -469,7 +469,7 @@ d) Select times
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
   >>> cal = UVCal.from_file(filename)
   >>> cal2 = cal.copy()
 
@@ -507,7 +507,7 @@ orientation of the dipole can also be used (e.g. "Jnn" or "ee").
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> from pyuvdata import utils
-  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
   >>> cal = UVCal.from_file(filename)
 
   >>> # Jones component numbers can be found in the jones_array
@@ -832,7 +832,7 @@ by the Jones component number or name, or by an explicit index ordering set by t
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+  >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
   >>> cal = UVCal.from_file(filename)
   >>> # Default is to order by Jones component name
   >>> cal.reorder_jones()
