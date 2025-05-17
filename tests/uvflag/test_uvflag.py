@@ -22,9 +22,9 @@ from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
 from ..utils.test_coordinates import frame_selenoid
 
-test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
+test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
-test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
+test_f_file = test_d_file + ".testuvflag.h5"
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
 

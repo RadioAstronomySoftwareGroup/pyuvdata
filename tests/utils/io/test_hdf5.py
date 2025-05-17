@@ -69,6 +69,6 @@ def test_read_slicing():
 
 def test_telescope_attr():
     """Test Telescope attribute handling"""
-    meta = hdf5_utils.HDF5Meta(f"{data.DATA_PATH}/zen.2457698.40355.xx.HH.uvcAA.uvh5")
+    meta = hdf5_utils.HDF5Meta(f"{data.DATA_PATH}/zen.2458661.23480.HH.uvh5")
 
     assert meta.telescope.location == meta.telescope_location_obj

@@ -294,7 +294,7 @@ def test_get_telescope_no_loc():
 
 
 def test_hera_loc():
-    hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
+    hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5")
     hera_data = UVData()
 
     hera_data.read(hera_file, read_data=False, file_type="uvh5")
@@ -492,13 +492,13 @@ def test_passing_diameters(simplest_working_params):
 
 
 def test_get_enu_antpos():
-    filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
+    filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
 
     tel = Telescope.from_hdf5(filename)
     # no center, no pick data ants
     antpos = tel.get_enu_antpos()
     assert antpos.shape == (tel.Nants, 3)
-    assert np.isclose(antpos[0, 0], 19.340211050751535, rtol=0, atol=1e-3)
+    assert np.isclose(antpos[0, 0], -105.0353015431546, rtol=0, atol=1e-3)
 
 
 def test_ignore_param_updates_error():
