@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Radio Astronomy Software Group
+# Copyright (c) 2025 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Numba-enhanced utilities for baseline numbers."""
 
@@ -19,13 +19,15 @@ def _min_ant(ant1: npt.NDArray[np.int64], ant2: npt.NDArray[np.int64]) -> np.int
 
 @numba.njit()
 def _baseline_to_antnums(
-    baselines: npt.NDArray[np.uint64], min_baseline: np.uint64
+    baselines: npt.NDArray[np.uint64],
+    max_baseline: np.uint64,
+    use_miriad_convention: bool = False,
 ) -> npt.NDArray[np.uint64]:
-    if min_baseline < np.uint64(65536):
+    if max_baseline < np.uint64(65536):
         offset = np.uint64(0)
         bitmask = np.uint64(255)  # 2**8 - 1 (all bits)
         bitshift = np.uint64(8)
-    elif min_baseline < np.uint64(4_259_840):
+    elif max_baseline < np.uint64(4_259_840):
         offset = np.uint64(65536)  # (2 ** 16)
         bitmask = np.uint64(2047)  # 2**11 - 1 (all bits below the 11th)
         bitshift = np.uint64(11)
@@ -46,6 +48,15 @@ def _baseline_to_antnums(
         bl = bl - offset
         a1[idx] = bl >> bitshift
         a2[idx] = bl & bitmask
+
+    if use_miriad_convention:
+        for idx, bl in enumerate(baselines):
+            # Since for MIRIAD the ant numbers are >= 1, the sum of the offset plus the
+            # bitmask plus 1 corresponds to baseline 1-1, the first bl number possible
+            # with the 'new' numbering scheme.
+            if bl <= (offset + bitmask):  # (Baseline 1-1) - 1
+                a1[idx] = bl >> np.uint64(8)
+                a2[idx] = bl & np.uint64(255)
 
     return ant_arr
 
