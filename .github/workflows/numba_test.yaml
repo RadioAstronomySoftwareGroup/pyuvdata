@@ -1,0 +1,52 @@
+name: Numba Utils Tests
+
+on:
+  push:
+    # This should disable running the workflow on tags, according to the
+    # on.<push|pull_request>.<branches|tags> GitHub Actions docs.
+    branches:
+      - "*"
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  numba_test:
+    env:
+      PYTHON: 3.13
+    name: Numba Utils Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON }}
+
+      - name: Install
+        run: |
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[dev]
+          pip install pytest-xdist
+
+      - name: Environment Info
+        run: |
+          pip list
+          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+          if [[ $PYVER != ${{ env.PYTHON }} ]]; then
+            exit 1;
+          fi
+
+      - name: Run Tests
+        run: |
+          NUMBA_DISABLE_JIT=1 pytest tests/utils/test_bls_numba.py -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
+
+      - uses: codecov/codecov-action@v5
+        if: success()
+        with:
+          token: ${{secrets.CODECOV_TOKEN}} #required
+          files: ./coverage.xml #optional

@@ -7,14 +7,19 @@ import warnings
 
 import numpy as np
 
-from . import _bls
+from .bls_numba import _antnums_to_baseline, _baseline_to_antnums, _max_ant, _min_ant
 from .pol import conj_pol, polnum2str, polstr2num
 from .tools import _strict_raise
 
 __all__ = ["baseline_to_antnums", "antnums_to_baseline"]
 
 
-def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
+def baseline_to_antnums(
+    baseline,
+    *,
+    Nants_telescope: int,  # noqa: N803
+    use_miriad_convention: bool = False,
+):
     """
     Get the antenna numbers corresponding to a given baseline number.
 
@@ -24,6 +29,11 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
         baseline number
     Nants_telescope : int
         number of antennas
+    use_miriad_convention : bool
+        Option to use the MIRIAD convention where BASELINE id is
+        `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
+        `bl = 2048 * ant1 + ant2 + 2**16`.
+        Note antennas should be 1-indexed (start at 1, not 0)
 
     Returns
     -------
@@ -33,17 +43,28 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
         second antenna number(s)
 
     """
+    return_array = isinstance(baseline, np.ndarray | list | tuple)
+    baseline = np.ascontiguousarray(baseline, dtype=np.int64)
+
+    # Capture the no-op case here
+    if baseline.shape[0] == 0:
+        return np.array([]), np.array([])
+
+    # Calculate min and max baselines for error checking and so that the numba code
+    # below can use it to determine how to map baselines to ants
+    max_baseline = np.max(baseline)
+    min_baseline = np.min(baseline)
+    baseline = baseline.view(np.uint64)
+
     if Nants_telescope > 2147483648:
         raise ValueError(f"error Nants={Nants_telescope}>2147483648 not supported")
-    if np.any(np.asarray(baseline) < 0):
+    if min_baseline < 0:
         raise ValueError("negative baseline numbers are not supported")
-    if np.any(np.asarray(baseline) > 4611686018498691072):
+    if max_baseline > 4611686018498691072:
         raise ValueError("baseline numbers > 4611686018498691072 are not supported")
 
-    return_array = isinstance(baseline, np.ndarray | list | tuple)
-    ant1, ant2 = _bls.baseline_to_antnums(
-        np.ascontiguousarray(baseline, dtype=np.uint64)
-    )
+    ant1, ant2 = _baseline_to_antnums(baseline, max_baseline, use_miriad_convention)
+
     if return_array:
         return ant1.astype(int), ant2.astype(int)
     else:
@@ -92,27 +113,57 @@ def antnums_to_baseline(
             "cannot convert ant1, ant2 to a baseline index "
             f"with Nants={Nants_telescope}>2147483648."
         )
-    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) >= 2147483648):
+
+    return_array = isinstance(ant1, np.ndarray | list | tuple)
+    ant1 = np.ascontiguousarray(ant1, dtype=np.int64)
+    ant2 = np.ascontiguousarray(ant2, dtype=np.int64)
+
+    # Grab
+    ant_max = _max_ant(ant1, ant2)
+    ant_min = _min_ant(ant1, ant2)
+
+    if ant_max >= 2147483648:
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
             "with antenna numbers greater than 2147483647."
         )
-    if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) < 0):
+    if ant_min < 0:
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
             "with antenna numbers less than zero."
         )
 
-    nants_less2048 = True
-    if Nants_telescope is not None and Nants_telescope > 2048:
-        nants_less2048 = False
+    # Note at this point we've checked for negative values, so we can use view to
+    # do a "clever" swap to uint64.
+    ant1 = ant1.view(np.uint64)
+    ant2 = ant2.view(np.uint64)
 
-    return_array = isinstance(ant1, np.ndarray | list | tuple)
-    baseline = _bls.antnums_to_baseline(
-        np.ascontiguousarray(ant1, dtype=np.uint64),
-        np.ascontiguousarray(ant2, dtype=np.uint64),
-        attempt256=attempt256,
-        nants_less2048=nants_less2048,
+    # Check ant_max if Nants is set
+    if Nants_telescope is not None:
+        ant_max = max(ant_max, Nants_telescope - 1)
+
+    # Determine which cipher to use based on max ant and user-req'd 256 pattern
+    use256 = attempt256 and (ant_max < 256)
+    use2048 = ant_max < 2048
+
+    if attempt256 and not use256:
+        if not use2048:
+            message = (
+                "antnums_to_baseline: found antenna numbers > 2047 or "
+                "Nants_telescope > 2048, using 2147483648 baseline indexing."
+            )
+        else:
+            message = (
+                "antnums_to_baseline: found antenna numbers > 255, "
+                "using 2048 baseline indexing."
+            )
+        warnings.warn(message)
+
+    baseline = _antnums_to_baseline(
+        ant1,
+        ant2,
+        use256=use256,
+        use2048=use2048,
         use_miriad_convention=use_miriad_convention,
     )
     if return_array:
