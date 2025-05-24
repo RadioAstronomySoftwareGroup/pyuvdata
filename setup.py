@@ -85,14 +85,6 @@ corr_fits_extension = Extension(
     extra_link_args=extra_link_args,
 )
 
-bls_extension = Extension(
-    "pyuvdata.utils._bls",
-    sources=["src/pyuvdata/utils/bls.pyx"],
-    define_macros=global_c_macros,
-    include_dirs=[numpy.get_include()],
-    extra_compile_args=extra_compile_args,
-)
-
 coordinates_extension = Extension(
     "pyuvdata.utils._coordinates",
     sources=["src/pyuvdata/utils/coordinates.pyx"],
@@ -119,7 +111,6 @@ uvbeam_extension = Extension(
 
 extensions = [
     corr_fits_extension,
-    bls_extension,
     coordinates_extension,
     phasing_extension,
     uvbeam_extension,
