@@ -17,6 +17,10 @@ omit =
   */data/*
   setup.py
 
+exclude_also =
+    @vectorize
+    @numba.vectorize
+
 show_missing = true
 
 [paths]
