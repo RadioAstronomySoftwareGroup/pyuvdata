@@ -15,7 +15,7 @@ concurrency:
 jobs:
   numba_test:
     env:
-      PYTHON: 3.12
+      PYTHON: 3.13
     name: Numba Utils Tests
     runs-on: ubuntu-latest
     steps:

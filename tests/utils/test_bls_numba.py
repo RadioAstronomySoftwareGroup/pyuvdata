@@ -71,3 +71,16 @@ def test_antnums_to_baseline_roundtip_numba(use_miriad_convention, use2048, use2
 
     np.testing.assert_array_equal(ant1_gold, ant1)
     np.testing.assert_array_equal(ant2_gold, ant2)
+
+
+def test_antnums_to_baseline_vec():
+    ant1 = np.array([1, 2, 3, 1, 1, 1, 255, 256], dtype="uint64")
+    ant2 = np.array([1, 2, 3, 254, 255, 256, 1, 2], dtype="uint64")
+    bl_gold = np.array(
+        [67585, 69634, 71683, 67838, 67839, 67840, 587777, 589826], dtype="uint64"
+    )
+
+    offset = np.uint64(65536)
+    modulus = np.uint64(2048)
+    bl = bl_utils._antnums_to_baseline_vec(ant1, ant2, offset, modulus)
+    np.testing.assert_array_equal(bl, bl_gold)
