@@ -14,7 +14,12 @@ from .tools import _strict_raise
 __all__ = ["baseline_to_antnums", "antnums_to_baseline"]
 
 
-def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
+def baseline_to_antnums(
+    baseline,
+    *,
+    Nants_telescope: int,  # noqa: N803
+    use_miriad_convention: bool = False,
+):
     """
     Get the antenna numbers corresponding to a given baseline number.
 
@@ -24,6 +29,11 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
         baseline number
     Nants_telescope : int
         number of antennas
+    use_miriad_convention : bool
+        Option to use the MIRIAD convention where BASELINE id is
+        `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
+        `bl = 2048 * ant1 + ant2 + 2**16`.
+        Note antennas should be 1-indexed (start at 1, not 0)
 
     Returns
     -------
@@ -53,7 +63,7 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
     if max_baseline > 4611686018498691072:
         raise ValueError("baseline numbers > 4611686018498691072 are not supported")
 
-    ant1, ant2 = _baseline_to_antnums(baseline, min_baseline)
+    ant1, ant2 = _baseline_to_antnums(baseline, max_baseline, use_miriad_convention)
 
     if return_array:
         return ant1.astype(int), ant2.astype(int)
