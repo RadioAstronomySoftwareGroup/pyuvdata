@@ -132,7 +132,13 @@ phased array modes.
 # Citation
 Please cite JOSS paper on the current version of pyuvdata:
 
-*Keating et al., (2025). pyuvdata v3: an interface for astronomical interferometric data sets in Python. Journal of Open Source Software, 10(109), 7482, https://doi.org/10.21105/joss.07482* [[ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H)] [[Bibtex entry](http://adsabs.harvard.edu/cgi-bin/nph-bib_query?bibcode=2017JOSS....2..140H&data_type=BIBTEX&db_key=GEN&nocookieset=1)]
+*Keating et al., (2025). pyuvdata v3: an interface for astronomical interferometric data sets in Python. Journal of Open Source Software, 10(109), 7482, https://doi.org/10.21105/joss.07482*
+
+BibTeX entry follows:
+
+```
+@article{Keating2025, doi = {10.21105/joss.07482}, url = {https://doi.org/10.21105/joss.07482}, year = {2025}, publisher = {The Open Journal}, volume = {10}, number = {109}, pages = {7482}, author = {Garrett K. Keating and Bryna J. Hazelton and Matthew Kolopanis and Steven Murray and Adam P. Beardsley and Daniel C. Jacobs and Nicholas Kern and Adam Lanman and Paul La Plante and Jonathan C. Pober and Pyxie Star}, title = {pyuvdata v3: an interface for astronomical interferometric data sets in Python}, journal = {Journal of Open Source Software}}
+```
 
 The original JOSS paper on pyuvdata should also be cited:
 
