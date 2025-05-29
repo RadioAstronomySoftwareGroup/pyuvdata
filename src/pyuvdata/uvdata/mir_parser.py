@@ -4102,7 +4102,10 @@ class MirParser:
             it's the wrong file version or because the receiver code isn't recognized).
         """
         if freq_shift is None:
-            if self.codes_data["filever"] in [["2"], ["3"]]:
+            if not (
+                "filever" in self.codes_data.get_code_names()
+                and self.codes_data["filever"] not in [["2"], ["3"]]
+            ):
                 raise ValueError(
                     "MIR file format < v4.0 detected, no doppler tracking information "
                     "is stored in the file headers."
