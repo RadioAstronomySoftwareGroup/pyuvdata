@@ -31,6 +31,7 @@ from astropy.time import Time, TimeDelta
 
 from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.telescopes import known_telescope_location
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.miriad import Miriad
 
@@ -417,100 +418,55 @@ def test_miriad_read_warning_lat_lon_corrected():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_wronglatlon():
+@pytest.mark.parametrize(
+    "override_dict",
+    [
+        {"latitud": known_telescope_location("paper").lat.rad + 10 * np.pi / 180.0},
+        {"longitu": known_telescope_location("paper").lon.rad + 10 * np.pi / 180.0},
+        {
+            "latitud": known_telescope_location("paper").lat.rad + 10 * np.pi / 180.0,
+            "longitu": known_telescope_location("paper").lon.rad + 10 * np.pi / 180.0,
+        },
+        {"telescop": "foo"},
+    ],
+)
+def test_wronglatlon(tmp_path, override_dict):
     """
     Check for appropriate warnings with incorrect lat/lon values or missing telescope
-
-    To test this, we needed files without altitudes and with wrong lat, lon or
-    telescope values.
-    These test files were made commenting out the line in miriad.py that adds altitude
-    to the file and running the following code:
-    import os
-    import numpy as np
-    from pyuvdata import UVData
-    from pyuvdata.data import DATA_PATH
-    uv_in = UVData()
-    uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
-    lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
-    latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
-    telescopefile = os.path.join(DATA_PATH,
-    'zen.2456865.60537_wrongtelescope.xy.uvcRREAA')
-    uv_in.read(miriad_file)
-    uv_in.select(times=uv_in.time_array[0])
-    uv_in.select(freq_chans=[0])
-
-    lat, lon, alt = uv_in.telescope_location_lat_lon_alt
-    lat_wrong = lat + 10 * np.pi / 180.
-    uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon, alt)
-    _write_miriad(uv_in, latfile, clobber=True)
-    uv_out.read(latfile)
-
-    lon_wrong = lon + 10 * np.pi / 180.
-    uv_in.telescope_location_lat_lon_alt = (lat, lon_wrong, alt)
-    _write_miriad(uv_in, lonfile, clobber=True)
-    uv_out.read(lonfile)
-
-    uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon_wrong, alt)
-    _write_miriad(uv_in, latlonfile)
-    uv_out.read(latlonfile)
-
-    uv_in.telescope_location_lat_lon_alt = (lat, lon, alt)
-    uv_in.telescope_name = 'foo'
-    _write_miriad(uv_in, telescopefile, clobber=True)
-    uv_out.read(telescopefile, run_check=False)
-
     """
-    uv_in = UVData()
-    latfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglat.xy.uvcRREAA")
-    lonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglon.xy.uvcRREAA")
-    latlonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglatlon.xy.uvcRREAA")
-    telescopefile = os.path.join(
-        DATA_PATH, "zen.2456865.60537_wrongtelescope.xy.uvcRREAA"
-    )
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_lat"],
-            warn_dict["projection_false_offset"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(latfile)
+    testfile = os.path.join(tmp_path, "paper_tweaked_loc.uv")
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_long"],
-            warn_dict["projection_false_offset"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(lonfile)
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_lat_long"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(latlonfile, correct_lat_lon=False)
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file, make changes
+    aipy_uv2.init_from_uv(aipy_uv, override=override_dict, exclude=["altitude"])
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_miriad"],
-            warn_dict["altitude_missing_miriad"],
-            warn_dict["no_telescope_loc"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(telescopefile, run_check=False)
+    warn_list = [warn_dict["uvw_mismatch"]]
+
+    if "telescop" in override_dict:
+        warn_list.extend(
+            [
+                warn_dict["altitude_missing_miriad"],
+                warn_dict["altitude_missing_miriad"],
+                warn_dict["telescope_at_sealevel"],
+            ]
+        )
+    elif "latitud" in override_dict and "longitu" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_lat_long"])
+    elif "latitud" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_lat"])
+    elif "longitu" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_long"])
+
+    with check_warnings(UserWarning, match=warn_list):
+        UVData.from_file(testfile)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
