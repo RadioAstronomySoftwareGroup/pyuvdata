@@ -1866,25 +1866,32 @@ class MirParser:
 
         # There's one check to do up front, which is to make sure that there's data
         # that actually matches the integration headers (to avoid loading data that
-        # does not exist on disk). We only run this on bl_data, since it's the smallest
+        # does not exist on disk). We only run this on in_data, since it's the smallest
         # metadata block that's specific to the visibilities
-        # TODO: Add a similar check for the autos and ac_data
+        key_list = []
         if self._has_cross:
+            key_list.append("cross")
+        if self._has_auto:
+            key_list.append("auto")
+
+        for key in key_list:
             where_list = [
-                ("inhid", "eq", list(idict["cross"]["int_dict"]))
+                ("inhid", "eq", list(idict[key]["int_dict"]))
                 for idict in self._file_dict.values()
             ]
-            mask_update |= self.bl_data.set_mask(where=where_list, and_where_args=False)
+            mask_update |= self.in_data.set_mask(where=where_list, and_where_args=False)
 
         # Now start by cascading the filters up -- from largest metadata tables to the
         # smallest. First up, spec win -> baseline
-        if not np.all(self.sp_data.get_mask()):
-            mask_update |= self.bl_data._make_key_mask(self.sp_data)
+        mask_update |= self.bl_data._make_key_mask(self.sp_data)
 
         # Now do baseline -> antennas. Special handling required because of the
         # lack of a unique index key for this table.
-        if self._has_auto or not np.all(self.bl_data.get_mask()):
-            mask = self.eng_data._make_key_mask(
+        if self._has_cross or self._has_auto:
+            mask = np.zeros(len(self.eng_data), dtype=bool)
+
+        if self._has_cross:
+            mask |= self.eng_data._make_key_mask(
                 self.bl_data,
                 check_field=("iant1", "inhid"),
                 set_mask=False,
@@ -1897,20 +1904,19 @@ class MirParser:
                 use_cipher=True,
             )
 
-            if self._has_auto:
-                mask |= self.eng_data._make_key_mask(
-                    self.ac_data, set_mask=False, use_cipher=True
-                )
+        if self._has_auto:
+            mask |= self.eng_data._make_key_mask(
+                self.ac_data, set_mask=False, use_cipher=True
+            )
 
+        if self._has_cross or self._has_auto:
             mask_update |= self.eng_data.set_mask(mask=mask)
 
         # Now antennas -> int
-        if not np.all(self.eng_data.get_mask()):
-            mask_update |= self.in_data._make_key_mask(self.eng_data)
+        mask_update |= self.in_data._make_key_mask(self.eng_data)
 
         # And weather scan -> int
-        if not np.all(self.we_data.get_mask()):
-            mask_update |= self.in_data._make_key_mask(self.we_data, reverse=True)
+        mask_update |= self.in_data._make_key_mask(self.we_data, reverse=True)
 
         # We now cascade the masks downward. First up, int -> weather scan
         mask_update |= self.we_data._make_key_mask(self.in_data)
