@@ -37,6 +37,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 @pytest.fixture(scope="session")
 def uvdata_obj_main():
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     uvdata_object = UVData()
     with check_warnings(
         UserWarning,

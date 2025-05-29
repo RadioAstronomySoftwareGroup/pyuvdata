@@ -105,7 +105,7 @@ def uvcalibrate_data(uvcalibrate_data_main):
 
 @pytest.fixture(scope="session")
 def uvcalibrate_uvdata_oldfiles_main():
-    uvd = UVData()
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     with check_warnings(
         UserWarning,
         match=[
@@ -113,7 +113,7 @@ def uvcalibrate_uvdata_oldfiles_main():
             "Fixing auto-correlations to be be real-only",
         ],
     ):
-        uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+        uvd = UVData.from_file(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
 
     yield uvd
 
