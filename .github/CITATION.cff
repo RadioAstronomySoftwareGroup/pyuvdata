@@ -1,0 +1,86 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Keating
+  given-names: Garrett K.
+  orcid: "https://orcid.org/0000-0002-3490-146X"
+- family-names: Hazelton
+  given-names: Bryna J.
+  orcid: "https://orcid.org/0000-0001-7532-645X"
+- family-names: Kolopanis
+  given-names: Matthew
+  orcid: "https://orcid.org/0000-0002-2950-2974"
+- family-names: Murray
+  given-names: Steven
+  orcid: "https://orcid.org/0000-0003-3059-3823"
+- family-names: Beardsley
+  given-names: Adam P.
+  orcid: "https://orcid.org/0000-0001-9428-8233"
+- family-names: Jacobs
+  given-names: Daniel C.
+  orcid: "https://orcid.org/0000-0002-0917-2269"
+- family-names: Kern
+  given-names: Nicholas
+  orcid: "https://orcid.org/0000-0002-8211-1892"
+- family-names: Lanman
+  given-names: Adam
+  orcid: "https://orcid.org/0000-0003-2116-3573"
+- family-names: La Plante
+  given-names: Paul
+  orcid: "https://orcid.org/0000-0002-4693-0102"
+- family-names: Pober
+  given-names: Jonathan C.
+  orcid: "https://orcid.org/0000-0002-3492-0433"
+- family-names: Star
+  given-names: Pyxie
+doi: 10.5281/zenodo.596490
+message: If you use this software, please cite both Keating et al. (2025)
+  [doi:10.21105/joss.07482] and Hazelton et al. (2017) [doi:10.21105/joss.00140].
+preferred-citation:
+  authors:
+  - family-names: Keating
+    given-names: Garrett K.
+    orcid: "https://orcid.org/0000-0002-3490-146X"
+  - family-names: Hazelton
+    given-names: Bryna J.
+    orcid: "https://orcid.org/0000-0001-7532-645X"
+  - family-names: Kolopanis
+    given-names: Matthew
+    orcid: "https://orcid.org/0000-0002-2950-2974"
+  - family-names: Murray
+    given-names: Steven
+    orcid: "https://orcid.org/0000-0003-3059-3823"
+  - family-names: Beardsley
+    given-names: Adam P.
+    orcid: "https://orcid.org/0000-0001-9428-8233"
+  - family-names: Jacobs
+    given-names: Daniel C.
+    orcid: "https://orcid.org/0000-0002-0917-2269"
+  - family-names: Kern
+    given-names: Nicholas
+    orcid: "https://orcid.org/0000-0002-8211-1892"
+  - family-names: Lanman
+    given-names: Adam
+    orcid: "https://orcid.org/0000-0003-2116-3573"
+  - family-names: La Plante
+    given-names: Paul
+    orcid: "https://orcid.org/0000-0002-4693-0102"
+  - family-names: Pober
+    given-names: Jonathan C.
+    orcid: "https://orcid.org/0000-0002-3492-0433"
+  - family-names: Star
+    given-names: Pyxie
+  date-published: 2025-05-13
+  doi: 10.21105/joss.07482
+  issn: 2475-9066
+  issue: 109
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 7482
+  title: "pyuvdata v3: an interface for astronomical interferometric
+    data sets in Python"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.07482"
+  volume: 10
+title: "pyuvdata v3: an interface for astronomical interferometric data
+  sets in Python"
