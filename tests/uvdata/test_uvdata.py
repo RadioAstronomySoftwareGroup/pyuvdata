@@ -162,29 +162,6 @@ def hera_uvh5_split(hera_uvh5_split_main):
 
 
 @pytest.fixture(scope="session")
-def hera_miriad_main():
-    """Read in a HERA miriad file."""
-    hera_miriad = UVData()
-    filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", "The uvw_array does not match the expected values"
-        )
-        warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
-        hera_miriad = UVData.from_file(filename, projected=False)
-
-    yield hera_miriad
-
-
-@pytest.fixture(scope="function")
-def hera_miriad(hera_miriad_main):
-    """Make function level HERA miriad file based object."""
-    hera_miriad = hera_miriad_main.copy()
-
-    yield hera_miriad
-
-
-@pytest.fixture(scope="session")
 def sma_mir_catalog(sma_mir_main):
     catalog_dict = sma_mir_main.phase_center_catalog
 
@@ -214,36 +191,6 @@ def carma_miriad(carma_miriad_main):
     uv_object = carma_miriad_main.copy()
 
     yield uv_object
-
-
-@pytest.fixture(scope="session")
-def paper_miriad_main():
-    # read in test file for the resampling in time functions
-    paper_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", "The uvw_array does not match")
-        warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
-        uv_object = UVData.from_file(paper_file)
-
-    yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
-
-
-@pytest.fixture(scope="function")
-def paper_uvh5(paper_miriad_main):
-    # read in test file for the resampling in time functions
-    uv_object = paper_miriad_main.copy()
-    uv_object.set_rectangularity()
-    yield uv_object
-
-    # cleanup
-    del uv_object
-
-    return
 
 
 @pytest.fixture(scope="session")
@@ -798,10 +745,12 @@ def test_known_telescopes():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_hera_diameters(paper_uvh5):
-    uv_in = paper_uvh5
+def test_hera_diameters(casa_uvfits):
+    uv_in = casa_uvfits
 
+    # change telescope name to HERA
     uv_in.telescope.name = "HERA"
+    # check that set_telescope_params sets the diameters properly
     uv_in.set_telescope_params()
 
     assert uv_in.telescope.name == "HERA"
@@ -1359,26 +1308,17 @@ def test_set_uvws(hera_uvh5):
 @pytest.mark.parametrize("invert", [True, False])
 @pytest.mark.parametrize("inplace", [True, False])
 @pytest.mark.parametrize("higher_dims", [True, False])
-def test_select_blts(paper_uvh5, metadata_only, invert, inplace, higher_dims):
-    uv_object = paper_uvh5
+def test_select_blts(hera_uvh5, metadata_only, invert, inplace, higher_dims):
+    uv_object = hera_uvh5
 
     # fmt: off
-    blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
-                         218, 178, 391, 111, 276, 274, 308, 38, 64, 317, 76, 239, 246,
-                         34, 39, 83, 184, 208, 60, 374, 295, 118, 337, 261, 21, 375,
-                         396, 355, 187, 95, 122, 186, 113, 260, 264, 156, 13, 228, 291,
-                         302, 72, 137, 216, 299, 341, 207, 256, 223, 250, 268, 147, 73,
-                         32, 142, 383, 221, 203, 258, 286, 324, 265, 170, 236, 8, 275,
-                         304, 117, 29, 167, 15, 388, 171, 82, 322, 248, 160, 85, 66,
-                         46, 272, 328, 323, 152, 200, 119, 359, 23, 363, 56, 219, 257,
-                         11, 307, 336, 289, 136, 98, 37, 163, 158, 80, 125, 40, 298,
-                         75, 320, 74, 57, 346, 121, 129, 332, 238, 93, 18, 330, 339,
-                         381, 234, 176, 22, 379, 199, 266, 100, 90, 292, 205, 58, 222,
-                         350, 109, 273, 191, 368, 88, 101, 65, 155, 2, 296, 306, 398,
-                         369, 378, 254, 67, 249, 102, 348, 392, 20, 28, 169, 262, 269,
-                         287, 86, 300, 143, 177, 42, 290, 284, 123, 189, 175, 97, 340,
-                         242, 342, 331, 282, 235, 344, 63, 115, 78, 30, 226, 157, 133,
-                         71, 35, 212, 333])
+    # generated with np.random.choice(200, size=50, replace=False)
+    # using the fact that uv_object.Nblts=200
+    blt_inds = np.array(
+        [142, 111, 168, 155, 101, 58, 124, 122,  44, 102, 77, 174,  88, 76, 20, 161,
+         43, 78, 104, 80, 56, 107, 42, 74, 153, 180, 158, 95, 12, 93, 47, 163, 128,
+         105, 0,  30, 196, 8, 191, 39, 9, 125, 112, 152, 11, 18, 97, 51, 177, 110]
+    )
     # fmt: on
     if not metadata_only:
         selected_data = uv_object.data_array[np.sort(blt_inds)]
@@ -1438,9 +1378,9 @@ def test_select_blts(paper_uvh5, metadata_only, invert, inplace, higher_dims):
         ],
     ],
 )
-def test_select_blts_err(paper_uvh5, kwargs, err_msg):
+def test_select_blts_err(casa_uvfits, kwargs, err_msg):
     with pytest.raises(ValueError, match=err_msg):
-        paper_uvh5.select(**kwargs)
+        casa_uvfits.select(**kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -4083,7 +4023,6 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_fast_concat_freq(casa_uvfits):
     uv_full = casa_uvfits
-    print(uv_full.Nfreqs)
     uv1 = uv_full.select(freq_chans=np.arange(0, 20), inplace=False)
     uv2 = uv_full.select(freq_chans=np.arange(20, 40), inplace=False)
     uv3 = uv_full.select(freq_chans=np.arange(40, 64), inplace=False)
@@ -4716,21 +4655,21 @@ def test_get_data(casa_uvfits, kind):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpair2ind(paper_uvh5):
-    paper_uvh5.set_rectangularity()
+def test_antpair2ind(hera_uvh5):
+    hera_uvh5.set_rectangularity()
 
     # Test for baseline-time axis indexer
-    uv = paper_uvh5
+    uv = hera_uvh5
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
-    assert inds == slice(1, None, 21)
+    assert inds == slice(3, None, 10)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpair2ind_conj(paper_uvh5):
+def test_antpair2ind_conj(hera_uvh5):
     # conjugate (and use key rather than arg expansion)
-    uv = paper_uvh5
+    uv = hera_uvh5
     uv.set_rectangularity()
     inds = uv.antpair2ind(0, 1, ordered=False)
     inds2 = uv.antpair2ind((1, 0), ordered=False)
@@ -4738,9 +4677,9 @@ def test_antpair2ind_conj(paper_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpair2ind_ordered(paper_uvh5):
+def test_antpair2ind_ordered(hera_uvh5):
     # test ordered
-    uv = paper_uvh5
+    uv = hera_uvh5
     inds = uv.antpair2ind(0, 1, ordered=False)
 
     # make sure conjugated baseline returns nothing
@@ -4753,9 +4692,9 @@ def test_antpair2ind_ordered(paper_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpair2ind_autos(paper_uvh5):
+def test_antpair2ind_autos(hera_uvh5):
     # test autos w/ and w/o ordered
-    uv = paper_uvh5
+    uv = hera_uvh5
 
     inds = uv.antpair2ind(0, 0, ordered=True)
     inds2 = uv.antpair2ind(0, 0, ordered=False)
@@ -4763,9 +4702,9 @@ def test_antpair2ind_autos(paper_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_antpair2ind_exceptions(paper_uvh5):
+def test_antpair2ind_exceptions(hera_uvh5):
     # test exceptions
-    uv = paper_uvh5
+    uv = hera_uvh5
 
     with pytest.raises(ValueError, match="antpair2ind must be fed an antpair tuple"):
         uv.antpair2ind(1)
@@ -4808,27 +4747,28 @@ def test_get_ants(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_get_enu_antpos(hera_miriad):
-    uvd = hera_miriad
+def test_get_enu_antpos(hera_uvh5):
+    uvd = hera_uvh5
     # no center, no pick data ants
     antpos = uvd.telescope.get_enu_antpos()
-    assert uvd.telescope.Nants == 113
-    assert np.isclose(antpos[0, 0], 19.340211050751535, rtol=0, atol=1e-3)
+    assert uvd.telescope.Nants == 9
+    assert np.isclose(antpos[-1, 0], -105.13193283147963, rtol=0, atol=1e-3)
     assert uvd.telescope.antenna_numbers[0] == 0
 
     # pick data ants
     antpos2, ants = uvd.get_enu_data_ants()
-    assert ants[0] == 9
-    assert np.isclose(antpos2[0, 0], -34.58975401168747, rtol=0, atol=1e-3)
+    assert uvd.Nants_data == 4
+    assert ants[0] == 0
+    assert np.isclose(antpos2[-1, 0], -112.3875190893361, rtol=0, atol=1e-3)
 
     data_ant_inds = np.isin(uvd.telescope.antenna_numbers, ants)
     assert np.all(antpos[data_ant_inds] == antpos2)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
+def test_telescope_loc_xyz_check(hera_uvh5, tmp_path):
     # test that improper telescope locations can still be read
-    uv = paper_uvh5
+    uv = hera_uvh5
     uv.telescope.location = EarthLocation.from_geocentric(
         *utils.XYZ_from_LatLonAlt(*uv.telescope._location.xyz()), unit="m"
     )
@@ -4862,22 +4802,22 @@ def test_get_pols(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_get_pols_x_orientation(paper_uvh5):
-    uv_in = paper_uvh5
+def test_get_pols_x_orientation(hera_uvh5):
+    uv_in = hera_uvh5
 
     uv_in.telescope.set_feeds_from_x_orientation(
         "east", polarization_array=uv_in.polarization_array
     )
 
     pols = uv_in.get_pols()
-    pols_data = ["en"]
+    pols_data = ["ee", "nn"]
     assert pols == pols_data
 
     uv_in.telescope.set_feeds_from_x_orientation(
         "north", polarization_array=uv_in.polarization_array
     )
     pols = uv_in.get_pols()
-    pols_data = ["ne"]
+    pols_data = ["nn", "ee"]
     assert pols == pols_data
 
 
@@ -4897,7 +4837,7 @@ def test_get_feedpols(casa_uvfits):
         uv.get_feedpols()
 
 
-def test_parse_ants(casa_uvfits, hera_miriad):
+def test_parse_ants(casa_uvfits, hera_uvh5):
     # Test function to get correct antenna pairs and polarizations
     uv = casa_uvfits
 
@@ -5144,32 +5084,14 @@ def test_parse_ants(casa_uvfits, hera_miriad):
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert Counter(polarizations) == Counter(pols_expected)
 
-    # Test ant_str='auto' on file with auto correlations
-    uv = hera_miriad
+    # Test ant_str='auto' on file with auto correlations, want single pol
+    uv = hera_uvh5
+    uv.select(polarizations="xx")
+    uv.conjugate_bls(convention="ant1<ant2")
 
     ant_str = "auto"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
-    ant_nums = [
-        9,
-        10,
-        20,
-        22,
-        31,
-        43,
-        53,
-        64,
-        65,
-        72,
-        80,
-        81,
-        88,
-        89,
-        96,
-        97,
-        104,
-        105,
-        112,
-    ]
+    ant_nums = [0, 1, 2, 11]
     ant_pairs_autos = [(ant_i, ant_i) for ant_i in ant_nums]
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_autos)
     assert isinstance(polarizations, type(None))
@@ -5182,26 +5104,27 @@ def test_parse_ants(casa_uvfits, hera_miriad):
     assert isinstance(polarizations, type(None))
 
     # Remove only polarization of single baseline
-    ant_str = "all,-9x_10x"
+    ant_str = "all,-1x_11x"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
-    ant_pairs_expected.remove((9, 10))
+    ant_pairs_expected.remove((1, 11))
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
     # Test appending all to beginning of strings that start with -
-    ant_str = "-9"
+    ant_str = "-11"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
+    print(ant_pairs_expected)
     for ant_i in ant_nums:
-        ant_pairs_expected.remove((9, ant_i))
+        ant_pairs_expected.remove((ant_i, 11))
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
     assert isinstance(polarizations, type(None))
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_with_ant_str(casa_uvfits, hera_miriad):
+def test_select_with_ant_str(casa_uvfits, hera_uvh5):
     # Test select function with ant_str argument
     uv = casa_uvfits
     inplace = False
@@ -5490,31 +5413,13 @@ def test_select_with_ant_str(casa_uvfits, hera_miriad):
     assert Counter(uv2.get_antpairs()) == Counter(uv.get_antpairs())
     assert Counter(uv2.get_pols()) == Counter(pols)
 
-    # Test ant_str = 'auto' on file with auto correlations
-    uv = hera_miriad
+    # Test ant_str='auto' on file with auto correlations, want single pol
+    uv = hera_uvh5
+    uv.select(polarizations="xx")
+    uv.conjugate_bls(convention="ant1<ant2")
 
     ant_str = "auto"
-    ant_nums = [
-        9,
-        10,
-        20,
-        22,
-        31,
-        43,
-        53,
-        64,
-        65,
-        72,
-        80,
-        81,
-        88,
-        89,
-        96,
-        97,
-        104,
-        105,
-        112,
-    ]
+    ant_nums = [0, 1, 2, 11]
     ant_pairs_autos = [(ant_i, ant_i) for ant_i in ant_nums]
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs_autos)
@@ -5528,18 +5433,18 @@ def test_select_with_ant_str(casa_uvfits, hera_miriad):
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Remove only polarization of single baseline
-    ant_str = "all,-9x_10x"
+    ant_str = "all,-1x_11x"
     ant_pairs = ant_pairs_autos + ant_pairs_cross
-    ant_pairs.remove((9, 10))
+    ant_pairs.remove((1, 11))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
 
     # Test appending all to beginning of strings that start with -
-    ant_str = "-9"
+    ant_str = "-11"
     ant_pairs = ant_pairs_autos + ant_pairs_cross
     for ant_i in ant_nums:
-        ant_pairs.remove((9, ant_i))
+        ant_pairs.remove((ant_i, 11))
     uv2 = uv.select(ant_str=ant_str, inplace=inplace)
     assert Counter(uv2.get_antpairs()) == Counter(ant_pairs)
     assert Counter(uv2.get_pols()) == Counter(uv.get_pols())
@@ -6379,11 +6284,11 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_lsts_from_time_with_only_unique(paper_uvh5):
+def test_lsts_from_time_with_only_unique(hera_uvh5):
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    uv = paper_uvh5
+    uv = hera_uvh5
     # calculate the lsts for all elements in time array
     full_lsts = utils.get_lst_for_time(
         uv.time_array, telescope_loc=uv.telescope.location
@@ -6394,11 +6299,11 @@ def test_lsts_from_time_with_only_unique(paper_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_lsts_from_time_with_only_unique_background(paper_uvh5):
+def test_lsts_from_time_with_only_unique_background(hera_uvh5):
     """
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
-    uv = paper_uvh5
+    uv = hera_uvh5
     # calculate the lsts for all elements in time array
     full_lsts = utils.get_lst_for_time(
         uv.time_array, telescope_loc=uv.telescope.location
