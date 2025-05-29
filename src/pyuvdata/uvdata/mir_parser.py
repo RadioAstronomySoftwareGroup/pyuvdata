@@ -2261,7 +2261,9 @@ class MirParser:
         filever = None
         if None in [make_v3_compliant, old_vis_format, nchunks]:
             try:
-                temp_codes = MirCodesData(filepath)
+                temp_codes = MirCodesData(
+                    filepath[0] if isinstance(filepath, list) else filepath
+                )
                 filever = int(temp_codes["filever"][0])
             except MirMetaError:  # pragma: nocover
                 # v1 is the only version without this particular code. Don't cover this
