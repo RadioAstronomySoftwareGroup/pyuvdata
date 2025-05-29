@@ -2045,14 +2045,32 @@ def test_file_with_bad_extra_words():
         uv.read_miriad(fname, run_check=False)
 
 
-def test_miriad_read_xorient():
+def test_miriad_read_xorient(tmp_path):
     """
     Read miriad w/ x_orientation keyword present, verify things make sense.
     """
-    # This is a bespoke older dataset w/ the xorient keyword set, make sure that it
-    # gets the keyword correctly and interprets in correctly. In this case, it's
-    # been manually set to 'east' inside of the dataset.
-    uv = UVData.from_file(os.path.join(DATA_PATH, "xorient_miriad"))
+    # set the xorient variable directly as we used to do to check for backwards
+    # compatibility
+    orig_file = os.path.join(DATA_PATH, "new.uvA")
+    testfile = os.path.join(tmp_path, "xorient_miriad")
+
+    aipy_uv = aipy_extracts.UV(orig_file)
+
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file
+    aipy_uv2.init_from_uv(aipy_uv)
+    # add xorient into the file
+    aipy_uv2.add_var("xorient", "a")
+    aipy_uv2["xorient"] = "east"
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+
+    uv = UVData.from_file(testfile)
     nants = uv.telescope.Nants
 
     assert uv.telescope.get_x_orientation_from_feeds() == "east"
