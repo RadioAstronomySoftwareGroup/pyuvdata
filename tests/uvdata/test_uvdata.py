@@ -286,6 +286,28 @@ def uv_phase_time_split(hera_uvh5):
     del uv_phase_1, uv_phase_2, uv_raw_1, uv_raw_2, uv_phase, uv_raw
 
 
+@pytest.fixture
+def mwa_integration_time():
+    filename = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uv_init = UVData.from_file(filename)
+    new_int_time = 1.99813843
+    new_int_time_jd = new_int_time / 86400.0
+    new_times = np.min(uv_init.time_array) + (
+        np.arange(11, dtype=float) * new_int_time_jd
+    )
+    uvd = UVData.new(
+        freq_array=uv_init.freq_array,
+        channel_width=uv_init.channel_width,
+        polarization_array=uv_init.polarization_array,
+        times=new_times,
+        telescope=uv_init.telescope,
+        do_blt_outer=True,
+        empty=True,
+    )
+
+    yield uvd
+
+
 @pytest.fixture()
 def dummy_phase_dict():
     dummy_dict = {
@@ -5115,7 +5137,6 @@ def test_parse_ants(casa_uvfits, hera_uvh5):
     ant_str = "-11"
     ant_pairs_nums, polarizations = uv.parse_ants(ant_str)
     ant_pairs_expected = ant_pairs_autos + ant_pairs_cross
-    print(ant_pairs_expected)
     for ant_i in ant_nums:
         ant_pairs_expected.remove((ant_i, 11))
     assert Counter(ant_pairs_nums) == Counter(ant_pairs_expected)
@@ -8583,16 +8604,14 @@ def test_resample_in_time_partial_flags(bda_test_file):
 
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
-def test_downsample_in_time_mwa():
+def test_downsample_in_time_mwa(mwa_integration_time):
     """
     Test resample in time works with numerical weirdnesses.
 
     In particular, when min_int_time is not quite an integer mulitple of
     integration_time. This text broke with a prior bug (see issue 773).
     """
-    filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
-    uv = UVData()
-    uv.read(filename)
+    uv = mwa_integration_time
     uv.phase_to_time(np.mean(uv.time_array))
     uv_object2 = uv.copy()
 
@@ -8620,11 +8639,8 @@ def test_downsample_in_time_mwa():
 
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
-def test_resample_in_time_warning():
-    filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
-    uv = UVData()
-    uv.read(filename)
-
+def test_resample_in_time_warning(mwa_integration_time):
+    uv = mwa_integration_time
     uv2 = uv.copy()
 
     with check_warnings(
