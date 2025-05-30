@@ -3047,6 +3047,17 @@ def test_get_baseline_nums():
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+def test_get_pols():
+    uvf = UVFlag(test_f_file)
+    pols = uvf.get_pols()
+    pols2 = utils.polnum2str(
+        uvf.polarization_array,
+        x_orientation=uvf.telescope.get_x_orientation_from_feeds(),
+    )
+    assert np.array_equal(pols, pols2)
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_antpairs():
     uvf = UVFlag(test_f_file)
     antpairs = uvf.get_antpairs()
