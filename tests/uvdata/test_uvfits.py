@@ -481,33 +481,22 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         uv_in.read(write_file2)
 
 
-def test_casa_nonascii_bytes_antenna_names():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_casa_nonascii_bytes_antenna_names(tmpdir):
     """Test that nonascii bytes in antenna names are handled properly."""
-    uv1 = UVData()
-    testfile = os.path.join(DATA_PATH, "corrected2_zen.2458106.28114.ant012.HH.uvfits")
-    # this file has issues with the telescope location so turn checking off
-    uv1.read(testfile, run_check=False)
-    # fmt: off
-    expected_ant_names = [
-        'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
-        'H2', 'HH11', 'HH12', 'HH13', 'HH14', 'H14', 'H14', 'H14', 'H14',
-        'H14', 'H14', 'H14', 'H14', 'HH23', 'HH24', 'HH25', 'HH26', 'HH27',
-        'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'H27', 'HH36',
-        'HH37', 'HH38', 'HH39', 'HH40', 'HH41', 'H41', 'H41', 'H41', 'H41',
-        'H41', 'H41', 'H41', 'H41', 'HH50', 'HH51', 'HH52', 'HH53', 'HH54',
-        'HH55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55', 'H55',
-        'H55', 'HH65', 'HH66', 'HH67', 'HH68', 'HH69', 'HH70', 'HH71',
-        'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71', 'H71',
-        'H71', 'HH82', 'HH83', 'HH84', 'HH85', 'HH86', 'HH87', 'HH88',
-        'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88', 'H88',
-        'HH98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98',
-        'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98', 'H98',
-        'H98', 'H98', 'H98', 'H98', 'HH120', 'HH121', 'HH122', 'HH123',
-        'HH124', 'H124', 'H124', 'H124', 'H124', 'H124', 'H124', 'H124',
-        'H124', 'H124', 'H124', 'H124', 'HH136', 'HH137', 'HH138', 'HH139',
-        'HH140', 'HH141', 'HH142', 'HH143']
-    # fmt: on
-    assert uv1.telescope.antenna_names == expected_ant_names
+    orig_file = casa_tutorial_uvfits
+    testfile = tmpdir + "test_nonascii_antnames.uvfits"
+
+    with open(orig_file, "rb") as f_in, open(testfile, "wb") as f_out:
+        f_bytes = f_in.read()
+        assert b"W08\x00" in f_bytes
+        new_bytes = f_bytes.replace(b"W08\x00", b"W08\xc0")
+        f_out.write(new_bytes)
+
+    uv1 = UVData.from_file(orig_file)
+    uv2 = UVData.from_file(testfile)
+
+    assert uv1 == uv2
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
