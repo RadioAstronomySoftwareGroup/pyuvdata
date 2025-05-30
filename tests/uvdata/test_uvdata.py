@@ -304,6 +304,7 @@ def mwa_integration_time():
         do_blt_outer=True,
         empty=True,
     )
+    uvd.set_rectangularity()
 
     yield uvd
 
