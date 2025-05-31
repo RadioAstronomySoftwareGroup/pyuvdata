@@ -10747,6 +10747,37 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
 
     # Make some copies of the data
     uv_in = hera_uvh5
+    uv_in_bad = uv_in.copy()
+
+    del uv_in_bad.phase_center_catalog[0]
+    uv_in_bad.phase_center_catalog[1] = {
+        "cat_dist": None,
+        "cat_epoch": np.float64(2000.0),
+        "cat_frame": phase_frame,
+        "cat_lat": np.float64(-0.17855186342047605),
+        "cat_lon": np.float64(3.502185879515176),
+        "cat_name": "foo",
+        "cat_pm_dec": None,
+        "cat_pm_ra": None,
+        "cat_times": None,
+        "cat_type": "sidereal",
+        "cat_vrad": None,
+        "info_source": "user",
+    }
+    uv_in_bad.phase_center_id_array[:] = 1
+    uv_in_bad._set_app_coords_helper()
+
+    if use_ant_pos:
+        uvw_path = f"oldproj_antpos_{phase_frame}_uvw.npy"
+    else:
+        uvw_path = f"oldproj_{phase_frame}_uvw.npy"
+
+    uv_in_bad.uvw_array = np.load(os.path.join(DATA_PATH, uvw_path))
+    uv_in_bad._apply_w_proj(
+        new_w_vals=uv_in_bad.uvw_array[:, -1],
+        old_w_vals=0.0,
+        select_mask=(uv_in_bad.ant_1_array != uv_in_bad.ant_2_array),
+    )
 
     # These values could be anything -- we're just picking something that we know should
     # be visible from the telescope at the time of obs (ignoring horizon limits).
@@ -10757,14 +10788,6 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     uv_in.phase(lon=phase_ra, lat=phase_dec, phase_frame=phase_frame, cat_name="foo")
 
     if use_ant_pos:
-        antpos_str = "_antpos"
-    else:
-        antpos_str = ""
-    bad_data_path = os.path.join(
-        DATA_PATH, f"zen.2458661.23480.HH_oldproj{antpos_str}_{phase_frame}.uvh5"
-    )
-
-    if use_ant_pos:
         warn_msg = ["Fixing phases using antenna positions."]
     else:
         warn_msg = ["Attempting to fix residual phasing errors from the old `phase`"]
@@ -10772,22 +10795,20 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     read_warn_msg = copy.deepcopy(warn_msg)
     read_warn_type = [UserWarning]
 
-    uv_in_bad = UVData.from_file(bad_data_path, fix_old_proj=False)
     uv_in_bad_copy = uv_in_bad.copy()
     if file_type == "uvh5":
-        outfile = bad_data_path
-    else:
-        if file_type == "uvfits":
-            outfile = os.path.join(tmp_path, "test_bad_phase.uvfits")
-            uv_in_bad_copy.write_uvfits(outfile)
-        elif file_type == "miriad":
-            outfile = os.path.join(tmp_path, "test_bad_phase.uv")
-            with check_warnings(
-                UserWarning,
-                "writing default values for restfreq, vsource, veldop, jyperk, and"
-                " systemp",
-            ):
-                uv_in_bad_copy.write_miriad(outfile, clobber=True)
+        outfile = os.path.join(tmp_path, "test_bad_phase.uvh5")
+        uv_in_bad_copy.write_uvh5(outfile)
+    elif file_type == "uvfits":
+        outfile = os.path.join(tmp_path, "test_bad_phase.uvfits")
+        uv_in_bad_copy.write_uvfits(outfile)
+    elif file_type == "miriad":
+        outfile = os.path.join(tmp_path, "test_bad_phase.uv")
+        with check_warnings(
+            UserWarning,
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
+        ):
+            uv_in_bad_copy.write_miriad(outfile, clobber=True)
 
     with check_warnings(read_warn_type, match=read_warn_msg), warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
