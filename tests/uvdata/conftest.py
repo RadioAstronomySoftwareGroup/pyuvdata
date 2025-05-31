@@ -5,6 +5,7 @@
 
 import copy
 import os
+import warnings
 
 import pytest
 
@@ -66,30 +67,31 @@ def hera_uvh5(hera_uvh5_main):
 
 @pytest.fixture(scope="session")
 def paper_miriad_main():
-    """Read in PAPER miriad file."""
-    pytest.importorskip("pyuvdata.uvdata.aipy_extracts", exc_type=ImportError)
-    uv_in = UVData()
-    with check_warnings(
-        UserWarning,
-        match=[
-            "Altitude is not present in Miriad file",
-            "The uvw_array does not match",
-        ],
-    ):
-        uv_in.read(paper_miriad_file)
+    # read in paper miriad file
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "The uvw_array does not match")
+        warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
+        uv_object = UVData.from_file(paper_miriad_file)
 
-    yield uv_in
+    yield uv_object
+
+    # cleanup
+    del uv_object
+
+    return
 
 
 @pytest.fixture(scope="function")
 def paper_miriad(paper_miriad_main):
-    """Make function level PAPER miriad object."""
-    uv_in = paper_miriad_main.copy()
-
-    yield uv_in
+    uv_object = paper_miriad_main.copy()
+    uv_object.set_rectangularity()
+    yield uv_object
 
     # cleanup
-    del uv_in
+    del uv_object
+
+    return
 
 
 @pytest.fixture(scope="session")

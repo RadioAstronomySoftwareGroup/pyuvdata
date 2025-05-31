@@ -48,7 +48,7 @@ def get_time_params(
         if time_array.ndim == 2:
             integration_time = np.squeeze(np.diff(time_array, axis=1) * 86400)
         else:
-            utimes = np.sort(list(set(time_array)))
+            utimes = np.unique(time_array)
             if len(utimes) > 1:
                 integration_time = np.diff(utimes) * 86400
                 integration_time = np.concatenate(

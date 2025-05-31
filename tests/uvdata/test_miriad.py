@@ -31,6 +31,7 @@ from astropy.time import Time, TimeDelta
 
 from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.telescopes import known_telescope_location
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.miriad import Miriad
 
@@ -59,7 +60,10 @@ warn_dict = {
         "values for those visibilities were interpolated or set to "
         "the closest time if they would have required extrapolation."
     ),
-    "altitude_missing_miriad": "Altitude is not present in Miriad file, and telescope",
+    "altitude_missing_paper": (
+        "Altitude is not present in Miriad file, using "
+        "known location altitude value for PAPER and lat/lon from file."
+    ),
     "altitude_missing_lat_long": (
         "Altitude is not present in file and latitude and longitude values do not match"
     ),
@@ -417,100 +421,74 @@ def test_miriad_read_warning_lat_lon_corrected():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_wronglatlon():
+@pytest.mark.parametrize(
+    ["override_dict", "correct_lat_lon"],
+    [
+        [
+            {"latitud": known_telescope_location("paper").lat.rad + 10 * np.pi / 180.0},
+            True,
+        ],
+        [
+            {"longitu": known_telescope_location("paper").lon.rad + 10 * np.pi / 180.0},
+            True,
+        ],
+        [
+            {
+                "latitud": known_telescope_location("paper").lat.rad
+                + 10 * np.pi / 180.0,
+                "longitu": known_telescope_location("paper").lon.rad
+                + 10 * np.pi / 180.0,
+            },
+            False,
+        ],
+        [{"telescop": "foo"}, True],
+        [{}, False],
+    ],
+)
+def test_wronglatlon(tmp_path, override_dict, correct_lat_lon):
     """
     Check for appropriate warnings with incorrect lat/lon values or missing telescope
-
-    To test this, we needed files without altitudes and with wrong lat, lon or
-    telescope values.
-    These test files were made commenting out the line in miriad.py that adds altitude
-    to the file and running the following code:
-    import os
-    import numpy as np
-    from pyuvdata import UVData
-    from pyuvdata.data import DATA_PATH
-    uv_in = UVData()
-    uv_out = UVData()
-    miriad_file = os.path.join(DATA_PATH, 'zen.2456865.60537.xy.uvcRREAA')
-    latfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglat.xy.uvcRREAA')
-    lonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglon.xy.uvcRREAA')
-    latlonfile = os.path.join(DATA_PATH, 'zen.2456865.60537_wronglatlon.xy.uvcRREAA')
-    telescopefile = os.path.join(DATA_PATH,
-    'zen.2456865.60537_wrongtelecope.xy.uvcRREAA')
-    uv_in.read(miriad_file)
-    uv_in.select(times=uv_in.time_array[0])
-    uv_in.select(freq_chans=[0])
-
-    lat, lon, alt = uv_in.telescope_location_lat_lon_alt
-    lat_wrong = lat + 10 * np.pi / 180.
-    uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon, alt)
-    _write_miriad(uv_in, latfile, clobber=True)
-    uv_out.read(latfile)
-
-    lon_wrong = lon + 10 * np.pi / 180.
-    uv_in.telescope_location_lat_lon_alt = (lat, lon_wrong, alt)
-    _write_miriad(uv_in, lonfile, clobber=True)
-    uv_out.read(lonfile)
-
-    uv_in.telescope_location_lat_lon_alt = (lat_wrong, lon_wrong, alt)
-    _write_miriad(uv_in, latlonfile)
-    uv_out.read(latlonfile)
-
-    uv_in.telescope_location_lat_lon_alt = (lat, lon, alt)
-    uv_in.telescope_name = 'foo'
-    _write_miriad(uv_in, telescopefile, clobber=True)
-    uv_out.read(telescopefile, run_check=False)
-
     """
-    uv_in = UVData()
-    latfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglat.xy.uvcRREAA")
-    lonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglon.xy.uvcRREAA")
-    latlonfile = os.path.join(DATA_PATH, "zen.2456865.60537_wronglatlon.xy.uvcRREAA")
-    telescopefile = os.path.join(
-        DATA_PATH, "zen.2456865.60537_wrongtelecope.xy.uvcRREAA"
-    )
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_lat"],
-            warn_dict["projection_false_offset"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(latfile)
+    testfile = os.path.join(tmp_path, "paper_tweaked_loc.uv")
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_long"],
-            warn_dict["projection_false_offset"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(lonfile)
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_lat_long"],
-            warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(latlonfile, correct_lat_lon=False)
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file, make changes
+    aipy_uv2.init_from_uv(aipy_uv, override=override_dict, exclude=["altitude"])
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
 
-    with check_warnings(
-        UserWarning,
-        [
-            warn_dict["altitude_missing_miriad"],
-            warn_dict["altitude_missing_miriad"],
-            warn_dict["no_telescope_loc"],
-            warn_dict["unclear_projection"],
-        ],
-    ):
-        uv_in.read(telescopefile, run_check=False)
+    warn_list = [warn_dict["uvw_mismatch"]]
+
+    if (
+        "latitud" in override_dict or "longitu" in override_dict
+    ) and not correct_lat_lon:
+        warn_list.append(warn_dict["projection_false_offset"])
+
+    if "telescop" in override_dict:
+        warn_list.extend(
+            [
+                warn_dict["altitude_missing_foo"],
+                warn_dict["altitude_missing_foo"],
+                warn_dict["telescope_at_sealevel"],
+            ]
+        )
+    elif "latitud" in override_dict and "longitu" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_lat_long"])
+    elif "latitud" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_lat"])
+    elif "longitu" in override_dict:
+        warn_list.append(warn_dict["altitude_missing_long"])
+    else:
+        warn_list.append(warn_dict["altitude_missing_paper"])
+
+    with check_warnings(UserWarning, match=warn_list):
+        UVData.from_file(testfile, correct_lat_lon=correct_lat_lon)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -682,8 +660,8 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with check_warnings(
         UserWarning,
         [
-            warn_dict["altitude_missing_miriad"],
-            warn_dict["altitude_missing_miriad"],
+            warn_dict["altitude_missing_foo"],
+            warn_dict["altitude_missing_foo"],
             warn_dict["telescope_at_sealevel_lat_long"],
             warn_dict["projection_false_offset"],
             warn_dict["uvw_mismatch"],
@@ -745,24 +723,45 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_singletimeselect_unprojected(uv_in_paper):
+def test_singletimeselect_unprojected(tmp_path):
     """
     Check behavior with writing & reading after selecting a single time from
     an unprojected file.
     """
-    uv_in, uv_out, testfile = uv_in_paper
+    uv_in = UVData.from_file(paper_miriad_file)
 
     uv_in_copy = uv_in.copy()
     uv_in.select(times=uv_in.time_array[0])
+    testfile = os.path.join(tmp_path, "single_time_unprojected")
     _write_miriad(uv_in, testfile, clobber=True)
-    uv_out.read(testfile)
+    uv_out = UVData.from_file(testfile)
 
-    # make sure filename is what we expect
-    assert uv_in.filename == ["zen.2456865.60537.xy.uvcRREAA"]
-    assert uv_out.filename == ["outtest_miriad.uv"]
-    uv_in.filename = uv_out.filename
+    # remove phsframe to test detecting projection from single time properly
+    testfile2 = os.path.join(tmp_path, "single_time_unprojected_noframe")
+    aipy_uv = aipy_extracts.UV(testfile)
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile2, status="new")
+    # initialize headers from old file
+    aipy_uv2.init_from_uv(aipy_uv, exclude=["phsframe"])
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+
+    with check_warnings(
+        UserWarning,
+        match=[
+            "It is not clear from the file if the data are projected or not. "
+            "Since the 'epoch' variable is not present it will be labeled as "
+            "unprojected. If that is incorrect you can use the 'projected' parameter "
+            "on this method to set it properly.",
+            "The uvw_array does not match the expected values",
+        ],
+    ):
+        uv_out2 = UVData.from_file(testfile2)
 
     uv_out._consolidate_phase_center_catalogs(other=uv_in)
+    uv_out2._consolidate_phase_center_catalogs(other=uv_in)
+    assert uv_out2 == uv_out
     assert uv_in == uv_out
 
     # check that setting projected works
@@ -789,11 +788,6 @@ def test_singletimeselect_unprojected(uv_in_paper):
 
     _write_miriad(uv_in_copy, testfile, clobber=True)
     uv_out.read(testfile)
-
-    # make sure filename is what we expect
-    assert uv_in_copy.filename == ["zen.2456865.60537.xy.uvcRREAA"]
-    assert uv_out.filename == ["outtest_miriad.uv"]
-    uv_in_copy.filename = uv_out.filename
 
     uv_out._consolidate_phase_center_catalogs(other=uv_in_copy)
     assert uv_in_copy == uv_out
@@ -1299,20 +1293,30 @@ def test_miriad_antenna_diameters(uv_in_paper):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:It is not clear from the file if the data are")
 def test_miriad_write_read_diameters(tmp_path):
-    uv_in = UVData()
-    uv_out = UVData()
-    write_file = os.path.join(tmp_path, "outtest_miriad.uv")
     # check for backwards compatibility with old keyword 'diameter' for
     # antenna diameters
-    testfile_diameters = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
-    uv_in.read(testfile_diameters)
-    _write_miriad(uv_in, write_file, clobber=True)
-    uv_out.read(write_file)
 
-    # make sure filenames are what we expect
-    assert uv_in.filename == ["zen.2457698.40355.xx.HH.uvcA"]
-    assert uv_out.filename == ["outtest_miriad.uv"]
-    uv_in.filename = uv_out.filename
+    orig_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
+    testfile = os.path.join(tmp_path, "diameter_miriad")
+
+    aipy_uv = aipy_extracts.UV(orig_file)
+
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file
+    aipy_uv2.init_from_uv(aipy_uv, exclude=["antdiam"])
+    # add xorient into the file
+    aipy_uv2.add_var("diameter", "d")
+    aipy_uv2["diameter"] = "14."
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+
+    uv_in = UVData.from_file(orig_file)
+    uv_out = UVData.from_file(testfile)
 
     uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
@@ -1970,7 +1974,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     test time_array is converted properly from Miriad format
     """
     # test read-in
-    fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
+    fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
     uvd = UVData()
     uvd.read(fname)
     uvd_t = uvd.time_array.min()
@@ -2045,14 +2049,32 @@ def test_file_with_bad_extra_words():
         uv.read_miriad(fname, run_check=False)
 
 
-def test_miriad_read_xorient():
+def test_miriad_read_xorient(tmp_path):
     """
     Read miriad w/ x_orientation keyword present, verify things make sense.
     """
-    # This is a bespoke older dataset w/ the xorient keyword set, make sure that it
-    # gets the keyword correctly and interprets in correctly. In this case, it's
-    # been manually set to 'east' inside of the dataset.
-    uv = UVData.from_file(os.path.join(DATA_PATH, "xorient_miriad"))
+    # set the xorient variable directly as we used to do to check for backwards
+    # compatibility
+    orig_file = os.path.join(DATA_PATH, "new.uvA")
+    testfile = os.path.join(tmp_path, "xorient_miriad")
+
+    aipy_uv = aipy_extracts.UV(orig_file)
+
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file
+    aipy_uv2.init_from_uv(aipy_uv)
+    # add xorient into the file
+    aipy_uv2.add_var("xorient", "a")
+    aipy_uv2["xorient"] = "east"
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+
+    uv = UVData.from_file(testfile)
     nants = uv.telescope.Nants
 
     assert uv.telescope.get_x_orientation_from_feeds() == "east"

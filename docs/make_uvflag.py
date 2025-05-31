@@ -6,12 +6,10 @@ import os
 from astropy.time import Time
 
 from pyuvdata import UVFlag
-from pyuvdata.data import DATA_PATH
 
 
 def write_uvflag_rst(write_file=None):
-    test_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.testuvflag.h5")
-    UV = UVFlag(test_file)
+    UV = UVFlag()
     out = "UVFlag\n======\n"
     out += (
         "UVFlag is a main user class that is still in the development and\n"
