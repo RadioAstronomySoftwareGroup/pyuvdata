@@ -1151,7 +1151,8 @@ def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dic
 def test_mir_acdata_read_warn(mir_ac_data: MirAcData, nchunks):
     mir_ac_data._nchunks = nchunks
     with check_warnings(
-        UserWarning, "Auto-correlation records appear to be the incorrect size"
+        None if nchunks is None else UserWarning,
+        "" if nchunks is None else "Auto-correlation records appear to be an incorrect",
     ):
         mir_ac_data.read(fetch_data("sma_mir"))
 
