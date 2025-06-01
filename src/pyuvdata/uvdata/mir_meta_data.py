@@ -3495,11 +3495,22 @@ class MirAcData(MirMetaData):
         # This bit of code is to warn of an unfortunately common problem with metadata
         # of MIR autos not being correctly recorded.
         if (file_size % rec_size) != 0:
-            # If the file size doesn't go in evenly, raise a warning
-            warnings.warn(
-                "Auto-correlation records appear to be the incorrect size, be aware "
-                "that the file may be corrupted or nchunks may be incorrectly set."
-            )
+            # Capture the most common long-standing bug, which halved nchunks
+            nchunks = nchunks << 1
+            nspec = nrx * nchunks
+            pack_size = OLD_AUTO_DTYPE.itemsize * nspec * nchan
+            rec_size = pack_size + hdr_dtype.itemsize
+            if (file_size % rec_size) != 0:
+                # Otherwise, go with the standard nchunks and raise an error
+                nchunks = nchunks >> 1
+                nspec = nrx * nchunks
+                pack_size = OLD_AUTO_DTYPE.itemsize * nspec * nchan
+                rec_size = pack_size + hdr_dtype.itemsize
+                # If the file size doesn't go in evenly, raise a warning
+                warnings.warn(
+                    "Auto-correlation records appear to be an incorrect size, be aware "
+                    "that the file may be corrupted or nchunks may be incorrectly set."
+                )
 
         # Pre-allocate the metadata array,
         nrec = file_size // rec_size
