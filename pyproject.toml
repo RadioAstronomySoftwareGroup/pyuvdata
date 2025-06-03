@@ -62,7 +62,7 @@ lunar = ["lunarsky>=0.2.5"]
 novas = ["novas", "novas_de405"]
 all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas]"]
 test = [
-    "pytest>=8.2.0",
+    "pytest>=8.2.0,<8.4.0",  # 8.4.0 has a bug that breaks our tests see https://github.com/smarie/python-pytest-cases/issues/364
     "pytest-xdist",
     "pytest-cases>=3.8.3",
     "pytest-cov",
