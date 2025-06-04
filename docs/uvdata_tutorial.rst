@@ -1482,7 +1482,7 @@ but not all selections, the unsupported ones are done after the read.
   (179, 64, 4)
 
   >>> # Select a few baselines from a miriad file
-  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcAA')
   >>> uvd = UVData.from_file(filename, bls=[(9, 10), (9, 20)])
   >>> print(uvd.get_antpairs())
   [(9, 10), (9, 20)]

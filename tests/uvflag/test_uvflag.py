@@ -22,9 +22,9 @@ from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
 from ..utils.test_coordinates import frame_selenoid
 
-test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
+test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
-test_f_file = test_d_file.rstrip(".uvh5") + ".testuvflag.h5"
+test_f_file = test_d_file + ".testuvflag.h5"
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
 
@@ -37,6 +37,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 @pytest.fixture(scope="session")
 def uvdata_obj_main():
+    pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     uvdata_object = UVData()
     with check_warnings(
         UserWarning,
@@ -3043,6 +3044,17 @@ def test_get_baseline_nums():
     uvf = UVFlag(test_f_file)
     bls = uvf.get_baseline_nums()
     assert np.array_equal(bls, np.unique(uvf.baseline_array))
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+def test_get_pols():
+    uvf = UVFlag(test_f_file)
+    pols = uvf.get_pols()
+    pols2 = utils.polnum2str(
+        uvf.polarization_array,
+        x_orientation=uvf.telescope.get_x_orientation_from_feeds(),
+    )
+    assert np.array_equal(pols, pols2)
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")

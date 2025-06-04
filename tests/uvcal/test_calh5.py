@@ -153,7 +153,7 @@ def test_calh5_meta(gain_data, tmp_path):
     cal_meta2 = FastCalH5Meta(write_file2)
     assert cal_meta != cal_meta2
 
-    uvh5_meta = FastUVH5Meta(os.path.join(DATA_PATH, "zen.2458432.34569.uvh5"))
+    uvh5_meta = FastUVH5Meta(os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5"))
     assert cal_meta != uvh5_meta
 
     ant_nums = cal_meta.antenna_numbers

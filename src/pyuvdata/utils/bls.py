@@ -243,7 +243,8 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
     polarizations = []
     ants_data = uv.get_ants()
     ant_pairs_data = uv.get_antpairs()
-    pols_data = uv.get_pols()
+    # don't use uv.get_pols because that can have n's and e's which are unparsable
+    pols_data = polnum2str(uv.polarization_array)
     warned_ants = []
     warned_pols = []
 
