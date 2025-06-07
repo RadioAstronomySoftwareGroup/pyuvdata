@@ -422,27 +422,8 @@ class MirParser:
                 setattr(new_obj, attr, getattr(self, attr).copy())
             elif not (
                 metadata_only and attr in ["vis_data", "raw_data", "auto_data"]
-            ) and attr not in ["_metadata_attrs", "_sp_dict", "_ac_dict"]:
+            ) and attr not in ["_metadata_attrs"]:
                 setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
-
-        rec_dict_list = []
-        if self._has_auto:
-            rec_dict_list.append("_ac_dict")
-        if self._has_cross:
-            rec_dict_list.append("_sp_dict")
-
-        for item in rec_dict_list:
-            new_dict = {}
-            setattr(new_obj, item, new_dict)
-            for inhid, in_dict in getattr(self, item).items():
-                new_in_dict = {}
-                new_dict[inhid] = new_in_dict
-                for key, rec_dict in in_dict.items():
-                    new_in_dict[key] = {
-                        "start_idx": rec_dict["start_idx"],
-                        "end_idx": rec_dict["end_idx"],
-                        "chan_avg": rec_dict["chan_avg"],
-                    }
 
         for item in self._metadata_attrs:
             new_obj._metadata_attrs[item] = getattr(new_obj, item)
@@ -683,7 +664,7 @@ class MirParser:
         }
 
         key_set = list(inhid_arr)
-        key_check = key_set.copy()
+        key_check = len(key_set)
         # We add an extra key here, None, which cannot match any of the values in
         # int_start_dict (since inhid is type int). This basically tricks the loop
         # below into spitting out the last integration
@@ -719,9 +700,9 @@ class MirParser:
                 else:
                     try:
                         rec_dict = int_dict[ind_key]
-                        key_check.remove(ind_key)
                     except KeyError:
                         continue
+                    key_check -= 1
                     int_size = rec_dict["record_size"]
                     int_start = rec_dict["record_start"]
                 if (int_size != last_size) or (
@@ -834,7 +815,7 @@ class MirParser:
                             "File indexing information differs from that found in in "
                             f"file_dict. The {data_type} data may be corrupted."
                         )
-        if len(key_check) != 0:
+        if key_check != 0:
             if raise_err:
                 raise ValueError("inhid_arr contains keys not found in file_dict.")
             elif raise_err is None:
@@ -844,7 +825,7 @@ class MirParser:
 
     @staticmethod
     def _make_packdata(
-        int_dict=None, recpos_dict=None, data_dict=None, data_type=None
+        *, int_dict, recpos_dict, group_dict, index_dict, data_dict, data_type
     ) -> dict:
         """
         Write packdata from raw_data or auto_data.
@@ -919,9 +900,11 @@ class MirParser:
             # Make an empty packdata dtype, which we will fill with new values
             int_data = np.empty((), dtype=int_dtype_dict[int_subdict["record_size"]])
 
-            # Convenience dict which contains the sphid as keys and start/stop of
+            # Convenience arrays which contains the sphid as keys and start/stop of
             # the slice for each spectral record as values for each integration.
-            recpos_subdict = recpos_dict[inhid]
+            sphid_arr = group_dict[inhid]
+            sidx_arr = recpos_dict["start_idx"][index_dict[inhid]]
+            eidx_arr = recpos_dict["end_idx"][index_dict[inhid]]
 
             # Plug in the "easy" parts of packdata
             if has_inhid:
@@ -933,14 +916,13 @@ class MirParser:
             # main packdata array. In testing, this worked out to be a good degree
             # faster than running np.concat.
             packdata = int_data["packdata"].view(data_dtype)
-            for hid, recinfo in recpos_subdict.items():
+            for hid, sidx, eidx in zip(sphid_arr, sidx_arr, eidx_arr, strict=True):
                 data_record = data_dict[hid]
-                start_idx = recinfo["start_idx"]
                 if scale_data:
-                    packdata[start_idx] = data_record["scale_fac"]
-                    start_idx += 1
-
-                packdata[start_idx : recinfo["end_idx"]] = data_record["data"]
+                    packdata[sidx] = data_record["scale_fac"]
+                    packdata[sidx + 1 : eidx] = data_record["data"]
+                else:
+                    packdata[sidx:eidx] = data_record["data"]
 
             int_data_dict[inhid] = int_data
 
@@ -1146,22 +1128,26 @@ class MirParser:
                 chavg_call = partial(
                     self._rechunk_raw, inplace=True, return_vis=scale_data
                 )
-            data_map = self._sp_dict
-            data_metadata = "sp_data"
+            recpos_dict = self.sp_data._recpos_dict
+            metadata_attr = self.sp_data
         else:
             chavg_call = partial(self._rechunk_data, inplace=True)
-            data_map = self._ac_dict
-            data_metadata = "ac_data"
+            recpos_dict = self.ac_data._recpos_dict
+            metadata_attr = self.ac_data
 
-        group_dict = getattr(self, data_metadata).group_by("inhid")
-        unique_inhid = list(group_dict)
+        recpos_start = recpos_dict["start_idx"]
+        recpos_end = recpos_dict["end_idx"]
+        recpos_chavg = recpos_dict["chan_avg"]
+        inhid_groups = metadata_attr.group_by(
+            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+        )
 
         try:
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
             packdata_dict = self._read_packdata(
                 file_dict=self._file_dict,
-                inhid_arr=unique_inhid,
+                inhid_arr=inhid_groups.keys(),
                 data_type=data_type,
                 use_mmap=use_mmap,
                 raise_err=True,
@@ -1176,39 +1162,35 @@ class MirParser:
             self._fix_int_dict(data_type)
             packdata_dict = self._read_packdata(
                 file_dict=self._file_dict,
-                inhid_arr=unique_inhid,
+                inhid_arr=inhid_groups.keys(),
                 data_type=data_type,
                 use_mmap=use_mmap,
             )
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
-        for inhid in unique_inhid:
+        for inhid, idx_arr in inhid_groups.items():
             # Pop here lets us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
             packdata, data_dtype, common_scale = packdata_dict.pop(inhid)
             packdata = packdata["packdata"].view(data_dtype)
-            hid_subarr = group_dict[inhid]
-            dataoff_subdict = data_map[inhid]
+            hid_subarr = metadata_attr.get_header_keys(index=idx_arr)
 
             # We copy here if we want the raw values AND we've used memmap, since
             # otherwise the resultant entries in raw_data will be memmap arrays, which
             # will be read only (and we want attributes to be modifiable.)
-            chan_avg_arr = np.zeros(len(hid_subarr), dtype=int)
+            sidx_arr = recpos_start[idx_arr]
+            eidx_arr = recpos_end[idx_arr]
+            chan_avg_arr = recpos_chavg[idx_arr]
             temp_dict = {}
-            for idx, hid in enumerate(hid_subarr):
-                dataoff = dataoff_subdict[hid]
-                start_idx = dataoff["start_idx"]
-                end_idx = dataoff["end_idx"]
-                chan_avg_arr[idx] = dataoff["chan_avg"]
-
+            for hid, sidx, eidx in zip(hid_subarr, sidx_arr, eidx_arr, strict=True):
                 if common_scale:
                     temp_dict[hid] = {
-                        "scale_fac": packdata[start_idx],
-                        "data": packdata[(start_idx + 1) : end_idx],
+                        "scale_fac": packdata[sidx],
+                        "data": packdata[(sidx + 1) : eidx],
                     }
                 else:
-                    data_arr = packdata[start_idx:end_idx]
+                    data_arr = packdata[sidx:eidx]
                     temp_dict[hid] = {
                         "data": data_arr,
                         "flags": np.isnan(data_arr),
@@ -1287,7 +1269,7 @@ class MirParser:
         # duplicate copies of the data which can cause the memory footprint to balloon,
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
-        int_dict, sp_dict = self.sp_data._generate_recpos_dict(
+        int_dict, recpos_dict = self.sp_data._generate_recpos_dict(
             data_dtype=NEW_VIS_DTYPE,
             data_nvals=2,
             pad_nvals=NEW_VIS_PAD,
@@ -1295,6 +1277,9 @@ class MirParser:
             hdr_fmt=NEW_VIS_HEADER,
             reindex=True,
         )
+
+        index_dict = self.sp_data.group_by("inhid", return_index=True)
+        group_dict = self.sp_data.group_by("inhid")
 
         # We can now open the file once, and write each array upon construction
         with open(
@@ -1305,12 +1290,14 @@ class MirParser:
                     raw_dict = self.raw_data
                 else:
                     raw_dict = self._convert_vis_to_raw(
-                        {sphid: self.vis_data[sphid] for sphid in sp_dict[inhid]}
+                        {key: self.vis_data[key] for key in group_dict[inhid]}
                     )
 
                 packdata = self._make_packdata(
                     int_dict={inhid: int_dict[inhid]},
-                    recpos_dict={inhid: sp_dict[inhid]},
+                    group_dict=group_dict,
+                    index_dict=index_dict,
+                    recpos_dict=recpos_dict,
                     data_dict=raw_dict,
                     data_type="cross",
                 )
@@ -1354,7 +1341,7 @@ class MirParser:
         # duplicate copies of the data which can cause the memory footprint to balloon,
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
-        int_dict, ac_dict = self.ac_data._generate_recpos_dict(
+        int_dict, recpos_dict = self.ac_data._generate_recpos_dict(
             data_dtype=NEW_AUTO_DTYPE,
             data_nvals=1,
             pad_nvals=0,
@@ -1363,6 +1350,9 @@ class MirParser:
             reindex=True,
         )
 
+        index_dict = self.ac_data.group_by("inhid", return_index=True)
+        group_dict = self.ac_data.group_by("inhid")
+
         # We can now open the file once, and write each array upon construction
         with open(
             os.path.join(filepath, "ach_read"), "ab+" if append_data else "wb+"
@@ -1370,7 +1360,9 @@ class MirParser:
             for inhid in int_dict:
                 packdata = self._make_packdata(
                     int_dict={inhid: int_dict[inhid]},
-                    recpos_dict={inhid: ac_dict[inhid]},
+                    group_dict=group_dict,
+                    index_dict=index_dict,
+                    recpos_dict=recpos_dict,
                     data_dict=self.auto_data,
                     data_type="auto",
                 )
@@ -1981,7 +1973,6 @@ class MirParser:
         self._has_auto = False
         self.auto_data = None
         self.ac_data = MirAcData()
-        self._ac_dict = None
         try:
             del self._metadata_attrs["ac_data"]
             for key in self._file_dict:
@@ -2001,17 +1992,6 @@ class MirParser:
         """
         for item in self._metadata_attrs:
             self._metadata_attrs[item].reset()
-
-        update_list = []
-        if self._has_cross:
-            update_list.append(self._sp_dict)
-        if self._has_auto:
-            update_list.append(self._ac_dict)
-
-        for recpos_dict in update_list:
-            for int_dict in recpos_dict.values():
-                for idict in int_dict.values():
-                    idict["chan_avg"] = 1
 
         self.unload_data()
 
@@ -2315,7 +2295,7 @@ class MirParser:
         # it faster to read in the data.
         file_dict = {}
         if self._has_cross:
-            int_dict, self._sp_dict = self.sp_data._generate_recpos_dict(
+            int_dict, self.sp_data._recpos_dict = self.sp_data._generate_recpos_dict(
                 data_dtype=OLD_VIS_DTYPE if old_vis_format else NEW_VIS_DTYPE,
                 data_nvals=2,  # Real + imag values
                 pad_nvals=OLD_VIS_PAD if old_vis_format else NEW_VIS_PAD,
@@ -2345,7 +2325,7 @@ class MirParser:
                 # and plug in some missing metadata.
                 self._fix_acdata()
                 filetype = "autoCorrelations"
-            int_dict, self._ac_dict = self.ac_data._generate_recpos_dict(
+            int_dict, self.ac_data._recpos_dict = self.ac_data._generate_recpos_dict(
                 data_dtype=OLD_AUTO_DTYPE if old_auto_format else NEW_AUTO_DTYPE,
                 data_nvals=1,  # Real-only vals
                 pad_nvals=0,  # Autos have no padding, at least not currently.
@@ -2709,23 +2689,24 @@ class MirParser:
 
         update_dict = {}
         if self._has_cross:
-            update_dict["sp_data"] = [self._sp_dict, ["fres", "vres"], None, None]
+            update_dict["sp_data"] = [["fres", "vres"], None, None]
         if self._has_auto:
-            update_dict["ac_data"] = [self._ac_dict, ["fres"], None, None]
+            update_dict["ac_data"] = [["fres"], None, None]
 
         for attr in update_dict:
             band_arr = getattr(self, attr).get_value("iband", use_mask=False)
             nch_arr = getattr(self, attr).get_value("nch", use_mask=False)
             chavg_arr = [chanavg_dict[band] for band in band_arr]
+            getattr(self, attr)._recpos_dict["chan_avg"] *= chavg_arr
             if np.any(np.mod(nch_arr, chavg_arr) != 0):
                 raise ValueError(
                     "chan_avg does not go evenly into the number of channels in each "
                     "spectral window (typically chan_avg should be a power of 2)."
                 )
-            update_dict[attr][2] = chavg_arr
-            update_dict[attr][3] = nch_arr // chavg_arr
+            update_dict[attr][1] = chavg_arr
+            update_dict[attr][2] = nch_arr // chavg_arr
 
-        for attr, (recpos_dict, update_list, chavg_arr, nch_arr) in update_dict.items():
+        for attr, (update_list, chavg_arr, nch_arr) in update_dict.items():
             for item in update_list:
                 getattr(self, attr).set_value(
                     item,
@@ -2733,12 +2714,6 @@ class MirParser:
                     use_mask=False,
                 )
             getattr(self, attr).set_value("nch", nch_arr, use_mask=False)
-
-            for int_dict in recpos_dict.values():
-                for hid in int_dict:
-                    int_dict[hid]["chan_avg"] *= chanavg_dict[
-                        getattr(self, attr).get_value("iband", header_key=hid)
-                    ]
 
             chan_avg_arr = [chanavg_dict[band] for band in getattr(self, attr)["iband"]]
             if attr == "sp_data":
@@ -2988,10 +2963,8 @@ class MirParser:
                     }
                 )
 
-            # From the primary update dict, grab the three that we need for indexing
+            # From the primary update dict, grab the one we need for indexing
             inhid_dict = update_dict.get("inhid", {})
-            sphid_dict = update_dict.get("sphid", {})
-            achid_dict = update_dict.get("achid", {})
 
             # Now deal with packdata integration dict
             for filename, file_dict in other._file_dict.items():
@@ -3006,20 +2979,6 @@ class MirParser:
                     new_obj._file_dict[filename][datatype]["int_dict"] = {
                         inhid_dict.get(inhid, inhid): idict.copy()
                         for inhid, idict in datatype_dict["int_dict"].items()
-                    }
-
-            # Finally, deal with the recpos_dicts
-            recpos_list = []
-            if new_obj._has_auto:
-                recpos_list.append(("_ac_dict", achid_dict))
-            if new_obj._has_cross:
-                recpos_list.append(("_sp_dict", sphid_dict))
-
-            for attr, idict in recpos_list:
-                for inhid, jdict in getattr(other, attr).items():
-                    getattr(new_obj, attr)[inhid_dict.get(inhid, inhid)] = {
-                        idict.get(sphid, sphid): kdict.copy()
-                        for sphid, kdict in jdict.items()
                     }
 
         # If the data are in a mixed state, we just want to unloaded it all.
@@ -3040,8 +2999,6 @@ class MirParser:
             new_obj.raw_data = None
         else:
             new_obj.raw_data.update(copy.deepcopy(other_raw))
-
-        new_obj._sp_dict.update(copy.deepcopy(other._sp_dict))
 
         # Finally, if we have discrepant _has_auto states, we force the resultant object
         # to unload any potential auto metadata.
