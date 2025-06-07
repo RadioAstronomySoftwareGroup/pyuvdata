@@ -224,13 +224,16 @@ def test_mir_auto_data(mir_data: MirParser, tmp_path):
     """
     filepath = os.path.join(tmp_path, "test_write_auto")
 
+    mir_data.ac_data._recalc_dataoff(
+        data_dtype=NEW_AUTO_DTYPE, data_nvals=1, scale_data=False
+    )
     mir_data._write_auto_data(filepath)
     # Sub out the file we need to read from, and fix a couple of attributes that changed
     # since we are no longer spoofing values (after reading in data from old-style file)
     mir_data._file_dict = {filepath: list(mir_data._file_dict.values())[0]}
     mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
     mir_data._file_dict[filepath]["auto"]["read_hdr_fmt"] = NEW_AUTO_HEADER
-    int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(
+    int_dict, mir_data.ac_data._recpos_dict = mir_data.ac_data._generate_recpos_dict(
         data_dtype=NEW_AUTO_DTYPE,
         data_nvals=1,
         pad_nvals=0,
@@ -295,8 +298,8 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
     # Take care of some auto-specific stuff, which because we spoofed the original
     # ac_data attribute, won't be _exactly_ the same.
     if mir_copy._has_auto:
-        assert mir_data._ac_dict.values() != mir_copy._ac_dict.values()
         mir_data._ac_dict = mir_copy._ac_dict = None
+        mir_data.ac_data._recpos_dict = mir_copy.ac_data._recpos_dict = None
         assert np.any(mir_data.ac_data["dataoff"] != mir_copy.ac_data._data["dataoff"])
         mir_data.ac_data._data["dataoff"] = mir_copy.ac_data._data["dataoff"] = 0
 
@@ -627,7 +630,6 @@ def test_fix_int_dict_cross(mir_data):
     mir_data.bl_data._data["inhid"][:] = 2
     mir_data.in_data._data["inhid"][:] = 2
     mir_data.sp_data._data["nch"][:] = 1
-    mir_data._sp_dict[2] = mir_data._sp_dict.pop(1)
 
     # Plug in the bad entry
     mir_data._file_dict = good_dict
@@ -687,23 +689,30 @@ def test_read_packdata_mmap(mir_data):
         assert np.array_equal(mmap_data[key], reg_data[key])
 
 
-@pytest.mark.parametrize("attr", ["_make_packdata", "_read_data"])
-def test_data_errs(mir_data, attr):
+def test_make_packdata_errs(mir_data: MirParser):
     with pytest.raises(ValueError, match="Argument for data_type not recognized"):
-        getattr(mir_data, attr)(None)
+        mir_data._make_packdata(
+            int_dict=None,
+            recpos_dict=None,
+            group_dict=None,
+            index_dict=None,
+            data_dict=None,
+            data_type=None,
+        )
 
 
 @pytest.mark.parametrize(
     "compass_soln,kwargs,err_msg",
     [
-        [False, {}, "Cannot apply calibration if no tables loaded."],
-        [True, {"scale_data": False}, "Cannot return raw data if setting apply_cal=Tr"],
+        [False, {"data_type": "cross"}, "Cannot apply calibration if no tables"],
+        [True, {"data_type": "cross", "scale_data": False}, "Cannot return raw data"],
+        [True, {"data_type": None}, "Argument for data_type not recognized"],
     ],
 )
-def test_read_data_errs(mir_data, compass_soln, kwargs, err_msg):
+def test_read_data_errs(mir_data: MirParser, compass_soln, kwargs, err_msg):
     mir_data._has_compass_soln = compass_soln
     with pytest.raises(ValueError, match=err_msg):
-        mir_data._read_data("cross", apply_cal=True, **kwargs)
+        mir_data._read_data(apply_cal=True, **kwargs)
 
 
 def test_read_packdata__make_packdata(mir_data: MirParser):
@@ -715,10 +724,12 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
     )
 
     make_data = mir_data._make_packdata(
-        mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"],
-        mir_data._sp_dict,
-        mir_data.raw_data,
-        "cross",
+        int_dict=mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"],
+        recpos_dict=mir_data.sp_data._recpos_dict,
+        group_dict={1: np.arange(1, 21)},
+        index_dict={1: np.arange(20)},
+        data_dict=mir_data.raw_data,
+        data_type="cross",
     )
 
     assert _read_data.keys() == make_data.keys()
