@@ -578,6 +578,7 @@ class MirMetaData:
         self._mask = None
         self._header_key_index_dict = None
         self._stored_values = {}
+        self._recpos_dict = None
 
         if obj is None:
             return
@@ -709,14 +710,23 @@ class MirMetaData:
 
         # At this point we are ready to do our field-by-field comparison.
         # I say these objects are the same -- prove me wrong!
-        is_eq = True
+        # First look at the optional recpos_dict attribute
+        is_eq = (self._recpos_dict is None) == (other._recpos_dict is None)
+        if is_eq and self._recpos_dict is not None:
+            is_eq = all(
+                np.array_equal(self._recpos_dict[key], other._recpos_dict[key])
+                for key in self._recpos_dict
+            )
 
-        # Start with the mask comparison first.
+        if not is_eq:
+            verbose_print("recpos_dict values are different.")
+
+        # Next go with the mask comparison
         if comp_mask and not np.array_equal(self._mask, other._mask):
             verbose_print(f"{name} masks are different.")
             is_eq = False
 
-        # Move on to the data comparisons
+        # Move on to the data field comparisons
         for item in comp_fields:
             left_vals = self.get_value(item, index=this_idx)
             right_vals = other.get_value(item, index=other_idx)
@@ -825,7 +835,9 @@ class MirMetaData:
             If attempting to combine this object with another of a different type.
         """
         # First up, make sure we have two objects of the same dtype
-        if not isinstance(other, self.__class__):
+        if not (
+            isinstance(other, self.__class__) and (isinstance(self, other.__class__))
+        ):
             raise ValueError("Both objects must be of the same type.")
 
         if other._data is None:
@@ -838,12 +850,20 @@ class MirMetaData:
         if self._data is None:
             new_obj._data = other._data.copy()
             new_obj._mask = other._mask.copy()
+            if other._recpos_dict is not None:
+                new_obj._recpos_dict = copy.deepcopy(other._recpos_dict)
         else:
             idx1, idx2, mask1, mask2 = self._add_check(
                 other, merge=merge, overwrite=overwrite, discard_flagged=discard_flagged
             )
             new_obj._data = np.concatenate((new_obj._data[idx1], other._data[idx2]))
             new_obj._mask = np.concatenate((mask1, mask2))
+            if not (self._recpos_dict is None or other._recpos_dict is None):
+                new_recpos_dict = {}
+                for key in self._recpos_dict:
+                    new_recpos_dict[key] = np.concatenate(
+                        (self._recpos_dict[key][idx1], other._recpos_dict[key][idx2])
+                    )
 
         # Make sure the data is sorted correctly, generate the header key -> index
         # position dictionary.
@@ -914,7 +934,7 @@ class MirMetaData:
         # Initialize a new object of the given type
         copy_obj = type(self)()
 
-        deepcopy_list = ["_stored_values"]
+        deepcopy_list = ["_stored_values", "_recpos_dict"]
         data_list = ["_stored_values", "_data", "_mask", "_header_key_index_dict"]
 
         for attr in vars(self):
@@ -1690,8 +1710,10 @@ class MirMetaData:
         Generates a dictionary that can be used for mapping header key values to index
         positions inside the data array.
         """
-        self._header_key_index_dict = self.group_by(
-            self._identifier, use_mask=False, return_index=True, assume_unique=True
+        self._header_key_index_dict = dict(
+            zip(
+                self.get_header_keys(use_mask=False), np.arange(self._size), strict=True
+            )
         )
 
     def _generate_new_header_keys(self, other) -> dict:
@@ -1770,9 +1792,10 @@ class MirMetaData:
         self,
         group_fields=None,
         *,
-        use_mask=True,
+        use_mask=None,
         where=None,
         header_key=None,
+        index=None,
         return_index=None,
         assume_unique=False,
     ) -> dict:
@@ -1789,7 +1812,8 @@ class MirMetaData:
             within the dtype of this object.
         use_mask : bool
             If True, consider only data where the internal mask is marked True. Default
-            is True.
+            is True, unless an argument is supplied to `index` or `header_key`, in
+            which case the default is False.
         where : tuple of sequence of tuples
             Optional argument, each tuple is used to call the `where` method to identify
             which index positions match the given criteria. Can be supplied as a
@@ -1804,6 +1828,9 @@ class MirMetaData:
             key field "hid" has the values [2, 4, 6, 8], setting this argument to [2, 8]
             will set the mask at index positions [0, 3] to True. Cannot be specified
             with `index` or `where`.
+        index : sequence of int
+            Optional argument, specifies the index positions at which to extract data
+            from the meta data. Cannot be specified with `header_key` or `where`.
         return_index : bool
             If False, return the header key values (or pseudo-key tuples) for each
             element of the group. If True, return instead the index position of the
@@ -1844,6 +1871,7 @@ class MirMetaData:
             use_mask=use_mask,
             where=where,
             header_key=header_key,
+            index=index,
             return_tuples=False,
         )
         index_arr = np.lexsort(group_data)
@@ -1857,6 +1885,8 @@ class MirMetaData:
         # Otherwise, if we don't want the index array, fill in the header keys now.
         if header_key is not None:
             index_arr = header_key[index_arr]
+        elif index is not None:
+            index_arr = index[index_arr]
         elif not return_index:
             index_arr = self.get_header_keys(use_mask=use_mask, where=where)[index_arr]
 
@@ -1943,6 +1973,8 @@ class MirMetaData:
         unapplied).
         """
         self.reset_values()
+        if self._recpos_dict is not None:
+            self._recpos_dict["chan_avg"][:] = 1
         self.set_mask(reset=True)
         self._set_header_key_index_dict()
 
@@ -2404,7 +2436,7 @@ class MirMetaData:
         self._writefile(writepath, append_data=append_data, datamask=datamask)
 
     def _get_record_size_info(
-        self, *, val_size=None, pad_size=0, use_mask=True
+        self, *, val_size, pad_size=0, use_mask=True
     ) -> np.ndarray[int]:
         """
         Calculate the size of each spectral record in number of entries.
@@ -2442,14 +2474,25 @@ class MirMetaData:
                 "and MirAcData types."
             )
 
-        rec_size_arr = pad_size + (
-            val_size * self.get_value("nch", use_mask=use_mask).astype(int)
+        rec_size_arr = np.multiply(
+            self.get_value("nch", use_mask=use_mask),
+            val_size,
+            dtype=self.dtype["dataoff"],
         )
+
+        if pad_size:
+            rec_size_arr += pad_size
 
         return rec_size_arr
 
     def _recalc_dataoff(
-        self, *, data_dtype=None, data_nvals=None, scale_data=None, use_mask=True
+        self,
+        *,
+        data_dtype=None,
+        data_nvals=None,
+        scale_data=None,
+        use_mask=True,
+        return_arr=False,
     ):
         """
         Calculate the offsets of each spectral record for packed data.
@@ -2492,6 +2535,10 @@ class MirMetaData:
         ).values():
             temp_recsize = rec_size_arr[index_arr]
             offset_arr[index_arr] = np.cumsum(temp_recsize) - temp_recsize
+
+        # If we just need to do the calculation, return the array now
+        if return_arr:
+            return offset_arr
 
         # Finally, update the attribute with the newly calculated values. Filter out
         # the warning since we don't need to raise this if using the internal method.
@@ -2541,7 +2588,7 @@ class MirMetaData:
         use_mask : bool
             If set to True, evaluate/calculate for only those records where the internal
             mask is set to True. If set to False, use all records in the object,
-            regardless of mask status. Default is True.
+            regardless of mask status. Default is True if reindex=True, otherwise False.
         reindex : bool
             If set to True, evaluate/calculate ignoring the current indexing info,
             instead relying upon record order and size for calculating the results.
@@ -2576,44 +2623,39 @@ class MirMetaData:
             use_mask=use_mask,
         )
         int_dict = {}
-        recpos_dict = {}
 
         # Group together the spectral records by inhid to begin the process of
         # building out sp_dict.
         inhid_groups = self.group_by("inhid", use_mask=use_mask, return_index=True)
-        hkey_arr = self.get_header_keys(use_mask=use_mask)
 
         # Divide by val_size here since we're going from bytes to number of vals
-        if not reindex:
-            dataoff_arr = self.get_value("dataoff", use_mask=use_mask) // val_size
+        if reindex:
+            dataoff_arr = self._recalc_dataoff(
+                data_dtype=data_dtype,
+                data_nvals=data_nvals,
+                scale_data=scale_data,
+                use_mask=use_mask,
+                return_arr=True,
+            )
+        else:
+            dataoff_arr = self.get_value("dataoff", use_mask=use_mask)
+
+        dataoff_arr //= val_size
+        start_idx = dataoff_arr + pad_nvals
+        end_idx = start_idx + (rec_size_arr // val_size)
+
+        recpos_dict = {
+            "start_idx": start_idx,
+            "end_idx": end_idx,
+            "chan_avg": np.ones(len(start_idx), dtype=int),
+        }
 
         # Begin putting together dicts now.
         record_start = 0
-        for inhid in inhid_groups:
+        for inhid, rec_idx in inhid_groups.items():
             # Extract out the relevant spectral record group.
-            rec_idx = inhid_groups[inhid]
-
-            # We captured index values above, so now we need to grab header keys
-            # and record start/size information at each index position.
-            hkey_subarr = hkey_arr[rec_idx]
-            rec_size_subarr = rec_size_arr[rec_idx] // val_size
-            if reindex:
-                eidx_arr = np.cumsum(rec_size_subarr) + pad_nvals
-                sidx_arr = eidx_arr - rec_size_subarr
-            else:
-                sidx_arr = dataoff_arr[rec_idx] + pad_nvals
-                eidx_arr = sidx_arr + rec_size_subarr
-
-            # Plug in the start/end index positions for each spectral record.
-            recpos_dict[inhid] = {
-                hkey: {"start_idx": sidx, "end_idx": eidx, "chan_avg": 1}
-                for hkey, sidx, eidx in zip(
-                    hkey_subarr, sidx_arr, eidx_arr, strict=True
-                )
-            }
-
             # Record size for int_dict is recorded in bytes, hence the * chan_size here
-            record_size = int(eidx_arr.max() * val_size)
+            record_size = int(end_idx[rec_idx].max() * val_size)
 
             # There's no way these should ever happen unless the metadata are bad,
             # just check and make sure this isn't the case.
@@ -2629,6 +2671,7 @@ class MirMetaData:
             }
             # Now that we're at the end of the record, add the header size.
             record_start += record_size + header_size
+
         return int_dict, recpos_dict
 
     def _make_key_mask(
