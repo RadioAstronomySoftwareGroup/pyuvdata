@@ -928,7 +928,7 @@ def test_mir_sp_recalc_dataoff(mir_sp_data: MirSpData):
 
 def test_mir_meta_get_record_size_info_errs():
     with pytest.raises(TypeError, match="Cannot use this method on objects other than"):
-        MirMetaData()._get_record_size_info()
+        MirMetaData()._get_record_size_info(val_size=1)
 
 
 @pytest.mark.parametrize(
@@ -956,13 +956,15 @@ def test_mir_meta_generate_recpos_dict(
     if mod_mask:
         mir_sp_data._mask[::2] = False
 
+    if use_mask and mod_mask and reindex:
+        mir_sp_data._recalc_dataoff(
+            data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True, use_mask=use_mask
+        )
+
     dataoff_arr = mir_sp_data.get_value("dataoff", use_mask=use_mask).astype(int) // 2
     rec_size_arr = (mir_sp_data.get_value("nch", use_mask=use_mask).astype(int) * 2) + 1
 
-    if use_mask and mod_mask and reindex:
-        dataoff_arr = np.cumsum(rec_size_arr) - rec_size_arr
-
-    int_dict, sp_dict = mir_sp_data._generate_recpos_dict(
+    int_dict, recpos_dict = mir_sp_data._generate_recpos_dict(
         data_dtype=NEW_VIS_DTYPE,
         data_nvals=2,
         pad_nvals=NEW_VIS_PAD,
@@ -977,16 +979,9 @@ def test_mir_meta_generate_recpos_dict(
             "record_start": 0,
         }
     }
-    for key in int_dict:
-        sp_dict = sp_dict[key]
-        for value, dataoff, recsize in zip(
-            sp_dict.values(), dataoff_arr, rec_size_arr, strict=True
-        ):
-            assert value["start_idx"] == dataoff
-            assert value["end_idx"] == dataoff + recsize
-            assert value["chan_avg"] == 1
-
-    assert list(mir_sp_data.get_value("sphid", use_mask=use_mask)) == list(sp_dict)
+    np.testing.assert_array_equal(recpos_dict["start_idx"], dataoff_arr)
+    np.testing.assert_array_equal(recpos_dict["end_idx"], dataoff_arr + rec_size_arr)
+    assert np.all(recpos_dict["chan_avg"] == 1)
 
 
 def test_mir_codes_get_code_names(mir_codes_data):
