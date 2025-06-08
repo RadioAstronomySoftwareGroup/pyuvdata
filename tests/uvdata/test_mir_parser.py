@@ -23,6 +23,7 @@ from pyuvdata.uvdata.mir_parser import (
     NEW_AUTO_HEADER,
     NEW_VIS_DTYPE,
     NEW_VIS_HEADER,
+    OLD_AUTO_DTYPE,
     OLD_AUTO_HEADER,
     MirMetaError,
     MirPackdataError,
@@ -621,7 +622,16 @@ def test_fix_int_dict_cross(mir_data):
                 "read_hdr_fmt": NEW_VIS_HEADER,
                 "read_data_fmt": NEW_VIS_DTYPE,
                 "common_scale": True,
-            }
+            },
+            "auto": {
+                "int_dict": {
+                    2: {"inhid": 1, "record_size": 2097172, "record_start": 0}
+                },
+                "filetype": "autoCorrelations",
+                "read_hdr_fmt": OLD_AUTO_HEADER,
+                "read_data_fmt": OLD_AUTO_DTYPE,
+                "common_scale": False,
+            },
         }
     }
 
