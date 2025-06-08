@@ -1138,16 +1138,13 @@ class MirParser:
         recpos_start = recpos_dict["start_idx"]
         recpos_end = recpos_dict["end_idx"]
         recpos_chavg = recpos_dict["chan_avg"]
-        inhid_groups = metadata_attr.group_by(
-            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
-        )
 
         try:
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
             packdata_dict = self._read_packdata(
                 file_dict=self._file_dict,
-                inhid_arr=inhid_groups.keys(),
+                inhid_arr=self.in_data["inhid"],
                 data_type=data_type,
                 use_mmap=use_mmap,
                 raise_err=True,
@@ -1160,12 +1157,17 @@ class MirParser:
                 f"file for {data_type} data. Attempting to fix this automatically."
             )
             self._fix_int_dict(data_type)
+            self._update_filter(update_data=False)
             packdata_dict = self._read_packdata(
                 file_dict=self._file_dict,
-                inhid_arr=inhid_groups.keys(),
+                inhid_arr=self.in_data["inhid"],
                 data_type=data_type,
                 use_mmap=use_mmap,
             )
+
+        inhid_groups = metadata_attr.group_by(
+            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+        )
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
