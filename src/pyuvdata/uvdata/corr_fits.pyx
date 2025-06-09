@@ -22,15 +22,14 @@ from libc.math cimport exp, pi, sqrt
 ctypedef fused int_like:
   numpy.int32_t
   numpy.int64_t
-  numpy.long
   int
 
 cdef inline int_like pfb_mapper(int_like index):
   # the polyphase filter bank maps inputs to outputs, which the MWA
   # correlator then records as the antenna indices.
-  # the following is taken from mwa_build_lfiles/mwac_utils.c
+  # the following is taken from mwa_build_files/mwac_utils.c
   # inputs are mapped to outputs via pfb_mapper as follows
-  # (from mwa_build_lfiles/antenna_mapping.h):
+  # (from mwa_build_files/antenna_mapping.h):
   # floor(index/4) + index%4 * 16 = input
   # for the first 64 outputs, pfb_mapper[output] = input
   return index // 4  + index % 4 * 16
@@ -53,9 +52,9 @@ cpdef void generate_map(
   numpy.int32_t[::1] map_inds,
   numpy.npy_bool[::1] conj,
 ):
-  """Compute the map between pfb inputs and antenna numbersself.
+  """Compute the map between pfb inputs and antenna number.
 
-  This function operates on input `map_inds` and `conj` arrays inplace.
+  This function operates on input `map_inds` and `conj` arrays in-place.
 
   Parameters
   ----------
