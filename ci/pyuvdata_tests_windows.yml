@@ -10,7 +10,7 @@ dependencies:
   - hdf5>=1.12.0
   - hdf5plugin>=3.3.1
   - numba>=0.57.0
-  - numpy>=1.23
+  - numpy>=1.23,<2.3
   - pyerfa>=2.0.1.1
   - pyyaml>=5.4.1
   - scipy>=1.9
@@ -19,7 +19,7 @@ dependencies:
   - pytest-cases>=3.8.3
   - pytest-cov
   - pytest-xdist
-  - cython==3.0.*
+  - cython>=3.0
   - setuptools_scm>=8.1
   - pip
   - pip:
