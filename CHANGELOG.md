@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Refactored `utils.bls`, replacing cython-based extensions with numba-based routines.
 - Updated minimum dependency versions: h5py>=3.7, python>=3.11, scipy>=1.9
-- Updated minimum optional dependency versions: hdf5plugin>=3.3.1
+- Updated minimum optional dependency versions: hdf5plugin>=3.3.1, pytest-cases>=3.9.1
 
 ## [3.2.1] - 2025-05-01
 

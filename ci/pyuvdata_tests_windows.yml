@@ -15,8 +15,8 @@ dependencies:
   - pyyaml>=5.4.1
   - scipy>=1.9
   - coverage
-  - pytest>=8.2.0,<8.4.0  # 8.4.0 has a bug that breaks our tests see https://github.com/smarie/python-pytest-cases/issues/364
-  - pytest-cases>=3.8.3
+  - pytest>=8.2.0
+  - pytest-cases>=3.9.1
   - pytest-cov
   - pytest-xdist
   - cython==3.0.*
