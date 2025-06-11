@@ -1,6 +1,6 @@
 [run]
 plugins = Cython.Coverage
-concurrency = multiprocessing
+concurrency = thread, multiprocessing
 parallel = true
 omit =
   */tests/*
