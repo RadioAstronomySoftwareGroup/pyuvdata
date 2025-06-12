@@ -2365,16 +2365,12 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     ):
         uv_object2.write_uvfits(write_file_uvfits)
 
-    try:
-        import pyuvdata._miriad  # noqa
-
+    if hasmiriad:
         with pytest.raises(
             ValueError,
             match="The frequencies are separated by more than their channel width",
         ):
             uv_object2.write_miriad(write_file_miriad)
-    except ImportError:
-        pass
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")

@@ -186,7 +186,7 @@ include:
     0-degree feed angle is aligned/parallel to the direction of local north. Note
     while supported in UVFITS, it is a later addition to the format, and may be grouped
     into "other" in some software packages.
-  - ``"fixed"``: Similar to "phased", expect where there is neither mechanical or
+  - ``"fixed"``: Similar to "phased", except that there is neither mechanical or
     electical steering of the antenna, and thus the beam remains fixed in the
     azimuth-elevation frame. In this frame, a feed angle of 0 degrees is aligned/
     parallel to the direction of local north. Note that this is a pyuvdata-defined mount
