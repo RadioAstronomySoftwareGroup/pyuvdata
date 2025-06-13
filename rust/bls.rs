@@ -157,7 +157,7 @@ mod test {
     ];
 
     #[test]
-    fn bls_to_ants256() {
+    fn bls_to_ants_256() {
         let bls = Vec::from_iter(1..50_u64);
         let ants = Array::from_shape_vec((2, 49), ANTS.to_vec()).unwrap();
 
@@ -167,7 +167,7 @@ mod test {
     }
 
     #[test]
-    fn bls_to_ants2048() {
+    fn bls_to_ants_2048() {
         let bls = Vec::from_iter((1..50_u64).map(|x| x + 2_u64.pow(16)));
         let ants = Array::from_shape_vec((2, 49), ANTS.to_vec()).unwrap();
 
@@ -177,7 +177,7 @@ mod test {
     }
 
     #[test]
-    fn bls_to_antslarge() {
+    fn bls_to_ants_large() {
         let bls = Vec::from_iter((1..50_u64).map(|x| x + 2_u64.pow(16) + 2_u64.pow(22)));
         let ants = Array::from_shape_vec((2, 49), ANTS.to_vec()).unwrap();
 
@@ -199,7 +199,7 @@ mod test {
     }
 
     #[test]
-    fn ants_to_bls2048() {
+    fn ants_to_bls_2048() {
         let ant1 = &ANTS[..49];
         let ant2 = &ANTS[49..];
 
@@ -211,7 +211,7 @@ mod test {
     }
 
     #[test]
-    fn ants_to_blslarge() {
+    fn ants_to_bls_large() {
         let ant1 = &ANTS[..49];
         let ant2 = &ANTS[49..];
 
