@@ -4388,6 +4388,8 @@ class MirParser:
                 f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
                 "records flagged due to time ordering of data."
             )
+            self.in_data._mask[self.in_data._index_query(header_key=bad_inhid)] = False
+            self._update_filter(update_data=False)
 
     def flag_uvw_coords(self, bl_limit=1e-3):
         """Flag data with bad uvw-coordinates."""
@@ -4402,6 +4404,8 @@ class MirParser:
                 f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
                 "records flagged due to baseline length."
             )
+            self.bl_data._mask[self.bl_data._index_query(header_key=bad_blhid)] = False
+            self._update_filter(update_data=False)
 
     def flag_bad_records(self):
         """Flag bad records in the data set."""
