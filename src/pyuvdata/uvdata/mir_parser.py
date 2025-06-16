@@ -2200,6 +2200,7 @@ class MirParser:
         load_auto=False,
         load_cross=False,
         load_raw=False,
+        flag_bad_records=True,
     ):
         """
         Read in all files from a mir data set into predefined numpy datatypes.
@@ -2241,6 +2242,8 @@ class MirParser:
             Flag to load cross-correlations into memory. Default is False.
         load_raw : bool
             Flag to load raw data into memory. Default is False.
+        flag_bad_records : bool
+            By default, records which cause UVData.check to fail are nominally excluded
         """
         # If auto-defaults are turned on, we can use the codes information within the
         # file to determine a few things. Use this to automatically handle a few
@@ -2355,6 +2358,9 @@ class MirParser:
         # Set/clear these to start
         self.vis_data = self.raw_data = self.auto_data = None
         self._tsys_applied = False
+
+        if flag_bad_records:
+            self.flag_bad_records()
 
         # If requested, now we load up the visibilities.
         self.load_data(load_cross=load_cross, load_raw=load_raw, load_auto=load_auto)
@@ -4369,3 +4375,36 @@ class MirParser:
                 f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
                 "records flagged due to Subaru shadowing."
             )
+
+    def flag_time_order(self, time_limit=1e-6):
+        """Flag data that is not time-ordereed."""
+        bad_inhid = self.in_data["inhid"][1:][np.diff(self.in_data["mjd"]) < time_limit]
+        if len(bad_inhid) != 0:
+            bad_sphid = self.sp_data.get_header_keys(where=("inhid", "eq", bad_inhid))
+            # Bitwise OR the 20th bit (misc antenna bit) for bad inhid records
+            new_flags = self.sp_data.get_value("flags", header_key=bad_sphid) | 1048576
+            self.sp_data.set_value("flags", new_flags, header_key=bad_sphid)
+            warnings.warn(
+                f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
+                "records flagged due to time ordering of data."
+            )
+
+    def flag_uvw_coords(self, bl_limit=1e-3):
+        """Flag data with bad uvw-coordinates."""
+        mask = (np.vstack(self.bl_data[["u", "v", "v"]]) ** 2).sum(axis=0) < bl_limit**2
+        bad_blhid = self.bl_data["blhid"][mask]
+        if len(bad_blhid) != 0:
+            bad_sphid = self.sp_data.get_header_keys(where=("blhid", "eq", bad_blhid))
+            # Bitwise OR the 20th bit (misc antenna bit) for bad baseline records
+            new_flags = self.sp_data.get_value("flags", header_key=bad_sphid) | 1048576
+            self.sp_data.set_value("flags", new_flags, header_key=bad_sphid)
+            warnings.warn(
+                f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
+                "records flagged due to baseline length."
+            )
+
+    def flag_bad_records(self):
+        """Flag bad records in the data set."""
+        self.flag_shadowed_antennas()
+        self.flag_time_order()
+        self.flag_uvw_coords()
