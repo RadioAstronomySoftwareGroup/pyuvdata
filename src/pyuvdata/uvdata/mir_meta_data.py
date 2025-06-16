@@ -1559,6 +1559,7 @@ class MirMetaData:
         reset=False,
         and_mask=True,
         use_mask=True,
+        inverse=False,
     ):
         """
         Set the internal object mask.
@@ -1612,6 +1613,10 @@ class MirMetaData:
             that the length of `mask` will need to be equal to the `_mask` attribute,
             rather than the MirMetaData object. Default is True, which covers most
             typical use cases.
+        inverse : bool
+            Optional argument to invert the selection mask (i.e., set mask to False
+            where selection conditions are met rather than True). Default is False,
+            ignored if an argument is supplied for `mask`.
         """
         if mask is None:
             mask = self._generate_mask(
@@ -1619,6 +1624,7 @@ class MirMetaData:
                 and_where_args=and_where_args,
                 header_key=header_key,
                 index=index,
+                inverse=inverse,
             )
         elif use_mask and not np.all(self._mask):
             temp_mask = np.zeros_like(self._mask)
