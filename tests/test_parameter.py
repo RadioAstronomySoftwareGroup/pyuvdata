@@ -1067,9 +1067,29 @@ def test_compare_value(value, param_value, value_type, status):
         [{"a": [2, 0], "b": [0, 2]}, [[6, 8], [0, 2]]],
     ],
 )
-def test_get_from_form(form_dict, exp_arr):
-    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.arange(9).reshape(3, 3))
-    np.testing.assert_array_equal(param.get_from_form(form_dict), exp_arr)
+@pytest.mark.parametrize("partype", ["array", "skycoord"])
+def test_get_from_form(form_dict, exp_arr, partype):
+    init_val = np.arange(9).reshape(3, 3)
+    if partype == "array":
+        param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val)
+        np.testing.assert_array_equal(param.get_from_form(form_dict), exp_arr)
+    else:
+        sky = SkyCoord(
+            ra=Longitude(init_val, unit="hourangle"),
+            dec=Latitude(init_val, unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        )
+        param = uvp.SkyCoordParameter("_test1", form=("a", "b"), value=sky)
+        exp_sky = SkyCoord(
+            ra=Longitude(exp_arr, unit="hourangle"),
+            dec=Latitude(exp_arr, unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        )
+        vals = param.get_from_form(form_dict)
+        np.testing.assert_array_equal(vals.ra.rad, exp_sky.ra.rad)
+        np.testing.assert_array_equal(vals.dec.rad, exp_sky.dec.rad)
 
 
 @pytest.mark.parametrize(
@@ -1089,8 +1109,29 @@ def test_get_from_form(form_dict, exp_arr):
         [{"a": [2, 0], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
     ],
 )
-def test_set_from_form(form_dict, exp_arr):
-    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.full((3, 3), -1))
+@pytest.mark.parametrize("partype", ["array", "skycoord"])
+def test_set_from_form(form_dict, exp_arr, partype):
+    init_val = np.full((3, 3), -1)
+    if partype == "array":
+        param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val)
+        exp_val = exp_arr
+    else:
+        sky = SkyCoord(
+            ra=Longitude(init_val, unit="hourangle"),
+            dec=Latitude(init_val, unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        )
+        init_ra = sky[0, 0].ra.deg
+        init_dec = sky[0, 0].dec.deg
+        param = uvp.SkyCoordParameter("_test1", form=("a", "b"), value=sky)
+        exp_val = SkyCoord(
+            ra=Longitude(exp_arr, unit="hourangle"),
+            dec=Latitude(exp_arr, unit="deg"),
+            frame="fk5",
+            equinox="J2000",
+        )
+
     if "c" in form_dict:
         # no-op handling
         exp_warning = UserWarning
@@ -1100,20 +1141,30 @@ def test_set_from_form(form_dict, exp_arr):
         msg = ""
 
     with check_warnings(exp_warning, match=msg):
-        param.set_from_form(form_dict, exp_arr)
+        param.set_from_form(form_dict, exp_val)
 
     # Test that the values are set as expected
     val = param.value[form_dict.get("a", slice(None))]
     val = val[:, form_dict.get("b", slice(None))]
-    np.testing.assert_array_equal(val, exp_arr)
+    if partype == "array":
+        np.testing.assert_array_equal(val, exp_val)
+    else:
+        np.testing.assert_array_equal(val.ra.rad, exp_val.ra.rad)
+        np.testing.assert_array_equal(val.dec.rad, exp_val.dec.rad)
 
     # Check that all the other values were untouched
     a_mask = np.ones(3, dtype=bool)
     a_mask[form_dict.get("a", ())] = False
     b_mask = np.ones(3, dtype=bool)
     b_mask[form_dict.get("b", ())] = False
-    assert np.all(param.value[a_mask, :] == -1)
-    assert np.all(param.value[:, b_mask] == -1)
+    if partype == "array":
+        assert np.all(param.value[a_mask, :] == -1)
+        assert np.all(param.value[:, b_mask] == -1)
+    else:
+        assert np.all(param.value[a_mask, :].ra.deg == init_ra)
+        assert np.all(param.value[:, b_mask].ra.deg == init_ra)
+        assert np.all(param.value[a_mask, :].dec.deg == init_dec)
+        assert np.all(param.value[:, b_mask].dec.deg == init_dec)
 
 
 @pytest.mark.parametrize(
