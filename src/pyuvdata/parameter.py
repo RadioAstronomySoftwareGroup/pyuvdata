@@ -835,7 +835,8 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        # use issubclass ShapedLikeNDArray to handle Time, Quantity, SkyCoord objects
+        # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
+        # Quantities are instances of np.ndarray.
         if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
             self.value.__class__, ShapedLikeNDArray
         ):
@@ -915,7 +916,8 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        # use issubclass ShapedLikeNDArray to handle Time, Quantity, SkyCoord objects
+        # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
+        # Quantities are instances of np.ndarray.
         if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
             self.value.__class__, ShapedLikeNDArray
         ):
@@ -928,7 +930,11 @@ class UVParameter:
 
                 # Make sure this is a view that is connected in memory
                 if issubclass(self.value.__class__, ShapedLikeNDArray):
-                    for attr in self.value._extra_frameattr_names:
+                    attr_list = ["value"]
+                    if isinstance(self.value, SkyCoord):
+                        attr_list = self.value._extra_frameattr_names
+
+                    for attr in attr_list:
                         assert getattr(temp_arr, attr).base is (
                             getattr(self.value, attr)
                             if getattr(self.value, attr).base is None
