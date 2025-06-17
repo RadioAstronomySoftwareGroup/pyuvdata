@@ -846,7 +846,7 @@ class UVParameter:
             if extra_axes:
                 ind_arr, new_shape = _multidim_ind2sub(extra_axes, value.shape)
                 if issubclass(self.value.__class__, ShapedLikeNDArray):
-                    value = (value.flatten())[ind_arr].reshape(new_shape)
+                    value = (value.ravel())[ind_arr].reshape(new_shape)
                 else:
                     value = value.flat[ind_arr].reshape(new_shape)
         elif isinstance(self.value, list):
