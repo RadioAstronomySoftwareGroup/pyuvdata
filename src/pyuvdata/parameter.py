@@ -19,6 +19,7 @@ import warnings
 import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
+from astropy.utils.shapes import ShapedLikeNDArray
 
 from .utils.tools import _multidim_ind2sub, _strict_raise
 
@@ -834,13 +835,19 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+        # use issubclass ShapedLikeNDArray to handle Time, Quantity, SkyCoord objects
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
+            self.value.__class__, ShapedLikeNDArray
+        ):
             # If we're working with an ndarray, use take to slice along
             # the axis that we want to grab from.
             value = self.value[tuple(val_slice)]
             if extra_axes:
                 ind_arr, new_shape = _multidim_ind2sub(extra_axes, value.shape)
-                value = value.flat[ind_arr].reshape(new_shape)
+                if issubclass(self.value.__class__, ShapedLikeNDArray):
+                    value = (value.flatten())[ind_arr].reshape(new_shape)
+                else:
+                    value = value.flat[ind_arr].reshape(new_shape)
         elif isinstance(self.value, list):
             # If this is a list, it _should_ always have 1-dimension.
             assert len(val_slice) == 1, (
@@ -908,7 +915,10 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+        # use issubclass ShapedLikeNDArray to handle Time, Quantity, SkyCoord objects
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
+            self.value.__class__, ShapedLikeNDArray
+        ):
             if extra_axes:
                 # If we have multiple list-based selections, then we slice first and
                 # then use multi_index_ravel to generate indices that we can plug in.
@@ -917,18 +927,35 @@ class UVParameter:
                 temp_arr = self.value[tuple(val_slice)]
 
                 # Make sure this is a view that is connected in memory
-                assert temp_arr.base is (
-                    self.value if self.value.base is None else self.value.base
-                ), (
-                    "Something is wrong, slicing self.value does not return a view "
-                    "on the original array. Please file an issue in our GitHub "
-                    "issue log so that we can fix it."
-                )
+                if issubclass(self.value.__class__, ShapedLikeNDArray):
+                    for attr in self.value._extra_frameattr_names:
+                        assert getattr(temp_arr, attr).base is (
+                            getattr(self.value, attr)
+                            if getattr(self.value, attr).base is None
+                            else getattr(self.value, attr).base
+                        ), (
+                            "Something is wrong, slicing self.value does not "
+                            "return a view on the original array. Please file an "
+                            "issue in our GitHub issue log so that we can fix it."
+                        )
+                else:
+                    assert temp_arr.base is (
+                        self.value if self.value.base is None else self.value.base
+                    ), (
+                        "Something is wrong, slicing self.value does not return a view "
+                        "on the original array. Please file an issue in our GitHub "
+                        "issue log so that we can fix it."
+                    )
                 ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
 
                 # N.b., later if needed we can add mask handling here (e.g., for data
                 # parameters).
-                temp_arr.flat[ind_arr] = values.flat
+                if issubclass(self.value.__class__, ShapedLikeNDArray):
+                    temp = temp_arr.ravel()
+                    temp[ind_arr] = values.ravel()
+                    temp_arr = temp.reshape(temp_arr.shape)
+                else:
+                    temp_arr.flat[ind_arr] = values.flat
             else:
                 # If regular indexing solves this, then that's how we'll roll
                 self.value[tuple(val_slice)] = values
