@@ -12,6 +12,8 @@ from astropy.coordinates import (
     Longitude,
     SkyCoord,
 )
+from astropy.time import Time
+from astropy.units import Quantity
 
 from pyuvdata import parameter as uvp, utils
 from pyuvdata.testing import check_warnings
@@ -103,8 +105,8 @@ def test_array_equality_nans():
 @pytest.mark.parametrize(
     "vals",
     (
-        units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
-        units.Quantity([0.09 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
+        Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
+        Quantity([0.09 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
         np.array([0, 1000, 3000]) * units.mm,
     ),
 )
@@ -122,7 +124,7 @@ def test_quantity_equality_error():
     )
     param2 = uvp.UVParameter(
         name="p2",
-        value=units.Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
+        value=Quantity([0 * units.cm, 100 * units.cm, 3000 * units.mm]),
         tols=1 * units.mm,
     )
     with pytest.raises(units.UnitsError):
@@ -150,13 +152,13 @@ def test_quantity_equality_error():
             "p1 parameter value is an astropy Quantity, units are not equivalent",
         ),
         (
-            units.Quantity([0.101 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
+            Quantity([0.101 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
             "p1 parameter value is an astropy Quantity, units are equivalent but "
             "values are not close.",
         ),
         (
-            units.Quantity([0.09 * units.cm, 100.11 * units.cm, 2999.1 * units.mm]),
+            Quantity([0.09 * units.cm, 100.11 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
             "p1 parameter value is an astropy Quantity, units are equivalent but "
             "values are not close.",
@@ -689,7 +691,7 @@ def test_location_inequality(capsys, change, msg):
     )
     if change == "non_loc":
         param2 = uvp.LocationParameter(
-            "p1", value=units.Quantity(np.array(ref_xyz), unit="m")
+            "p1", value=Quantity(np.array(ref_xyz), unit="m")
         )
     elif change == "class":
         pytest.importorskip("lunarsky")
@@ -701,9 +703,7 @@ def test_location_inequality(capsys, change, msg):
         )
     elif change == "par_class":
         param2 = uvp.UVParameter(
-            "p1",
-            value=units.Quantity(np.array(ref_xyz), unit="m"),
-            expected_type=units.Quantity,
+            "p1", value=Quantity(np.array(ref_xyz), unit="m"), expected_type=Quantity
         )
     elif change == "uvp":
         param1 = uvp.UVParameter(
@@ -712,9 +712,7 @@ def test_location_inequality(capsys, change, msg):
             expected_type=(EarthLocation,),
         )
         param2 = uvp.UVParameter(
-            "p1",
-            value=units.Quantity(np.array(ref_xyz), unit="m"),
-            expected_type=units.Quantity,
+            "p1", value=Quantity(np.array(ref_xyz), unit="m"), expected_type=Quantity
         )
     elif change == "ellipsoid":
         pytest.importorskip("lunarsky")
@@ -1067,13 +1065,34 @@ def test_compare_value(value, param_value, value_type, status):
         [{"a": [2, 0], "b": [0, 2]}, [[6, 8], [0, 2]]],
     ],
 )
-@pytest.mark.parametrize("partype", ["array", "skycoord"])
+@pytest.mark.parametrize(
+    "partype", ["array", "skycoord", "quantity1", "quantity2", "time"]
+)
 def test_get_from_form(form_dict, exp_arr, partype):
     init_val = np.arange(9).reshape(3, 3)
     if partype == "array":
         param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val)
         np.testing.assert_array_equal(param.get_from_form(form_dict), exp_arr)
-    else:
+    elif partype == "quantity1":
+        param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val * units.Hz)
+        np.testing.assert_array_equal((param.get_from_form(form_dict)).value, exp_arr)
+    elif partype == "quantity2":
+        param = uvp.UVParameter(
+            "_test1",
+            form=("a", "b"),
+            value=Quantity([0, 1, 2, 3, 4, 5, 6, 7, 8], unit="Hz").reshape(3, 3),
+        )
+        np.testing.assert_array_equal((param.get_from_form(form_dict)).value, exp_arr)
+    elif partype == "time":
+        t0 = Time("2024-01-01T00:00:00").jd
+        param = uvp.UVParameter(
+            "_test1", form=("a", "b"), value=Time(t0 + init_val, format="jd")
+        )
+        np.testing.assert_array_equal(
+            (param.get_from_form(form_dict)).value,
+            Time(t0 + exp_arr, format="jd").value,
+        )
+    elif partype == "skycoord":
         sky = SkyCoord(
             ra=Longitude(init_val, unit="hourangle"),
             dec=Latitude(init_val, unit="deg"),
@@ -1109,13 +1128,34 @@ def test_get_from_form(form_dict, exp_arr, partype):
         [{"a": [2, 0], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
     ],
 )
-@pytest.mark.parametrize("partype", ["array", "skycoord"])
+@pytest.mark.parametrize(
+    "partype", ["array", "skycoord", "quantity1", "quantity2", "time"]
+)
 def test_set_from_form(form_dict, exp_arr, partype):
     init_val = np.full((3, 3), -1)
     if partype == "array":
         param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val)
         exp_val = exp_arr
-    else:
+    elif partype == "quantity1":
+        param = uvp.UVParameter("_test1", form=("a", "b"), value=init_val * units.Hz)
+        exp_val = exp_arr * units.Hz
+    elif partype == "quantity2":
+        param = uvp.UVParameter(
+            "_test1",
+            form=("a", "b"),
+            value=Quantity([-1, -1, -1, -1, -1, -1, -1, -1, -1], unit="Hz").reshape(
+                3, 3
+            ),
+        )
+        exp_val = exp_arr * units.Hz
+    elif partype == "time":
+        t0 = Time("2024-01-01T00:00:00").jd
+        param = uvp.UVParameter(
+            "_test1", form=("a", "b"), value=Time(t0 + init_val, format="jd")
+        )
+        init_jd = param.value[0, 0].jd
+        exp_val = Time(t0 + exp_arr, format="jd")
+    elif partype == "skycoord":
         sky = SkyCoord(
             ra=Longitude(init_val, unit="hourangle"),
             dec=Latitude(init_val, unit="deg"),
@@ -1148,7 +1188,11 @@ def test_set_from_form(form_dict, exp_arr, partype):
     val = val[:, form_dict.get("b", slice(None))]
     if partype == "array":
         np.testing.assert_array_equal(val, exp_val)
-    else:
+    elif partype == "quantity1" or partype == "quantity2":
+        np.testing.assert_array_equal(val.value, exp_val.value)
+    elif partype == "time":
+        np.testing.assert_array_equal(val.jd, exp_val.jd)
+    elif partype == "skycoord":
         np.testing.assert_array_equal(val.ra.rad, exp_val.ra.rad)
         np.testing.assert_array_equal(val.dec.rad, exp_val.dec.rad)
 
@@ -1160,7 +1204,13 @@ def test_set_from_form(form_dict, exp_arr, partype):
     if partype == "array":
         assert np.all(param.value[a_mask, :] == -1)
         assert np.all(param.value[:, b_mask] == -1)
-    else:
+    elif partype == "quantity1" or partype == "quantity2":
+        assert np.all(param.value[a_mask, :].value == -1)
+        assert np.all(param.value[:, b_mask].value == -1)
+    elif partype == "time":
+        assert np.all(param.value[a_mask, :].jd == init_jd)
+        assert np.all(param.value[:, b_mask].jd == init_jd)
+    elif partype == "skycoord":
         assert np.all(param.value[a_mask, :].ra.deg == init_ra)
         assert np.all(param.value[:, b_mask].ra.deg == init_ra)
         assert np.all(param.value[a_mask, :].dec.deg == init_dec)
