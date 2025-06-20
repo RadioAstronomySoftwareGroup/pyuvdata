@@ -14,6 +14,7 @@ from typing import Literal
 import numpy as np
 import yaml
 from astropy import units
+from astropy.utils.data import cache_contents, is_url_in_cache
 from docstring_parser import DocstringStyle
 from scipy import interpolate, ndimage
 
@@ -4745,7 +4746,8 @@ def _uvbeam_constructor(loader, node):
     Define a yaml constructor for UVBeam objects.
 
     The yaml must specify a "filename" field pointing to the UVBeam readable file
-    and any desired arguments to the UVBeam.from_file method.
+    and any desired arguments to the UVBeam.from_file method. If the file does not
+    exist, checks pyuvsim cache for file treating the "filename" as the cache url.
 
     Parameters
     ----------
@@ -4783,6 +4785,12 @@ def _uvbeam_constructor(loader, node):
         path_var = getattr(module, var_name)
         for f_i in range(len(files_use)):
             files_use[f_i] = os.path.join(path_var, files_use[f_i])
+
+    for i, file in enumerate(files_use):
+        # if file does not exist, check pyuvsim cache defined from astropy prescription
+        # treat file as download url to check astropy cache for file
+        if not os.path.exists(file) and is_url_in_cache(file, pkgname="pyuvsim"):
+            files_use[i] = cache_contents("pyuvsim")[file]
 
     if len(files_use) == 1:
         files_use = files_use[0]

@@ -14,6 +14,7 @@ import pytest
 import yaml
 from astropy import units
 from astropy.io import fits
+from astropy.utils.data import cache_contents, import_file_to_cache, is_url_in_cache
 
 from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
@@ -3297,6 +3298,39 @@ def test_yaml_constructor(filename, path_var, file_list):
             "in a yaml.",
         ):
             output_yaml = yaml.safe_dump({"beam": uvb})
+
+
+def test_yaml_constructor_for_cached_file():
+    """test that the yaml constructor uses pyuvsim astropy cache as a fallback"""
+    # url / key to access the cached file
+    dummy_url = "file://mwa_beam_file.h5"
+
+    # load mwa uvbeam file from the data path to the astropy cache for pyuvsim
+    import_file_to_cache(
+        dummy_url, mwa_beam_file, remove_original=False, pkgname="pyuvsim"
+    )
+
+    # check that file has been imported to cache
+    assert is_url_in_cache(dummy_url, pkgname="pyuvsim")
+
+    # get full filepath for comparison
+    filepath = cache_contents("pyuvsim")[dummy_url]
+
+    # create yaml to safeload
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {dummy_url}
+            file_type: mwa_beam
+    """
+
+    # compare loading uvbeam directly from cache and using safe_load to confirm
+    # uvbeam loads properly
+    # safe_load the beam
+    beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
+    # load the beam with from_file
+    beam_from_file = UVBeam.from_file(filepath, file_type="mwa_beam")
+
+    assert beam_from_yaml == beam_from_file
 
 
 def test_yaml_constructor_errors():
