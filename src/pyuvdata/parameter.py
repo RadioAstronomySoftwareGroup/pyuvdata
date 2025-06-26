@@ -19,7 +19,8 @@ import warnings
 import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
-from astropy.utils.shapes import ShapedLikeNDArray
+from astropy.time import Time
+from astropy.units import Quantity
 
 from .utils.tools import _multidim_ind2sub, _strict_raise
 
@@ -435,8 +436,8 @@ class UVParameter:
                     )
                 return False
 
-            if isinstance(self.value, units.Quantity):
-                if not isinstance(other.value, units.Quantity):
+            if isinstance(self.value, Quantity):
+                if not isinstance(other.value, Quantity):
                     if not silent:
                         print(
                             f"{self.name} parameter value is a Quantity on left, "
@@ -452,11 +453,11 @@ class UVParameter:
                             f"{self.value.unit}, right has units {other.value.unit}."
                         )
                     return False
-                if not isinstance(self.tols[1], units.Quantity):
+                if not isinstance(self.tols[1], Quantity):
                     atol_use = self.tols[1] * self.value.unit
                 else:
                     atol_use = self.tols[1]
-                if not units.quantity.allclose(
+                if not Quantity.allclose(
                     self.value,
                     other.value,
                     rtol=self.tols[0],
@@ -837,15 +838,15 @@ class UVParameter:
 
         # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
         # Quantities are instances of np.ndarray.
-        if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
-            self.value.__class__, ShapedLikeNDArray
+        if isinstance(
+            self.value, np.ndarray | np.ma.MaskedArray | SkyCoord | Time | Quantity
         ):
             # If we're working with an ndarray, use take to slice along
             # the axis that we want to grab from.
             value = self.value[tuple(val_slice)]
             if extra_axes:
                 ind_arr, new_shape = _multidim_ind2sub(extra_axes, value.shape)
-                if issubclass(self.value.__class__, ShapedLikeNDArray):
+                if isinstance(self.value, SkyCoord | Time):
                     value = (value.ravel())[ind_arr].reshape(new_shape)
                 else:
                     value = value.flat[ind_arr].reshape(new_shape)
@@ -894,7 +895,7 @@ class UVParameter:
             isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
         ):
             msg = "form_dict does not match anything in UVParameter.form" + (
-                "." if strict else ", returning whole value."
+                "." if strict else ", setting the whole value."
             )
             _strict_raise(err_msg=msg, strict=strict)
 
@@ -918,21 +919,30 @@ class UVParameter:
 
         # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
         # Quantities are instances of np.ndarray.
-        if isinstance(self.value, np.ndarray | np.ma.MaskedArray) or issubclass(
-            self.value.__class__, ShapedLikeNDArray
+        if isinstance(
+            self.value, np.ndarray | np.ma.MaskedArray | SkyCoord | Time | Quantity
         ):
             if extra_axes:
                 # If we have multiple list-based selections, then we slice first and
                 # then use multi_index_ravel to generate indices that we can plug in.
                 # That way we only need to create one extra array whose size is
                 # the same as values (for the indices).
-                temp_arr = self.value[tuple(val_slice)]
+                if isinstance(self.value, Quantity):
+                    arr_use = self.value.value
+                    unit = self.value.unit
+                    values_use = values.to(unit).value
+                elif isinstance(self.value, Time):
+                    arr_use = self.value.jd
+                    values_use = values.jd
+                else:
+                    arr_use = self.value
+                    values_use = values
+
+                temp_arr = arr_use[tuple(val_slice)]
 
                 # Make sure this is a view that is connected in memory
-                if issubclass(self.value.__class__, ShapedLikeNDArray):
-                    attr_list = ["value"]
-                    if isinstance(self.value, SkyCoord):
-                        attr_list = self.value._extra_frameattr_names
+                if isinstance(self.value, SkyCoord):
+                    attr_list = self.value._extra_frameattr_names
 
                     for attr in attr_list:
                         assert getattr(temp_arr, attr).base is (
@@ -946,7 +956,7 @@ class UVParameter:
                         )
                 else:
                     assert temp_arr.base is (
-                        self.value if self.value.base is None else self.value.base
+                        arr_use if arr_use.base is None else arr_use.base
                     ), (
                         "Something is wrong, slicing self.value does not return a view "
                         "on the original array. Please file an issue in our GitHub "
@@ -956,12 +966,17 @@ class UVParameter:
 
                 # N.b., later if needed we can add mask handling here (e.g., for data
                 # parameters).
-                if issubclass(self.value.__class__, ShapedLikeNDArray):
+                if isinstance(self.value, SkyCoord):
                     temp = temp_arr.ravel()
-                    temp[ind_arr] = values.ravel()
+                    temp[ind_arr] = values_use.ravel()
                     temp_arr = temp.reshape(temp_arr.shape)
                 else:
-                    temp_arr.flat[ind_arr] = values.flat
+                    temp_arr.flat[ind_arr] = values_use.flat
+
+                if isinstance(self.value, Quantity):
+                    self.value = temp_arr * unit
+                elif isinstance(self.value, Time):
+                    self.value.jd = temp_arr
             else:
                 # If regular indexing solves this, then that's how we'll roll
                 self.value[tuple(val_slice)] = values
@@ -1222,7 +1237,7 @@ class LocationParameter(UVParameter):
             centric_coords = self.value.selenocentric
         else:
             centric_coords = self.value.geocentric
-        return units.Quantity(centric_coords).to_value("m")
+        return Quantity(centric_coords).to_value("m")
 
     def set_xyz(self, xyz, *, frame=None, ellipsoid=None):
         """Set the body centric coordinates in meters."""
