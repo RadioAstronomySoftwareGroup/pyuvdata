@@ -457,7 +457,7 @@ class UVParameter:
                     atol_use = self.tols[1] * self.value.unit
                 else:
                     atol_use = self.tols[1]
-                if not Quantity.allclose(
+                if not units.allclose(
                     self.value,
                     other.value,
                     rtol=self.tols[0],
@@ -919,64 +919,41 @@ class UVParameter:
 
         # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
         # Quantities are instances of np.ndarray.
-        if isinstance(
-            self.value, np.ndarray | np.ma.MaskedArray | SkyCoord | Time | Quantity
-        ):
+        if isinstance(self.value, Quantity | SkyCoord | Time):
+            if extra_axes:
+                # Quantity, SkyCoord, and TIme have some extra caching that causes
+                # some headaches, so we effectively get a copy of the subarray to
+                # plug individual values into before going back to the "master" array
+                temp_arr = self.value[tuple(val_slice)]
+                temp_shape = temp_arr.shape
+                ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
+                temp_arr = temp_arr.ravel()
+                temp_arr[ind_arr] = values.ravel()
+                self.value[tuple(val_slice)] = temp_arr.reshape(temp_shape)
+            else:
+                # If regular indexing solves this, then that's how we'll roll
+                self.value[tuple(val_slice)] = values
+        elif isinstance(self.value, np.ndarray | np.ma.MaskedArray):
             if extra_axes:
                 # If we have multiple list-based selections, then we slice first and
                 # then use multi_index_ravel to generate indices that we can plug in.
                 # That way we only need to create one extra array whose size is
                 # the same as values (for the indices).
-                if isinstance(self.value, Quantity):
-                    arr_use = self.value.value
-                    unit = self.value.unit
-                    values_use = values.to(unit).value
-                elif isinstance(self.value, Time):
-                    arr_use = self.value.jd
-                    values_use = values.jd
-                else:
-                    arr_use = self.value
-                    values_use = values
-
-                temp_arr = arr_use[tuple(val_slice)]
+                temp_arr = self.value[tuple(val_slice)]
 
                 # Make sure this is a view that is connected in memory
-                if isinstance(self.value, SkyCoord):
-                    attr_list = self.value._extra_frameattr_names
-
-                    for attr in attr_list:
-                        assert getattr(temp_arr, attr).base is (
-                            getattr(self.value, attr)
-                            if getattr(self.value, attr).base is None
-                            else getattr(self.value, attr).base
-                        ), (
-                            "Something is wrong, slicing self.value does not "
-                            "return a view on the original array. Please file an "
-                            "issue in our GitHub issue log so that we can fix it."
-                        )
-                else:
-                    assert temp_arr.base is (
-                        arr_use if arr_use.base is None else arr_use.base
-                    ), (
-                        "Something is wrong, slicing self.value does not return a view "
-                        "on the original array. Please file an issue in our GitHub "
-                        "issue log so that we can fix it."
-                    )
+                assert temp_arr.base is (
+                    self.value if self.value.base is None else self.value.base
+                ), (
+                    "Something is wrong, slicing self.value does not return a view "
+                    "on the original array. Please file an issue in our GitHub "
+                    "issue log so that we can fix it."
+                )
                 ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
 
                 # N.b., later if needed we can add mask handling here (e.g., for data
                 # parameters).
-                if isinstance(self.value, SkyCoord):
-                    temp = temp_arr.ravel()
-                    temp[ind_arr] = values_use.ravel()
-                    temp_arr = temp.reshape(temp_arr.shape)
-                else:
-                    temp_arr.flat[ind_arr] = values_use.flat
-
-                if isinstance(self.value, Quantity):
-                    self.value = temp_arr * unit
-                elif isinstance(self.value, Time):
-                    self.value.jd = temp_arr
+                temp_arr.flat[ind_arr] = values.flat
             else:
                 # If regular indexing solves this, then that's how we'll roll
                 self.value[tuple(val_slice)] = values
