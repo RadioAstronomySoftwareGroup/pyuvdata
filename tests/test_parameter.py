@@ -1188,7 +1188,7 @@ def test_set_from_form(form_dict, exp_arr, partype):
     val = val[:, form_dict.get("b", slice(None))]
     if partype == "array":
         np.testing.assert_array_equal(val, exp_val)
-    elif partype == "quantity1" or partype == "quantity2":
+    elif partype in ["quantity1", "quantity2"]:
         np.testing.assert_array_equal(val.value, exp_val.value)
     elif partype == "time":
         np.testing.assert_array_equal(val.jd, exp_val.jd)

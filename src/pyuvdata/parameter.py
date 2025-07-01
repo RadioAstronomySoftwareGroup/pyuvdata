@@ -836,8 +836,6 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
-        # Quantities are instances of np.ndarray.
         if isinstance(
             self.value, np.ndarray | np.ma.MaskedArray | SkyCoord | Time | Quantity
         ):
@@ -917,8 +915,6 @@ class UVParameter:
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
-        # use issubclass ShapedLikeNDArray to handle Time and SkyCoord objects
-        # Quantities are instances of np.ndarray.
         if isinstance(self.value, Quantity | SkyCoord | Time):
             if extra_axes:
                 # Quantity, SkyCoord, and TIme have some extra caching that causes
