@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- A bug in `UVParameter.get_from_form` and `UVParameter.set_from_form` that caused
+errors when using astropy SkyCoord, Quantity or Time objects in UVParameters,
+arose when using `UVBase._select_along_param_axis`.
+
 ## [3.2.2] - 2025-06-12
 
 ### Added
