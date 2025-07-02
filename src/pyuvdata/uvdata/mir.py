@@ -16,7 +16,8 @@ from docstring_parser import DocstringStyle
 from .. import Telescope, utils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import known_telescope_location
-from . import UVData, mir_parser
+from . import UVData
+from .mir_parser import MirParser
 
 __all__ = ["Mir", "generate_sma_antpos_dict"]
 
@@ -115,7 +116,14 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         # We want to sure that the mir file is v3 compliant, since correctly filling
         # values into a UVData object depends on that.
-        mir_data = mir_parser.MirParser(filepath=filepath, compass_soln=compass_soln)
+        if isinstance(filepath, list):
+            mir_data = MirParser(filepath=filepath[0])
+            for file in filepath[1:]:
+                mir_data += MirParser(filepath=file)
+
+            mir_data.read_compass_solns(filename=compass_soln)
+        else:
+            mir_data = MirParser(filepath=filepath, compass_soln=compass_soln)
 
         if codes_check:
             where_list = []
@@ -188,7 +196,7 @@ class Mir(UVData):
 
     def _prep_and_insert_data(
         self,
-        mir_data: mir_parser.MirParser,
+        mir_data: MirParser,
         sphid_dict,
         spdx_dict,
         blhid_blt_order,
@@ -271,7 +279,7 @@ class Mir(UVData):
 
     def _init_from_mir_parser(
         self,
-        mir_data: mir_parser.MirParser,
+        mir_data: MirParser,
         allow_flex_pol=True,
         apply_tsys=True,
         apply_flags=True,
