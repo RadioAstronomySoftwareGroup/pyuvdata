@@ -2352,8 +2352,7 @@ class MirParser:
         self.filepath = filepath
 
         # Finally, if we've specified a COMPASS solution, load that now as well.
-        if compass_soln is not None:
-            self.read_compass_solns(compass_soln)
+        self.read_compass_solns(filename=compass_soln)
 
         # Set/clear these to start
         self.vis_data = self.raw_data = self.auto_data = None
@@ -3503,6 +3502,10 @@ class MirParser:
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
         """
+        if filename is None:
+            # Handle the no-op and just return here
+            return
+
         if not load_flags and not load_bandpass:
             # You say you want solutions, but you don't want any solutions?
             # You're tearing me apart, Lisa! (no-op return)
