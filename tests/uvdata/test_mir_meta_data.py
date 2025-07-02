@@ -1138,7 +1138,9 @@ def test_mir_codes_generate_new_header_keys_errs_and_warns(mir_codes_data):
 def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dict):
     mir_codes_copy = mir_codes_data.copy()
     mir_codes_copy._data[mir_codes_data.where("v_name", "eq", code_row[0])] = code_row
-
+    print(mir_codes_data._data[mir_codes_data.where("v_name", "eq", code_row[0])])
+    print(mir_codes_copy._data[mir_codes_data.where("v_name", "eq", code_row[0])])
+    print(mir_codes_copy._generate_new_header_keys(mir_codes_data))
     assert update_dict == mir_codes_copy._generate_new_header_keys(mir_codes_data)
 
 

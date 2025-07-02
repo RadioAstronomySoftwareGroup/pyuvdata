@@ -3072,7 +3072,12 @@ class MirCodesData(MirMetaData):
             "tel1",
             "tel2",
             "band",
+            "dut1",
         ]
+
+        # Define codes that are supposed to change once per integration, so don't
+        # attempt to do any funny business with code matching/switching/etc.
+        self._time_index_codes = ["ra", "dec", "vrad", "dut1", "ut"]
 
         # These are codes that _cannot_ change between objects, otherwise it breaks
         # some of the underlying logic of some code, and could mean that the files
@@ -3268,7 +3273,9 @@ class MirCodesData(MirMetaData):
         else:
             return data_mask
 
-    def get_codes(self, code_name=None, return_dict=None) -> dict | np.ndarray:
+    def get_codes(
+        self, code_name=None, return_dict=None, return_icode=None
+    ) -> dict | np.ndarray:
         """
         Get code strings for a given variable name in the metadata.
 
@@ -3282,17 +3289,22 @@ class MirCodesData(MirMetaData):
         code_name : str
             Name of the codes, a full listing of which can be provided by the method
             `get_code_name`.
-        return_dict : bool
+        return_dict : bool or None
             If set to True, return a dict with keys and values that map code strings
             to indexing values, and visa-versa. Useful for mapping values between
             other MirCodesData and other MirMetaData object types. Default is None,
             which will return a dict only if `code_name` has more than one entry or
             has a known counterpart field in one of the other MirMetaData object types
-            (e.g., "source" maps to "isource" in MirInData).
+            (e.g., "source" maps to "isource" in MirInData), or if return_icode is set.
+        return_icode : bool or None
+            If set to True (and `return_dict=False`), return the "icode" values used to
+            index the codes in addition to the codes themselves. Default is None, which
+            will default to returning either codes or a dict (depending on what is
+            supplied to the return_dict keyword).
 
         Returns
         -------
-        codes : list or dict
+        codes : list or dict or tuple of lists
             If `return_dict=False`, then a list for all code strings is returned.
             Otherwise, a dict is returned which maps both indexing codes to code strings
             and visa-versa.
@@ -3304,14 +3316,14 @@ class MirCodesData(MirMetaData):
 
         mask = self.where("v_name", "eq", code_name, return_header_keys=False)
         codes = list(self.get_value("code", use_mask=False)[mask])
-        index = list(self.get_value("icode", use_mask=False)[mask])
-        if return_dict is None:
+        icodes = list(self.get_value("icode", use_mask=False)[mask])
+        if return_dict is None and return_icode is None:
             return_dict = (np.sum(mask) != 1) or (code_name in self._codes_index_dict)
 
         if return_dict:
-            return dict(zip(codes + index, index + codes, strict=True))
+            return dict(zip(codes + icodes, icodes + codes, strict=True))
         else:
-            return codes
+            return (codes, icodes) if return_icode else codes
 
     def _generate_new_header_keys(self, other):
         """
@@ -3397,17 +3409,16 @@ class MirCodesData(MirMetaData):
 
                 # This will return a dict that maps code string -> indexing value and
                 # indexing value -> code string for a given code type.
-                this_dict = self[vname]
+                codes, icodes = self.get_codes(vname, return_icode=True)
                 other_dict = other[vname]
 
                 # Start the process of re-indexing the "icode" values
-                last_idx = 1
-                for key, value in this_dict.items():
-                    if not isinstance(key, str):
-                        # The dict contains both strings and ints, but we just want
-                        # to deal with the strings in this process.
-                        continue
+                last_idx = max(k for k in other_dict if not isinstance(k, str)) + 1
+                for key, value in zip(codes, icodes, strict=True):
                     try:
+                        if vname in self._time_index_codes:
+                            raise KeyError()
+
                         # See if we can find this code string in the other dict.
                         other_value = other_dict[key]
 
@@ -3425,12 +3436,12 @@ class MirCodesData(MirMetaData):
                     except KeyError:
                         # If the code is _not_ found in the other dict, then we just
                         # want to pick and indexing code that won't cause a conflict.
-                        # Loop through and pick the first positive unassigned value.
-                        if value in other_dict:
-                            while last_idx in other_dict:
-                                last_idx += 1
+                        # Check to see if the current index already satisfies the
+                        # condition that it be greater than previous index values to
+                        # save work re-indexing later.
+                        if last_idx > value:
                             temp_dict[value] = last_idx
-                            last_idx += 1
+                        last_idx = max(last_idx, value) + 1
 
                 # Store the results in our update dictionary.
                 if len(temp_dict):
