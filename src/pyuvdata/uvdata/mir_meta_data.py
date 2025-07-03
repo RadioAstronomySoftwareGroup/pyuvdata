@@ -864,6 +864,7 @@ class MirMetaData:
                     new_recpos_dict[key] = np.concatenate(
                         (self._recpos_dict[key][idx1], other._recpos_dict[key][idx2])
                     )
+                new_obj._recpos_dict = new_recpos_dict
 
         # Make sure the data is sorted correctly, generate the header key -> index
         # position dictionary.
