@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-
+import pytest
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
 
@@ -11,13 +11,21 @@ feko_filename = os.path.join(DATA_PATH, feko_folder, filename)
 feko_filename2 = feko_filename.replace("x", "y")
 
 
-def test_read_power():
+@pytest.mark.parametrize(
+    ("type"),
+    [
+        ("power"),
+        ("efield"),
+        ],
+)
+
+def test_read_beam(type):
     beam1 = UVBeam()
     beam2 = UVBeam()
 
     beam_feko1 = beam1.from_file(
         feko_filename,
-        beam_type="power",
+        beam_type=type,
         frequency=None,
         feed_pol="x",
         telescope_name="LWA",
@@ -31,7 +39,7 @@ def test_read_power():
 
     beam_feko2 = beam2.from_file(
         feko_filename2,
-        beam_type="power",
+        beam_type=type,
         frequency=None,
         feed_pol="y",
         telescope_name="LWA",
@@ -42,17 +50,20 @@ def test_read_power():
         mount_type="fixed",
         feed_angle=0.0,  # N/S
     )
+    if type == "power"
+        assert beam_feko1.beam_type == "power"
+        assert beam_feko2.beam_type == "power"
+        assert np.allclose(
+        beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
+        beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == np.pi / 2.0)[0]],
+        )
+    else
+        assert beam_feko1.beam_type == "efield"
+        assert beam_feko2.beam_type == "efield"
 
-    assert beam_feko1.beam_type == "power"
-    assert beam_feko2.beam_type == "power"
     assert len(beam_feko1.freq_array) == 3
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
     assert beam_feko1.data_array.shape == (1, 1, 3, 181, 181)
     assert beam_feko2.data_array.shape == beam_feko1.data_array.shape
-
-    assert np.allclose(
-        beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
-        beam_feko1.data_array[
-            0, :, :, 0, np.where(beam_feko1.axis1_array == np.pi / 2.0)[0]
-        ],
-    )
+    
+    
