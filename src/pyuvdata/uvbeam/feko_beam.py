@@ -43,9 +43,11 @@ class FEKOBeam(UVBeam):
     def read_feko_beam(
         self,
         filename,
+        *,
         beam_type="power",
-        use_future_array_shapes=False,
         feed_pol="x",
+        feed_angle=None,
+        mount_type=None,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -53,7 +55,6 @@ class FEKOBeam(UVBeam):
         model_name=None,
         model_version=None,
         history="",
-        x_orientation=None,
         reference_impedance=None,
         extra_keywords=None,
         run_check=True,
@@ -71,13 +72,28 @@ class FEKOBeam(UVBeam):
             The FEKO file to read from.
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
         feed_pol : str
-            The feed or polarization or list of feeds or polarizations the
-            files correspond to.
-            Defaults to 'x' (meaning x for efield or xx for power beams).
+            The feed polarization that the files corresponds to, e.g. x, y, r or l.
+            Defaults to 'x'.
+        feed_angle : float
+            Position angle of the feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         frequency : float or list of float
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -94,10 +110,6 @@ class FEKOBeam(UVBeam):
             The version of the model corresponding to the filename(s).
         history : str
             A string detailing the history of the filename(s).
-        x_orientation : str, optional
-            Orientation of the physical dipole corresponding to what is
-            labelled as the x polarization. Options are "east" (indicating
-            east/west orientation) and "north" (indicating north/south orientation)
         reference_impedance : float, optional
             The reference impedance of the model(s).
         extra_keywords : dict, optional
@@ -133,42 +145,37 @@ class FEKOBeam(UVBeam):
         ):
             self.history += self.pyuvdata_version_str
 
-        if x_orientation is not None:
-            self.x_orientation = x_orientation
         if reference_impedance is not None:
             self.reference_impedance = float(reference_impedance)
         if extra_keywords is not None:
             self.extra_keywords = extra_keywords
 
+        if mount_type is not None:
+            self.mount_type = mount_type
+
+        self.feed_array = np.asarray(feed_pol).reshape(-1)
+        self.Nfeeds = 1
+
+        if feed_angle is not None:
+            self.feed_angle = np.asarray(feed_angle).reshape(-1)
+
         if beam_type == "power":
             self.Naxes_vec = 1
+            self.Npols = 1
 
-            if feed_pol == "x":
-                feed_pol = "xx"
-            elif feed_pol == "y":
-                feed_pol = "yy"
-
-            self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
-            self.Npols = len(self.polarization_array)
+            self.polarization_array = np.array(
+                [uvutils.polstr2num(feed_pol + feed_pol)]
+            )
             self._set_power()
         else:
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
 
-            if feed_pol == "x":
-                self.feed_array = np.array(["x", "y"])
-            elif feed_pol == "y":
-                self.feed_array = np.array(["y", "x"])
-
-            self.Nfeeds = self.feed_array.size
             self._set_efield()
 
         self.data_normalization = "physical"
         self.antenna_type = "simple"
 
-        if not use_future_array_shapes:
-            self.Nspws = 1
-            self.spw_array = np.array([0])
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 
@@ -272,9 +279,6 @@ class FEKOBeam(UVBeam):
                 this_col = np.where(np.array(column_names) == name)[0]
                 data_col = this_col.tolist()
                 power_beam1 = 10 ** (data_each[i, :, data_col] / 10).reshape(
-                    (theta_axis.size, phi_axis.size), order="F"
-                )
-                power_beam2 = 10 ** (data_each2[i, :, data_col] / 10).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 self.data_array[0, 0, i, :, :] = power_beam1

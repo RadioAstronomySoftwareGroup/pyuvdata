@@ -25,6 +25,8 @@ def test_read_power():
         feed_version="1",
         model_name="FEKO_MROsoil",
         model_version="1.0",
+        mount_type="fixed",
+        feed_angle=90.0,  # E/W
     )
 
     beam_feko2 = beam2.from_file(
@@ -37,6 +39,8 @@ def test_read_power():
         feed_version="1",
         model_name="FEKO_MROsoil",
         model_version="1.0",
+        mount_type="fixed",
+        feed_angle=0.0,  # N/S
     )
 
     assert beam_feko1.beam_type == "power"
