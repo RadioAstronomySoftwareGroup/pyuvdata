@@ -65,5 +65,3 @@ def test_read_beam(type):
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
     assert beam_feko1.data_array.shape == (1, 1, 3, 181, 181)
     assert beam_feko2.data_array.shape == beam_feko1.data_array.shape
-    
-    
