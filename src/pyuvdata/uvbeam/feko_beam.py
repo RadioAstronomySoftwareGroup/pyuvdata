@@ -330,33 +330,6 @@ class FEKOBeam(UVBeam):
                 self.data_array[0, 0, i, :, :] = phi_beam
                 self.data_array[1, 0, i, :, :] = theta_beam
 
-                theta_mag2 = np.sqrt(
-                    10 ** (data_each2[i, :, theta_mag_col] / 10)
-                ).reshape((theta_axis.size, phi_axis.size), order="F")
-                phi_mag2 = np.sqrt(10 ** (data_each2[i, :, phi_mag_col] / 10)).reshape(
-                    (theta_axis.size, phi_axis.size), order="F"
-                )
-                theta_phase2 = np.angle(
-                    data_each2[i, :, theta_real_col]
-                    + 1j * data_each2[i, :, theta_imag_col]
-                )
-                phi_phase2 = np.angle(
-                    data_each2[i, :, phi_real_col] + 1j * data_each2[i, :, phi_imag_col]
-                )
-
-                theta_phase2 = theta_phase2.reshape(
-                    (theta_axis.size, phi_axis.size), order="F"
-                )
-                phi_phase2 = phi_phase2.reshape(
-                    (theta_axis.size, phi_axis.size), order="F"
-                )
-
-                theta_beam2 = theta_mag2 * np.exp(1j * theta_phase2)
-                phi_beam2 = phi_mag2 * np.exp(1j * phi_phase2)
-
-                self.data_array[0, 1, i, :, :] = phi_beam2
-                self.data_array[1, 1, i, :, :] = theta_beam2
-
         self.bandpass_array[0] = 1
 
         if frequency is None:
