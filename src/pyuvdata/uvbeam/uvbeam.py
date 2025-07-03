@@ -4188,8 +4188,9 @@ class UVBeam(UVBase):
         self,
         filename,
         beam_type="power",
-        use_future_array_shapes=False,
         feed_pol=None,
+        feed_angle=None,
+        mount_type=None,
         rotate_pol=None,
         frequency=None,
         telescope_name=None,
@@ -4198,7 +4199,6 @@ class UVBeam(UVBase):
         model_name=None,
         model_version=None,
         history=None,
-        x_orientation=None,
         reference_impedance=None,
         extra_keywords=None,
         frequency_select=None,
@@ -4248,6 +4248,28 @@ class UVBeam(UVBase):
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
+        feed_pol : str
+            The feed polarization that the files corresponds to, e.g. x, y, r or l.
+            Defaults to 'x'.
+        feed_angle : float
+            Position angle of the feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -4305,6 +4327,8 @@ class UVBeam(UVBase):
 
             overriding_keywords = {
                 "feed_pol": feed_pol,
+                "feed_angle": feed_angle,
+                "mount_type": mount_type,
                 "frequency": frequency,
                 "telescope_name": telescope_name,
                 "feed_name": feed_name,
@@ -4315,8 +4339,6 @@ class UVBeam(UVBase):
             }
             if "ref_imp" in settings_dict:
                 overriding_keywords["reference_impedance"] = reference_impedance
-            if "x_orientation" in settings_dict:
-                overriding_keywords["x_orientation"] = reference_impedance
             for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn(
@@ -4326,6 +4348,10 @@ class UVBeam(UVBase):
 
             if feed_pol is None:
                 feed_pol = settings_dict["feed_pol"]
+            if feed_angle is None:
+                feed_angle = settings_dict["feed_angle"]
+            if mount_type is None:
+                mount_type = settings_dict["mount_type"]
             if frequency is None:
                 frequency = settings_dict["frequencies"]
             if telescope_name is None:
@@ -4342,8 +4368,6 @@ class UVBeam(UVBase):
                 history = settings_dict["history"]
             if reference_impedance is None and "ref_imp" in settings_dict:
                 reference_impedance = float(settings_dict["ref_imp"])
-            if x_orientation is None and "x_orientation" in settings_dict:
-                x_orientation = settings_dict["x_orientation"]
 
             if extra_keywords is None:
                 extra_keywords = {}
@@ -4358,8 +4382,9 @@ class UVBeam(UVBase):
                 "frequencies",
                 "filenames",
                 "feed_pol",
+                "feed_angle",
+                "mount_type",
                 "ref_imp",
-                "x_orientation",
             ]
             # One of the standard paramters in the settings yaml file is
             # longer than 8 characters.
@@ -4462,8 +4487,9 @@ class UVBeam(UVBase):
             self.read_feko_beam(
                 feko_filename[0],
                 beam_type=beam_type,
-                use_future_array_shapes=use_future_array_shapes,
                 feed_pol=pol,
+                feed_angle=feed_angle,
+                mount_type=mount_type,
                 frequency=freq,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -4471,7 +4497,6 @@ class UVBeam(UVBase):
                 model_name=model_name,
                 model_version=model_version,
                 history=history,
-                x_orientation=x_orientation,
                 reference_impedance=reference_impedance,
                 extra_keywords=extra_keywords,
                 run_check=run_check,
@@ -4498,8 +4523,9 @@ class UVBeam(UVBase):
                 beam2.read_feko_beam(
                     f,
                     beam_type=beam_type,
-                    use_future_array_shapes=use_future_array_shapes,
                     feed_pol=pol,
+                    feed_angle=feed_angle,
+                    mount_type=mount_type,
                     frequency=freq,
                     telescope_name=telescope_name,
                     feed_name=feed_name,
@@ -4507,7 +4533,6 @@ class UVBeam(UVBase):
                     model_name=model_name,
                     model_version=model_version,
                     history=history,
-                    x_orientation=x_orientation,
                     reference_impedance=reference_impedance,
                     extra_keywords=extra_keywords,
                     run_check=run_check,
@@ -4528,8 +4553,9 @@ class UVBeam(UVBase):
             feko_beam_obj.read_feko_beam(
                 feko_filename,
                 beam_type=beam_type,
-                use_future_array_shapes=use_future_array_shapes,
                 feed_pol=feed_pol,
+                feed_angle=feed_angle,
+                mount_type=mount_type,
                 frequency=frequency,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -4537,7 +4563,6 @@ class UVBeam(UVBase):
                 model_name=model_name,
                 model_version=model_version,
                 history=history,
-                x_orientation=x_orientation,
                 reference_impedance=reference_impedance,
                 extra_keywords=extra_keywords,
                 run_check=run_check,
@@ -5076,9 +5101,10 @@ class UVBeam(UVBase):
                 elif file_type == "feko":
                     self.read_feko_beam(
                         filename,
-                        use_future_array_shapes=use_future_array_shapes,
                         beam_type=beam_type,
                         feed_pol=feed_pol,
+                        feed_angle=feed_angle,
+                        mount_type=mount_type,
                         rotate_pol=rotate_pol,
                         frequency=frequency,
                         telescope_name=telescope_name,
@@ -5087,7 +5113,6 @@ class UVBeam(UVBase):
                         model_name=model_name,
                         model_version=model_version,
                         history=history,
-                        x_orientation=x_orientation,
                         reference_impedance=reference_impedance,
                         extra_keywords=extra_keywords,
                         frequency_select=frequency_select,
