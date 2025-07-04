@@ -4339,124 +4339,34 @@ class UVBeam(UVBase):
         if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
             feed_pol = feed_pol[0]
 
-        if isinstance(feko_filename, list | tuple):
-            if frequency is not None:
-                if isinstance(frequency, list | tuple):
-                    if not len(frequency) == len(feko_filename):
-                        raise ValueError(
-                            "If frequency and filename are both "
-                            "lists they need to be the same length"
-                        )
-                    freq = frequency[0]
-                else:
-                    freq = frequency
-            else:
-                freq = None
-
-            if isinstance(feed_pol, list | tuple):
-                if not len(feed_pol) == len(feko_filename):
-                    raise ValueError(
-                        "If feed_pol and filename are both "
-                        "lists they need to be the same length"
-                    )
-                pol = feed_pol[0]
-
-            else:
-                pol = feed_pol
-
-            if isinstance(freq, list | tuple):
-                raise ValueError("frequency can not be a nested list")
-            if isinstance(pol, list | tuple):
-                raise ValueError("feed_pol can not be a nested list")
-            self.read_feko_beam(
-                feko_filename[0],
-                beam_type=beam_type,
-                feed_pol=pol,
-                feed_angle=feed_angle,
-                mount_type=mount_type,
-                frequency=freq,
-                telescope_name=telescope_name,
-                feed_name=feed_name,
-                feed_version=feed_version,
-                model_name=model_name,
-                model_version=model_version,
-                history=history,
-                reference_impedance=reference_impedance,
-                extra_keywords=extra_keywords,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                check_auto_power=check_auto_power,
-                fix_auto_power=fix_auto_power,
-            )
-            for file_i, f in enumerate(feko_filename[1:]):
-                if isinstance(f, list | tuple):
-                    raise ValueError("filename can not be a nested list")
-
-                if isinstance(frequency, list | tuple):
-                    freq = frequency[file_i + 1]
-                elif frequency is not None:
-                    freq = frequency
-                else:
-                    freq = None
-                if isinstance(feed_pol, list | tuple):
-                    pol = feed_pol[file_i + 1]
-                else:
-                    pol = feed_pol
-                beam2 = UVBeam()
-                beam2.read_feko_beam(
-                    f,
-                    beam_type=beam_type,
-                    feed_pol=pol,
-                    feed_angle=feed_angle,
-                    mount_type=mount_type,
-                    frequency=freq,
-                    telescope_name=telescope_name,
-                    feed_name=feed_name,
-                    feed_version=feed_version,
-                    model_name=model_name,
-                    model_version=model_version,
-                    history=history,
-                    reference_impedance=reference_impedance,
-                    extra_keywords=extra_keywords,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                    check_auto_power=check_auto_power,
-                    fix_auto_power=fix_auto_power,
-                )
-                self += beam2
-            if len(feko_filename) > 1:
-                del beam2
-        else:
-            if isinstance(frequency, list | tuple):
-                raise ValueError("Too many frequencies specified")
-            if isinstance(feed_pol, list | tuple):
-                raise ValueError("Too many feed_pols specified")
-            feko_beam_obj = feko_beam.FEKOBeam()
-            feko_beam_obj.read_feko_beam(
-                feko_filename,
-                beam_type=beam_type,
-                feed_pol=feed_pol,
-                feed_angle=feed_angle,
-                mount_type=mount_type,
-                frequency=frequency,
-                telescope_name=telescope_name,
-                feed_name=feed_name,
-                feed_version=feed_version,
-                model_name=model_name,
-                model_version=model_version,
-                history=history,
-                reference_impedance=reference_impedance,
-                extra_keywords=extra_keywords,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                check_auto_power=check_auto_power,
-                fix_auto_power=fix_auto_power,
-            )
-            self._convert_from_filetype(feko_beam_obj)
-            del feko_beam_obj
+        if isinstance(frequency, list | tuple) and len(frequency) > 1:
+            raise ValueError("Too many frequencies specified")
+        if isinstance(feed_pol, list | tuple) and len(feed_pol) > 1:
+            raise ValueError("Too many feed_pols specified")
+        feko_beam_obj = feko_beam.FEKOBeam()
+        feko_beam_obj.read_feko_beam(
+            feko_filename,
+            beam_type=beam_type,
+            feed_pol=feed_pol,
+            feed_angle=feed_angle,
+            mount_type=mount_type,
+            frequency=frequency,
+            telescope_name=telescope_name,
+            feed_name=feed_name,
+            feed_version=feed_version,
+            model_name=model_name,
+            model_version=model_version,
+            history=history,
+            reference_impedance=reference_impedance,
+            extra_keywords=extra_keywords,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
+        )
+        self._convert_from_filetype(feko_beam_obj)
+        del feko_beam_obj
 
     def read_mwa_beam(self, h5filepath, **kwargs):
         """
