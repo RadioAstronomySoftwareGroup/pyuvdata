@@ -79,3 +79,9 @@ def test_beam_freq_pol():
         beam1.from_file(
             feko_filename, beam_type="power", feed_pol=np.array([["x"], ["y"]])
         )
+
+    with pytest.raises(ValueError, match="Too many frequencies specified"):
+        beam1.from_file(feko_filename, beam_type="power", frequency=[1e6, 10e6])
+
+    with pytest.raises(ValueError, match="Too many feed_pols specified"):
+        beam1.from_file(feko_filename, beam_type="power", feed_pol=["x", "y"])
