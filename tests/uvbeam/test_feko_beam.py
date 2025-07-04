@@ -1,0 +1,87 @@
+import os
+
+import numpy as np
+import pytest
+
+from pyuvdata import UVBeam
+from pyuvdata.data import DATA_PATH
+
+filename = "OVRO_LWA_x.ffe"
+feko_folder = "OVRO_LWA_FEKOBeams"
+feko_filename = os.path.join(DATA_PATH, feko_folder, filename)
+feko_filename2 = feko_filename.replace("x", "y")
+
+
+@pytest.mark.parametrize(("btype"), [("power"), ("efield")])
+def test_read_beam(btype):
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+
+    beam_feko1 = beam1.from_file(
+        feko_filename,
+        beam_type=btype,
+        frequency=[10e6],
+        feed_pol=None,
+        telescope_name="LWA",
+        feed_name="LWA",
+        feed_version="1",
+        model_name="FEKO_MROsoil",
+        model_version="1.0",
+        mount_type="fixed",
+        feed_angle=90.0,  # E/W
+    )
+
+    beam_feko2 = beam2.from_file(
+        feko_filename2,
+        beam_type=btype,
+        frequency=np.array([10e6]),
+        feed_pol=np.array(["y"]),
+        telescope_name="LWA",
+        feed_name="LWA",
+        feed_version="1",
+        model_name="FEKO_MROsoil",
+        model_version="1.0",
+        mount_type="fixed",
+        feed_angle=0.0,  # N/S
+    )
+    if btype == "power":
+        assert beam_feko1.beam_type == "power"
+        assert beam_feko2.beam_type == "power"
+        assert np.allclose(
+            beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
+            beam_feko1.data_array[
+                0, :, :, 0, np.where(beam_feko1.axis1_array == np.pi / 2.0)[0]
+            ],
+        )
+        assert beam_feko1.data_array.shape == (1, 1, 3, 181, 181)
+    else:
+        assert beam_feko1.beam_type == "efield"
+        assert beam_feko2.beam_type == "efield"
+        assert beam_feko1.data_array.shape == (2, 1, 3, 181, 181)
+        assert beam_feko2.data_array.shape == beam_feko1.data_array.shape
+
+    assert len(beam_feko1.freq_array) == 3
+    assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
+
+
+def test_beam_freq_pol():
+    beam1 = UVBeam()
+    with pytest.raises(
+        ValueError, match="frequency can not be a multi-dimensional array"
+    ):
+        beam1.from_file(
+            feko_filename, beam_type="power", frequency=np.array([[1e6], [10e6]])
+        )
+
+    with pytest.raises(
+        ValueError, match="feed_pol can not be a multi-dimensional array"
+    ):
+        beam1.from_file(
+            feko_filename, beam_type="power", feed_pol=np.array([["x"], ["y"]])
+        )
+
+    with pytest.raises(ValueError, match="Too many frequencies specified"):
+        beam1.from_file(feko_filename, beam_type="power", frequency=[1e6, 10e6])
+
+    with pytest.raises(ValueError, match="Too many feed_pols specified"):
+        beam1.from_file(feko_filename, beam_type="power", feed_pol=["x", "y"])

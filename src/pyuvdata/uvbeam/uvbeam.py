@@ -4184,6 +4184,190 @@ class UVBeam(UVBase):
             self.filename = utils.tools._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
+    def read_feko_beam(
+        self,
+        filename,
+        beam_type="power",
+        feed_pol=None,
+        feed_angle=None,
+        mount_type=None,
+        rotate_pol=None,
+        frequency=None,
+        telescope_name=None,
+        feed_name=None,
+        feed_version=None,
+        model_name=None,
+        model_version=None,
+        history=None,
+        reference_impedance=None,
+        extra_keywords=None,
+        frequency_select=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
+    ):
+        """
+        Read in data from a FEKO file.
+
+        Parameters
+        ----------
+        filename : str
+            Either a settings yaml file or a FEKO text file
+
+            Settings yaml files must include the following keywords:
+
+                |  - telescope_name (str)
+                |  - feed_name (str)
+                |  - feed_version (str)
+                |  - model_name (str)
+                |  - model_version (str)
+                |  - history (str)
+                |  - frequencies (list(float))
+                |  - feko ffe filename (str) -- path relative to yaml file
+                |  - feed_pol (str) or (list(str))
+
+            and they may include the following optional keywords:
+
+                |  - x_orientation (str): Optional but strongly encouraged!
+                |  - ref_imp (float): beam model reference impedance
+                |  - sim_beam_type (str): e.g. 'E-farfield'
+                |  - all other fields will go into the extra_keywords attribute
+
+            More details and an example are available in the docs
+            (FEKO_settings_yaml.rst).
+            Specifying any of the associated keywords to this function will
+            override the values in the settings file.
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+        feed_pol : str
+            The feed or polarization or list of feeds or polarizations the
+            files correspond to.
+            Defaults to 'x' (meaning x for efield or xx for power beams).
+        feed_pol : str
+            The feed polarization that the files corresponds to, e.g. x, y, r or l.
+            Defaults to 'x'.
+        feed_angle : float
+            Position angle of the feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs.
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
+        frequency : float or list of float, optional
+            The frequency or list of frequencies corresponding to the filename(s).
+            This is assumed to be in the same order as the files.
+            If not passed, the code attempts to parse it from the filenames.
+        telescope_name : str, optional
+            The name of the telescope corresponding to the filename(s).
+        feed_name : str, optional
+            The name of the feed corresponding to the filename(s).
+        feed_version : str, optional
+            The version of the feed corresponding to the filename(s).
+        model_name : str, optional
+            The name of the model corresponding to the filename(s).
+        model_version : str, optional
+            The version of the model corresponding to the filename(s).
+        history : str, optional
+            A string detailing the history of the filename(s).
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+        frequency_select : list of float, optional
+            Only used if the file is a yaml file. Indicates which frequencies
+            to include (only read in files for those frequencies)
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
+
+        """
+        from . import feko_beam
+
+        feko_filename = filename
+
+        if feed_pol is None:
+            # default to x (done here in case it's specified in a yaml file)
+            feed_pol = "x"
+        if history is None:
+            # default to empty (done here in case it's specified in a yaml file)
+            history = ""
+
+        if isinstance(frequency, np.ndarray):
+            if len(frequency.shape) > 1:
+                raise ValueError("frequency can not be a multi-dimensional array")
+            frequency = frequency.tolist()
+        if isinstance(frequency, list | tuple) and len(frequency) == 1:
+            frequency = frequency[0]
+
+        if isinstance(feed_pol, np.ndarray):
+            if len(feed_pol.shape) > 1:
+                raise ValueError("feed_pol can not be a multi-dimensional array")
+            feed_pol = feed_pol.tolist()
+        if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
+            feed_pol = feed_pol[0]
+
+        if isinstance(frequency, list | tuple) and len(frequency) > 1:
+            raise ValueError("Too many frequencies specified")
+        if isinstance(feed_pol, list | tuple) and len(feed_pol) > 1:
+            raise ValueError("Too many feed_pols specified")
+        feko_beam_obj = feko_beam.FEKOBeam()
+        feko_beam_obj.read_feko_beam(
+            feko_filename,
+            beam_type=beam_type,
+            feed_pol=feed_pol,
+            feed_angle=feed_angle,
+            mount_type=mount_type,
+            frequency=frequency,
+            telescope_name=telescope_name,
+            feed_name=feed_name,
+            feed_version=feed_version,
+            model_name=model_name,
+            model_version=model_version,
+            history=history,
+            reference_impedance=reference_impedance,
+            extra_keywords=extra_keywords,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
+        )
+        self._convert_from_filetype(feko_beam_obj)
+        del feko_beam_obj
+
     def read_mwa_beam(self, h5filepath, **kwargs):
         """
         Read in the full embedded element MWA beam.
@@ -4313,7 +4497,7 @@ class UVBeam(UVBase):
             override the values in the settings file.
 
         file_type : str
-            One of ['mwa_beam', 'beamfits', 'cst'] or None.
+            One of ['mwa_beam', 'beamfits', 'cst', 'feko'] or None.
             If None, the code attempts to guess what the file type is.
             based on file extensions
             (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
@@ -4379,8 +4563,8 @@ class UVBeam(UVBase):
             frequencies. Must be length 2. This will cause a *partial read* (i.e.
             reduce peak memory usage).
 
-        CST
-        ---
+        CST -or- FEKO
+        -------------
         beam_type : str
             What beam_type to read in ('power' or 'efield').
             Only applies to cst file types.
@@ -4503,6 +4687,8 @@ class UVBeam(UVBase):
                 file_type = "mwa_beam"
             elif extension == ".txt" or extension == ".yaml":
                 file_type = "cst"
+            elif extension == ".ffe":
+                file_type = "feko"
 
         if file_type is None:
             raise ValueError(
@@ -4699,6 +4885,30 @@ class UVBeam(UVBase):
                         za_range=za_range,
                         freq_range=freq_range,
                         mount_type=mount_type,
+                    )
+                elif file_type == "feko":
+                    self.read_feko_beam(
+                        filename,
+                        beam_type=beam_type,
+                        feed_pol=feed_pol,
+                        feed_angle=feed_angle,
+                        mount_type=mount_type,
+                        rotate_pol=rotate_pol,
+                        frequency=frequency,
+                        telescope_name=telescope_name,
+                        feed_name=feed_name,
+                        feed_version=feed_version,
+                        model_name=model_name,
+                        model_version=model_version,
+                        history=history,
+                        reference_impedance=reference_impedance,
+                        extra_keywords=extra_keywords,
+                        frequency_select=frequency_select,
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        check_auto_power=check_auto_power,
+                        fix_auto_power=fix_auto_power,
                     )
 
     @classmethod
