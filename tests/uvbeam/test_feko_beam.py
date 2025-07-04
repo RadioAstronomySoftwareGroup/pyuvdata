@@ -20,8 +20,8 @@ def test_read_beam(btype):
     beam_feko1 = beam1.from_file(
         feko_filename,
         beam_type=btype,
-        frequency=None,
-        feed_pol="x",
+        frequency=[10e6],
+        feed_pol=None,
         telescope_name="LWA",
         feed_name="LWA",
         feed_version="1",
@@ -62,3 +62,21 @@ def test_read_beam(btype):
 
     assert len(beam_feko1.freq_array) == 3
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
+
+
+def test_beam_freq_pol():
+    beam1 = UVBeam()
+
+    with pytest.raises(
+        ValueError, match="frequency can not be a multi-dimensional array"
+    ):
+        beam1.from_file(
+            feko_filename, beam_type="power", frequency=np.array([[1e6], [10e6]])
+        )
+
+    with pytest.raises(
+        ValueError, match="feed_pol can not be a multi-dimensional array"
+    ):
+        beam1.from_file(
+            feko_filename, beam_type="power", feed_pol=np.array([["x"], ["y"]])
+        )
