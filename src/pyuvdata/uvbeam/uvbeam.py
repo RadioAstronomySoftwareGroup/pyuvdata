@@ -4461,12 +4461,6 @@ class UVBeam(UVBase):
             self._convert_from_filetype(feko_beam_obj)
             del feko_beam_obj
 
-        if not isinstance(filename, list | tuple) and filename.endswith("yaml"):
-            # update filelist
-            basename = os.path.basename(filename)
-            self.filename = utils._combine_filenames(self.filename, [basename])
-            self._filename.form = (len(self.filename),)
-
     def read_mwa_beam(self, h5filepath, **kwargs):
         """
         Read in the full embedded element MWA beam.
