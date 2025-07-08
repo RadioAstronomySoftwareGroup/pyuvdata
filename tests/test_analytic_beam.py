@@ -219,7 +219,7 @@ def test_shortdipole_feed_error():
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "Feeds must be one of: ['n', 'e', 'x', 'y'], got feeds: ['r', 'l']"
+            "Feeds must be one of: ['n', 'e', 'x', 'y'], got feeds: ['r' 'l']"
         ),
     ):
         ShortDipoleBeam(feed_array=["r", "l"])
@@ -423,6 +423,21 @@ def test_missing_x_orientation():
         (
             ShortDipoleBeam(x_orientation="north"),
             ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[0, np.pi / 2]),
+            True,
+        ),
+        (
+            ShortDipoleBeam(x_orientation="north"),
+            ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[np.pi, np.pi / 2]),
+            True,
+        ),
+        (
+            ShortDipoleBeam(x_orientation="east"),
+            ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[-np.pi / 2, np.pi]),
+            True,
+        ),
+        (
+            ShortDipoleBeam(x_orientation="east"),
+            ShortDipoleBeam(feed_array=["x", "y"], feed_angle=[3 * np.pi / 2, 0]),
             True,
         ),
         (UniformBeam(), ShortDipoleBeam(), False),

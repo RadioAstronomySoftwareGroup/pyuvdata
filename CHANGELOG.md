@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Analytic ShortDipoleBeam objects can now accept arbitrary wraps of 2pi in
+their feed angles. The feed angles that are stored on the object have their
+feed angles normalized to be between 0 and pi/2.
+
 ### Fixed
 - A bug in `UVParameter.get_from_form` and `UVParameter.set_from_form` that caused
 errors when using astropy SkyCoord, Quantity or Time objects in UVParameters,
