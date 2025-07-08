@@ -93,7 +93,7 @@ class CSTBeam(UVBeam):
         feed_array : str or array-like of str
             Feeds to define this beam for, e.g. x & y or r & l. Only used for power
             beams (feeds are set by feed_pol for efield beams).
-        feed_angle : str or array-like of float
+        feed_angle : float or array-like of float
             Position angle of a given feed, units of radians. A feed angle of 0 is
             typically oriented toward zenith for steerable antennas, otherwise toward
             north for fixed antennas (e.g., HERA, LWA). More details on this can be
