@@ -380,6 +380,7 @@ def test_read_power(cst_power_2freq):
     assert beam1.beam_type == "power"
     assert beam1.data_array.shape == (1, 2, 2, 181, 360)
     assert np.max(beam1.data_array) == 8275.5409
+    assert np.all(beam1.bandpass_array == 1)
 
     np.testing.assert_allclose(
         beam1.data_array[:, 0, :, :, np.where(beam1.axis1_array == 0)[0]],

@@ -9,6 +9,8 @@ their feed angles. The feed angles that are stored on the object have their
 feed angles normalized to be between 0 and pi/2.
 
 ### Fixed
+- A bug in UVBeam's CST reader that caused the bandpass array to be incorrectly
+set to 0 except for the first frequency.
 - A bug in `UVParameter.get_from_form` and `UVParameter.set_from_form` that caused
 errors when using astropy SkyCoord, Quantity or Time objects in UVParameters,
 arose when using `UVBase._select_along_param_axis`.
