@@ -1229,8 +1229,13 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
     # test errors if frequency interp values outside range
     with pytest.raises(
         ValueError,
-        match="at least one interpolation frequency is outside of "
-        "the UVBeam freq_array range.",
+        match=re.escape(
+            "at least one interpolation frequency is outside of "
+            "the UVBeam freq_array range. Beam frequency range is: "
+            f"{[np.min(uvbeam.freq_array), np.max(uvbeam.freq_array)]}, "
+            "interpolation frequency range is: "
+            f"{[np.min(np.array([100])), np.max(np.array([100]))]}"
+        ),
     ):
         uvbeam.interp(
             az_array=az_interp_vals,
