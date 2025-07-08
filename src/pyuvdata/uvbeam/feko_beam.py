@@ -21,24 +21,6 @@ class FEKOBeam(UVBeam):
 
     """
 
-    def nametopol(self, fname):
-        """
-        Get name of the y file  from the main filename.
-
-        Parameters
-        ----------
-        fname : str
-            Filename to parse.
-
-        Returns
-        -------
-        str
-            New file name.
-        """
-        fnew = fname.replace("x", "y")
-
-        return fnew
-
     def read_feko_beam(
         self,
         filename,
