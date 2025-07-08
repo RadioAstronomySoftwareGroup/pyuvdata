@@ -1417,7 +1417,10 @@ class UVBeam(UVBase):
             ) > np.max(self.freq_array):
                 raise ValueError(
                     "at least one interpolation frequency is outside of "
-                    "the UVBeam freq_array range."
+                    "the UVBeam freq_array range. Beam frequency range is: "
+                    f"{[np.min(self.freq_array), np.max(self.freq_array)]}, "
+                    "interpolation frequency range is: "
+                    f"{[np.min(freq_array), np.max(freq_array)]}"
                 )
 
             def get_lambda(real_lut, imag_lut=None):
