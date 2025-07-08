@@ -1152,6 +1152,7 @@ class ShortDipoleBeam(AnalyticBeam):
         """Post-initialization validation and conversions."""
         if self.feed_array is None:
             self.feed_array = ["x", "y"]
+        self.feed_array = np.asarray(self.feed_array)
 
         allowed_feeds = ["n", "e", "x", "y"]
         for feed in self.feed_array:
@@ -1170,6 +1171,14 @@ class ShortDipoleBeam(AnalyticBeam):
                     "ShortDipoleBeams currently only support dipoles aligned to East "
                     "and North, it does not yet have support for arbitrary feed angles."
                 )
+            else:
+                # use the standard feed angles for consistency
+                _, _, feed_angle = utils.pol.get_feeds_from_x_orientation(
+                    x_orientation=x_orient,
+                    nants=1,
+                    feed_array=self.feed_array[np.newaxis, :],
+                )
+                self.feed_angle = np.squeeze(feed_angle)
 
     def _efield_eval(
         self,
