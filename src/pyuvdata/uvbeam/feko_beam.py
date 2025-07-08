@@ -3,7 +3,6 @@
 """Class for reading beam FEKO files."""
 
 import os
-import warnings
 
 import numpy as np
 
@@ -48,7 +47,6 @@ class FEKOBeam(UVBeam):
         feed_pol="x",
         feed_angle=None,
         mount_type=None,
-        frequency=None,
         telescope_name=None,
         feed_name=None,
         feed_version=None,
@@ -94,10 +92,6 @@ class FEKOBeam(UVBeam):
             beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
             (also referred to in some formats as "bizarre"). See the "Conventions"
             page of the documentation for further details.
-        frequency : float or list of float
-            The frequency or list of frequencies corresponding to the filename(s).
-            This is assumed to be in the same order as the files.
-            If not passed, the code attempts to parse it from the filenames.
         telescope_name : str
             The name of the telescope corresponding to the filename(s).
         feed_name : str
@@ -179,60 +173,43 @@ class FEKOBeam(UVBeam):
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 
-        with open(filename) as out_file:
-            line = out_file.readlines()[9].strip()  # Get the line with column names
-            column_names = line.split('"')[1::2]
+        with open(filename) as fh:
+            # there is a blank row at the start of every frequency
+            data_chunks = fh.read()[1:].split("\n\n")
 
+        # get the first header line to get the column names
+        header_line = (data_chunks[0].split("\n"))[8]
+        column_names = header_line.split('"')[1::2]
         theta_col = np.where(np.array(column_names) == "Theta")[0][0]
         phi_col = np.where(np.array(column_names) == "Phi")[0][0]
 
-        with open(filename) as fh:
-            data_chunks = fh.read()[1:].split(
-                "\n\n"
-            )  ## avoiding the row=1; there is a blank row at the start of every file
-        data_all = [
-            i.splitlines()[9:] for i in data_chunks
-        ]  ## skips the 9 lines of text in each chunk
+        # skips the 9 lines of header text for each chunk
+        data_all = [i.splitlines()[9:] for i in data_chunks]
 
-        filename2 = self.nametopol(filename)
-        with open(filename2) as fh:
-            data_chunks = fh.read()[1:].split(
-                "\n\n"
-            )  ## avoiding the row=1;there is a blank row at the start of every file
-        data_all2 = [
-            i.splitlines()[9:] for i in data_chunks
-        ]  ## skips the 9 lines of text in each chunk
-
-        frequency = [
+        frequencies = [
             float(i.split("Frequency")[1].split()[1]) for i in data_chunks[:-1]
         ]
-        self.Nfreqs = len(frequency)
+        self.Nfreqs = len(frequencies)
         self.freq_array = np.zeros(self.Nfreqs)
-        self.freq_array = np.array(frequency)
+        self.freq_array = np.array(frequencies)
         self.bandpass_array = np.zeros(self.Nfreqs)
 
-        data_each = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
-        data_each2 = np.zeros((len(self.freq_array), np.shape(data_all2[0])[0], 9))
+        data = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
 
         for i in range(len(self.freq_array)):
-            data_each[i, :, :] = np.array(
+            data[i, :, :] = np.array(
                 [list(map(float, data.split())) for data in data_all[i]]
             )
-            data_each2[i, :, :] = np.array(
-                [list(map(float, data.split())) for data in data_all2[i]]
-            )
             if i == 0:
-                theta_data = np.radians(
-                    data_each[i, :, theta_col]
-                )  ## theta is always exported in degs
-                phi_data = np.radians(
-                    data_each[i, :, phi_col]
-                )  ## phi is always exported in degs
+                # theta is always exported in degs
+                theta_data = np.radians(data[i, :, theta_col])
+                # phi is always exported in degs
+                phi_data = np.radians(data[i, :, phi_col])
 
                 theta_axis = np.sort(np.unique(theta_data))
                 phi_axis = np.sort(np.unique(phi_data))
 
-                if not theta_axis.size * phi_axis.size == theta_data.size:
+                if theta_axis.size * phi_axis.size != theta_data.size:
                     raise ValueError("Data does not appear to be on a grid")
 
                 theta_data = theta_data.reshape(
@@ -259,14 +236,8 @@ class FEKOBeam(UVBeam):
                 self.Naxes2 = self.axis2_array.size
 
                 if self.beam_type == "power":
-                    # type depends on whether cross pols are present
-                    # (if so, complex, else float)
-                    if complex in self._data_array.expected_type:
-                        dtype_use = np.complex128
-                    else:
-                        dtype_use = np.float64
                     self.data_array = np.zeros(
-                        self._data_array.expected_shape(self), dtype=dtype_use
+                        self._data_array.expected_shape(self), dtype=np.float64
                     )
                 else:
                     self.data_array = np.zeros(
@@ -278,7 +249,7 @@ class FEKOBeam(UVBeam):
                 name = "Gain(Total)"
                 this_col = np.where(np.array(column_names) == name)[0]
                 data_col = this_col.tolist()
-                power_beam1 = 10 ** (data_each[i, :, data_col] / 10).reshape(
+                power_beam1 = 10 ** (data[i, :, data_col] / 10).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 self.data_array[0, 0, i, :, :] = power_beam1
@@ -297,24 +268,17 @@ class FEKOBeam(UVBeam):
                 phi_real_col = np.where(np.array(column_names) == "Re(Ephi)")[0][0]
                 phi_imag_col = np.where(np.array(column_names) == "Im(Ephi)")[0][0]
 
-                theta_mag = np.sqrt(
-                    10 ** (data_each[i, :, theta_mag_col] / 10)
-                ).reshape((theta_axis.size, phi_axis.size), order="F")
-                phi_mag = np.sqrt(10 ** (data_each[i, :, phi_mag_col] / 10)).reshape(
+                theta_mag = np.sqrt(10 ** (data[i, :, theta_mag_col] / 10)).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
-                # theta_phase = np.angle(
-                #    data_each[i, :, theta_real_col] + 1j * data_c1[:, theta_imag_col]
-                # )
-                # phi_phase = np.angle(
-                #    data_each[i, :, phi_real_col] + 1j * data_c1[:, phi_imag_col]
-                # )
+                phi_mag = np.sqrt(10 ** (data[i, :, phi_mag_col] / 10)).reshape(
+                    (theta_axis.size, phi_axis.size), order="F"
+                )
                 theta_phase = np.angle(
-                    data_each[i, :, theta_real_col]
-                    + 1j * data_each[i, :, theta_imag_col]
+                    data[i, :, theta_real_col] + 1j * data[i, :, theta_imag_col]
                 )
                 phi_phase = np.angle(
-                    data_each[i, :, phi_real_col] + 1j * data_each[i, :, phi_imag_col]
+                    data[i, :, phi_real_col] + 1j * data[i, :, phi_imag_col]
                 )
 
                 theta_phase = theta_phase.reshape(
@@ -331,11 +295,6 @@ class FEKOBeam(UVBeam):
                 self.data_array[1, 0, i, :, :] = theta_beam
 
         self.bandpass_array[0] = 1
-
-        if frequency is None:
-            warnings.warn(
-                f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
-            )
 
         if run_check:
             self.check(
