@@ -186,7 +186,6 @@ in pyuvdata. The options that can be passed in this way are:
 
 - ``astroquery``
 - ``casa``
-- ``cst``
 - ``hdf5_compression``
 - ``healpix``
 - ``lunar``
