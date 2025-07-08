@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for reading FEKO ffe files into UVBeam.
+
 ### Changed
 - Analytic ShortDipoleBeam objects can now accept arbitrary wraps of 2pi in
 their feed angles. The feed angles that are stored on the object have their

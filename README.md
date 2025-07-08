@@ -81,6 +81,7 @@ gridded beams and beams on a HEALPix grid for both E-field and power beams,
 details in the [beamfits memo](docs/references/beamfits_memo.pdf).
 * CST beam text files (read only support) with a defined yaml file format for
 metadata, details here: [cst settings file](docs/cst_settings_yaml.rst)
+* FEKO beam ffe files (read only support)
 * MWA Beams (read only support)
 
 ## Known Issues and Planned Improvements
