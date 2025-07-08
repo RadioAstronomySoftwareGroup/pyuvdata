@@ -240,7 +240,7 @@ class CSTBeam(UVBeam):
 
         self.Nfreqs = 1
         self.freq_array = np.zeros(self.Nfreqs)
-        self.bandpass_array = np.zeros(self.Nfreqs)
+        self.bandpass_array = np.ones(self.Nfreqs)
 
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
@@ -397,8 +397,6 @@ class CSTBeam(UVBeam):
                 phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=1)
                 self.data_array[0, 1, 0, :, :] = phi_beam2
                 self.data_array[1, 1, 0, :, :] = theta_beam2
-
-        self.bandpass_array[0] = 1
 
         if frequency is None:
             warnings.warn(
