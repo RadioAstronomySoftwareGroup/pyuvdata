@@ -174,7 +174,7 @@ class FEKOBeam(UVBeam):
         self.Nfreqs = len(frequencies)
         self.freq_array = np.zeros(self.Nfreqs)
         self.freq_array = np.array(frequencies)
-        self.bandpass_array = np.zeros(self.Nfreqs)
+        self.bandpass_array = np.ones(self.Nfreqs)
 
         data = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
 
@@ -275,8 +275,6 @@ class FEKOBeam(UVBeam):
 
                 self.data_array[0, 0, i, :, :] = phi_beam
                 self.data_array[1, 0, i, :, :] = theta_beam
-
-        self.bandpass_array[0] = 1
 
         if run_check:
             self.check(
