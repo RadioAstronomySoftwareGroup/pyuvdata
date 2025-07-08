@@ -4296,8 +4296,6 @@ class UVBeam(UVBase):
                 raise ValueError("feed_pol must have exactly one element")
             feed_pol = feed_pol[0]
 
-        if isinstance(feed_pol, list | tuple) and len(feed_pol) > 1:
-            raise ValueError("Too many feed_pols specified")
         feko_beam_obj = feko_beam.FEKOBeam()
         feko_beam_obj.read_feko_beam(
             feko_filename,
