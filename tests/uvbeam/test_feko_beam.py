@@ -71,8 +71,12 @@ def test_read_feko(btype):
         assert beam_feko1.data_array.shape == (2, 1, 3, 181, 181)
         assert beam_feko2.data_array.shape == beam_feko1.data_array.shape
 
+        assert beam_feko1.reference_impedance == 50
+        assert beam_feko1.extra_keywords == {"foo": "bar"}
+
     assert len(beam_feko1.freq_array) == 3
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
+    assert np.all(beam_feko1.bandpass_array) == 1
 
 
 @pytest.mark.parametrize(
@@ -96,7 +100,7 @@ def test_read_feko_feedpol_errors(feedpol, msg):
     ],
 )
 def test_read_feko_file_errors(tmp_path, error_type, msg):
-    # make a copy of the test file and mess it up to test error catching.
+    # read in file into list, modify it to trigger errors, write it back out.
     new_file = os.path.join(tmp_path, filename)
 
     with open(feko_filename) as file:
