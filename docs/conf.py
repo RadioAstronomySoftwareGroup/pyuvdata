@@ -71,6 +71,7 @@ napoleon_custom_sections = [
     ("MSCal", "params_style"),
     ("BeamFITS", "params_style"),
     ("CST", "params_style"),
+    ("FEKO", "params_style"),
     ("MWA", "params_style"),
 ]
 

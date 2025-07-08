@@ -4508,79 +4508,61 @@ class UVBeam(UVBase):
             beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
             (also referred to in some formats as "bizarre"). See the "Conventions"
             page of the documentation for further details.
-            Required for cst file types, used if mount information not present in header
-            for beamfits file types.
         freq_range : array_like of float
             Range of frequencies to include in Hz, defaults to all available
             frequencies. Must be length 2. This will cause a *partial read* (i.e.
             reduce peak memory usage).
 
-        CST -or- FEKO
-        -------------
+        CST
+        ---
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-            Only applies to cst file types.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
-            Only applies to cst file types.
         feed_array : str or array-like of str
             Feeds to define this beam for, e.g. x & y or r & l. Only used for power
             beams (feeds are set by feed_pol for efield beams).
-            Only applies to cst file types.
         feed_angle : str or array-like of float
             Position angle of a given feed, units of radians. A feed angle of 0 is
             typically oriented toward zenith for steerable antennas, otherwise toward
             north for fixed antennas (e.g., HERA, LWA). More details on this can be
             found on the "Conventions" page of the docs. Must match shape of feed_pol
             for efield beams, or feed_angle for power beams.
-            Only applies to cst file types.
         rotate_pol : bool
             If True, assume the structure in the simulation is symmetric under
             90 degree rotations about the z-axis (so that the y polarization can be
             constructed by rotating the x polarization or vice versa).
             Default: True if feed_pol is a single value or a list with all
             the same values in it, False if it is a list with varying values.
-            Only applies to cst file types.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
             If not passed, the code attempts to parse it from the filenames.
-            Only applies to cst file types.
         telescope_name : str, optional
             The name of the telescope corresponding to the filename(s).
-            Only applies to cst file types.
         feed_name : str, optional
             The name of the feed corresponding to the filename(s).
-            Only applies to cst file types.
         feed_version : str, optional
             The version of the feed corresponding to the filename(s).
-            Only applies to cst file types.
         model_name : str, optional
             The name of the model corresponding to the filename(s).
-            Only applies to cst file types.
         model_version : str, optional
             The version of the model corresponding to the filename(s).
-            Only applies to cst file types.
         history : str, optional
             A string detailing the history of the filename(s).
-            Only applies to cst file types.
         x_orientation : str, optional
             Orientation of the physical dipole corresponding to what is
             labelled as the x polarization. Options are "east" (indicating
             east/west orientation) and "north" (indicating north/south orientation)
-            Only applies to cst file types.
         reference_impedance : float, optional
             The reference impedance of the model(s).
-            Only applies to cst file types.
         extra_keywords : dict, optional
             A dictionary containing any extra_keywords.
-            Only applies to cst file types.
         frequency_select : list of float, optional
             Only used if the file is a yaml file. Indicates which frequencies
             to include (only read in files for those frequencies)
-            Only applies to cst file types.
         mount_type : str
             Antenna mount type, which describes the optics of the antenna in question.
             Supported options include: "alt-az" (primary rotates in azimuth and
@@ -4595,8 +4577,57 @@ class UVBeam(UVBase):
             beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
             (also referred to in some formats as "bizarre"). See the "Conventions"
             page of the documentation for further details.
-            Required for cst file types, used if mount information not present in header
-            for beamfits file types.
+
+        FEKO
+        ----
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+        feed_pol : str
+            The feed polarization that the files corresponds to, e.g. x, y, r or l.
+            Defaults to 'x'.
+        feed_angle : str or array-like of float
+            Position angle of a given feed, units of radians. A feed angle of 0 is
+            typically oriented toward zenith for steerable antennas, otherwise toward
+            north for fixed antennas (e.g., HERA, LWA). More details on this can be
+            found on the "Conventions" page of the docs. Must match shape of feed_pol
+            for efield beams, or feed_angle for power beams.
+        telescope_name : str, optional
+            The name of the telescope corresponding to the filename(s).
+        feed_name : str, optional
+            The name of the feed corresponding to the filename(s).
+        feed_version : str, optional
+            The version of the feed corresponding to the filename(s).
+        model_name : str, optional
+            The name of the model corresponding to the filename(s).
+        model_version : str, optional
+            The version of the model corresponding to the filename(s).
+        history : str, optional
+            A string detailing the history of the filename(s).
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+        frequency_select : list of float, optional
+            Only used if the file is a yaml file. Indicates which frequencies
+            to include (only read in files for those frequencies)
+        mount_type : str
+            Antenna mount type, which describes the optics of the antenna in question.
+            Supported options include: "alt-az" (primary rotates in azimuth and
+            elevation), "equatorial" (primary rotates in hour angle and declination)
+            "orbiting" (antenna is in motion, and its orientation depends on orbital
+            parameters), "x-y" (primary rotates first in the plane connecting east,
+            west, and zenith, and then perpendicular to that plane),
+            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
+            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
+            tertiary mirror), "phased" (antenna is "electronically steered" by
+            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
+            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
+            (also referred to in some formats as "bizarre"). See the "Conventions"
+            page of the documentation for further details.
 
         MWA
         ---
