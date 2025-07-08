@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for reading FEKO ffe files into UVBeam.
+
 ### Fixed
 - A bug in `UVParameter.get_from_form` and `UVParameter.set_from_form` that caused
 errors when using astropy SkyCoord, Quantity or Time objects in UVParameters,
