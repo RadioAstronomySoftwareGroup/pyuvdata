@@ -1307,8 +1307,8 @@ def test_miriad_write_read_diameters(tmp_path):
     # make new file
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
+    # remove "antdiam" and put in "diameter"
     aipy_uv2.init_from_uv(aipy_uv, exclude=["antdiam"])
-    # add xorient into the file
     aipy_uv2.add_var("diameter", "d")
     aipy_uv2["diameter"] = "14."
     # copy data from old file
