@@ -4194,8 +4194,6 @@ class UVBeam(UVBase):
         feed_pol=None,
         feed_angle=None,
         mount_type=None,
-        rotate_pol=None,
-        frequency=None,
         telescope_name=None,
         feed_name=None,
         feed_version=None,
@@ -4217,40 +4215,9 @@ class UVBeam(UVBase):
         Parameters
         ----------
         filename : str
-            Either a settings yaml file or a FEKO text file
-
-            Settings yaml files must include the following keywords:
-
-                |  - telescope_name (str)
-                |  - feed_name (str)
-                |  - feed_version (str)
-                |  - model_name (str)
-                |  - model_version (str)
-                |  - history (str)
-                |  - frequencies (list(float))
-                |  - feko ffe filename (str) -- path relative to yaml file
-                |  - feed_pol (str) or (list(str))
-
-            and they may include the following optional keywords:
-
-                |  - x_orientation (str): Optional but strongly encouraged!
-                |  - ref_imp (float): beam model reference impedance
-                |  - sim_beam_type (str): e.g. 'E-farfield'
-                |  - all other fields will go into the extra_keywords attribute
-
-            More details and an example are available in the docs
-            (FEKO_settings_yaml.rst).
-            Specifying any of the associated keywords to this function will
-            override the values in the settings file.
+            A FEKO text file.
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-        feed_pol : str
-            The feed or polarization or list of feeds or polarizations the
-            files correspond to.
-            Defaults to 'x' (meaning x for efield or xx for power beams).
         feed_pol : str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
@@ -4273,10 +4240,6 @@ class UVBeam(UVBase):
             beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
             (also referred to in some formats as "bizarre"). See the "Conventions"
             page of the documentation for further details.
-        frequency : float or list of float, optional
-            The frequency or list of frequencies corresponding to the filename(s).
-            This is assumed to be in the same order as the files.
-            If not passed, the code attempts to parse it from the filenames.
         telescope_name : str, optional
             The name of the telescope corresponding to the filename(s).
         feed_name : str, optional
@@ -4289,10 +4252,6 @@ class UVBeam(UVBase):
             The version of the model corresponding to the filename(s).
         history : str, optional
             A string detailing the history of the filename(s).
-        x_orientation : str, optional
-            Orientation of the physical dipole corresponding to what is
-            labelled as the x polarization. Options are "east" (indicating
-            east/west orientation) and "north" (indicating north/south orientation)
         reference_impedance : float, optional
             The reference impedance of the model(s).
         extra_keywords : dict, optional
@@ -4328,22 +4287,15 @@ class UVBeam(UVBase):
             # default to empty (done here in case it's specified in a yaml file)
             history = ""
 
-        if isinstance(frequency, np.ndarray):
-            if len(frequency.shape) > 1:
-                raise ValueError("frequency can not be a multi-dimensional array")
-            frequency = frequency.tolist()
-        if isinstance(frequency, list | tuple) and len(frequency) == 1:
-            frequency = frequency[0]
-
         if isinstance(feed_pol, np.ndarray):
             if len(feed_pol.shape) > 1:
                 raise ValueError("feed_pol can not be a multi-dimensional array")
             feed_pol = feed_pol.tolist()
-        if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
+        if isinstance(feed_pol, list | tuple):
+            if len(feed_pol) != 1:
+                raise ValueError("feed_pol must have exactly one element")
             feed_pol = feed_pol[0]
 
-        if isinstance(frequency, list | tuple) and len(frequency) > 1:
-            raise ValueError("Too many frequencies specified")
         if isinstance(feed_pol, list | tuple) and len(feed_pol) > 1:
             raise ValueError("Too many feed_pols specified")
         feko_beam_obj = feko_beam.FEKOBeam()
@@ -4353,7 +4305,6 @@ class UVBeam(UVBase):
             feed_pol=feed_pol,
             feed_angle=feed_angle,
             mount_type=mount_type,
-            frequency=frequency,
             telescope_name=telescope_name,
             feed_name=feed_name,
             feed_version=feed_version,
@@ -4896,8 +4847,6 @@ class UVBeam(UVBase):
                         feed_pol=feed_pol,
                         feed_angle=feed_angle,
                         mount_type=mount_type,
-                        rotate_pol=rotate_pol,
-                        frequency=frequency,
                         telescope_name=telescope_name,
                         feed_name=feed_name,
                         feed_version=feed_version,

@@ -13,9 +13,16 @@ feko_filename2 = feko_filename.replace("x", "y")
 
 
 @pytest.mark.parametrize(("btype"), [("power"), ("efield")])
-def test_read_beam(btype):
+def test_read_feko(btype):
     beam1 = UVBeam()
     beam2 = UVBeam()
+
+    if btype == "efield":
+        reference_impedance = 50
+        extra_keywords = {"foo": "bar"}
+    else:
+        reference_impedance = None
+        extra_keywords = None
 
     beam_feko1 = beam1.from_file(
         feko_filename,
@@ -29,6 +36,8 @@ def test_read_beam(btype):
         model_version="1.0",
         mount_type="fixed",
         feed_angle=90.0,  # E/W
+        reference_impedance=reference_impedance,
+        extra_keywords=extra_keywords,
     )
 
     beam_feko2 = beam2.from_file(
@@ -43,6 +52,8 @@ def test_read_beam(btype):
         model_version="1.0",
         mount_type="fixed",
         feed_angle=0.0,  # N/S
+        reference_impedance=reference_impedance,
+        extra_keywords=extra_keywords,
     )
     if btype == "power":
         assert beam_feko1.beam_type == "power"
@@ -64,24 +75,53 @@ def test_read_beam(btype):
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
 
 
-def test_beam_freq_pol():
-    beam1 = UVBeam()
-    with pytest.raises(
-        ValueError, match="frequency can not be a multi-dimensional array"
-    ):
-        beam1.from_file(
-            feko_filename, beam_type="power", frequency=np.array([[1e6], [10e6]])
+@pytest.mark.parametrize(
+    ("feedpol", "msg"),
+    [
+        (np.array([["x"]]), "feed_pol can not be a multi-dimensional array"),
+        (["x", "y"], "feed_pol must have exactly one element"),
+    ],
+)
+def test_read_feko_feedpol_errors(feedpol, msg):
+    with pytest.raises(ValueError, match=msg):
+        UVBeam.from_file(feko_filename, beam_type="power", feed_pol=feedpol)
+
+
+@pytest.mark.parametrize(
+    ("error_type", "msg"),
+    [
+        ("grid", "Data does not appear to be on a grid"),
+        ("zen_grid", "Data does not appear to be regularly gridded in zenith angle"),
+        ("az_grid", "Data does not appear to be regularly gridded in azimuth angle"),
+    ],
+)
+def test_read_feko_file_errors(tmp_path, error_type, msg):
+    # make a copy of the test file and mess it up to test error catching.
+    new_file = os.path.join(tmp_path, filename)
+
+    with open(feko_filename) as file:
+        # read a list of lines into data
+        data = file.readlines()
+
+    if error_type == "grid":
+        data[10] = (
+            "                    0.50000000E+0     0.00000000E+0    -1.51385203E-7     "
+            "3.78444333E-8    -4.30077968E-3    -5.07565385E-3    -9.61862064E+1    "
+            "-3.59112629E+0    -3.59112629E+0   \n"
         )
+    elif error_type == "zen_grid":
+        for li, line in enumerate(data):
+            if line.startswith("                    0.0"):
+                data[li] = line.replace(
+                    "                    0.0", "                    0.5"
+                )
+    elif error_type == "az_grid":
+        for li, line in enumerate(data):
+            if line[38:].startswith("0.0"):
+                data[li] = line[:38] + line[38:].replace("0.0", "0.5")
 
-    with pytest.raises(
-        ValueError, match="feed_pol can not be a multi-dimensional array"
-    ):
-        beam1.from_file(
-            feko_filename, beam_type="power", feed_pol=np.array([["x"], ["y"]])
-        )
+    with open(new_file, "w") as file:
+        file.writelines(data)
 
-    with pytest.raises(ValueError, match="Too many frequencies specified"):
-        beam1.from_file(feko_filename, beam_type="power", frequency=[1e6, 10e6])
-
-    with pytest.raises(ValueError, match="Too many feed_pols specified"):
-        beam1.from_file(feko_filename, beam_type="power", feed_pol=["x", "y"])
+    with pytest.raises(ValueError, match=msg):
+        UVBeam.from_file(new_file, beam_type="efield")
