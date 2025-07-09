@@ -924,7 +924,10 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
                 if row_idx in pyuvdata_line_idx:
                     continue
 
-                newline = ";".join([str(col[row_idx]) for col in cols]) + "\n"
+                newline = (
+                    ";".join([str(col[row_idx]) for col in cols if len(col) > row_idx])
+                    + "\n"
+                )
                 history_str += newline
 
             history_str += "End measurement set history.\n"
