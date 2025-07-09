@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 - A bug in `UVParameter.get_from_form` and `UVParameter.set_from_form` that caused
 errors when using astropy SkyCoord, Quantity or Time objects in UVParameters,
 arose when using `UVBase._select_along_param_axis`.
+- A bug in `utils.io.ms.read_ms_history` where an IndexError could be raised in
+the case that a column did not have (any or) enough rows of data to combine into
+the output history string.
 
 ## [3.2.2] - 2025-06-12
 
