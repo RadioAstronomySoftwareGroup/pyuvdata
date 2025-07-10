@@ -12,6 +12,14 @@ feko_filename = os.path.join(DATA_PATH, feko_folder, filename)
 feko_filename2 = feko_filename.replace("x", "y")
 
 
+def test_feko_files_preset():
+    from pathlib import Path
+
+    for file in [feko_filename, feko_filename2]:
+        fpath = Path(file)
+        assert fpath.is_file()
+
+
 @pytest.mark.parametrize(("btype"), [("power"), ("efield")])
 def test_read_feko(btype):
     beam1 = UVBeam()
@@ -24,6 +32,7 @@ def test_read_feko(btype):
         reference_impedance = None
         extra_keywords = None
 
+    assert os.path.isfile(feko_filename)
     beam_feko1 = beam1.from_file(
         feko_filename,
         beam_type=btype,
@@ -40,6 +49,7 @@ def test_read_feko(btype):
         extra_keywords=extra_keywords,
     )
 
+    assert os.path.isfile(feko_filename2)
     beam_feko2 = beam2.from_file(
         feko_filename2,
         beam_type=btype,
