@@ -48,6 +48,7 @@ jobs:
           environment-file: ci/${{ matrix.env_name }}.yml
           activate-environment: ${{ matrix.env_name }}
           run-post: false
+          conda-remove-defaults: "true"
 
       - name: Conda Info
         run: |
