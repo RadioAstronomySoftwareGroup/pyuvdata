@@ -4278,13 +4278,10 @@ class UVBeam(UVBase):
         """
         from . import feko_beam
 
-        feko_filename = filename
-
+        # set defaults to match FEKOBeam method
         if feed_pol is None:
-            # default to x (done here in case it's specified in a yaml file)
             feed_pol = "x"
         if history is None:
-            # default to empty (done here in case it's specified in a yaml file)
             history = ""
 
         if isinstance(feed_pol, np.ndarray):
@@ -4298,7 +4295,7 @@ class UVBeam(UVBase):
 
         feko_beam_obj = feko_beam.FEKOBeam()
         feko_beam_obj.read_feko_beam(
-            feko_filename,
+            filename,
             beam_type=beam_type,
             feed_pol=feed_pol,
             feed_angle=feed_angle,
