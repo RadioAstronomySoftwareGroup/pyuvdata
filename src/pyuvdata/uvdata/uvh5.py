@@ -35,6 +35,12 @@ except ImportError as error:
     hdf5plugin_present = False
     hdf5plugin_error = error
 
+arr_shape_msg = (
+    "The size of arrays in this file are not internally consistent, "
+    "which should not happen. Please file an issue in our GitHub issue "
+    "log so that we can fix it."
+)
+
 
 class FastUVH5Meta(hdf5_utils.HDF5Meta):
     """
@@ -578,14 +584,8 @@ class UVH5(UVData):
             self.freq_array = self.freq_array[0]
             self.channel_width = np.full(self.freq_array.size, self.channel_width)
 
-        arr_shape_msg = (
-            "The size of arrays in this file are not internally consistent, "
-            "which should not happen. Please file an issue in our GitHub issue "
-            "log so that we can fix it."
-        )
-        assert np.asarray(self.channel_width).size == self.freq_array.size, (
-            arr_shape_msg
-        )
+        if np.asarray(self.channel_width).size != self.freq_array.size:
+            raise RuntimeError(arr_shape_msg)  # pragma: no cover
 
         # For now, only set the rectangularity parameters if they exist in the header of
         # the file. These could be set automatically later on, but for now we'll leave
@@ -786,15 +786,10 @@ class UVH5(UVData):
 
         min_frac = np.min([blt_frac, freq_frac, pol_frac])
 
-        arr_shape_msg = (
-            "The size of arrays in this file are not internally consistent, "
-            "which should not happen. Please file an issue in our GitHub issue "
-            "log so that we can fix it."
-        )
-
-        if dgrp["visdata"].ndim == 3:
-            assert self.freq_array.ndim == 1, arr_shape_msg
-            assert self.channel_width.size == self.freq_array.size, arr_shape_msg
+        if dgrp["visdata"].ndim == 3 and (
+            self.freq_array.ndim != 1 or self.channel_width.size != self.freq_array.size
+        ):  # pragma: no cover
+            raise RuntimeError(arr_shape_msg)
 
         # get the fundamental datatype of the visdata; if integers, we need to
         # cast to floats
@@ -999,8 +994,8 @@ class UVH5(UVData):
             self.flag_array = np.squeeze(self.flag_array, axis=1)
             self.nsample_array = np.squeeze(self.nsample_array, axis=1)
 
-        assert self.freq_array.ndim == 1, arr_shape_msg
-        assert self.channel_width.size == self.freq_array.size, arr_shape_msg
+        if self.freq_array.ndim != 1 or self.channel_width.size != self.freq_array.size:
+            raise RuntimeError(arr_shape_msg)  # pragma: no cover
 
     @copy_replace_short_description(UVData.read_uvh5, style=DocstringStyle.NUMPYDOC)
     def read_uvh5(

@@ -106,7 +106,11 @@ class WarningsChecker(warnings.catch_warnings):
             raise RuntimeError(f"Cannot enter {self!r} twice")
         _list = super().__enter__()
         # record=True means it's None.
-        assert _list is not None
+        if _list is None:  # pragma: no cover
+            raise RuntimeError(
+                "Something is wrong, _list should not be None. Please file an "
+                "issue in our GitHub issue log so that we can fix it."
+            )
         self._list = _list
         warnings.simplefilter("always")
         # Filter annoying Cython warnings that serve no good purpose. see numpy#432

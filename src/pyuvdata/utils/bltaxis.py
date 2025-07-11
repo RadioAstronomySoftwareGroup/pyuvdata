@@ -101,8 +101,10 @@ def determine_blt_order(
         ):
             break
 
-    if Nbls > 1 and Ntimes > 1:
-        assert not (
+    if (
+        Nbls > 1
+        and Ntimes > 1
+        and (
             (time_bl and bl_time)
             or (time_a and a_time)
             or (time_b and b_time)
@@ -110,7 +112,9 @@ def determine_blt_order(
             or (time_order and b_order)
             or (a_order and b_order)
             or (time_order and bl_order)
-        ), (
+        )
+    ):  # pragma: no cover
+        raise RuntimeError(
             "Something went wrong when trying to determine the order of the blts axis. "
             "Please raise an issue on github, as this is not meant to happen."
             "None of the following should ever be True: \n"

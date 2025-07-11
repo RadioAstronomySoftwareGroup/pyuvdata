@@ -258,8 +258,11 @@ def _test_array_constant(array, *, tols=None, mask=...):
         array_to_test = np.asarray(array)[mask]
         if tols is None:
             tols = (0, 0)
-    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
-    assert len(tols) == 2, "tols must be a length-2 tuple"
+    if not isinstance(tols, tuple) or len(tols) != 2:
+        raise ValueError(
+            "tols must be a length-2 tuple. This should not happen when called "
+            "from higher level functions, please make an issue in our issue log."
+        )
 
     if array_to_test.size < 2:
         # arrays with 0 or 1 elements are constant by definition
@@ -315,13 +318,19 @@ def _test_array_consistent(array, deltas, *, tols=None, mask=...):
     if deltas_to_test.size == 1:
         exp_deltas = deltas_to_test
     else:
-        assert array_to_test.shape == deltas_to_test.shape, (
-            "array and deltas must have same shape"
-        )
+        if array_to_test.shape != deltas_to_test.shape:
+            raise ValueError(
+                "array and deltas must have same shape. This should not happen "
+                "when called from higher level functions, please make an issue "
+                "in our issue log."
+            )
         exp_deltas = (deltas_to_test[:-1] + deltas_to_test[1:]) * 0.5
 
-    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
-    assert len(tols) == 2, "tols must be a length-2 tuple"
+    if not isinstance(tols, tuple) or len(tols) != 2:
+        raise ValueError(
+            "tols must be a length-2 tuple. This should not happen when called "
+            "from higher level functions, please make an issue in our issue log."
+        )
 
     if array is None or deltas is None or array_to_test.size < 2:
         # arrays with 0 or 1 elements are constant by definition
@@ -373,9 +382,6 @@ def _test_array_constant_spacing(array, *, tols=None, mask=..., allow_resort=Fal
     if array is None or array_to_test.size <= 2:
         # arrays with 1 or 2 elements are constantly spaced by definition
         return True
-
-    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
-    assert len(tols) == 2, "tols must be a length-2 tuple"
 
     if allow_resort:
         array_to_test = np.sort(array_to_test)

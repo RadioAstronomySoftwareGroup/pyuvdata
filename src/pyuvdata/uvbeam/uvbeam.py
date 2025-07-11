@@ -1329,10 +1329,11 @@ class UVBeam(UVBase):
                 power_data[:, pol_i, fq_i, :] = self._construct_mueller(
                     jones=jones, pol_index1=pol_i, pol_index2=pol_i
                 )
-        assert not np.any(np.iscomplex(power_data)), (
-            "The calculated pstokes beams are complex but should be real. This is a "
-            "bug, please report it in our issue log"
-        )
+        if np.any(np.iscomplex(power_data)):  # pragma: no cover
+            raise RuntimeError(
+                "The calculated pstokes beams are complex but should be real. "
+                "This is a bug, please report it in our issue log"
+            )
         power_data = np.abs(power_data)
 
         if self.pixel_coordinate_system != "healpix":
@@ -1389,9 +1390,6 @@ class UVBeam(UVBase):
             shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
-        assert isinstance(freq_array, np.ndarray)
-        assert freq_array.ndim == 1
-
         # use the beam at nearest neighbors if kind is 'nearest'
         if kind == "nearest":
             freq_dists = np.abs(self.freq_array[np.newaxis] - freq_array.reshape(-1, 1))
@@ -1463,10 +1461,6 @@ class UVBeam(UVBase):
 
                 interp_arrays.append(lut(freq_array))
 
-        exp_ndim = 1
-
-        assert interp_arrays[1].ndim == exp_ndim
-
         return tuple(interp_arrays)
 
     def _handle_input_for_freq_interpolation(
@@ -1483,7 +1477,6 @@ class UVBeam(UVBase):
         intrinsic data array and bandpass array.
         """
         if freq_array is not None:
-            assert isinstance(freq_array, np.ndarray)
             interp_arrays = self._interp_freq(
                 freq_array, kind=freq_interp_kind, tol=freq_interp_tol
             )
@@ -1726,15 +1719,6 @@ class UVBeam(UVBase):
                 interp_arrays.append(interp_coupling_matrix)
             return tuple(interp_arrays)
 
-        freq_axis = 2
-
-        # Check input arrays
-        assert isinstance(az_array, np.ndarray)
-        assert isinstance(za_array, np.ndarray)
-        assert az_array.ndim == 1
-        assert az_array.shape == za_array.shape
-        assert input_data_array.shape[freq_axis] == input_nfreqs
-
         # Get the data type
         if np.iscomplexobj(input_data_array):
             data_type = np.complex128
@@ -1913,15 +1897,6 @@ class UVBeam(UVBase):
                 interp_arrays.append(interp_coupling_matrix)
             return tuple(interp_arrays)
 
-        freq_axis = 2
-
-        # Check input arrays
-        assert isinstance(az_array, np.ndarray)
-        assert isinstance(za_array, np.ndarray)
-        assert az_array.ndim == 1
-        assert az_array.shape == za_array.shape
-        assert input_data_array.shape[freq_axis] == input_nfreqs
-
         # Get the data type
         if np.iscomplexobj(input_data_array):
             data_type = np.complex128
@@ -2065,12 +2040,6 @@ class UVBeam(UVBase):
             if self.antenna_type == "phased_array":
                 interp_arrays.append(interp_coupling_matrix)
             return tuple(interp_arrays)
-
-        # Check input arrays
-        assert isinstance(az_array, np.ndarray)
-        assert isinstance(za_array, np.ndarray)
-        assert az_array.ndim == 1
-        assert az_array.shape == za_array.shape
 
         # Get number of polarizations and indices
         Npol_feeds, pol_inds = self._prepare_polarized_inputs(polarizations)
@@ -2312,10 +2281,22 @@ class UVBeam(UVBase):
         interp_func_name = interpolation_function
         interp_func = self.interpolation_function_dict[interpolation_function]["func"]
 
+        arr_to_check = {}
         if freq_array is not None:
-            if freq_array.ndim != 1:
-                raise ValueError("freq_array must be one-dimensional")
+            freq_array = np.asarray(freq_array)
+            arr_to_check["freq_array"] = freq_array
+        if az_array is not None:
+            az_array = np.asarray(az_array)
+            arr_to_check["az_array"] = az_array
+        if za_array is not None:
+            za_array = np.asarray(za_array)
+            arr_to_check["za_array"] = za_array
 
+        for name, arr in arr_to_check.items():
+            if arr.ndim != 1:
+                raise ValueError(f"{name} must be one-dimensional")
+
+        if freq_array is not None:
             # get frequency distances
             freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
             nearest_dist = np.min(freq_dists, axis=1)
@@ -2335,6 +2316,11 @@ class UVBeam(UVBase):
             az_array_use = az_array_use.flatten()
             za_array_use = za_array_use.flatten()
         else:
+            if (az_array is not None or za_array is not None) and (
+                az_array is None or za_array is None or az_array.size != za_array.size
+            ):
+                raise ValueError("az_array and za_array must be the same shape.")
+
             az_array_use = copy.copy(az_array)
             za_array_use = copy.copy(za_array)
 
@@ -2588,7 +2574,11 @@ class UVBeam(UVBase):
             nside_min_res = np.sqrt(3 / np.pi) * np.radians(60.0) / min_res
             nside = int(2 ** np.ceil(np.log2(nside_min_res)))
             hp_obj = HEALPix(nside=nside)
-            assert hp_obj.pixel_resolution.to_value(units.radian) < min_res
+            if hp_obj.pixel_resolution.to_value(units.radian) > min_res:
+                raise RuntimeError(  # pragma: no cover
+                    "Something went wrong with computing HEALPix nside to use. "
+                    "Please make an issue in our issue log"
+                )
         else:
             hp_obj = HEALPix(nside=nside)
 
@@ -2643,12 +2633,6 @@ class UVBeam(UVBase):
         np.ndarray of float
             Healpix map of beam powers for a single pol, shape: (Nfreqs, Npixels)
         """
-        # assert map is in healpix coords
-        assert self.pixel_coordinate_system == "healpix", (
-            "pixel_coordinate_system must be healpix"
-        )
-        # assert beam_type is power
-        assert self.beam_type == "power", "beam_type must be power"
         if isinstance(pol, str | np.str_):
             pol = utils.polstr2num(
                 pol, x_orientation=self.get_x_orientation_from_feeds()

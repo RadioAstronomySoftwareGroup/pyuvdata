@@ -1431,11 +1431,11 @@ class Miriad(UVData):
                     unique_phase_frames = np.unique(phase_frame_list[select_mask])
                     # "phsframe" is not a standard Miriad keyword, it is only present
                     # in files written by pyuvdata, so this should not happen
-                    assert_err_msg = (
-                        "This is a bug, please make an issue in our issue log at "
-                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
-                    )
-                    assert unique_phase_frames.size == 1, assert_err_msg
+                    if unique_phase_frames.size != 1:  # pragma: no cover
+                        raise RuntimeError(
+                            "This is a bug, please make an issue in our issue log at "
+                            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+                        )
                     cat_frame = unique_phase_frames[0]
 
                     if cat_frame == "unprojected":
@@ -2144,12 +2144,12 @@ class Miriad(UVData):
                 uv["cnt"] = self.nsample_array[viscnt, :, polcnt].astype(np.double)
                 data = self.data_array[viscnt, :, polcnt]
                 flags = self.flag_array[viscnt, :, polcnt]
-                # Using an assert here because it should be guaranteed by an earlier
-                # method call.
-                assert this_j >= this_i, (
-                    "Miriad requires ant1<ant2 which should be "
-                    "guaranteed by prior conjugate_bls call"
-                )
+                if this_j < this_i:  # pragma: no cover
+                    raise RuntimeError(
+                        "Miriad requires ant1<ant2 which should be "
+                        "guaranteed by prior conjugate_bls call. This is a bug, "
+                        "please make an issue."
+                    )
                 preamble = (uvw, this_t, (this_i, this_j))
 
                 uv.write(preamble, data, flags)

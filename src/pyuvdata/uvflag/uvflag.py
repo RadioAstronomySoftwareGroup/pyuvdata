@@ -1051,7 +1051,10 @@ class UVFlag(UVBase):
             Antenna numbers corresponding to baseline.
 
         """
-        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
+        if self.type != "baseline":
+            raise ValueError(
+                "Can only call baseline_to_antnums on 'baseline' type UVFlag objects."
+            )
         return utils.baseline_to_antnums(baseline, Nants_telescope=self.telescope.Nants)
 
     def antnums_to_baseline(self, ant1, ant2, *, attempt256=False):
@@ -1073,19 +1076,28 @@ class UVFlag(UVBase):
         int or array of int
             baseline number corresponding to the two antenna numbers.
         """
-        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
+        if self.type != "baseline":
+            raise ValueError(
+                "Can only call antnums_to_baseline on 'baseline' type UVFlag objects."
+            )
         return utils.antnums_to_baseline(
             ant1, ant2, Nants_telescope=self.telescope.Nants, attempt256=attempt256
         )
 
     def get_baseline_nums(self):
         """Return numpy array of unique baseline numbers in data."""
-        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
+        if self.type != "baseline":
+            raise ValueError(
+                "Can only call get_baseline_nums on 'baseline' type UVFlag objects."
+            )
         return np.unique(self.baseline_array)
 
     def get_antpairs(self):
         """Return list of unique antpair tuples (ant1, ant2) in data."""
-        assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
+        if self.type != "baseline":
+            raise ValueError(
+                "Can only call get_antpairs on 'baseline' type UVFlag objects."
+            )
         return list(
             zip(*self.baseline_to_antnums(self.get_baseline_nums()), strict=True)
         )

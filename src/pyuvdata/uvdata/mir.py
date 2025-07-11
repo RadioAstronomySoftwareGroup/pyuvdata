@@ -760,7 +760,11 @@ class Mir(UVData):
         # entry for UVData, then grab ra/dec/position data.
         self.phase_center_id_array = phase_center_id_array
         for val in np.unique(self.phase_center_id_array):
-            assert val in self.phase_center_catalog
+            if val not in self.phase_center_catalog:  # pragma: no cover
+                raise RuntimeError(
+                    "phase_center_id_array not in phase_center_catalog. This is "
+                    "a bug, please make an issue."
+                )
 
         # Fill in the apparent coord calculations
         self.phase_center_app_ra = app_ra
