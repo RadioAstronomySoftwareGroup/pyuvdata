@@ -11870,11 +11870,20 @@ def test_auto_check(hera_uvh5, uv_phase_comp, dataset, tmp_path):
     [
         [{"bls": (1, 2)}, ValueError, "No autos available in this data set to do"],
         [{"polarizations": -7}, ValueError, "Cannot normalize xy, matching pols"],
+        [
+            {},
+            RuntimeError,
+            "The code assumes a relative tolerance of 0 on time_array, but "
+            "the relative tolerance on this instance is not 0.",
+        ],
     ],
 )
 def test_normalize_by_autos_errs(uv_phase_comp, select_kwargs, err_type, err_msg):
     uv, _ = uv_phase_comp
-    uv.select(**select_kwargs)
+    if len(select_kwargs) > 0:
+        uv.select(**select_kwargs)
+    else:
+        uv._time_array.tols = (1e-3, uv._time_array.tols[1])
     with pytest.raises(err_type, match=err_msg):
         uv.normalize_by_autos()
 

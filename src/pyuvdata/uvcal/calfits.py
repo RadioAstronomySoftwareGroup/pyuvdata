@@ -689,10 +689,11 @@ class CALFITS(UVCal):
                 proc = None
 
             self.Nspws = hdr.pop("NAXIS5")
-            assert self.Nspws == 1, (
-                "This file appears to have multiple spectral windows, which is not "
-                "supported by the calfits format."
-            )
+            if self.Nspws != 1:  # pragma: no cover
+                raise RuntimeError(
+                    "This file appears to have multiple spectral windows, which is not "
+                    "supported by the calfits format."
+                )
             # subtract 1 to be zero-indexed
             self.spw_array = fits_utils._gethduaxis(fname[0], 5) - 1
 
@@ -711,10 +712,6 @@ class CALFITS(UVCal):
                 self.Nfreqs = 1
 
                 sechdu = fname[hdunames["FLAGS"]]
-                assert self.Nspws == 1, (
-                    "This file appears to have multiple spectral windows, which is not "
-                    "supported by the calfits format."
-                )
                 spw_array = fits_utils._gethduaxis(sechdu, 5) - 1
 
                 if not np.allclose(spw_array, self.spw_array):

@@ -589,7 +589,11 @@ class MirMetaData:
             self._data = obj
             if self.dtype is None:
                 self.dtype = obj.dtype
-            assert self.dtype == obj.dtype, "ndarray dtype must match object dtype."
+            if self.dtype != obj.dtype:
+                raise RuntimeError(
+                    "ndarray dtype must match object dtype. This is a bug, "
+                    "please make an issue."
+                )
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
 
@@ -2602,8 +2606,10 @@ class MirMetaData:
 
             # There's no way these should ever happen unless the metadata are bad,
             # just check and make sure this isn't the case.
-            assert record_size > 0, "record_size not gtr than zero, metadata corrupted"
-            assert record_start >= 0, "record_start less than zero, metadata corrupted"
+            if record_size <= 0:  # pragma: no cover
+                raise RuntimeError("record_size not gtr than zero, metadata corrupted.")
+            if record_start < 0:  # pragma: no cover
+                raise RuntimeError("record_start less than zero, metadata corrupted")
 
             int_dict[inhid] = {
                 "inhid": inhid,
@@ -2692,7 +2698,8 @@ class MirMetaData:
         # and addition. Note that this is really only used for eng_data, since it's
         # the only regularly indexed MirMetaData object that needs this.
         if use_cipher:
-            assert len(check_field) == 2, "Cannot use cipher with more than two fields."
+            if len(check_field) != 2:  # pragma: no cover
+                raise RuntimeError("Cannot use cipher with more than two fields.")
 
             # Make sure that we have unsigned ints
             for idx in range(len(check_field)):

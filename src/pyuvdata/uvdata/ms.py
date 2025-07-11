@@ -141,15 +141,15 @@ class MS(UVData):
         col_list = ["DATA", "WEIGHT_SPECTRUM", "FLAG"]
 
         if model_data is not None:
-            assert model_data.shape == self.data_array.shape, (
-                "model_data must have the same shape as data_array."
-            )
+            if model_data.shape != self.data_array.shape:  # pragma: no cover
+                raise RuntimeError("model_data must have the same shape as data_array.")
             arr_list.append(model_data)
             col_list.append("MODEL_DATA")
         if corrected_data is not None:
-            assert corrected_data.shape == self.data_array.shape, (
-                "corrected_data must have the same shape as data_array."
-            )
+            if corrected_data.shape != self.data_array.shape:  # pragma: no cover
+                raise RuntimeError(
+                    "corrected_data must have the same shape as data_array."
+                )
             arr_list.append(corrected_data)
             col_list.append("CORRECTED_DATA")
 
@@ -593,9 +593,10 @@ class MS(UVData):
         nfreqs = 0
         spw_id_array = np.array([], dtype=int)
         for key in sorted(spw_dict.keys()):
-            assert len(data_dict) == len(spw_dict), (
-                "This is a bug, please make an issue in our issue log."
-            )
+            if len(data_dict) != len(spw_dict):  # pragma: no cover
+                raise RuntimeError(
+                    "This is a bug, please make an issue in our issue log."
+                )
             data_dict_key = spw_dict[key]["DATA_DICT_KEY"]
             nchan = spw_dict[key]["NUM_CHAN"]
             data_dict[data_dict_key]["STARTCHAN"] = nfreqs

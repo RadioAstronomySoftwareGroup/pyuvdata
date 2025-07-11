@@ -653,16 +653,16 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             warnings.warn("Coordinate reference frame not detected, defaulting to ICRS")
             field_dict["frame"] = "icrs"
             field_dict["epoch"] = 2000.0
-        message = (
-            "PHASE_DIR is expressed as a polynomial. "
-            "We do not currently support this mode, please make an issue."
-        )
 
         for idx in range(n_rows):
             phase_dir = tb_field.getcell("PHASE_DIR", idx)
             # Error if the phase_dir has a polynomial term because we don't know
             # how to handle that
-            assert phase_dir.shape[0] == 1, message
+            if phase_dir.shape[0] != 1:  # pragma: no cover
+                raise NotImplementedError(
+                    "PHASE_DIR is expressed as a polynomial.  We do not currently "
+                    "support this mode, please make an issue."
+                )
 
             field_dict["ra"][idx] = float(phase_dir[0, 0])
             field_dict["dec"][idx] = float(phase_dir[0, 1])

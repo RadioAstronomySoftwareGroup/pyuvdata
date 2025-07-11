@@ -850,11 +850,12 @@ class UVParameter:
                     value = value.flat[ind_arr].reshape(new_shape)
         elif isinstance(self.value, list):
             # If this is a list, it _should_ always have 1-dimension.
-            assert len(val_slice) == 1, (
-                "Something is wrong, len(UVParameter.form) != 1 when selecting on a "
-                "list, which should not be possible. Please file an "
-                "issue in our GitHub issue log so that we can fix it."
-            )
+            if len(val_slice) != 1:  # pragma: no cover
+                raise RuntimeError(
+                    "Something is wrong, len(UVParameter.form) != 1 when selecting"
+                    " on a list, which should not be possible. Please file an "
+                    "issue in our GitHub issue log so that we can fix it."
+                )
             if isinstance(val_slice[0], slice):
                 value = self.value[val_slice[0]]
             else:
@@ -938,13 +939,14 @@ class UVParameter:
                 temp_arr = self.value[tuple(val_slice)]
 
                 # Make sure this is a view that is connected in memory
-                assert temp_arr.base is (
+                if temp_arr.base is not (
                     self.value if self.value.base is None else self.value.base
-                ), (
-                    "Something is wrong, slicing self.value does not return a view "
-                    "on the original array. Please file an issue in our GitHub "
-                    "issue log so that we can fix it."
-                )
+                ):  # pragma: no cover
+                    raise RuntimeError(
+                        "Something is wrong, slicing self.value does not return a view "
+                        "on the original array. Please file an issue in our GitHub "
+                        "issue log so that we can fix it."
+                    )
                 ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
 
                 # N.b., later if needed we can add mask handling here (e.g., for data
@@ -955,11 +957,12 @@ class UVParameter:
                 self.value[tuple(val_slice)] = values
         elif isinstance(self.value, list):
             # If this is a list, it _should_ always have 1-dimension.
-            assert len(val_slice) == 1, (
-                "Something is wrong, len(UVParameter.form) != 1 when setting a "
-                "list, which should not be possible. Please file an "
-                "issue in our GitHub issue log so that we can fix it."
-            )
+            if len(val_slice) != 1:  # pragma: no cover
+                raise RuntimeError(
+                    "Something is wrong, len(UVParameter.form) != 1 when setting a "
+                    "list, which should not be possible. Please file an "
+                    "issue in our GitHub issue log so that we can fix it."
+                )
             if isinstance(val_slice[0], slice):
                 self.value[val_slice[0]] = values
             else:

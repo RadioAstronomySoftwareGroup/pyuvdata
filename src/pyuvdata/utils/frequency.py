@@ -40,10 +40,11 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, strict=True):
     # This is an internal consistency check to make sure that the indexes match
     # up as expected -- this shouldn't error unless someone is mucking with
     # settings they shouldn't be.
-    assert np.all(np.isin(flex_spw_id_array, exp_spw_ids)), (
-        "There are some entries in flex_spw_id_array that are not in spw_array. "
-        "This is a bug, please report it in an issue."
-    )
+    if not np.all(np.isin(flex_spw_id_array, exp_spw_ids)):  # pragma: no cover
+        raise RuntimeError(
+            "There are some entries in flex_spw_id_array that are not in spw_array. "
+            "This is a bug, please report it in an issue."
+        )
 
     n_breaks = np.sum(flex_spw_id_array[1:] != flex_spw_id_array[:-1])
     if (n_breaks + 1) != spw_array.size:

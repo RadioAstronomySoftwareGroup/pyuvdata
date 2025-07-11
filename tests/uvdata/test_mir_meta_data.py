@@ -163,7 +163,7 @@ def check_init_data_err():
         wrong_data = np.arange(201)
         # Make sure we get the error message we expect w/ an unexpected dtype
         with pytest.raises(
-            AssertionError, match="ndarray dtype must match object dtype."
+            RuntimeError, match="ndarray dtype must match object dtype."
         ):
             type(obj)(wrong_data)
 

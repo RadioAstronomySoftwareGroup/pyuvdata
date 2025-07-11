@@ -265,7 +265,11 @@ class UVFITS(UVData):
             # no select, read in all the data
             if vis_hdu.header["NAXIS"] == 7:
                 raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
-                assert self.Nspws == raw_data_array.shape[1]
+                if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                    raise RuntimeError(
+                        "data array does not have expected shape. This is a bug, "
+                        "please make an issue."
+                    )
 
             else:
                 # in many uvfits files the spw axis is left out,
@@ -289,7 +293,11 @@ class UVFITS(UVData):
                 if vis_hdu.header["NAXIS"] == 7:
                     raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    assert self.Nspws == raw_data_array.shape[1]
+                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                        raise RuntimeError(
+                            "data array does not have expected shape. This is a bug, "
+                            "please make an issue."
+                        )
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -304,7 +312,11 @@ class UVFITS(UVData):
                 if vis_hdu.header["NAXIS"] == 7:
                     raw_data_array = vis_hdu.data.data[:, :, :, :, freq_inds, :, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    assert self.Nspws == raw_data_array.shape[1]
+                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                        raise RuntimeError(
+                            "data array does not have expected shape. This is a bug, "
+                            "please make an issue."
+                        )
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -320,7 +332,11 @@ class UVFITS(UVData):
                 if vis_hdu.header["NAXIS"] == 7:
                     raw_data_array = vis_hdu.data.data[:, :, :, :, :, pol_inds, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    assert self.Nspws == raw_data_array.shape[1]
+                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                        raise RuntimeError(
+                            "data array does not have expected shape. This is a bug, "
+                            "please make an issue."
+                        )
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -333,7 +349,11 @@ class UVFITS(UVData):
                 if freq_frac < 1:
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
-        assert len(raw_data_array.shape) == 5
+        if len(raw_data_array.shape) != 5:  # pragma: no cover
+            raise RuntimeError(
+                "data array does not have expected shape. This is a bug, "
+                "please make an issue."
+            )
 
         # Reshape the data array to be the right size if we are working w/ multiple
         # spectral windows
@@ -436,7 +456,8 @@ class UVFITS(UVData):
                     np.tile(np.arange(self.Nspws), (uvfits_nchan, 1))
                 ).flatten()
                 fq_hdu = hdu_list[hdunames["AIPS FQ"]]
-                assert self.Nspws == fq_hdu.header["NO_IF"]
+                if self.Nspws != fq_hdu.header["NO_IF"]:  # pragma: no cover
+                    raise RuntimeError("Inconsistent number of SPWs in file.")
 
                 # TODO: This is fine for now, although I (karto) think that this
                 # is relative to the ref_freq, which can be specified as part of

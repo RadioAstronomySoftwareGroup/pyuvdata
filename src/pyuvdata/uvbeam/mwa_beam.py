@@ -426,9 +426,11 @@ class MWABeam(UVBeam):
                 # form P(cos(theta))/(sin\theta) and P^{m+1}(cos(theta))with
                 # FEKO M,N order
                 nmax = int(np.max(N))
-                assert np.max(N) - nmax == 0, (
-                    "The maximum of N should be an integer value!"
-                )
+                if np.max(N) - nmax != 0:  # pragma: no cover
+                    raise RuntimeError(
+                        "The maximum of N should be an integer value! This is a "
+                        "bug, please make an issue in our issue log."
+                    )
 
                 # calculate equation C_mn from equation 4 of
                 # pyuvdata/docs/references/Far_field_spherical_FEKO_draft2.pdf

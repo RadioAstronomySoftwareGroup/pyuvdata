@@ -7828,11 +7828,12 @@ class UVData(UVBase):
                     n_sum = 0
 
         # make sure we've populated the right number of baseline-times
-        assert temp_idx == temp_Nblts, (
-            f"Wrong number of baselines. Got {temp_idx:d},  "
-            f"expected {temp_Nblts:d}. This is a bug, please make an issue at "
-            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
-        )
+        if temp_idx != temp_Nblts:  # pragma: no cover
+            raise RuntimeError(
+                f"Wrong number of baselines. Got {temp_idx:d},  "
+                f"expected {temp_Nblts:d}. This is a bug, please make an issue at "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+            )
 
         # harmonize temporary arrays with existing ones
         if min_int_time is not None:
@@ -11900,7 +11901,11 @@ class UVData(UVBase):
 
         # Normally time has a fixed atol, but verify that this is the case
         time_tol = self._time_array.tols[1]
-        assert self._time_array.tols[0] == 0
+        if self._time_array.tols[0] != 0:
+            raise RuntimeError(
+                "The code assumes a relative tolerance of 0 on time_array, but "
+                "the relative tolerance on this instance is not 0."
+            )
 
         # Start searching through time, keeping in mind that the data are time ordered.
         time_groups = []

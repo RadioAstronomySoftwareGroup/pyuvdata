@@ -734,6 +734,11 @@ def test_transform_icrs_to_app_no_novas_error(astrometry_args):
         [{"app_ra": np.arange(10)}, "app_ra and app_dec must be the same shape."],
         [{"app_dec": np.arange(10)}, "app_ra and app_dec must be the same shape."],
         [{"time_array": np.arange(10)}, "time_array must be of either of length 1"],
+        [
+            {"time_array": np.arange(0)},
+            "time_array has size 0. This should not happen when called from "
+            "higher level functions, please make an issue in our issue log.",
+        ],
     ),
 )
 def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
@@ -2118,3 +2123,20 @@ def test_pole_calc_pa():
     np.testing.assert_allclose(
         pos_angle, [0.2564204225333429, 0.00920308652161622], atol=utils.RADIAN_TOL
     )
+
+
+@pytest.mark.parametrize("offset_pos", [0, -1])
+def test_calc_fram_pos_angle_errors(offset_pos):
+    with pytest.raises(
+        ValueError,
+        match="offset_pos must be greater than 0. This should not happen when called "
+        "from higher level functions, please make an issue in our issue log.",
+    ):
+        utils.phasing.calc_frame_pos_angle(
+            time_array=np.array([2456789.0, 2456789.0]),
+            app_ra=np.array([np.pi / 4, np.pi]),
+            app_dec=np.radians(np.array([-89.7, 89.8])),
+            telescope_loc=(0, 30, 0),
+            ref_frame="icrs",
+            offset_pos=offset_pos,
+        )

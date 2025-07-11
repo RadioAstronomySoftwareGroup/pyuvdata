@@ -657,11 +657,18 @@ class UVCal(UVBase):
 
         """
         if wide_band:
-            assert self.flex_spw_id_array is None or np.array_equal(
+            if self.flex_spw_id_array is not None and not np.array_equal(
                 self.flex_spw_id_array, self.spw_array
-            ), "flex_spw_id_array must be unset or equal to spw_array to set wide_band"
-        else:
-            assert self.cal_type != "delay", "delay objects cannot have wide_band=False"
+            ):  # pragma: no cover
+                raise RuntimeError(
+                    "flex_spw_id_array must be unset or equal to spw_array to "
+                    "set wide_band. This is a bug, please make an issue."
+                )
+        elif self.cal_type == "delay":  # pragma: no cover
+            raise RuntimeError(
+                "delay objects cannot have wide_band=False. This is a bug, "
+                "please make an issue."
+            )
         self.wide_band = wide_band
 
         if wide_band:

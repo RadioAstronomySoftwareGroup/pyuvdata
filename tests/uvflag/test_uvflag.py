@@ -3036,6 +3036,32 @@ def test_baseline_to_antnums():
     assert a2 == uvf.ant_2_array[0]
 
 
+def test_baseline_antnums_error(uvf_from_uvcal):
+    with pytest.raises(
+        ValueError,
+        match="Can only call baseline_to_antnums on 'baseline' type UVFlag objects.",
+    ):
+        uvf_from_uvcal.baseline_to_antnums([0])
+
+    with pytest.raises(
+        ValueError,
+        match="Can only call antnums_to_baseline on 'baseline' type UVFlag objects.",
+    ):
+        uvf_from_uvcal.antnums_to_baseline(0, 0)
+
+    with pytest.raises(
+        ValueError,
+        match="Can only call get_baseline_nums on 'baseline' type UVFlag objects.",
+    ):
+        uvf_from_uvcal.get_baseline_nums()
+
+    with pytest.raises(
+        ValueError,
+        match="Can only call get_antpairs on 'baseline' type UVFlag objects.",
+    ):
+        uvf_from_uvcal.get_antpairs()
+
+
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_baseline_nums():
     uvf = UVFlag(fetch_data("hera_flags"))

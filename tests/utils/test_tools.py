@@ -104,6 +104,18 @@ def test_array_constant(inp_arr, is_param, tols, exp_outcome):
     assert exp_outcome == utils.tools._test_array_constant(inp_arr, tols=tols)
 
 
+@pytest.mark.parametrize("tols", [(0, 0, 0), [0, 0]])
+def test_array_constant_errors(tols):
+    inp_arr = UVParameter("test", value=np.array([0, 0, 0, 0]))
+    with pytest.raises(
+        ValueError,
+        match="tols must be a length-2 tuple. This should not happen "
+        "when called from higher level functions, please make an issue in our "
+        "issue log.",
+    ):
+        utils.tools._test_array_constant(inp_arr, tols=tols)
+
+
 @pytest.mark.parametrize("is_param", [True, False])
 @pytest.mark.parametrize(
     "inp_arr,inp2_arr,tols,exp_outcome",
@@ -125,6 +137,38 @@ def test_array_consistent(inp_arr, inp2_arr, is_param, tols, exp_outcome):
     assert exp_outcome == utils.tools._test_array_consistent(
         inp_arr, inp2_arr, tols=tols
     )
+
+
+@pytest.mark.parametrize(
+    ("inp_arr", "inp2_arr", "tols", "msg"),
+    [
+        (
+            np.array([0, 0, 0, 0]),
+            np.array([0, 0, 0]),
+            (0, 0),
+            "array and deltas must have same shape. This should not happen when "
+            "called from higher level functions, please make an issue in our "
+            "issue log.",
+        ),
+        (
+            np.array([0, 0, 0, 0]),
+            np.array([0, 0, 0, 0]),
+            (0, 0, 0),
+            "tols must be a length-2 tuple. This should not happen when called "
+            "from higher level functions, please make an issue in our issue log.",
+        ),
+        (
+            np.array([0, 0, 0, 0]),
+            np.array([0, 0, 0, 0]),
+            [0, 0],
+            "tols must be a length-2 tuple. This should not happen when called "
+            "from higher level functions, please make an issue in our issue log.",
+        ),
+    ],
+)
+def test_array_consistent_errors(inp_arr, inp2_arr, tols, msg):
+    with pytest.raises(ValueError, match=msg):
+        utils.tools._test_array_consistent(inp_arr, inp2_arr, tols=tols)
 
 
 @pytest.mark.parametrize(

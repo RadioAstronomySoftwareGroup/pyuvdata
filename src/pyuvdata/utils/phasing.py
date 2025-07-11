@@ -1407,7 +1407,11 @@ def transform_app_to_icrs(
             "library"
         )
 
-    assert time_array.size > 0
+    if time_array.size == 0:
+        raise ValueError(
+            "time_array has size 0. This should not happen when called from "
+            "higher level functions, please make an issue in our issue log."
+        )
     if isinstance(time_array, Time):
         time_obj_array = time_array
     else:
@@ -1584,7 +1588,11 @@ def calc_frame_pos_angle(
         # No-op detected, ENGAGE MAXIMUM SNARK!
         return np.zeros_like(time_array)
 
-    assert offset_pos > 0, "offset_pos must be greater than 0."
+    if offset_pos <= 0:
+        raise ValueError(
+            "offset_pos must be greater than 0. This should not happen when called "
+            "from higher level functions, please make an issue in our issue log."
+        )
 
     # This creates an array of unique entries of ra + dec + time, since the processing
     # time for each element can be non-negligible, and entries along the Nblt axis can
