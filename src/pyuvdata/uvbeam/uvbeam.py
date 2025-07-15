@@ -4765,7 +4765,12 @@ def _uvbeam_constructor(loader, node):
         An instance of a UVBeam.
 
     """
-    values = loader.construct_mapping(node)
+    values = loader.construct_mapping(node, deep=True)
+    if "freq_range" in values and len(values["freq_range"]) != 2:
+        raise ValueError(
+            "freq_range in yaml constructor must have 2 elements: "
+            f"{values['freq_range']}"
+        )
     if "filename" not in values:
         raise ValueError("yaml entries for UVBeam must specify a filename.")
 

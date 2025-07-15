@@ -9,6 +9,8 @@ their feed angles. The feed angles that are stored on the object have their
 feed angles normalized to be between 0 and pi/2.
 
 ### Fixed
+- A bug in the UVBeam yaml constructor that caused the `freq_range` option to be
+ignored.
 - A bug in `utils.io.ms.read_ms_history` where reading the table caused an IndexError
 due to the "APP_PARAMS" and "CLI_COMMAND" columns being populated in a non-standard
 fashion.
