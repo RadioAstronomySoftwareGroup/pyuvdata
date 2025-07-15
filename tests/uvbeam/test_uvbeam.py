@@ -3242,6 +3242,7 @@ def test_yaml_constructor(filename, path_var, file_list):
                 filename: {filename}
                 mount_type: fixed
                 run_check: False
+                freq_range: [120.0e+6, 160.0e+6]
             """
     else:
         fname_use = filename[len(DATA_PATH) + 1 :]
@@ -3363,6 +3364,18 @@ def test_yaml_constructor_errors():
 
     with pytest.raises(
         ValueError, match="yaml entries for UVBeam must specify a filename."
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {cst_yaml_file}
+            mount_type: fixed
+            run_check: False
+            freq_range: [120.0e+6]
+        """
+    with pytest.raises(
+        ValueError, match="freq_range in yaml constructor must have 2 elements"
     ):
         yaml.safe_load(input_yaml)["beam"]
 
