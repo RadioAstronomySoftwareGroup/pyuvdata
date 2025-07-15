@@ -754,6 +754,47 @@ class UVBase:
         """
         return copy.deepcopy(self)
 
+    def _get_param_axis(self, axis_name: str, single_named_axis: bool = False):
+        """
+        Get a mapping of parameters that have a given axis to the axis number.
+
+        Parameters
+        ----------
+        axis_name : str
+            A named parameter within the object (e.g., "Nblts", "Ntimes", "Nants").
+        single_named_axis : bool
+            Option to only include parameters with a single named axis.
+
+        Returns
+        -------
+        dict
+            The keys are UVParameter names that have an axis with axis_name
+            (axis_name appears in their form). The values are a list of the axis
+            indices where axis_name appears in their form.
+        """
+        ret_dict = {}
+        for param in self:
+            # For each attribute, if the value is None, then bail, otherwise
+            # attempt to figure out along which axis ind_arr will apply.
+
+            attr = getattr(self, param)
+            if (
+                attr.value is not None
+                and isinstance(attr.form, tuple)
+                and axis_name in attr.form
+            ):
+                if (
+                    single_named_axis
+                    and sum([isinstance(entry, str) for entry in attr.form]) > 1
+                ):
+                    continue
+
+                # Only look at where form is a tuple, since that's the only case we
+                # can have a dynamically defined shape. Note that index doesn't work
+                # here in the case of a repeated param_name in the form.
+                ret_dict[attr.name] = np.nonzero(np.asarray(attr.form) == axis_name)[0]
+        return ret_dict
+
     def _select_along_param_axis(self, param_dict: dict):
         """
         Downselect values along a parameterized axis.
