@@ -3474,6 +3474,7 @@ def test_add_times(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_bls(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
@@ -4170,6 +4171,7 @@ def test_fast_concat_times(casa_uvfits):
 @pytest.mark.parametrize("in_order", [True, False])
 def test_fast_concat_bls(casa_uvfits, in_order):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     if in_order:
         # divide in half to keep in order
