@@ -3385,6 +3385,7 @@ def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_freq(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv1 = uv_full.select(freq_chans=np.arange(0, 32), inplace=False)
     uv2 = uv_full.select(freq_chans=np.arange(32, 64), inplace=False)
@@ -3415,6 +3416,7 @@ def test_add_freq(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_pols(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv1 = uv_full.select(polarizations=uv_full.polarization_array[0:2], inplace=False)
     uv2 = uv_full.select(polarizations=uv_full.polarization_array[2:4], inplace=False)
@@ -3453,6 +3455,7 @@ def test_add_pols(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_times(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     times = np.unique(uv_full.time_array)
     uv1 = uv_full.select(times=times[0 : len(times) // 2], inplace=False)
@@ -3474,6 +3477,7 @@ def test_add_times(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_bls(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.reorder_blts()
     uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     ant_list = list(range(15))  # Roughly half the antennas in the data
@@ -3515,6 +3519,7 @@ def test_add_bls(casa_uvfits):
     uv3.ant_1_array = uv3.ant_1_array[-1::-1]
     uv3.ant_2_array = uv3.ant_2_array[-1::-1]
     uv3.baseline_array = uv3.baseline_array[-1::-1]
+    uv3.scan_number_array = uv3.scan_number_array[-1::-1]
     uv1 += uv3
     uv1 += uv2
     assert utils.history._check_histories(
@@ -3533,6 +3538,7 @@ def test_add_bls(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_multi_axis(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)

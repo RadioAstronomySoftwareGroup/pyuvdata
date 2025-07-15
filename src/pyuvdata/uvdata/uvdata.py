@@ -40,6 +40,43 @@ reporting_request = (
 )
 
 
+def _axis_add_helper(this, other, axis_name: str, other_inds, final_order=None):
+    update_params = this._get_param_axis(axis_name, single_named_axis=True)
+    other_form_dict = {axis_name: other_inds}
+    for param, axis_list in update_params.items():
+        axis = axis_list[0]
+        new_array = np.concatenate(
+            [
+                getattr(this, param),
+                getattr(other, "_" + param).get_from_form(other_form_dict),
+            ],
+            axis=axis,
+        )
+        if param == "scan_number_array":
+            print()
+            print(new_array)
+        if final_order is not None:
+            new_array = np.take(new_array, final_order, axis=axis)
+        if param == "scan_number_array":
+            print(new_array)
+
+        setattr(this, param, new_array)
+
+
+def _axis_fast_concat_helper(this, other, axis_name: str):
+    update_params = this._get_param_axis(axis_name)
+    for param, axis_list in update_params.items():
+        axis = axis_list[0]
+        setattr(
+            this,
+            param,
+            np.concatenate(
+                [getattr(this, param)] + [getattr(obj, param) for obj in other],
+                axis=axis,
+            ),
+        )
+
+
 class UVData(UVBase):
     """
     A class for defining a radio interferometer dataset.
@@ -5568,6 +5605,12 @@ class UVData(UVBase):
                 "_uvw_array",
             ]
             compatibility_params.extend(extra_params)
+            # TODO: make this list programmatically if possible?
+            if (
+                this.scan_number_array is not None
+                or other.scan_number_array is not None
+            ):
+                compatibility_params.append("_scan_number_array")
 
         # find the freq indices in "other" but not in "this"
         if (this.flex_spw_polarization_array is None) != (
@@ -5645,6 +5688,7 @@ class UVData(UVBase):
             "_phase_center_app_dec",
             "_phase_center_frame_pa",
             "_phase_center_id_array",
+            "_scan_number_array",
         ]
         for cp in compatibility_params:
             if cp in blt_inds_params:
@@ -5731,6 +5775,9 @@ class UVData(UVBase):
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
+
+            _axis_add_helper(this, other, "Nblts", bnew_inds, blt_order)
+
             if not self.metadata_only:
                 zero_pad = np.zeros((len(bnew_inds), this.Nfreqs, this.Npols))
                 this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
@@ -5740,53 +5787,11 @@ class UVData(UVBase):
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad], axis=0
                 ).astype(np.bool_)
-            this.uvw_array = np.concatenate(
-                [this.uvw_array, other.uvw_array[bnew_inds, :]], axis=0
-            )[blt_order, :]
-            this.time_array = np.concatenate(
-                [this.time_array, other.time_array[bnew_inds]]
-            )[blt_order]
-            this.integration_time = np.concatenate(
-                [this.integration_time, other.integration_time[bnew_inds]]
-            )[blt_order]
-            this.lst_array = np.concatenate(
-                [this.lst_array, other.lst_array[bnew_inds]]
-            )[blt_order]
-            this.ant_1_array = np.concatenate(
-                [this.ant_1_array, other.ant_1_array[bnew_inds]]
-            )[blt_order]
-            this.ant_2_array = np.concatenate(
-                [this.ant_2_array, other.ant_2_array[bnew_inds]]
-            )[blt_order]
-            this.baseline_array = np.concatenate(
-                [this.baseline_array, other.baseline_array[bnew_inds]]
-            )[blt_order]
-            this.phase_center_app_ra = np.concatenate(
-                [this.phase_center_app_ra, other.phase_center_app_ra[bnew_inds]]
-            )[blt_order]
-            this.phase_center_app_dec = np.concatenate(
-                [this.phase_center_app_dec, other.phase_center_app_dec[bnew_inds]]
-            )[blt_order]
-            this.phase_center_frame_pa = np.concatenate(
-                [this.phase_center_frame_pa, other.phase_center_frame_pa[bnew_inds]]
-            )[blt_order]
-            this.phase_center_id_array = np.concatenate(
-                [this.phase_center_id_array, other.phase_center_id_array[bnew_inds]]
-            )[blt_order]
 
         f_order = None
         if len(fnew_inds) > 0:
-            this.freq_array = np.concatenate(
-                [this.freq_array, other.freq_array[fnew_inds]]
-            )
-            this.channel_width = np.concatenate(
-                [this.channel_width, other.channel_width[fnew_inds]]
-            )
+            _axis_add_helper(this, other, "Nfreqs", fnew_inds)
 
-            this.flex_spw_id_array = np.concatenate(
-                [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
-            )
-            this.spw_array = np.concatenate([this.spw_array, other.spw_array])
             # We want to preserve per-spw information based on first appearance
             # in the concatenated array.
             unique_index = np.sort(
@@ -5833,9 +5838,8 @@ class UVData(UVBase):
 
         p_order = None
         if len(pnew_inds) > 0:
-            this.polarization_array = np.concatenate(
-                [this.polarization_array, other.polarization_array[pnew_inds]]
-            )
+            _axis_add_helper(this, other, "Npols", pnew_inds)
+
             p_order = np.argsort(np.abs(this.polarization_array))
             if not self.metadata_only:
                 zero_pad = np.zeros(
@@ -6217,18 +6221,8 @@ class UVData(UVBase):
 
         if axis == "freq":
             this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
-            this.freq_array = np.concatenate(
-                [this.freq_array] + [obj.freq_array for obj in other]
-            )
-            this.channel_width = np.concatenate(
-                [this.channel_width] + [obj.channel_width for obj in other]
-            )
-            this.flex_spw_id_array = np.concatenate(
-                [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
-            )
-            this.spw_array = np.concatenate(
-                [this.spw_array] + [obj.spw_array for obj in other]
-            )
+            _axis_fast_concat_helper(this, other, "Nfreqs")
+            _axis_fast_concat_helper(this, other, "Nspws")
             # We want to preserve per-spw information based on first appearance
             # in the concatenated array.
             unique_index = np.sort(
@@ -6238,83 +6232,16 @@ class UVData(UVBase):
 
             this.Nspws = len(this.spw_array)
 
-            if not self.metadata_only:
-                this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=1
-                )
-                this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=1
-                )
-                this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=1
-                )
         elif axis == "polarization":
-            this.polarization_array = np.concatenate(
-                [this.polarization_array] + [obj.polarization_array for obj in other]
-            )
+            _axis_fast_concat_helper(this, other, "Npols")
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
-            if not self.metadata_only:
-                this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=2
-                )
-                this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=2
-                )
-                this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=2
-                )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
-            this.ant_1_array = np.concatenate(
-                [this.ant_1_array] + [obj.ant_1_array for obj in other]
-            )
-            this.ant_2_array = np.concatenate(
-                [this.ant_2_array] + [obj.ant_2_array for obj in other]
-            )
+            _axis_fast_concat_helper(this, other, "Nblts")
             this.Nants_data = this._calc_nants_data()
-            this.uvw_array = np.concatenate(
-                [this.uvw_array] + [obj.uvw_array for obj in other], axis=0
-            )
-            this.time_array = np.concatenate(
-                [this.time_array] + [obj.time_array for obj in other]
-            )
             this.Ntimes = len(np.unique(this.time_array))
-            this.lst_array = np.concatenate(
-                [this.lst_array] + [obj.lst_array for obj in other]
-            )
-            this.baseline_array = np.concatenate(
-                [this.baseline_array] + [obj.baseline_array for obj in other]
-            )
             this.Nbls = len(np.unique(this.baseline_array))
-            this.integration_time = np.concatenate(
-                [this.integration_time] + [obj.integration_time for obj in other]
-            )
-            this.phase_center_app_ra = np.concatenate(
-                [this.phase_center_app_ra] + [obj.phase_center_app_ra for obj in other]
-            )
-            this.phase_center_app_dec = np.concatenate(
-                [this.phase_center_app_dec]
-                + [obj.phase_center_app_dec for obj in other]
-            )
-            this.phase_center_frame_pa = np.concatenate(
-                [this.phase_center_frame_pa]
-                + [obj.phase_center_frame_pa for obj in other]
-            )
-            this.phase_center_id_array = np.concatenate(
-                [this.phase_center_id_array]
-                + [obj.phase_center_id_array for obj in other]
-            )
-            if not self.metadata_only:
-                this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=0
-                )
-                this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=0
-                )
-                this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=0
-                )
 
         # update filename attribute
         for obj in other:
