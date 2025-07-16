@@ -153,7 +153,7 @@ b) Reading a CST E-field beam file
 c) Reading a FEKO beam file (Power & E-field)
 **********************************
 .. code-block:: python
-  
+
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
