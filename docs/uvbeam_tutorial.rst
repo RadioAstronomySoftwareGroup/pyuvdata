@@ -174,6 +174,15 @@ c) Reading a FEKO beam file (Power & E-field)
   >>> print(np.shape(pbeam_feko.data_array))
   (1, 1, 91, 181, 361)
 
+  >>> ebeam_feko = UVBeam.from_file(
+    lwa_feko, beam_type='efield', frequency=None,
+    feed_pol='x', telescope_name='LWA',
+    feed_name='LWA', feed_version='1',
+    model_name='FEKO_MROsoil_updatedheight', model_version='1.0',
+    )
+  >>> print(np.shape(ebeam_feko.data_array))
+  (2, 2, 91, 181, 361)
+
 d) Reading in the MWA full embedded element beam
 ************************************************
 .. code-block:: python
