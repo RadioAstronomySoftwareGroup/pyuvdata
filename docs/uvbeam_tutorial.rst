@@ -150,6 +150,28 @@ b) Reading a CST E-field beam file
   >>> beam == beam3
   True
 
+c) Reading a FEKO beam file (Power & E-field)
+**********************************
+.. code-block:: python
+  >>> import os
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import numpy as np
+
+  >>> filename_x = "OVRO_LWA_x.ffe"
+  >>> filename_y = "OVRO_LWA_y.ffe"
+  >>> feko_folder = "OVRO_LWA_FEKOBeams"
+  >>> feko_filename_x = os.path.join(DATA_PATH, feko_folder, filename_x)
+  >>> feko_filename_y = os.path.join(DATA_PATH, feko_folder, filename_y)
+
+  >>> pbeam_feko = UVBeam.from_file(
+         feko_filename_x, beam_type='power', frequency=None,
+         feed_pol='x', telescope_name='LWA',
+         feed_name='LWA', feed_version='1',
+         model_name='FEKO_MROsoil_test', model_version='1.0',
+      )
+  >>> print(np.shape(pbeam_feko.data_array))
+  (1, 1, 91, 181, 361)
 c) Reading in the MWA full embedded element beam
 ************************************************
 .. code-block:: python
