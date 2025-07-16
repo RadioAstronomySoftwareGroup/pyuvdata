@@ -143,3 +143,54 @@ def test_read_ms_pointing_err():
 def test_read_ms_history_err(tmp_path):
     with pytest.raises(FileNotFoundError):
         ms_utils.read_ms_history(os.path.join(tmp_path, "foo"), "abc", raise_err=True)
+
+
+def test_history_roundtrip(tmp_path):
+    from casacore import tables
+
+    filename = os.path.join(tmp_path, "history_test.ms")
+
+    with tables.default_ms(filename):
+        pass
+
+    pyuvdata_hist = "pyuvdata_hist"
+
+    exp_history = (
+        "Begin measurement set history\n"
+        "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;"
+        "OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
+        ";;APP1;MSG1;0;-1;pyuvdata;INFO;5000000000.0\n"
+        ";;APP2;MSG2;1;-1;pyuvdata;INFO;5100000000.0\n"
+        "End measurement set history.\n"
+    ) + pyuvdata_hist
+
+    with tables.table(
+        filename + "::HISTORY",
+        readonly=False,
+        tabledesc=tables.required_ms_desc("HISTORY"),
+    ) as history_table:
+        history_table.addrows(2)
+
+        # Skip APP_PARAMS - we've seen MS files where this is empty so test this
+        # Plug in an empty array into CLI_COMMAND - some LOFAR-based files have this
+        # which caused a bug in the past (see Issue #1587)
+        history_table.putcol("CLI_COMMAND", np.asarray([[], []], dtype="str"))
+        history_table.putcol("APPLICATION", ["APP1", "APP2"])
+        history_table.putcol("MESSAGE", ["MSG1", "MSG2"])
+        history_table.putcol("OBJECT_ID", [0, 1])
+        history_table.putcol("OBSERVATION_ID", [-1, -1])
+        history_table.putcol("ORIGIN", ["pyuvdata", "pyuvdata"])
+        history_table.putcol("PRIORITY", ["INFO", "INFO"])
+        history_table.putcol("TIME", [5e9, 5.1e9])
+
+    read_str = ms_utils.read_ms_history(filename, pyuvdata_hist)
+
+    assert exp_history == read_str
+
+    writefile = os.path.join(tmp_path, "history_write.ms")
+    with tables.default_ms(writefile):
+        pass
+
+    ms_utils.write_ms_history(writefile, history=read_str)
+    write_str = ms_utils.read_ms_history(writefile, pyuvdata_hist)
+    assert write_str == (read_str + "\n")

@@ -883,16 +883,6 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
             history_str = "Begin measurement set history\n"
 
             # Grab the standard history columns to stitch together
-            try:
-                app_params = tb_hist.getcol("APP_PARAMS")["array"]
-                history_str += "APP_PARAMS;"
-            except RuntimeError:
-                app_params = None
-            try:
-                cli_command = tb_hist.getcol("CLI_COMMAND")["array"]
-                history_str += "CLI_COMMAND;"
-            except RuntimeError:
-                cli_command = None
             application = tb_hist.getcol("APPLICATION")
             message = tb_hist.getcol("MESSAGE")
             obj_id = tb_hist.getcol("OBJECT_ID")
@@ -900,16 +890,26 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
             origin = tb_hist.getcol("ORIGIN")
             priority = tb_hist.getcol("PRIORITY")
             times = tb_hist.getcol("TIME")
-            history_str += (
-                "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
-            )
 
-            # Now loop through columns and generate history string
-            cols = [application, message, obj_id, obs_id, origin, priority, times]
-            if cli_command is not None:
-                cols.insert(0, cli_command)
-            if app_params is not None:
-                cols.insert(0, app_params)
+            cols = []
+            # APP_PARAMS and CLI_COMMAND are not consistently filled, even though they
+            # appear to be required columns. Fill them in with zero-length strings
+            # if they don't conform to what we expect.
+            default_col = [""] * len(times)
+            for field in ["APP_PARAMS", "CLI_COMMAND"]:
+                try:
+                    check_val = tb_hist.getcol(field)["array"]
+                    cols.append(check_val if (len(check_val) > 0) else default_col)
+                except RuntimeError:
+                    cols.append(default_col)
+
+            # Now add the rest of the columns and generate history string
+            cols += [application, message, obj_id, obs_id, origin, priority, times]
+
+            history_str += (
+                "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;OBJECT_ID;"
+                "OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
+            )
 
             # if this MS was written by pyuvdata, some history that originated in
             # pyuvdata is in the MS history table. We separate that out since it doesn't
