@@ -250,10 +250,11 @@ class FEKOBeam(UVBeam):
                 phi_real_col = np.where(np.array(column_names) == "Re(Ephi)")[0][0]
                 phi_imag_col = np.where(np.array(column_names) == "Im(Ephi)")[0][0]
 
-                ##the E field magnitudes are taken as the sqrt of the power gain so that
-                ##the input power and Zo are taken into account. Taking the magnitude of
-                ##the E-fields from the real and imag parts doesnt account for the input
-                ##power & will need that information from different output file of FEKO
+                # the E field magnitudes are taken as the sqrt of the power gain
+                # so that the input power and Zo are taken into account. Taking
+                # the magnitude of the E-fields from the real and imag parts
+                # doesn't account for the input power & will need that information
+                # from different output file of FEKO
                 theta_mag = np.sqrt(10 ** (data[i, :, theta_mag_col] / 10)).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
