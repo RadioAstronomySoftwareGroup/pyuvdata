@@ -153,6 +153,7 @@ b) Reading a CST E-field beam file
 c) Reading a FEKO beam file (Power & E-field)
 **********************************
 .. code-block:: python
+  
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
@@ -172,7 +173,8 @@ c) Reading a FEKO beam file (Power & E-field)
       )
   >>> print(np.shape(pbeam_feko.data_array))
   (1, 1, 91, 181, 361)
-c) Reading in the MWA full embedded element beam
+
+d) Reading in the MWA full embedded element beam
 ************************************************
 .. code-block:: python
 
