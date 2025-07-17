@@ -166,8 +166,7 @@ c) Reading a FEKO beam file (Power & E-field)
   >>> feko_filename_y = os.path.join(DATA_PATH, feko_folder, filename_y)
 
   >>> pbeam_feko = UVBeam.from_file(
-  ...   feko_filename_x, beam_type='power', frequency=None,
-  ...   feed_pol='x', telescope_name='LWA',
+  ...   feko_filename_x, beam_type='power', feed_pol='x', telescope_name='LWA',
   ...   feed_name='LWA', feed_version='1',
   ...   model_name='FEKO_MROsoil_test', model_version='1.0',
   ... )
@@ -175,8 +174,7 @@ c) Reading a FEKO beam file (Power & E-field)
   (1, 1, 3, 181, 181)
 
   >>> ebeam_feko = UVBeam.from_file(
-  ...   lwa_feko, beam_type='efield', frequency=None,
-  ...   feed_pol='x', telescope_name='LWA',
+  ...   lwa_feko, beam_type='efield', feed_pol='x', telescope_name='LWA',
   ...   feed_name='LWA', feed_version='1',
   ...   model_name='FEKO_MROsoil_updatedheight', model_version='1.0',
   ... )
