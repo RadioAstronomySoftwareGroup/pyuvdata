@@ -5,8 +5,10 @@
 import os
 
 import numpy as np
+from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvbeam import UVBeam
 
 __all__ = ["FEKOBeam"]
@@ -21,6 +23,9 @@ class FEKOBeam(UVBeam):
 
     """
 
+    @copy_replace_short_description(
+        UVBeam.read_feko_beam, style=DocstringStyle.NUMPYDOC
+    )
     def read_feko_beam(
         self,
         filename,
@@ -43,69 +48,22 @@ class FEKOBeam(UVBeam):
         check_auto_power=True,
         fix_auto_power=True,
     ):
-        """
-        Read in data from a FEKO ffe file.
+        """Read in a FEKO ffe file."""
+        # handle defaults from generic read/from_file
+        if feed_pol is None:
+            feed_pol = "x"
+        if history is None:
+            history = ""
 
-        Parameters
-        ----------
-        filename : str
-            The FEKO file to read from.
-        beam_type : str
-            What beam_type to read in ('power' or 'efield').
-        feed_pol : str
-            The feed polarization that the files corresponds to, e.g. x, y, r or l.
-            Defaults to 'x'.
-        feed_angle : float
-            Position angle of the feed, units of radians. A feed angle of 0 is
-            typically oriented toward zenith for steerable antennas, otherwise toward
-            north for fixed antennas (e.g., HERA, LWA). More details on this can be
-            found on the "Conventions" page of the docs.
-        mount_type : str
-            Antenna mount type, which describes the optics of the antenna in question.
-            Supported options include: "alt-az" (primary rotates in azimuth and
-            elevation), "equatorial" (primary rotates in hour angle and declination)
-            "orbiting" (antenna is in motion, and its orientation depends on orbital
-            parameters), "x-y" (primary rotates first in the plane connecting east,
-            west, and zenith, and then perpendicular to that plane),
-            "alt-az+nasmyth-r" ("alt-az" mount with a right-handed 90-degree tertiary
-            mirror), "alt-az+nasmyth-l" ("alt-az" mount with a left-handed 90-degree
-            tertiary mirror), "phased" (antenna is "electronically steered" by
-            summing the voltages of multiple elements, e.g. MWA), "fixed" (antenna
-            beam pattern is fixed in azimuth and elevation, e.g., HERA), and "other"
-            (also referred to in some formats as "bizarre"). See the "Conventions"
-            page of the documentation for further details.
-        telescope_name : str
-            The name of the telescope corresponding to the filename(s).
-        feed_name : str
-            The name of the feed corresponding to the filename(s).
-        feed_version : str
-            The version of the feed corresponding to the filename(s).
-        model_name : str
-            The name of the model corresponding to the filename(s).
-        model_version : str
-            The version of the model corresponding to the filename(s).
-        history : str
-            A string detailing the history of the filename(s).
-        reference_impedance : float, optional
-            The reference impedance of the model(s).
-        extra_keywords : dict, optional
-            A dictionary containing any extra_keywords.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            required parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as
-            required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            required parameters after reading in the file.
-        check_auto_power : bool
-            For power beams, check whether the auto polarization beams have non-zero
-            imaginary values in the data_array (which should not mathematically exist).
-        fix_auto_power : bool
-            For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
-        """
+        if isinstance(feed_pol, np.ndarray):
+            if len(feed_pol.shape) > 1:
+                raise ValueError("feed_pol can not be a multi-dimensional array")
+            feed_pol = feed_pol.tolist()
+        if isinstance(feed_pol, list | tuple):
+            if len(feed_pol) != 1:
+                raise ValueError("feed_pol must have exactly one element")
+            feed_pol = feed_pol[0]
+
         basename = os.path.basename(filename)
         self.filename = [basename]
         self._filename.form = (1,)
