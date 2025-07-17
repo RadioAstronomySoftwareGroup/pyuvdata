@@ -4187,28 +4187,7 @@ class UVBeam(UVBase):
             self.filename = utils.tools._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
-    def read_feko_beam(
-        self,
-        filename,
-        beam_type="power",
-        feed_pol=None,
-        feed_angle=None,
-        mount_type=None,
-        telescope_name=None,
-        feed_name=None,
-        feed_version=None,
-        model_name=None,
-        model_version=None,
-        history=None,
-        reference_impedance=None,
-        extra_keywords=None,
-        frequency_select=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
-    ):
+    def read_feko_beam(self, filename, **kwargs):
         """
         Read in data from a FEKO file.
 
@@ -4278,42 +4257,8 @@ class UVBeam(UVBase):
         """
         from . import feko_beam
 
-        # set defaults to match FEKOBeam method
-        if feed_pol is None:
-            feed_pol = "x"
-        if history is None:
-            history = ""
-
-        if isinstance(feed_pol, np.ndarray):
-            if len(feed_pol.shape) > 1:
-                raise ValueError("feed_pol can not be a multi-dimensional array")
-            feed_pol = feed_pol.tolist()
-        if isinstance(feed_pol, list | tuple):
-            if len(feed_pol) != 1:
-                raise ValueError("feed_pol must have exactly one element")
-            feed_pol = feed_pol[0]
-
         feko_beam_obj = feko_beam.FEKOBeam()
-        feko_beam_obj.read_feko_beam(
-            filename,
-            beam_type=beam_type,
-            feed_pol=feed_pol,
-            feed_angle=feed_angle,
-            mount_type=mount_type,
-            telescope_name=telescope_name,
-            feed_name=feed_name,
-            feed_version=feed_version,
-            model_name=model_name,
-            model_version=model_version,
-            history=history,
-            reference_impedance=reference_impedance,
-            extra_keywords=extra_keywords,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            check_auto_power=check_auto_power,
-            fix_auto_power=fix_auto_power,
-        )
+        feko_beam_obj.read_feko_beam(filename, **kwargs)
         self._convert_from_filetype(feko_beam_obj)
         del feko_beam_obj
 
@@ -4881,7 +4826,6 @@ class UVBeam(UVBase):
                         history=history,
                         reference_impedance=reference_impedance,
                         extra_keywords=extra_keywords,
-                        frequency_select=frequency_select,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
