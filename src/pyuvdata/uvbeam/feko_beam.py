@@ -5,6 +5,7 @@
 import os
 
 import numpy as np
+import numpy.typing as npt
 from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
@@ -30,23 +31,23 @@ class FEKOBeam(UVBeam):
         self,
         filename,
         *,
-        beam_type="power",
-        feed_pol="x",
-        feed_angle=None,
-        mount_type=None,
-        telescope_name=None,
-        feed_name=None,
-        feed_version=None,
-        model_name=None,
-        model_version=None,
-        history="",
-        reference_impedance=None,
-        extra_keywords=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
+        beam_type: str ="power",
+        feed_pol: str ="x" | None,
+        feed_angle: npt.NDArray[float] | None = None,
+        mount_type:str | None = "fixed",
+        telescope_name: str | None ,
+        feed_name: str | None, 
+        feed_version: str = "0.0" | None,
+        model_name: str | None,
+        model_version: str = "0.0" | None,
+        history: str | None,
+        reference_impedance: npt.NDArray[float] | None = None,
+        extra_keywords: None,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
+        check_auto_power: bool = True,
+        fix_auto_power: bool = True,
     ):
         """Read in a FEKO ffe file."""
         # handle defaults from generic read/from_file
