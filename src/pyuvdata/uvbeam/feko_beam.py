@@ -134,17 +134,22 @@ class FEKOBeam(UVBeam):
         self.freq_array = np.array(frequencies)
         self.bandpass_array = np.ones(self.Nfreqs)
 
-        data = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
+        theta_mag_col = np.where(np.array(column_names) == "Gain(Theta)")[0][0]
+        theta_real_col = np.where(np.array(column_names) == "Re(Etheta)")[0][0]
+        theta_imag_col = np.where(np.array(column_names) == "Im(Etheta)")[0][0]
+        phi_mag_col = np.where(np.array(column_names) == "Gain(Phi)")[0][0]
+        phi_real_col = np.where(np.array(column_names) == "Re(Ephi)")[0][0]
+        phi_imag_col = np.where(np.array(column_names) == "Im(Ephi)")[0][0]
 
         for i in range(len(self.freq_array)):
-            data[i, :, :] = np.array(
+            thisdata = np.array(
                 [list(map(float, data.split())) for data in data_all[i]]
             )
             if i == 0:
                 # theta is always exported in degs
-                theta_data = np.radians(data[i, :, theta_col])
+                theta_data = np.radians(thisdata[:, theta_col])
                 # phi is always exported in degs
-                phi_data = np.radians(data[i, :, phi_col])
+                phi_data = np.radians(thisdata[:, phi_col])
 
                 theta_axis = np.sort(np.unique(theta_data))
                 phi_axis = np.sort(np.unique(phi_data))
@@ -189,7 +194,7 @@ class FEKOBeam(UVBeam):
                 name = "Gain(Total)"
                 this_col = np.where(np.array(column_names) == name)[0]
                 data_col = this_col.tolist()
-                power_beam1 = 10 ** (data[i, :, data_col] / 10).reshape(
+                power_beam1 = 10 ** (thisdata[:, data_col] / 10).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 self.data_array[0, 0, i, :, :] = power_beam1
@@ -201,29 +206,22 @@ class FEKOBeam(UVBeam):
                 self.basis_vector_array[0, 0, :, :] = 1.0
                 self.basis_vector_array[1, 1, :, :] = 1.0
 
-                theta_mag_col = np.where(np.array(column_names) == "Gain(Theta)")[0][0]
-                theta_real_col = np.where(np.array(column_names) == "Re(Etheta)")[0][0]
-                theta_imag_col = np.where(np.array(column_names) == "Im(Etheta)")[0][0]
-                phi_mag_col = np.where(np.array(column_names) == "Gain(Phi)")[0][0]
-                phi_real_col = np.where(np.array(column_names) == "Re(Ephi)")[0][0]
-                phi_imag_col = np.where(np.array(column_names) == "Im(Ephi)")[0][0]
-
                 # the E field magnitudes are taken as the sqrt of the power gain
                 # so that the input power and Zo are taken into account. Taking
                 # the magnitude of the E-fields from the real and imag parts
                 # doesn't account for the input power & will need that information
                 # from different output file of FEKO
-                theta_mag = np.sqrt(10 ** (data[i, :, theta_mag_col] / 10)).reshape(
+                theta_mag = np.sqrt(10 ** (thisdata[:, theta_mag_col] / 10)).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
-                phi_mag = np.sqrt(10 ** (data[i, :, phi_mag_col] / 10)).reshape(
+                phi_mag = np.sqrt(10 ** (thisdata[:, phi_mag_col] / 10)).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
                 theta_phase = np.angle(
-                    data[i, :, theta_real_col] + 1j * data[i, :, theta_imag_col]
+                    thisdata[:, theta_real_col] + 1j * thisdata[:, theta_imag_col]
                 )
                 phi_phase = np.angle(
-                    data[i, :, phi_real_col] + 1j * data[i, :, phi_imag_col]
+                    thisdata[:, phi_real_col] + 1j * thisdata[:, phi_imag_col]
                 )
 
                 theta_phase = theta_phase.reshape(
