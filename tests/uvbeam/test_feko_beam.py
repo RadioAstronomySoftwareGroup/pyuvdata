@@ -36,7 +36,7 @@ def test_read_feko(btype):
         model_name="FEKO_MROsoil",
         model_version="1.0",
         mount_type="fixed",
-        feed_angle=90.0,  # E/W
+        feed_angle=np.pi / 2,  # E/W
         reference_impedance=reference_impedance,
         extra_keywords=extra_keywords,
     )
@@ -78,6 +78,26 @@ def test_read_feko(btype):
     assert len(beam_feko1.freq_array) == 3
     assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
     assert np.all(beam_feko1.bandpass_array) == 1
+
+    feko_beam_multi = beam_feko1 + beam_feko2
+
+    feko_beam_multi2 = UVBeam.from_file(
+        [feko_filename_x, feko_filename_y],
+        beam_type=btype,
+        frequency=[10e6],
+        feed_pol=["x", "y"],
+        feed_angle=[np.pi / 2, 0.0],
+        telescope_name="LWA",
+        feed_name="LWA",
+        feed_version="1",
+        model_name="FEKO_MROsoil",
+        model_version="1.0",
+        mount_type="fixed",
+        reference_impedance=reference_impedance,
+        extra_keywords=extra_keywords,
+    )
+
+    assert feko_beam_multi == feko_beam_multi2
 
 
 @pytest.mark.parametrize(

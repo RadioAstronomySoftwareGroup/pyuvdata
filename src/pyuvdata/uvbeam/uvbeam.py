@@ -4524,7 +4524,7 @@ class UVBeam(UVBase):
         ----
         beam_type : str
             What beam_type to read in ('power' or 'efield').
-        feed_pol : str
+        feed_pol : str or list of str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
         feed_angle : str or array-like of float
@@ -4614,6 +4614,21 @@ class UVBeam(UVBase):
                 file_type = "cst"
             elif extension == ".ffe":
                 file_type = "feko"
+                if multi:
+                    feed_pol = utils.tools._get_iterable(feed_pol)
+                    if len(feed_pol) != len(filename):
+                        raise ValueError(
+                            "If multiple FEKO files are passed, the feed_pol must "
+                            "be a list or array of the same length giving the "
+                            "feed_pol for each file."
+                        )
+                    feed_angle = utils.tools._get_iterable(feed_angle)
+                    if len(feed_angle) != len(filename):
+                        raise ValueError(
+                            "If multiple FEKO files are passed, the feed_angle must "
+                            "be a list or array of the same length giving the "
+                            "feed_angle for each file."
+                        )
 
         if file_type is None:
             raise ValueError(
@@ -4654,6 +4669,12 @@ class UVBeam(UVBase):
                 file_num = 0
                 file_warnings = ""
                 unread = True
+                if file_type == "feko":
+                    feed_pol_use = feed_pol[file_num]
+                    feed_angle_use = feed_angle[file_num]
+                else:
+                    feed_pol_use = feed_pol
+                    feed_angle_use = feed_angle
 
                 while unread and file_num < len(filename):
                     try:
@@ -4676,9 +4697,9 @@ class UVBeam(UVBase):
                             # leave these in case we restructure the multi
                             # reading later
                             beam_type=beam_type,
-                            feed_pol=feed_pol,
+                            feed_pol=feed_pol_use,
                             feed_array=feed_array,
-                            feed_angle=feed_angle,
+                            feed_angle=feed_angle_use,
                             rotate_pol=rotate_pol,
                             mount_type=mount_type,
                             frequency=frequency,
@@ -4710,6 +4731,12 @@ class UVBeam(UVBase):
                 if len(filename) >= file_num + 1:
                     for fname in filename[file_num + 1 :]:
                         beam2 = UVBeam()
+                        if file_type == "feko":
+                            feed_pol_use = feed_pol[file_num + 1]
+                            feed_angle_use = feed_angle[file_num + 1]
+                        else:
+                            feed_pol_use = feed_pol
+                            feed_angle_use = feed_angle
                         try:
                             beam2.read(
                                 fname,
@@ -4730,9 +4757,9 @@ class UVBeam(UVBase):
                                 # leave these in case we restructure the multi
                                 # reading later
                                 beam_type=beam_type,
-                                feed_pol=feed_pol,
+                                feed_pol=feed_pol_use,
                                 feed_array=feed_array,
-                                feed_angle=feed_angle,
+                                feed_angle=feed_angle_use,
                                 rotate_pol=rotate_pol,
                                 mount_type=mount_type,
                                 frequency=frequency,
@@ -4761,6 +4788,7 @@ class UVBeam(UVBase):
                                 continue
                             else:
                                 raise
+                        file_num += 1
                 if unread is True:
                     warnings.warn(
                         "########################################################\n"
