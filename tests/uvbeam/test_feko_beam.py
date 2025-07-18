@@ -101,15 +101,34 @@ def test_read_feko(btype):
 
 
 @pytest.mark.parametrize(
-    ("feedpol", "msg"),
+    ("kwargs", "msg"),
     [
-        (np.array([["x"]]), "feed_pol can not be a multi-dimensional array"),
-        (["x", "y"], "feed_pol must have exactly one element"),
+        (
+            {"feed_pol": np.array([["x"]])},
+            "feed_pol can not be a multi-dimensional array",
+        ),
+        ({"feed_pol": ["x", "y"]}, "feed_pol must have exactly one element"),
+        (
+            {"filename": [filename_x, filename_y]},
+            "If multiple FEKO files are passed, the feed_pol must be a list "
+            "or array of the same length giving the feed_pol for each file.",
+        ),
+        (
+            {
+                "filename": [filename_x, filename_y],
+                "feed_pol": ["x", "y"],
+                "feed_angle": np.pi / 2,
+            },
+            "If multiple FEKO files are passed, the feed_angle must be a list or "
+            "array of the same length giving the feed_angle for each file.",
+        ),
     ],
 )
-def test_read_feko_feedpol_errors(feedpol, msg):
+def test_read_feko_input_errors(kwargs, msg):
+    init_kwargs = {"filename": filename_x, "beam_type": "power", "feed_pol": "x"}
+    init_kwargs.update(kwargs)
     with pytest.raises(ValueError, match=msg):
-        UVBeam.from_file(feko_filename_x, beam_type="power", feed_pol=feedpol)
+        UVBeam.from_file(**init_kwargs)
 
 
 @pytest.mark.parametrize(
