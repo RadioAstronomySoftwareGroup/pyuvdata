@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.3] - 2025-07-21
+
 ### Added
 - Support for reading FEKO ffe files into UVBeam.
 
