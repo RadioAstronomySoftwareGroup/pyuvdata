@@ -231,6 +231,7 @@ To compile the binary extension modules such that you can successfully run
 If you want to do development on pyuvdata, in addition to the other dependencies
 you will need the following packages:
 
+* pooch >= 1.8
 * pytest >= 8.2
 * pytest-cases >= 3.9.1
 * pytest-cov

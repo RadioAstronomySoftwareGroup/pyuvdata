@@ -15,7 +15,7 @@ import os
 import numpy as np
 import pytest
 
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_meta_data import (
     NEW_VIS_DTYPE,
@@ -32,12 +32,10 @@ from pyuvdata.uvdata.mir_meta_data import (
     MirWeData,
 )
 
-sma_mir_test_file = os.path.join(DATA_PATH, "sma_test.mir")
-
 
 @pytest.fixture(scope="session")
 def mir_in_data_main():
-    yield MirInData(sma_mir_test_file)
+    yield MirInData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -47,7 +45,7 @@ def mir_in_data(mir_in_data_main):
 
 @pytest.fixture(scope="session")
 def mir_bl_data_main():
-    yield MirBlData(sma_mir_test_file)
+    yield MirBlData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -57,7 +55,7 @@ def mir_bl_data(mir_bl_data_main):
 
 @pytest.fixture(scope="session")
 def mir_sp_data_main():
-    yield MirSpData(sma_mir_test_file)
+    yield MirSpData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -67,7 +65,7 @@ def mir_sp_data(mir_sp_data_main):
 
 @pytest.fixture(scope="session")
 def mir_eng_data_main():
-    yield MirEngData(sma_mir_test_file)
+    yield MirEngData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -77,7 +75,7 @@ def mir_eng_data(mir_eng_data_main):
 
 @pytest.fixture(scope="session")
 def mir_we_data_main():
-    yield MirWeData(sma_mir_test_file)
+    yield MirWeData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -87,7 +85,7 @@ def mir_we_data(mir_we_data_main):
 
 @pytest.fixture(scope="session")
 def mir_codes_data_main():
-    yield MirCodesData(sma_mir_test_file)
+    yield MirCodesData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -97,7 +95,7 @@ def mir_codes_data(mir_codes_data_main):
 
 @pytest.fixture(scope="function")
 def mir_ac_data_main():
-    yield MirAcData(sma_mir_test_file, nchunks=8)
+    yield MirAcData(fetch_data("sma_mir"), nchunks=8)
 
 
 @pytest.fixture(scope="function")
@@ -107,7 +105,7 @@ def mir_ac_data(mir_ac_data_main):
 
 @pytest.fixture(scope="session")
 def mir_antpos_data_main():
-    yield MirAntposData(sma_mir_test_file)
+    yield MirAntposData(fetch_data("sma_mir"))
 
 
 @pytest.fixture(scope="function")
@@ -120,7 +118,7 @@ def check_meta_init():
     def check_meta_init_func(obj):
         # Create a new object based on the parent class, and check that it initializes
         # as expected (basically, make sure we've got the plumbing all correct).
-        obj_list = [sma_mir_test_file, obj._data, obj._data]
+        obj_list = [fetch_data("sma_mir"), obj._data, obj._data]
         dtype_list = [obj.dtype, obj.dtype, None]
         err_list = ["filename init", "data init w/ dtype", "data init w/o dtype"]
         for target, dtype, err_msg in zip(obj_list, dtype_list, err_list, strict=True):
@@ -1155,7 +1153,7 @@ def test_mir_acdata_read_warn(mir_ac_data: MirAcData, nchunks):
     with check_warnings(
         UserWarning, "Auto-correlation records appear to be the incorrect size"
     ):
-        mir_ac_data.read(sma_mir_test_file)
+        mir_ac_data.read(fetch_data("sma_mir"))
 
 
 def test_mir_acdata_new_write(mir_ac_data, tmp_path):

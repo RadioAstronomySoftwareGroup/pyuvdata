@@ -15,7 +15,7 @@ from astropy.table import Table
 
 import pyuvdata.utils.io.fits as fits_utils
 from pyuvdata import UVCal, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 from . import extend_jones_axis, time_array_to_time_range
@@ -3406,7 +3406,7 @@ def test_read_errors():
     ):
         UVCal.from_file("foo.blah")
 
-    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    gainfile = fetch_data("hera_omnical2")
     with pytest.raises(
         ValueError,
         match="If filename is a list, tuple or array it cannot be nested or "

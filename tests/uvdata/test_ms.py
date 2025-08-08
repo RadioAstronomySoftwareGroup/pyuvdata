@@ -11,7 +11,7 @@ import pytest
 from astropy.time import Time
 
 from pyuvdata import UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 from ..utils.test_coordinates import frame_selenoid
@@ -56,35 +56,12 @@ def safe_extract(
         )
 
 
-@pytest.fixture(scope="session")
-def nrao_uv_main():
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    uvobj.read(testfile)
-
-    yield uvobj
-
-    del uvobj
-
-
-@pytest.fixture(scope="function")
-def nrao_uv(nrao_uv_main):
-    """Make function level NRAO ms object."""
-    nrao_ms = nrao_uv_main.copy()
-    yield nrao_ms
-
-    # clean up when done
-    del nrao_ms
-
-    return
-
-
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "1102865728_small.ms/")
+    testfile = fetch_data("mwa_cotter_ms")
     uvobj.read(testfile)
 
     # check that a select on read works
@@ -107,9 +84,9 @@ def test_cotter_ms():
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 @pytest.mark.parametrize("del_tel_loc", [True, False])
-def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_tel_loc):
+def test_read_nrao_loopback(tmp_path, nrao_ms, telescope_frame, selenoid, del_tel_loc):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
-    uvobj = nrao_uv
+    uvobj = nrao_ms
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
@@ -207,23 +184,13 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_te
 def test_read_lwa(tmp_path):
     """Test reading in an LWA ms file."""
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "lwasv_cor_58342_05_00_14.ms.tar.gz")
+    testfile = fetch_data("lwasv")
     expected_extra_keywords = ["DATA_COL", "observer"]
 
-    import tarfile
-
-    with tarfile.open(testfile) as tf:
-        new_filename = os.path.join(tmp_path, tf.getnames()[0])
-
-        safe_extract(tf, path=tmp_path)
-
-    uvobj.read(new_filename, file_type="ms")
+    uvobj.read(testfile, file_type="ms")
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
     assert uvobj.history == uvobj.pyuvdata_version_str
-
-    # delete the untarred folder
-    shutil.rmtree(new_filename)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -231,7 +198,7 @@ def test_read_lwa(tmp_path):
 def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     uvobj = UVData()
-    testfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.ms")
+    testfile_no_spw = fetch_data("paper_2014_ms")
     uvobj.read(testfile_no_spw)
     del uvobj
 
@@ -239,29 +206,17 @@ def test_no_spw():
 @pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
-def test_extra_pol_setup(tmp_path):
+def test_extra_pol_setup():
     """Test reading in an ms file with extra polarization setups (not used in data)."""
     uvobj = UVData()
-    testfile = os.path.join(
-        DATA_PATH, "X5707_1spw_1scan_10chan_1time_1bl_noatm.ms.tar.gz"
-    )
+    testfile = fetch_data("alma_ms")
 
-    import tarfile
-
-    with tarfile.open(testfile) as tf:
-        new_filename = os.path.join(tmp_path, tf.getnames()[0])
-
-        safe_extract(tf, path=tmp_path)
-
-    uvobj.read(new_filename, file_type="ms")
-
-    # delete the untarred folder
-    shutil.rmtree(new_filename)
+    uvobj.read(testfile)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
-def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
+def test_read_ms_read_uvfits(nrao_ms, casa_uvfits):
     """
     Test that a uvdata object instantiated from an ms file created with CASA's
     importuvfits is equal to a uvdata object instantiated from the original
@@ -270,7 +225,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     Since the history is missing from the ms file, this test sets both uvdata
     histories to identical empty strings before comparing them.
     """
-    ms_uv = nrao_uv.copy()
+    ms_uv = nrao_ms.copy()
     uvfits_uv = casa_uvfits.copy()
     # set histories to identical blank strings since we do not expect
     # them to be the same anyways.
@@ -332,13 +287,13 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_ms_write_uvfits(nrao_uv, tmp_path):
+def test_read_ms_write_uvfits(nrao_ms, tmp_path):
     """
     read ms, write uvfits test.
     Read in ms file, write out as uvfits, read back in and check for
     object equality.
     """
-    ms_uv = nrao_uv
+    ms_uv = nrao_ms
     uvfits_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest.uvfits")
     ms_uv.write_uvfits(testfile)
@@ -367,14 +322,14 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_ms_write_miriad(nrao_uv, tmp_path):
+def test_read_ms_write_miriad(nrao_ms, tmp_path):
     """
     read ms, write miriad test.
     Read in ms file, write out as miriad, read back in and check for
     object equality.
     """
     pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
-    ms_uv = nrao_uv
+    ms_uv = nrao_ms
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
     with check_warnings(
@@ -490,7 +445,7 @@ def test_bad_col_name():
     Test error with invalid column name.
     """
     uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    testfile = fetch_data("vla_casa_tutorial_ms")
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
         uvobj.read(testfile, data_column="FOO")
@@ -652,7 +607,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     """
     Make sure that single channel writing/reading work as expected
     """
-    carma_file = os.path.join(DATA_PATH, "carma_miriad")
+    carma_file = fetch_data("carma_miriad")
     testfile = os.path.join(tmp_path, "carma_out.ms")
 
     miriad_uv = UVData()
@@ -957,8 +912,8 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_ms_optional_parameters(nrao_uv, tmp_path):
-    uv_obj = nrao_uv
+def test_ms_optional_parameters(nrao_ms, tmp_path):
+    uv_obj = nrao_ms
 
     uv_obj.telescope.set_feeds_from_x_orientation(
         "east", polarization_array=uv_obj.polarization_array
@@ -998,7 +953,7 @@ def test_no_source(sma_mir, tmp_path):
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_timescale_handling():
-    ut1_file = os.path.join(DATA_PATH, "1090008640_birli_pyuvdata.ms")
+    ut1_file = fetch_data("mwa_birli_ms")
 
     uvobj = UVData.from_file(ut1_file)
     assert (
@@ -1049,22 +1004,22 @@ def test_ms_bad_history(sma_mir, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_flip_conj(nrao_uv, tmp_path):
+def test_flip_conj(nrao_ms, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj.ms")
-    nrao_uv.set_uvws_from_antenna_positions()
-    nrao_uv.uvw_array *= -1
-    nrao_uv.data_array = np.conj(nrao_uv.data_array)
+    nrao_ms.set_uvws_from_antenna_positions()
+    nrao_ms.uvw_array *= -1
+    nrao_ms.data_array = np.conj(nrao_ms.data_array)
 
     with check_warnings(
         UserWarning, match="Writing in the MS file that the units of the data are unca"
     ):
-        nrao_uv.write_ms(filename, flip_conj=True, run_check=False, clobber=True)
+        nrao_ms.write_ms(filename, flip_conj=True, run_check=False, clobber=True)
 
     with check_warnings(UserWarning, match=["UVW orientation appears to be flip"] * 2):
         uv = UVData.from_file(filename)
-        nrao_uv.check(allow_flip_conj=True)
+        nrao_ms.check(allow_flip_conj=True)
 
-    assert nrao_uv == uv
+    assert nrao_ms == uv
 
 
 def test_no_flip(sma_mir, tmp_path):
@@ -1184,10 +1139,10 @@ def test_write_ms_feed_sort(sma_mir, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_write_ms_baseline_conj_warning(nrao_uv, tmp_path):
+def test_write_ms_baseline_conj_warning(nrao_ms, tmp_path):
     testfile = os.path.join(tmp_path, "mix_bl_conj.ms")
 
-    uvd = nrao_uv
+    uvd = nrao_ms
     uvd.vis_units = "Jy"
     uvd.pol_convention = "sum"
 

@@ -5,22 +5,23 @@ dependencies:
   - astropy>=6.0
   - astropy-healpix>=1.0.2
   - astroquery>=0.4.4
+  - coverage
   - docstring_parser>=0.15
   - h5py>=3.7
   - hdf5>=1.12.0
   - hdf5plugin>=3.3.1
   - numba>=0.57.0
   - numpy>=1.23
+  - pip
+  - pooch>=1.8
   - pyerfa>=2.0.1.1
-  - pyyaml>=5.4.1
-  - scipy>=1.9
-  - coverage
   - pytest>=8.2.0
   - pytest-cases>=3.9.1
   - pytest-cov
   - pytest-xdist
+  - pyyaml>=5.4.1
+  - scipy>=1.9
   - cython>=3.0
   - setuptools_scm>=8.1
-  - pip
   - pip:
-      - lunarsky>=0.2.5
+    - lunarsky>=0.2.5

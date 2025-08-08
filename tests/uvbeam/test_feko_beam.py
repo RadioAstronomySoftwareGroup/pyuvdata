@@ -4,13 +4,7 @@ import numpy as np
 import pytest
 
 from pyuvdata import UVBeam
-from pyuvdata.data import DATA_PATH
-
-filename_x = "OVRO_LWA_x.ffe"
-filename_y = "OVRO_LWA_y.ffe"
-feko_folder = "OVRO_LWA_FEKOBeams"
-feko_filename_x = os.path.join(DATA_PATH, feko_folder, filename_x)
-feko_filename_y = os.path.join(DATA_PATH, feko_folder, filename_y)
+from pyuvdata.datasets import fetch_data
 
 
 @pytest.mark.parametrize(("btype"), [("power"), ("efield")])
@@ -26,7 +20,7 @@ def test_read_feko(btype):
         extra_keywords = None
 
     beam_feko1 = beam1.from_file(
-        feko_filename_x,
+        fetch_data("ovro_lwa_feko_x"),
         beam_type=btype,
         frequency=[10e6],
         feed_pol=None,
@@ -42,7 +36,7 @@ def test_read_feko(btype):
     )
 
     beam_feko2 = beam2.from_file(
-        feko_filename_y,
+        fetch_data("ovro_lwa_feko_y"),
         beam_type=btype,
         frequency=np.array([10e6]),
         feed_pol=np.array(["y"]),
@@ -82,7 +76,7 @@ def test_read_feko(btype):
     feko_beam_multi = beam_feko1 + beam_feko2
 
     feko_beam_multi2 = UVBeam.from_file(
-        [feko_filename_x, feko_filename_y],
+        fetch_data(["ovro_lwa_feko_x", "ovro_lwa_feko_y"]),
         beam_type=btype,
         frequency=[10e6],
         feed_pol=["x", "y"],
@@ -109,13 +103,13 @@ def test_read_feko(btype):
         ),
         ({"feed_pol": ["x", "y"]}, "feed_pol must have exactly one element"),
         (
-            {"filename": [filename_x, filename_y]},
+            {"dname": ["ovro_lwa_feko_x", "ovro_lwa_feko_y"]},
             "If multiple FEKO files are passed, the feed_pol must be a list "
             "or array of the same length giving the feed_pol for each file.",
         ),
         (
             {
-                "filename": [filename_x, filename_y],
+                "dname": ["ovro_lwa_feko_x", "ovro_lwa_feko_y"],
                 "feed_pol": ["x", "y"],
                 "feed_angle": np.pi / 2,
             },
@@ -125,7 +119,13 @@ def test_read_feko(btype):
     ],
 )
 def test_read_feko_input_errors(kwargs, msg):
-    init_kwargs = {"filename": filename_x, "beam_type": "power", "feed_pol": "x"}
+    if "dname" in kwargs:
+        kwargs["filename"] = fetch_data(kwargs.pop("dname"))
+    init_kwargs = {
+        "filename": fetch_data("ovro_lwa_feko_x"),
+        "beam_type": "power",
+        "feed_pol": "x",
+    }
     init_kwargs.update(kwargs)
     with pytest.raises(ValueError, match=msg):
         UVBeam.from_file(**init_kwargs)
@@ -141,9 +141,10 @@ def test_read_feko_input_errors(kwargs, msg):
 )
 def test_read_feko_file_errors(tmp_path, error_type, msg):
     # read in file into list, modify it to trigger errors, write it back out.
-    new_file = os.path.join(tmp_path, filename_x)
+    filename = fetch_data("ovro_lwa_feko_x")
+    new_file = os.path.join(tmp_path, os.path.basename(filename))
 
-    with open(feko_filename_x) as file:
+    with open(filename) as file:
         # read a list of lines into data
         data = file.readlines()
 

@@ -3,8 +3,6 @@
 
 """Testing environment setup and teardown for pytest."""
 
-import os
-
 import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
@@ -12,7 +10,7 @@ from astropy.time import Time
 from astropy.utils import iers
 
 from pyuvdata import UVCal, UVData
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 
@@ -41,15 +39,41 @@ def setup_and_teardown_package():
 
 
 @pytest.fixture(scope="session")
+def casa_uvfits_main():
+    """Read in CASA tutorial uvfits file."""
+    fname = fetch_data("vla_casa_tutorial_uvfits")
+    uv_in = UVData()
+    with check_warnings(
+        UserWarning, "The uvw_array does not match the expected values"
+    ):
+        uv_in.read(fname)
+
+    yield uv_in
+
+    # cleanup
+    del uv_in
+
+
+@pytest.fixture(scope="function")
+def casa_uvfits(casa_uvfits_main):
+    """Make function level CASA tutorial uvfits object."""
+    casa_uvfits = casa_uvfits_main.copy()
+    yield casa_uvfits
+
+    # clean up when done
+    del casa_uvfits
+
+    return
+
+
+@pytest.fixture(scope="session")
 def uvcalibrate_init_data_main():
     """Make initial uvcalibrate inputs."""
     uvdata = UVData()
-    uvdata.read(os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5"))
+    uvdata.read(fetch_data("hera_uvcalibrate_uvh5"))
 
     uvcal = UVCal()
-    uvcal.read_calfits(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni_downselected.calfits")
-    )
+    uvcal.read_calfits(fetch_data("hera_uvcalibrate_calfits"))
 
     uvcal.pol_convention = "avg"
     uvcal.gain_scale = "Jy"
@@ -113,7 +137,7 @@ def uvcalibrate_uvdata_oldfiles_main():
             "Fixing auto-correlations to be be real-only",
         ],
     ):
-        uvd = UVData.from_file(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA"))
+        uvd = UVData.from_file(fetch_data("hera_old_miriad"))
 
     yield uvd
 

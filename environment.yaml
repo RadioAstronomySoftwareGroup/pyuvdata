@@ -14,6 +14,7 @@ dependencies:
   - numba>=0.57.0
   - numpy>=1.23
   - pip
+  - pooch>=1.8
   - pre-commit
   - pyerfa>=2.0.1.1
   - pypandoc

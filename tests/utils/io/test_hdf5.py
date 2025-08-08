@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 import pyuvdata.utils.io.hdf5 as hdf5_utils
-from pyuvdata import data, utils
+from pyuvdata import utils
+from pyuvdata.datasets import fetch_data
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -69,6 +70,6 @@ def test_read_slicing():
 
 def test_telescope_attr():
     """Test Telescope attribute handling"""
-    meta = hdf5_utils.HDF5Meta(f"{data.DATA_PATH}/zen.2458661.23480.HH.uvh5")
+    meta = hdf5_utils.HDF5Meta(fetch_data("hera_h3c_uvh5"))
 
     assert meta.telescope.location == meta.telescope_location_obj

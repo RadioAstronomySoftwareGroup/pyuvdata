@@ -10,7 +10,7 @@ import pytest
 from astropy.units import Quantity
 
 from pyuvdata import UVCal
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 pytest.importorskip("casacore")
@@ -35,7 +35,7 @@ sma_warnings = [
 @pytest.fixture(scope="session")
 def sma_pcal_main():
     uvobj = UVCal()
-    testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
+    testfile = fetch_data("sma_pha_gcal")
     with check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
@@ -54,7 +54,7 @@ def sma_pcal(sma_pcal_main):
 @pytest.fixture(scope="session")
 def sma_dcal_main():
     uvobj = UVCal()
-    testfile = os.path.join(DATA_PATH, "sma.ms.dcal")
+    testfile = fetch_data("sma_dcal")
     with check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
@@ -71,7 +71,7 @@ def sma_dcal(sma_dcal_main):
 @pytest.fixture(scope="session")
 def sma_bcal_main():
     uvobj = UVCal()
-    testfile = os.path.join(DATA_PATH, "sma.ms.bcal")
+    testfile = fetch_data("sma_bcal")
     with check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
@@ -133,7 +133,7 @@ def test_ms_cal_bandpass_loopback(sma_bcal, tmp_path, write_func, filename):
 
 
 def test_ms_cal_wrong_ms_type():
-    filepath = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    filepath = fetch_data("vla_casa_tutorial_ms")
     uvc = UVCal()
 
     with pytest.raises(
@@ -198,7 +198,7 @@ def test_ms_cal_write_err(tmp_path):
 def test_ms_default_setting():
     uvc1 = UVCal()
     uvc2 = UVCal()
-    testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
+    testfile = fetch_data("sma_pha_gcal")
     with check_warnings(UserWarning, match=sma_warnings[2:]):
         uvc1.read_ms_cal(
             testfile,
@@ -325,7 +325,7 @@ def test_ms_feed_order(sma_pcal, tmp_path):
 
 
 def test_ms_tcal_read_write(tmp_path):
-    datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
+    datafile = fetch_data("sma_tcal")
     testfile = os.path.join(tmp_path, "tcal_read_write.ms")
 
     with check_warnings(UserWarning, match=sma_warnings):
@@ -339,7 +339,7 @@ def test_ms_tcal_read_write(tmp_path):
 
 
 def test_ms_polcal_read_write(tmp_path):
-    datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
+    datafile = fetch_data("sma_dterms_pcal")
     testfile = os.path.join(tmp_path, "polcal_read_write.ms")
 
     with check_warnings(UserWarning, match=sma_warnings[1:]):
@@ -353,7 +353,7 @@ def test_ms_polcal_read_write(tmp_path):
 
 
 def test_ms_polcal_jones_warning():
-    datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
+    datafile = fetch_data("sma_dterms_pcal")
     with check_warnings(
         UserWarning, match=["Cross-handed Jones terms expected"] + sma_warnings[1:]
     ):
@@ -361,7 +361,7 @@ def test_ms_polcal_jones_warning():
 
 
 def test_ms_nonpolcal_jones_warning():
-    datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
+    datafile = fetch_data("sma_tcal")
     with check_warnings(
         UserWarning, match=["Same-handed Jones terms expected"] + sma_warnings[1:]
     ):

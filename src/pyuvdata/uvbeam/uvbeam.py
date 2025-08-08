@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import copy
-import importlib
 import os
 import warnings
 from typing import Literal
@@ -4935,21 +4934,10 @@ def _uvbeam_constructor(loader, node):
     if isinstance(values["filename"], str):
         files_use = [values["filename"]]
 
-    if "path_variable" in values:
-        path_parts = (values.pop("path_variable")).split(".")
-        var_name = path_parts[-1]
-        if len(path_parts) == 1:
-            raise ValueError(
-                "If 'path_variable' is specified, it should take the form of a "
-                "module.variable_name where the variable name can be imported "
-                "from the module."
-            )
-        else:
-            module = (".").join(path_parts[:-1])
-            module = importlib.import_module(module)
-        path_var = getattr(module, var_name)
+    if "path_variable" in values:  # TODO: socialize this change.
+        path = values.pop("path_variable")
         for f_i in range(len(files_use)):
-            files_use[f_i] = os.path.join(path_var, files_use[f_i])
+            files_use[f_i] = os.path.join(path, files_use[f_i])
 
     for i, file in enumerate(files_use):
         # if file does not exist, check pyuvsim cache defined from astropy prescription

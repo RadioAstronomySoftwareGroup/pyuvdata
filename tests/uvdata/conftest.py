@@ -10,39 +10,31 @@ import warnings
 import pytest
 
 from pyuvdata import UVData
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_parser import MirParser
 
-casa_tutorial_uvfits = os.path.join(
-    DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
-)
-paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
-
 
 @pytest.fixture(scope="session")
-def casa_uvfits_main():
-    """Read in CASA tutorial uvfits file."""
-    uv_in = UVData()
-    with check_warnings(
-        UserWarning, "The uvw_array does not match the expected values"
-    ):
-        uv_in.read(casa_tutorial_uvfits)
+def nrao_ms_main():
+    pytest.importorskip("casacore")
+    uvobj = UVData()
+    testfile = fetch_data("vla_casa_tutorial_ms")
+    uvobj.read(testfile)
 
-    yield uv_in
+    yield uvobj
 
-    # cleanup
-    del uv_in
+    del uvobj
 
 
 @pytest.fixture(scope="function")
-def casa_uvfits(casa_uvfits_main):
-    """Make function level CASA tutorial uvfits object."""
-    casa_uvfits = casa_uvfits_main.copy()
-    yield casa_uvfits
+def nrao_ms(nrao_ms_main):
+    """Make function level NRAO ms object."""
+    nrao_ms = nrao_ms_main.copy()
+    yield nrao_ms
 
     # clean up when done
-    del casa_uvfits
+    del nrao_ms
 
     return
 
@@ -51,7 +43,7 @@ def casa_uvfits(casa_uvfits_main):
 def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+    testfile = fetch_data("hera_h3c_uvh5")
     uv_object.read(testfile)
 
     yield uv_object
@@ -72,7 +64,7 @@ def paper_miriad_main():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "The uvw_array does not match")
         warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
-        uv_object = UVData.from_file(paper_miriad_file)
+        uv_object = UVData.from_file(fetch_data("paper_2014_miriad"))
 
     yield uv_object
 
@@ -98,7 +90,7 @@ def paper_miriad(paper_miriad_main):
 def sma_mir_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    testfile = fetch_data("sma_mir")
     with check_warnings(
         UserWarning,
         match=[
@@ -137,7 +129,7 @@ def mir_data(mir_data_main):
 @pytest.fixture(scope="function")
 def fhd_test_files():
     # set up FHD files
-    testdir = os.path.join(DATA_PATH, "fhd_vis_data/")
+    testdir = fetch_data("mwa_fhd")
 
     tf_prefix = "1061316296_"
     tf_dict = {
@@ -181,8 +173,8 @@ def fhd_model_files(fhd_test_files):
 
 @pytest.fixture(scope="session")
 def uv_phase_comp_main():
-    file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
-    file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
+    file1 = fetch_data("mwa_cotter_phase_test1")
+    file2 = fetch_data("mwa_cotter_phase_test2")
     # These files came from an external source, don't want to rewrite them, so use
     # checkwarnings to capture the warning about non-real autos
     with check_warnings(

@@ -19,7 +19,7 @@ from packaging import version
 
 import pyuvdata.utils.io.hdf5 as hdf5_utils
 from pyuvdata import UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata import uvh5
 
@@ -36,7 +36,7 @@ pytestmark = [
 def uv_uvh5_main():
     # read in a uvh5 test file
     uv_uvh5 = UVData()
-    uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_filename = fetch_data("hera_h2c_uvh5")
     uv_uvh5.read_uvh5(uvh5_filename)
     return uv_uvh5
 
@@ -310,7 +310,7 @@ def test_read_uvh5_errors(tmp_path, casa_uvfits):
         err_msg = "Unable to open file"
 
     uv_in = UVData()
-    fake_file = os.path.join(DATA_PATH, "fake_file.uvh5")
+    fake_file = "fake_file.uvh5"
     with pytest.raises(IOError, match=err_msg):
         uv_in.read_uvh5(fake_file)
 
@@ -413,12 +413,7 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
 
 
 def test_uvh5_addition():
-    inputfiles = [
-        os.path.join(
-            DATA_PATH, f"ata.LoA.C0{subband}.uvh5_60647_62965_9760406_3c286_0001.uvh5"
-        )
-        for subband in ["352", "544"]
-    ]
+    inputfiles = fetch_data(["ata_uvh5_352", "ata_uvh5_544"])
 
     # write out and read back in
     uv1, uv2 = UVData(), UVData()
@@ -537,7 +532,7 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
 
-    uvfits_filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uvfits_filename = fetch_data("vla_casa_tutorial_uvfits")
     uv_full = UVData()
     uv_full.read_uvfits(uvfits_filename, read_data=False)
     uv1.read([testfile1, testfile2], read_data=False)
@@ -2003,7 +1998,7 @@ def test_uvh5_read_ints(uv_uvh5, tmp_path):
     assert uv_in == uv_out
 
     # now read in as np.complex128
-    uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_filename = fetch_data("hera_h2c_uvh5")
     uv_in.read_uvh5(uvh5_filename, data_array_dtype=np.complex128)
 
     # make sure filenames are what we expect
@@ -2025,7 +2020,7 @@ def test_uvh5_read_ints_error():
     Test raising an error for passing in an unsupported data_array dtype.
     """
     uv_in = UVData()
-    uvh5_filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_filename = fetch_data("hera_h2c_uvh5")
 
     # raise error for bogus data_array_dtype
     with pytest.raises(
@@ -2075,7 +2070,7 @@ def test_uvh5_partial_read_ints_antennas():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2096,7 +2091,7 @@ def test_uvh5_partial_read_ints_freqs():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2117,7 +2112,7 @@ def test_uvh5_partial_read_ints_pols():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2138,7 +2133,7 @@ def test_uvh5_partial_read_ints_times():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2160,7 +2155,7 @@ def test_uvh5_partial_read_ints_multi1():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2190,7 +2185,7 @@ def test_uvh5_partial_read_ints_multi2():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -2220,7 +2215,7 @@ def test_uvh5_partial_read_ints_multi3():
     """
     uvh5_uv = UVData()
     uvh5_uv2 = UVData()
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    uvh5_file = fetch_data("hera_h2c_uvh5")
     # This file has weird telescope or antenna location information
     # (not on the surface of the earth)
     # which breaks the phasing when trying to check if the uvws match the antpos.
@@ -3317,7 +3312,7 @@ def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
 @pytest.mark.usefixtures("sma_mir")
 class TestFastUVH5Meta:
     def setup_class(self):
-        self.fl = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+        self.fl = fetch_data("hera_h2c_uvh5")
 
         self.tmp_path = tempfile.TemporaryDirectory("fastuvh5meta")
 
