@@ -9,7 +9,7 @@ import shutil
 import numpy as np
 import pytest
 
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 
 aipy_extracts = pytest.importorskip(
     "pyuvdata.uvdata.aipy_extracts", exc_type=ImportError
@@ -148,7 +148,7 @@ def test_uv_wrhd_special(tmp_path):
 
 def test_uv_rdhd_special(tmp_path):
     """Test _rdhd_special method on UV object"""
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = str(tmp_path / "miriad_test.uv")
     if os.path.exists(test_file):
         shutil.rmtree(test_file)
@@ -188,7 +188,7 @@ def test_uv_rdhd_special(tmp_path):
 @pytest.mark.parametrize("insert_blank", [False, True])
 def test_pipe(tmp_path, raw, insert_blank):
     """Test pipe method on UV object"""
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
     aipy_uv = aipy_extracts.UV(infile)
@@ -216,7 +216,7 @@ def test_pipe(tmp_path, raw, insert_blank):
 
 @pytest.mark.parametrize("exclude", [[], "telescop", "history", "dummy"])
 def test_init_from_uv_exclude(tmp_path, exclude):
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
     aipy_uv = aipy_extracts.UV(infile)
@@ -251,7 +251,7 @@ def test_init_from_uv_exclude(tmp_path, exclude):
     "var_dict", [{}, {"latitud": 0.0}, {"longitu": 0.0}, {"history": "abc"}]
 )
 def test_init_from_uv_override(tmp_path, var_dict):
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
     aipy_uv = aipy_extracts.UV(infile)
@@ -278,7 +278,7 @@ def test_write_no_flags(tmp_path):
     """
     Verify that if flags are deleted, write will recreate them appropriately
     """
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
     aipy_uv = aipy_extracts.UV(infile)
@@ -314,7 +314,7 @@ def test_add_to_header(tmp_path):
     Verify that if flags are deleted, write will create a mask based on where
     the data have been zeroed out (i.e., default MIRIAD behavior).
     """
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     test_file = os.path.join(tmp_path, "miriad_test.uv")
 
     # Create a fake entry in the item table so that we can run this test -- the double
@@ -355,7 +355,7 @@ def test_add_to_header(tmp_path):
     ],
 )
 def test_uv_selector(polstr, antstr, ants_exp, nrec_exp):
-    infile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+    infile = fetch_data("paper_2014_miriad")
     aipy_uv = aipy_extracts.UV(infile)
 
     aipy_extracts.uv_selector(aipy_uv, ants=antstr, pol_str=polstr)

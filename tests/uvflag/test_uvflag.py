@@ -15,16 +15,12 @@ from _pytest.outcomes import Skipped
 from astropy import units
 
 from pyuvdata import UVCal, UVData, UVFlag, __version__, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.utils.io import hdf5 as hdf5_utils
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
 from ..utils.test_coordinates import frame_selenoid
-
-test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
-test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
-test_f_file = test_d_file + ".testuvflag.h5"
 
 pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + "."
 
@@ -46,7 +42,7 @@ def uvdata_obj_main():
             "The uvw_array does not match the expected",
         ],
     ):
-        uvdata_object.read(test_d_file)
+        uvdata_object.read(fetch_data("hera_old_miriad"))
 
     yield uvdata_object
 
@@ -73,7 +69,7 @@ def uvdata_obj(uvdata_obj_main):
     uvdata_object = uvdata_obj_main.copy()
 
     # This data file has a different telescope location and other weirdness.
-    # Set them to the known HERA values to allow combinations with the test_f_file
+    # Set them to the known HERA values to allow combinations with the test flag file
     # which appears to have the known HERA values.
     uvdata_object.set_telescope_params(overwrite=True, warn=False)
     uvdata_object.set_lsts_from_time_array()
@@ -89,7 +85,7 @@ def uvdata_obj(uvdata_obj_main):
 @pytest.fixture(scope="session")
 def uvcal_obj_main():
     uvc = UVCal()
-    uvc.read_calfits(test_c_file)
+    uvc.read_calfits(fetch_data("hera_omnical1"))
 
     yield uvc
 
@@ -104,7 +100,7 @@ def uvcal_obj(uvcal_obj_main):
     uvc = uvcal_obj_main.copy()
 
     # This cal file has a different antenna names and other weirdness.
-    # Set them to the known HERA values to allow combinations with the test_f_file
+    # Set them to the known HERA values to allow combinations with the test flag file
     # which appears to have the known HERA values.
     uvc.set_telescope_params(overwrite=True, warn=False)
     yield uvc
@@ -148,7 +144,7 @@ def uvf_from_file_main():
         [UserWarning] * 4 + [DeprecationWarning] * 5,
         match=["channel_width not available in file, computing it from the freq_array"],
     ):
-        uvf = UVFlag(test_f_file, telescope_name="HERA")
+        uvf = UVFlag(fetch_data("hera_flags"), telescope_name="HERA")
     uvf.telescope.name = "HERA"
     uvf.telescope.antenna_numbers = None
     uvf.telescope.antenna_names = None
@@ -595,7 +591,7 @@ def test_from_uvcal_error(uvdata_obj):
         uvf.from_uvcal(uv)
 
     delay_object = UVCal()
-    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    delayfile = fetch_data("hera_firstcal_delay")
 
     # convert delay object to future array shapes, drop freq_array, set Nfreqs=1
     delay_object.read_calfits(delayfile)
@@ -627,7 +623,7 @@ def test_init_list_files_weights(tmpdir):
     # Test that weights are preserved when reading list of files
     tmp_path = tmpdir.strpath
     # Create two files to read
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     np.random.seed(0)
     wts1 = np.random.rand(*uvf.weights_array.shape)
     uvf.weights_array = wts1.copy()
@@ -644,15 +640,15 @@ def test_init_list_files_weights(tmpdir):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_init_posix():
-    testfile_posix = pathlib.Path(test_f_file)
-    uvf1 = UVFlag(test_f_file)
+    testfile_posix = pathlib.Path(fetch_data("hera_flags"))
+    uvf1 = UVFlag(fetch_data("hera_flags"))
     uvf2 = UVFlag(testfile_posix)
     assert uvf1 == uvf2
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_hdf5_meta_telescope_location(test_outfile):
-    meta = hdf5_utils.HDF5Meta(test_f_file)
+    meta = hdf5_utils.HDF5Meta(fetch_data("hera_flags"))
     lat, lon, alt = meta.telescope_location_lat_lon_alt
 
     assert np.isclose(
@@ -696,7 +692,7 @@ def test_hdf5_meta_telescope_location(test_outfile):
             ]
         )
 
-        shutil.copyfile(test_f_file, test_outfile)
+        shutil.copyfile(fetch_data("hera_flags"), test_outfile)
         with h5py.File(test_outfile, "r+") as h5f:
             h5f["Header/telescope_frame"] = "mcmf"
             del h5f["Header/telescope_location"]
@@ -712,7 +708,7 @@ def test_hdf5_meta_telescope_location(test_outfile):
 )
 def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
     """Check errors when calling HDF5Meta with MCMF without lunarsky."""
-    shutil.copyfile(test_f_file, test_outfile)
+    shutil.copyfile(fetch_data("hera_flags"), test_outfile)
     with h5py.File(test_outfile, "r+") as h5f:
         h5f["Header/telescope_frame"] = "mcmf"
 
@@ -972,7 +968,7 @@ def test_read_write_loop_missing_telescope_info(
 ):
     if uvf_type == "antenna":
         uv = UVCal()
-        uv.read_calfits(test_c_file)
+        uv.read_calfits(fetch_data("hera_omnical1"))
     else:
         uv = uvdata_obj_weird_telparams
 
@@ -1085,8 +1081,8 @@ def test_read_write_loop_missing_telescope_info(
 
 
 def test_missing_telescope_info_mwa(test_outfile):
-    mwa_uvfits = os.path.join(DATA_PATH, "1133866760.uvfits")
-    metafits = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles", "1131733552.metafits")
+    mwa_uvfits = fetch_data("mwa_cotter_phase_test1")
+    metafits = fetch_data("mwa_2015_metafits")
     with check_warnings(
         UserWarning, match="Fixing auto-correlations to be be real-only"
     ):
@@ -1254,7 +1250,7 @@ def test_read_write_loop_waterfall(uvdata_obj, test_outfile, spw_axis):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_read_write_loop_ret_wt_sq(test_outfile):
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
     uvf.to_waterfall(return_weights_square=True)
     uvf.write(test_outfile, clobber=True)
@@ -1414,9 +1410,9 @@ def test_init_list(uvdata_obj):
             "UVParameter Telescope.mount_type does not match. Continuing anyways.",
         ],
     ):
-        uvf = UVFlag([uv, test_f_file])
+        uvf = UVFlag([uv, fetch_data("hera_flags")])
     uvf1 = UVFlag(uv)
-    uvf2 = UVFlag(test_f_file)
+    uvf2 = UVFlag(fetch_data("hera_flags"))
 
     uv.telescope.location = uvf2.telescope.location
     uv.telescope.antenna_names = uvf2.telescope.antenna_names
@@ -1461,13 +1457,13 @@ def test_read_multiple_files(uvdata_obj, test_outfile):
     warn_type = [UserWarning] * 3
 
     with check_warnings(warn_type, match=warn_msg):
-        uvf.read([test_outfile, test_f_file])
+        uvf.read([test_outfile, fetch_data("hera_flags")])
     assert uvf.filename == sorted(
-        os.path.basename(file) for file in [test_outfile, test_f_file]
+        os.path.basename(file) for file in [test_outfile, fetch_data("hera_flags")]
     )
 
     uvf1 = UVFlag(uv)
-    uvf2 = UVFlag(test_f_file)
+    uvf2 = UVFlag(fetch_data("hera_flags"))
     assert np.array_equal(
         np.concatenate((uvf1.metric_array, uvf2.metric_array), axis=0), uvf.metric_array
     )
@@ -1504,7 +1500,7 @@ def test_read_change_type(uvcal_obj, test_outfile):
 
     uvf.write(test_outfile, clobber=True)
     assert hasattr(uvf, "ant_array")
-    uvf.read(test_f_file)
+    uvf.read(fetch_data("hera_flags"))
 
     # clear sets these to None now
     assert hasattr(uvf, "ant_array")
@@ -1530,7 +1526,7 @@ def test_read_change_mode(uvdata_obj, test_outfile):
     assert hasattr(uvf, "metric_array")
     assert uvf.metric_array is None
     uvf.write(test_outfile, clobber=True)
-    uvf.read(test_f_file)
+    uvf.read(fetch_data("hera_flags"))
     assert hasattr(uvf, "metric_array")
     assert hasattr(uvf, "flag_array")
     assert uvf.flag_array is None
@@ -1542,9 +1538,10 @@ def test_read_change_mode(uvdata_obj, test_outfile):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_write_no_clobber():
-    uvf = UVFlag(test_f_file)
-    with pytest.raises(ValueError, match=re.escape("File " + test_f_file + " exists")):
-        uvf.write(test_f_file)
+    filename = fetch_data("hera_flags")
+    uvf = UVFlag(filename)
+    with pytest.raises(ValueError, match=re.escape(f"File {filename} exists")):
+        uvf.write(fetch_data("hera_flags"))
 
 
 @pytest.mark.parametrize("background", [True, False])
@@ -1598,7 +1595,7 @@ def test_set_telescope_params(uvdata_obj):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add():
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
     uv2 = copy.copy(uv1)
     uv2.time_array += 1  # Add a day
     with check_warnings(
@@ -1640,7 +1637,7 @@ def test_add():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_collapsed_pols():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -1656,7 +1653,7 @@ def test_add_collapsed_pols():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_add_version_str():
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
     uv1.history = uv1.history.replace(pyuvdata_version_str, "")
 
     assert pyuvdata_version_str not in uv1.history
@@ -1670,7 +1667,7 @@ def test_add_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_baseline():
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
     uv2 = uv1.copy()
     uv2.baseline_array += 100  # Arbitrary
     uv3 = uv1.__add__(uv2, axis="baseline")
@@ -1762,7 +1759,7 @@ def test_add_antenna(uvcal_obj, diameters):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency():
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
     uv2 = uv1.copy()
     uv2.freq_array += 1e4  # Arbitrary
 
@@ -1791,7 +1788,7 @@ def test_add_frequency():
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("split_spw", [True, False])
 def test_add_frequency_multi_spw(split_spw):
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
 
     # add spectral windows to test handling
     uv1.Nspws = 2
@@ -1828,7 +1825,7 @@ def test_add_frequency_multi_spw(split_spw):
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency_with_weights_square():
     # Same test as above, just checking an optional parameter (also in waterfall mode)
-    uvf1 = UVFlag(test_f_file)
+    uvf1 = UVFlag(fetch_data("hera_flags"))
     uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
     uvf1.to_waterfall(return_weights_square=True)
     uvf2 = uvf1.copy()
@@ -1843,7 +1840,7 @@ def test_add_frequency_with_weights_square():
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency_mix_weights_square():
     # Same test as above, checking some error handling
-    uvf1 = UVFlag(test_f_file)
+    uvf1 = UVFlag(fetch_data("hera_flags"))
     uvf1.weights_array = 2 * np.ones_like(uvf1.weights_array)
     uvf2 = uvf1.copy()
     uvf1.to_waterfall(return_weights_square=True)
@@ -1858,7 +1855,7 @@ def test_add_frequency_mix_weights_square():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_pol():
-    uv1 = UVFlag(test_f_file)
+    uv1 = UVFlag(fetch_data("hera_flags"))
     uv2 = uv1.copy()
     uv2.polarization_array += 1  # Arbitrary
     uv3 = uv1.__add__(uv2, axis="polarization")
@@ -1958,7 +1955,7 @@ def test_add_errors(uvdata_obj, uvcal_obj):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_inplace_add():
-    uv1a = UVFlag(test_f_file)
+    uv1a = UVFlag(fetch_data("hera_flags"))
     uv1b = uv1a.copy()
     uv2 = uv1a.copy()
     uv2.time_array += 1
@@ -1969,7 +1966,7 @@ def test_inplace_add():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_clear_unused_attributes():
-    uv = UVFlag(test_f_file)
+    uv = UVFlag(fetch_data("hera_flags"))
     assert hasattr(uv, "baseline_array")
     assert hasattr(uv, "ant_1_array")
     assert hasattr(uv, "ant_2_array")
@@ -1991,7 +1988,7 @@ def test_clear_unused_attributes():
     assert uv.metric_array is None
 
     # Start over
-    uv = UVFlag(test_f_file)
+    uv = UVFlag(fetch_data("hera_flags"))
     uv.ant_array = np.array([4])
     uv.flag_array = np.array([5])
     uv.clear_unused_attributes()
@@ -2003,7 +2000,7 @@ def test_clear_unused_attributes():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_not_equal():
-    uvf1 = UVFlag(test_f_file)
+    uvf1 = UVFlag(fetch_data("hera_flags"))
     # different class
     assert not uvf1.__eq__(5)
     # different mode
@@ -2026,7 +2023,7 @@ def test_not_equal():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
     assert uvf.type == "waterfall"
@@ -2040,7 +2037,7 @@ def test_to_waterfall_bl():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_add_version_str():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
 
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
@@ -2051,7 +2048,7 @@ def test_to_waterfall_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_multi_pol():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -2079,7 +2076,7 @@ def test_to_waterfall_bl_multi_pol():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_ret_wt_sq():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     Nbls = uvf.Nbls
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
     uvf.to_waterfall(return_weights_square=True)
@@ -2092,7 +2089,7 @@ def test_to_waterfall_bl_ret_wt_sq():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol(test_outfile):
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -2125,7 +2122,7 @@ def test_collapse_pol(test_outfile):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_add_pol_axis():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     uvf2.polarization_array[0] = -4
@@ -2138,7 +2135,7 @@ def test_collapse_pol_add_pol_axis():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_or():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     assert uvf.weights_array is None
     uvf2 = uvf.copy()
@@ -2158,7 +2155,7 @@ def test_collapse_pol_or():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_add_version_str():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
 
     uvf2 = uvf.copy()
@@ -2176,7 +2173,7 @@ def test_collapse_pol_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_single_pol():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf2 = uvf.copy()
     with check_warnings(UserWarning, "Cannot collapse polarization"):
@@ -2186,7 +2183,7 @@ def test_collapse_single_pol():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_flag():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     assert uvf.weights_array is None
     uvf2 = uvf.copy()
@@ -2206,7 +2203,7 @@ def test_collapse_pol_flag():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_flags():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf.to_waterfall()
     assert uvf.type == "waterfall"
@@ -2222,7 +2219,7 @@ def test_to_waterfall_bl_flags():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_flags_or():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     assert uvf.weights_array is None
     uvf.to_waterfall(method="or")
@@ -2234,7 +2231,7 @@ def test_to_waterfall_bl_flags_or():
         len(uvf.polarization_array),
     )
     assert len(uvf.lst_array) == len(uvf.time_array)
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf.to_waterfall(method="or")
     assert uvf.type == "waterfall"
@@ -2264,7 +2261,7 @@ def test_to_waterfall_ant(uvcal_obj):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_waterfall():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.weights_array = np.ones_like(uvf.weights_array)
     uvf.to_waterfall()
     with check_warnings(UserWarning, "This object is already a waterfall"):
@@ -2502,7 +2499,7 @@ def test_to_baseline_antenna_errors(uvdata_obj, uvcal_obj, method):
         ):
             uvf.to_antenna(uv)
 
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
 
     uvf.to_waterfall()
     with pytest.raises(ValueError, match=msg):
@@ -2776,7 +2773,7 @@ def test_to_antenna_metric_force_pol(uvcal_obj):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_copy():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf2 = uvf.copy()
     assert uvf == uvf2
     # Make sure it's a copy and not just pointing to same object
@@ -2786,7 +2783,7 @@ def test_copy():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf2 = uvf.copy()
     uvf2.flag_array = np.ones_like(uvf2.flag_array)
@@ -2801,7 +2798,7 @@ def test_or():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_add_version_str():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
 
@@ -2818,7 +2815,7 @@ def test_or_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_error():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf2 = uvf.copy()
     uvf.to_flag()
     with pytest.raises(ValueError, match='UVFlag object must be in "flag" mode'):
@@ -2827,7 +2824,7 @@ def test_or_error():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_add_history():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf2 = uvf.copy()
     uvf2.history = "Different history"
@@ -2839,7 +2836,7 @@ def test_or_add_history():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_ior():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf2 = uvf.copy()
     uvf2.flag_array = np.ones_like(uvf2.flag_array)
@@ -2854,7 +2851,7 @@ def test_ior():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     assert hasattr(uvf, "flag_array")
     assert hasattr(uvf, "metric_array")
@@ -2865,7 +2862,7 @@ def test_to_flag():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_add_version_str():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
     assert pyuvdata_version_str not in uvf.history
 
@@ -2875,7 +2872,7 @@ def test_to_flag_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_threshold():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.metric_array = np.zeros_like(uvf.metric_array)
     uvf.metric_array[0, 4, 0] = 2.0
     uvf.to_flag(threshold=1.0)
@@ -2890,7 +2887,7 @@ def test_to_flag_threshold():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_flag_to_flag():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf2 = uvf.copy()
     uvf2.to_flag()
@@ -2899,7 +2896,7 @@ def test_flag_to_flag():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_unknown_mode():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.mode = "foo"
     with pytest.raises(ValueError, match="Unknown UVFlag mode: foo"):
         uvf.to_flag()
@@ -2907,7 +2904,7 @@ def test_to_flag_unknown_mode():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_baseline():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf.flag_array[:, 10] = True
     uvf.flag_array[1, :] = True
@@ -2937,7 +2934,7 @@ def test_to_metric_baseline():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_add_version_str():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_flag()
     uvf.flag_array[:, 10] = True
     uvf.flag_array[1, :] = True
@@ -2955,7 +2952,7 @@ def test_to_metric_add_version_str():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_waterfall():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_waterfall()
     uvf.to_flag()
     uvf.flag_array[:, 10] = True
@@ -2997,7 +2994,7 @@ def test_to_metric_antenna(uvcal_obj):
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_metric_to_metric():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf2 = uvf.copy()
     uvf.to_metric()
     assert uvf == uvf2
@@ -3005,7 +3002,7 @@ def test_metric_to_metric():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_unknown_mode():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.mode = "foo"
     with pytest.raises(ValueError, match="Unknown UVFlag mode: foo"):
         uvf.to_metric()
@@ -3013,7 +3010,7 @@ def test_to_metric_unknown_mode():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_antpair2ind():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     ind = uvf.antpair2ind(uvf.ant_1_array[0], uvf.ant_2_array[0])
     assert np.all(uvf.ant_1_array[ind] == uvf.ant_1_array[0])
     assert np.all(uvf.ant_2_array[ind] == uvf.ant_2_array[0])
@@ -3021,7 +3018,7 @@ def test_antpair2ind():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_antpair2ind_nonbaseline():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     uvf.to_waterfall()
     with pytest.raises(
         ValueError,
@@ -3033,7 +3030,7 @@ def test_antpair2ind_nonbaseline():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_baseline_to_antnums():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     a1, a2 = uvf.baseline_to_antnums(uvf.baseline_array[0])
     assert a1 == uvf.ant_1_array[0]
     assert a2 == uvf.ant_2_array[0]
@@ -3041,14 +3038,14 @@ def test_baseline_to_antnums():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_baseline_nums():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     bls = uvf.get_baseline_nums()
     assert np.array_equal(bls, np.unique(uvf.baseline_array))
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_pols():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     pols = uvf.get_pols()
     pols2 = utils.polnum2str(
         uvf.polarization_array,
@@ -3059,7 +3056,7 @@ def test_get_pols():
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_antpairs():
-    uvf = UVFlag(test_f_file)
+    uvf = UVFlag(fetch_data("hera_flags"))
     antpairs = uvf.get_antpairs()
     for a1, a2 in antpairs:
         ind = np.where((uvf.ant_1_array == a1) & (uvf.ant_2_array == a2))[0]

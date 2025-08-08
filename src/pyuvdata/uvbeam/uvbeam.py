@@ -4936,20 +4936,46 @@ def _uvbeam_constructor(loader, node):
         files_use = [values["filename"]]
 
     if "path_variable" in values:
-        path_parts = (values.pop("path_variable")).split(".")
-        var_name = path_parts[-1]
-        if len(path_parts) == 1:
-            raise ValueError(
-                "If 'path_variable' is specified, it should take the form of a "
-                "module.variable_name where the variable name can be imported "
-                "from the module."
-            )
+        path_var = values.pop("path_variable")
+        # first check to see if this is a file on disk
+        test_files = [os.path.join(path_var, file) for file in files_use]
+        files_exist = np.asarray([os.path.exists(file) for file in test_files])
+        if np.any(files_exist):
+            files_use = test_files
+            if not np.all(files_exist):
+                missing_files = (np.asarray(test_files))[np.nonzero(~files_exist)]
+                raise FileNotFoundError(f"File(s) {missing_files} do not exist.")
         else:
-            module = (".").join(path_parts[:-1])
-            module = importlib.import_module(module)
-        path_var = getattr(module, var_name)
-        for f_i in range(len(files_use)):
-            files_use[f_i] = os.path.join(path_var, files_use[f_i])
+            bad_pathvar_message = (
+                "If 'path_variable' is specified, it should either be the "
+                "directory a file is in or take the form of a module.variable_name "
+                "where the variable name can be imported from the module. "
+                f"The path_variable is {path_var}. Files {test_files} do not exist "
+            )
+            path_parts = (path_var).split(".")
+            var_name = path_parts[-1]
+            if len(path_parts) == 1:
+                raise ValueError(
+                    bad_pathvar_message + "and the path_variable does not have "
+                    "the form of a module.variable_name."
+                )
+            else:
+                try:
+                    module = (".").join(path_parts[:-1])
+                    module = importlib.import_module(module)
+                except ImportError as ie:
+                    raise ImportError(
+                        bad_pathvar_message + f"and the module {module} is not "
+                        "importable."
+                    ) from ie
+            path_var = getattr(module, var_name)
+            files_use = [os.path.join(path_var, file) for file in files_use]
+            files_exist = np.asarray([os.path.exists(file) for file in files_use])
+            if not np.all(files_exist):
+                missing_files = (np.asarray(files_use))[np.nonzero(~files_exist)]
+                raise FileNotFoundError(
+                    bad_pathvar_message + f"and file(s) {missing_files} do not exist."
+                )
 
     for i, file in enumerate(files_use):
         # if file does not exist, check pyuvsim cache defined from astropy prescription

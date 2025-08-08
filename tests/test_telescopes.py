@@ -3,7 +3,6 @@
 
 """Tests for telescope objects and functions."""
 
-import os
 import warnings
 
 import numpy as np
@@ -13,7 +12,7 @@ from astropy.units import Quantity
 
 import pyuvdata
 from pyuvdata import Telescope, UVData
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.telescopes import (
     get_antenna_params,
     ignore_telescope_param_update_warnings_for,
@@ -294,7 +293,7 @@ def test_get_telescope_no_loc():
 
 
 def test_hera_loc():
-    hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH_downselected.uvh5")
+    hera_file = fetch_data("hera_uvcalibrate_uvh5")
     hera_data = UVData()
 
     hera_data.read(hera_file, read_data=False, file_type="uvh5")
@@ -492,7 +491,7 @@ def test_passing_diameters(simplest_working_params):
 
 
 def test_get_enu_antpos():
-    filename = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+    filename = fetch_data("hera_h2c_uvh5")
 
     tel = Telescope.from_hdf5(filename)
     # no center, no pick data ants

@@ -3,20 +3,14 @@
 
 """Tests for BeamFits object."""
 
-import os
-
 import numpy as np
 import pytest
 from astropy.io import fits
 
 import pyuvdata.utils.io.fits as fits_utils
 from pyuvdata import UVBeam, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
-
-filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
-cst_folder = "NicCSTbeams"
-cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +35,7 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 @pytest.fixture(scope="function")
 def hera_beam_casa():
     beam_in = UVBeam()
-    casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
+    casa_file = fetch_data("hera_casa_beam")
     beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
 
     # fill in missing parameters

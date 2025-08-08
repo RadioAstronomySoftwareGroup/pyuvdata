@@ -3,22 +3,20 @@
 
 """pytest fixtures for UVCal tests."""
 
-import os
-
 import numpy as np
 import pytest
 
 from pyuvdata import UVCal
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
-from . import test_fhd_cal
+from .test_fhd_cal import fhd_files
 
 
 @pytest.fixture(scope="session")
 def gain_data_main():
     """Read in gain calfits file."""
-    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    gainfile = fetch_data("hera_omnical2")
     gain_object = UVCal.from_file(gainfile)
     gain_object.freq_range = None
 
@@ -38,7 +36,7 @@ def gain_data(gain_data_main):
 @pytest.fixture(scope="session")
 def delay_data_main():
     """Read in delay calfits file."""
-    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    delayfile = fetch_data("hera_firstcal_delay")
     delay_object = UVCal.from_file(delayfile)
 
     # yield the data for testing, then del after tests finish
@@ -57,10 +55,10 @@ def delay_data(delay_data_main):
 def fhd_cal_raw_main():
     """Read in raw FHD cal."""
     fhd_cal = UVCal.from_file(
-        test_fhd_cal.cal_testfile,
-        obs_file=test_fhd_cal.obs_testfile,
-        layout_file=test_fhd_cal.layout_testfile,
-        settings_file=test_fhd_cal.settings_testfile,
+        fhd_files("cal"),
+        obs_file=fhd_files("obs"),
+        layout_file=fhd_files("layout"),
+        settings_file=fhd_files("settings"),
         raw=True,
     )
 
@@ -83,10 +81,10 @@ def fhd_cal_raw(fhd_cal_raw_main):
 def fhd_cal_fit_main():
     """Read in fit FHD cal."""
     fhd_cal = UVCal.from_file(
-        test_fhd_cal.cal_testfile,
-        obs_file=test_fhd_cal.obs_testfile,
-        layout_file=test_fhd_cal.layout_testfile,
-        settings_file=test_fhd_cal.settings_testfile,
+        fhd_files("cal"),
+        obs_file=fhd_files("obs"),
+        layout_file=fhd_files("layout"),
+        settings_file=fhd_files("settings"),
         raw=False,
     )
 

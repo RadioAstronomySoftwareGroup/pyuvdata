@@ -18,11 +18,9 @@ from astropy.utils.data import cache_contents, import_file_to_cache, is_url_in_c
 
 from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam import _uvbeam
-
-from .test_cst_beam import cst_files, cst_yaml_file
-from .test_mwa_beam import filename as mwa_beam_file
 
 try:
     from astropy_healpix import HEALPix
@@ -30,8 +28,6 @@ try:
     healpix_installed = True
 except ImportError:
     healpix_installed = False
-
-casa_beamfits = os.path.join(DATA_PATH, "HERABEAM.FITS")
 
 
 @pytest.fixture(scope="function")
@@ -2157,7 +2153,7 @@ def test_select_polarizations(pols, cst_efield_1freq, invert):
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
-def test_select_polarizations_errors(cst_efield_1freq):
+def test_select_polarizations_errors(cst_efield_1freq, tmpdir):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = cst_efield_1freq
     power_beam.efield_to_power()
@@ -2176,7 +2172,7 @@ def test_select_polarizations_errors(cst_efield_1freq):
     # check for warnings and errors associated with unevenly spaced polarizations
     with check_warnings(UserWarning, "Selected polarization values are not evenly"):
         power_beam.select(polarizations=power_beam.polarization_array[[0, 1, 3]])
-    write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
+    write_file_beamfits = os.path.join(tmpdir, "test/select_beam.fits")
     with pytest.raises(
         ValueError, match="The polarization values are not evenly spaced "
     ):
@@ -3062,7 +3058,7 @@ def test_get_beam_functions(cst_power_1freq_cut_healpix):
 def test_generic_read_cst():
     uvb = UVBeam()
     uvb.read(
-        cst_files,
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]),
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_angle=[0.0, np.pi / 2],
@@ -3080,15 +3076,22 @@ def test_generic_read_cst():
 
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
-@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-def test_generic_read(filename):
+@pytest.mark.parametrize(
+    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
+)
+def test_generic_read(dname):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
     # going to check in a second anyway, no need to double check.
+    filename = fetch_data(dname)
+    if "yaml" in dname:
+        # make sure the datafiles are cached
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
     uvb.read(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
-    if filename == casa_beamfits:
+    if dname == "hera_casa_beam":
+        filename = fetch_data("hera_casa_beam")
         # fill in missing parameters
         uvb.data_normalization = "peak"
         uvb.feed_name = "casa_ideal"
@@ -3112,7 +3115,7 @@ def test_generic_read_bad_filetype():
 @pytest.mark.parametrize("nfiles", [3, 4])
 def test_generic_read_multi(tmp_path, nfiles):
     uvb = UVBeam()
-    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    uvb.read(fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     assert uvb.Naxes2 >= nfiles
     n_per_files = uvb.Naxes2 // nfiles
@@ -3148,7 +3151,7 @@ def test_generic_read_multi(tmp_path, nfiles):
 def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
     uvb = UVBeam()
     uvb = UVBeam()
-    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    uvb.read(fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
     uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
@@ -3178,7 +3181,7 @@ def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
 
 def test_generic_read_all_bad_files(tmp_path):
     uvb = UVBeam()
-    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    uvb.read(fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
     uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
@@ -3197,16 +3200,22 @@ def test_generic_read_all_bad_files(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
-@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-def test_from_file(filename):
+@pytest.mark.parametrize(
+    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
+)
+def test_from_file(dname):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()
     # don't run checks because of casa_beamfits, we'll do that later
+    filename = fetch_data(dname)
+    if "yaml" in dname:
+        # make sure the datafiles are cached
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
     uvb2 = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
     uvb.read(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
-    if filename == casa_beamfits:
+    if dname == "hera_casa_beam":
         # fill in missing parameters
         for _uvb in [uvb, uvb2]:
             _uvb.data_normalization = "peak"
@@ -3228,30 +3237,40 @@ def test_from_file(filename):
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize(
-    ["filename", "path_var", "file_list"],
+    ["dname", "path_var", "relative_path", "file_list"],
     [
-        [cst_yaml_file, True, True],
-        [mwa_beam_file, False, False],
-        [casa_beamfits, False, True],
+        ["hera_fagnoni_dipole_yaml", True, False, True],
+        ["mwa_full_EE", True, True, False],
+        ["hera_casa_beam", False, False, True],
     ],
 )
-def test_yaml_constructor(filename, path_var, file_list):
-    if path_var:
+def test_yaml_constructor(dname, path_var, relative_path, file_list, tmp_path):
+    filename = fetch_data(dname)
+    if "yaml" in dname:
+        # make sure the datafiles are cached
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+
+    if not path_var:
         input_yaml = f"""
             beam: !UVBeam
                 filename: {filename}
                 mount_type: fixed
                 run_check: False
-                freq_range: [120.0e+6, 160.0e+6]
             """
     else:
-        fname_use = filename[len(DATA_PATH) + 1 :]
+        if relative_path:
+            try:
+                filename = os.path.relpath(filename)
+            except ValueError:
+                pytest.skip("No relative path. Happens on Windows CI.")
+        dirname, basename = os.path.split(filename)
         input_yaml = f"""
             beam: !UVBeam
-                filename: {fname_use}
-                path_variable: pyuvdata.data.DATA_PATH
+                filename: {basename}
                 mount_type: fixed
+                path_variable: {dirname}
                 run_check: False
+                freq_range: [110.0e+6, 190.0e+6]
             """
 
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
@@ -3260,7 +3279,7 @@ def test_yaml_constructor(filename, path_var, file_list):
     uvb = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
-    if filename == casa_beamfits:
+    if dname == "hera_casa_beam":
         # fill in missing parameters
         for _uvb in [uvb, beam_from_yaml]:
             _uvb.data_normalization = "peak"
@@ -3313,7 +3332,7 @@ def test_yaml_constructor_for_cached_file():
 
     # load mwa uvbeam file from the data path to the astropy cache for pyuvsim
     import_file_to_cache(
-        dummy_url, mwa_beam_file, remove_original=False, pkgname="pyuvsim"
+        dummy_url, fetch_data("mwa_full_EE"), remove_original=False, pkgname="pyuvsim"
     )
 
     # check that file has been imported to cache
@@ -3340,19 +3359,76 @@ def test_yaml_constructor_for_cached_file():
 
 
 def test_yaml_constructor_errors():
-    fname_use = cst_yaml_file[len(DATA_PATH) + 1 :]
+    fname_use = fetch_data("hera_fagnoni_dipole_yaml")
+    dirname, basename = os.path.split(fname_use)
+
     input_yaml = f"""
         beam: !UVBeam
-            filename: {fname_use}
+            filename: [{basename}, foo.yaml]
+            path_variable: {dirname}
+            run_check: False
+        """
+
+    with pytest.raises(
+        FileNotFoundError,
+        match=re.escape(f"File(s) {[os.path.join(dirname, 'foo.yaml')]} do not exist."),
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {basename}
             path_variable: DATA_PATH
             run_check: False
         """
 
     with pytest.raises(
         ValueError,
-        match="If 'path_variable' is specified, it should take the form of a "
-        "module.variable_name where the variable name can be imported "
-        "from the module.",
+        match=re.escape(
+            "If 'path_variable' is specified, it should either be the directory "
+            "a file is in or take the form of a module.variable_name where the "
+            "variable name can be imported from the module. The path_variable is "
+            f"DATA_PATH. Files {[os.path.join('DATA_PATH', basename)]} do not exist "
+            "and the path_variable does not have the form of a module.variable_name."
+        ),
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+    beam: !UVBeam
+        filename: {basename}
+        path_variable: pyuvdata.data.DATA_PATH
+        run_check: False
+    """
+    with pytest.raises(
+        FileNotFoundError,
+        match=re.escape(
+            "If 'path_variable' is specified, it should either be the directory "
+            "a file is in or take the form of a module.variable_name where the "
+            "variable name can be imported from the module. The path_variable is "
+            "pyuvdata.data.DATA_PATH. Files "
+            f"{[os.path.join('pyuvdata.data.DATA_PATH', basename)]} do not exist "
+            f"and file(s) {[os.path.join(DATA_PATH, 'NicCSTbeams.yaml')]} do not exist."
+        ),
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+    beam: !UVBeam
+        filename: {basename}
+        path_variable: foo.DATA_PATH
+        run_check: False
+    """
+    with pytest.raises(
+        ImportError,
+        match=re.escape(
+            "If 'path_variable' is specified, it should either be the directory "
+            "a file is in or take the form of a module.variable_name where the "
+            "variable name can be imported from the module. The path_variable is "
+            "foo.DATA_PATH. Files "
+            f"{[os.path.join('foo.DATA_PATH', basename)]} do not exist "
+            f"and the module foo is not importable."
+        ),
     ):
         yaml.safe_load(input_yaml)["beam"]
 
@@ -3369,7 +3445,7 @@ def test_yaml_constructor_errors():
 
     input_yaml = f"""
         beam: !UVBeam
-            filename: {cst_yaml_file}
+            filename: {fetch_data("hera_fagnoni_dipole_yaml")}
             mount_type: fixed
             run_check: False
             freq_range: [120.0e+6]

@@ -11,7 +11,7 @@ import pytest
 from astropy.units import Quantity
 
 from pyuvdata import UVCal, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.uvcal import FastCalH5Meta
 from pyuvdata.uvdata import FastUVH5Meta
 
@@ -153,7 +153,7 @@ def test_calh5_meta(gain_data, tmp_path):
     cal_meta2 = FastCalH5Meta(write_file2)
     assert cal_meta != cal_meta2
 
-    uvh5_meta = FastUVH5Meta(os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5"))
+    uvh5_meta = FastUVH5Meta(fetch_data("hera_h3c_uvh5"))
     assert cal_meta != uvh5_meta
 
     ant_nums = cal_meta.antenna_numbers

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import pyuvdata.utils.io.ms as ms_utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 pytest.importorskip("casacore")
@@ -68,9 +68,7 @@ def test_parse_casa_frame_ref_errors(check_warning, frame, errtype, msg):
 )
 def test_ms_file_checks(invert_check, errtype, errmsg):
     with pytest.raises(errtype, match=errmsg):
-        ms_utils._ms_utils_call_checks(
-            os.path.join(DATA_PATH, "sma_test.mir"), invert_check=invert_check
-        )
+        ms_utils._ms_utils_call_checks(fetch_data("sma_mir"), invert_check=invert_check)
 
 
 @pytest.mark.parametrize(
@@ -134,7 +132,7 @@ def test_field_no_ref(tmp_path):
 
 
 def test_read_ms_pointing_err():
-    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    filename = fetch_data("vla_casa_tutorial_ms")
 
     with pytest.raises(NotImplementedError):
         ms_utils.read_ms_pointing(filename)

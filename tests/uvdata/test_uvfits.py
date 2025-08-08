@@ -12,16 +12,10 @@ from astropy.io import fits
 
 import pyuvdata.utils.io.fits as fits_utils
 from pyuvdata import UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 from ..utils.test_coordinates import frame_selenoid
-
-casa_tutorial_uvfits = os.path.join(
-    DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
-)
-
-paper_uvfits = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
 
 
 def _fix_uvfits_multi_group_params(vis_hdu):
@@ -104,7 +98,7 @@ def uvfits_nospw_main():
     uv_in = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uv_in.read(paper_uvfits, run_check_acceptability=False)
+    uv_in.read(fetch_data("paper_2014_uvfits"), run_check_acceptability=False)
 
     return uv_in
 
@@ -123,7 +117,7 @@ def test_read_nrao(casa_uvfits):
 
     # test reading metadata only
     uvobj2 = UVData()
-    uvobj2.read(casa_tutorial_uvfits, read_data=False)
+    uvobj2.read(fetch_data("vla_casa_tutorial_uvfits"), read_data=False)
 
     assert expected_extra_keywords.sort() == list(uvobj2.extra_keywords.keys()).sort()
     assert uvobj2.check()
@@ -143,9 +137,7 @@ def test_group_param_precision(tmp_path, uvw_double):
     uvfits to sufficient precision.
     """
     pytest.importorskip("casacore")
-    lwa_file = os.path.join(
-        DATA_PATH, "2018-03-21-01_26_33_0004384620257280_000000_downselected.ms"
-    )
+    lwa_file = fetch_data("ovro_lwa")
     uvd = UVData()
     uvd.read(lwa_file, default_mount_type="fixed")
 
@@ -197,7 +189,7 @@ def test_break_read_uvfits(tmp_path):
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
 
-    file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
+    file1 = fetch_data("mwa_2013_uvfits")
     write_file = os.path.join(tmp_path, "multi_subarray.uvfits")
     with fits.open(file1, memmap=True) as hdu_list:
         hdunames = fits_utils._indexhdus(hdu_list)
@@ -484,7 +476,7 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_casa_nonascii_bytes_antenna_names(tmpdir):
     """Test that nonascii bytes in antenna names are handled properly."""
-    orig_file = casa_tutorial_uvfits
+    orig_file = fetch_data("vla_casa_tutorial_uvfits")
     testfile = tmpdir + "test_nonascii_antnames.uvfits"
 
     with open(orig_file, "rb") as f_in, open(testfile, "wb") as f_out:
@@ -1137,7 +1129,7 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
         unique_lsts = np.unique(uvfits_uv2.lst_array)
         select_kwargs["lst_range"] = unique_lsts[lst_inds]
 
-    uvfits_uv.read(casa_tutorial_uvfits, **select_kwargs)
+    uvfits_uv.read(fetch_data("vla_casa_tutorial_uvfits"), **select_kwargs)
     uvfits_uv2.select(**select_kwargs)
     assert uvfits_uv == uvfits_uv2
 
@@ -1169,7 +1161,9 @@ def test_select_read_nospw(uvfits_nospw, tmp_path, select_kwargs):
     uvfits_uv = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uvfits_uv.read(paper_uvfits, run_check_acceptability=False, **select_kwargs)
+    uvfits_uv.read(
+        fetch_data("paper_2014_uvfits"), run_check_acceptability=False, **select_kwargs
+    )
 
     uvfits_uv2.select(run_check_acceptability=False, **select_kwargs)
     assert uvfits_uv == uvfits_uv2
@@ -1179,7 +1173,7 @@ def test_select_read_nospw(uvfits_nospw, tmp_path, select_kwargs):
 def test_select_read_nospw_pol(casa_uvfits, tmp_path):
     # this requires writing a new file because the no spw file we have has only 1 pol
 
-    with fits.open(casa_tutorial_uvfits, memmap=True) as hdu_list:
+    with fits.open(fetch_data("vla_casa_tutorial_uvfits"), memmap=True) as hdu_list:
         hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
@@ -1436,17 +1430,14 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_ms_write_uvfits_casa_history(tmp_path):
+def test_read_ms_write_uvfits_casa_history(tmp_path, nrao_ms):
     """
     read in .ms file.
     Write to a uvfits file, read back in and check for casa_history parameter
     """
-    pytest.importorskip("casacore")
-    ms_uv = UVData()
+    ms_uv = nrao_ms
     uvfits_uv = UVData()
-    ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     testfile = str(tmp_path / "outtest.uvfits")
-    ms_uv.read_ms(ms_file)
     ms_uv.write_uvfits(testfile)
     uvfits_uv.read(testfile)
 
@@ -1473,7 +1464,7 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
 
 
 def test_cotter_telescope_frame(tmp_path):
-    file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
+    file1 = fetch_data("mwa_2013_uvfits")
     write_file = os.path.join(tmp_path, "emulate_cotter.uvfits")
     uvd1 = UVData()
 
@@ -1544,7 +1535,7 @@ def test_flex_spw_uvfits_write_errs(sma_mir, freq_val, chan_val, msg):
 
 
 def test_mwax_birli_frame(tmp_path):
-    fits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    fits_file = fetch_data("mwa_2013_uvfits")
     outfile = tmp_path / "mwax_birli.uvfits"
     with fits.open(fits_file, memmap=True) as hdu_list:
         hdu_list[0].header["SOFTWARE"] = "birli"
@@ -1559,7 +1550,7 @@ def test_mwax_birli_frame(tmp_path):
 
 
 def test_mwax_missing_frame_comment(tmp_path):
-    fits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    fits_file = fetch_data("mwa_2013_uvfits")
     outfile = tmp_path / "mwax_birli.uvfits"
     with fits.open(fits_file, memmap=True) as hdu_list:
         del hdu_list[1].header["FRAME"], hdu_list[0].header["COMMENT"]
@@ -1704,12 +1695,11 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_miriad_convention(tmp_path):
+def test_miriad_convention(tmp_path, casa_uvfits):
     """
     Test writing a MIRIAD-compatible UVFITS file
     """
-    uv = UVData()
-    uv.read(casa_tutorial_uvfits)
+    uv = casa_uvfits
 
     # Change an antenna ID to 512
     old_idx = uv.telescope.antenna_numbers[10]  # This is antenna 19
@@ -1723,7 +1713,7 @@ def test_miriad_convention(tmp_path):
     testfile1 = str(tmp_path / "uv1.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
 
-    # These are based on known values in casa_tutorial_uvfits
+    # These are based on known values in vla_casa_tutorial_uvfits
     expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
 
     # Check baselines match MIRIAD convention
@@ -1796,7 +1786,7 @@ def test_vlbi_read():
         UserWarning,
         match=["The uvw_array does not match", "The telescope frame is set to '?????'"],
     ):
-        uvd = UVData.from_file(os.path.join(DATA_PATH, "mojave.uvfits"))
+        uvd = UVData.from_file(fetch_data("vlba_mojave_uvfits"))
 
     assert uvd.telescope.instrument == "VLBA"
     assert uvd.telescope.name == "VLBA"

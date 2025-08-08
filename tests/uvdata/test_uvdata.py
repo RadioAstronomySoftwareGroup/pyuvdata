@@ -22,13 +22,13 @@ from astropy.utils import iers
 
 from pyuvdata import UVCal, UVData, utils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 from ..utils.test_coordinates import frame_selenoid
-from .test_mwa_corr_fits import filelist as mwa_corr_files
 
 try:
-    import pyuvdata._miriad  # noqa F401
+    import pyuvdata.uvdata._miriad  # noqa F401
 
     hasmiriad = True
 except ImportError:
@@ -173,7 +173,7 @@ def carma_miriad_main():
     # read in test file for the resampling in time functions
     pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "carma_miriad")
+    testfile = fetch_data("carma_miriad")
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
         warnings.filterwarnings(
@@ -197,7 +197,7 @@ def carma_miriad(carma_miriad_main):
 def bda_test_file_main():
     # read in test file for BDA-like data
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
+    testfile = fetch_data("sim_bda")
     with check_warnings(
         UserWarning, match="Unknown phase type, assuming object is unprojected"
     ):
@@ -228,7 +228,7 @@ def bda_test_file(bda_test_file_main):
 def pyuvsim_redundant_main():
     # read in test file for the compress/inflate redundancy functions
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
+    testfile = fetch_data("sim_airy_hex")
     uv_object.read(testfile)
 
     yield uv_object
@@ -288,7 +288,7 @@ def uv_phase_time_split(hera_uvh5):
 
 @pytest.fixture
 def mwa_integration_time():
-    filename = os.path.join(DATA_PATH, "1061316296.uvfits")
+    filename = fetch_data("mwa_2013_uvfits")
     uv_init = UVData.from_file(filename)
     new_int_time = 1.99813843
     new_int_time_jd = new_int_time / 86400.0
@@ -786,7 +786,7 @@ def test_hera_diameters(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_generic_read():
     uv_in = UVData()
-    uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
     uv_in.read(uvfits_file, read_data=False)
     unique_times = np.unique(uv_in.time_array)
 
@@ -2773,7 +2773,7 @@ def test_select_not_inplace(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_conjugate_bls(casa_uvfits, metadata_only):
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile = fetch_data("vla_casa_tutorial_uvfits")
 
     if not metadata_only:
         uv1 = casa_uvfits
@@ -5985,9 +5985,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
 @pytest.mark.parametrize("grid_alg", [True, False])
 def test_compress_redundancy_variable_inttime(grid_alg):
     uv0 = UVData()
-    uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    )
+    uv0.read_uvfits(fetch_data("sim_airy_hex"))
 
     tol = 0.05
     ntimes_in = uv0.Ntimes
@@ -9353,29 +9351,35 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
 
 
 @pytest.mark.parametrize(
-    "read_func,filelist",
+    "read_func",
     [
-        ("read_miriad", [os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")] * 2),
-        (
-            "read_mwa_corr_fits",
-            [[mwa_corr_files[0:2], [mwa_corr_files[0], mwa_corr_files[2]]]],
-        ),
-        ("read_uvh5", [os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")] * 2),
-        (
-            "read_uvfits",
-            [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")] * 2,
-        ),
-        (
-            "read_ms",
-            [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")] * 2,
-        ),
-        ("read_fhd", []),
+        "read_miriad",
+        "read_mwa_corr_fits",
+        "read_uvh5",
+        "read_uvfits",
+        "read_ms",
+        "read_fhd",
     ],
 )
-def test_multifile_read_errors(read_func, filelist, fhd_data_files):
+def test_multifile_read_errors(read_func, fhd_data_files):
     uv = UVData()
     kwargs = {}
-    if "fhd" in read_func:
+    if "miriad" in read_func:
+        filelist = [fetch_data("hera_old_miriad")] * 2
+    elif "mwa_corr" in read_func:
+        filelist = [
+            fetch_data(
+                ["mwa_2013_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_raw_gpubox06"]
+            ),
+            fetch_data(["mwa_2013_metafits", "mwa_2015_raw_gpubox06"]),
+        ]
+    elif "uvh5" in read_func:
+        filelist = [fetch_data("hera_h3c_uvh5")] * 2
+    elif "uvfits" in read_func:
+        filelist = [fetch_data("vla_casa_tutorial_uvfits")] * 2
+    elif "ms" in read_func:
+        filelist = [fetch_data("vla_casa_tutorial_ms")] * 2
+    elif "fhd" in read_func:
         filelist = [[fhd_data_files["filename"][0]], [fhd_data_files["filename"][1]]]
         kwargs = fhd_data_files
         del kwargs["filename"]
@@ -9395,10 +9399,10 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     uv_true = hera_uvh5.copy()
 
-    uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+    uvh5_file = fetch_data("hera_h3c_uvh5")
 
     # Create a test file and remove header info to 'corrupt' it
-    testfile = os.path.join(tmp_path, "zen.2458661.23480.HH.uvh5")
+    testfile = os.path.join(tmp_path, os.path.basename(uvh5_file))
 
     uv_true.write_uvh5(testfile)
     with h5py.File(testfile, "r+") as h5f:
@@ -9606,7 +9610,7 @@ def test_read_background_lsts():
     """Test reading a file with the lst calc in the background."""
     uvd = UVData()
     uvd2 = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
+    testfile = fetch_data("vla_casa_tutorial_uvfits")
     uvd.read(testfile, background_lsts=False)
     uvd2.read(testfile, background_lsts=True)
     assert uvd == uvd2
@@ -9622,7 +9626,7 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
 
 
 def test_rephase_to_time():
-    uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uvfits_file = fetch_data("mwa_2013_uvfits")
     uvd = UVData()
 
     uvd.read(uvfits_file)
@@ -10764,11 +10768,10 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     uv_in_bad._set_app_coords_helper()
 
     if use_ant_pos:
-        uvw_path = f"oldproj_antpos_{phase_frame}_uvw.npy"
+        dname = f"hera_oldproj_antpos_{phase_frame}_uvw"
     else:
-        uvw_path = f"oldproj_{phase_frame}_uvw.npy"
-
-    uv_in_bad.uvw_array = np.load(os.path.join(DATA_PATH, uvw_path))
+        dname = f"hera_oldproj_{phase_frame}_uvw"
+    uv_in_bad.uvw_array = np.load(fetch_data(dname))
     uv_in_bad._apply_w_proj(
         new_w_vals=uv_in_bad.uvw_array[:, -1],
         old_w_vals=0.0,
@@ -11174,13 +11177,11 @@ def test_set_data(hera_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_set_data_evla():
+def test_set_data_evla(casa_uvfits):
     """
     Test setting data for a given baseline on a different test file.
     """
-    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv = UVData()
-    uv.read(filename)
+    uv = casa_uvfits
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
@@ -11465,11 +11466,11 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
 
 
 @pytest.mark.parametrize(
-    ["filename", "msg"],
+    ["fetch_name", "msg"],
     [
-        ["zen.2458661.23480.HH.uvh5", ""],
+        ["hera_h3c_uvh5", ""],
         [
-            "sma_test.mir",
+            "sma_mir",
             [
                 (
                     "The lst_array is not self-consistent with the time_array and "
@@ -11501,7 +11502,7 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
             ],
         ],
         [
-            "1133866760.uvfits",
+            "mwa_cotter_phase_test1",
             [
                 (
                     "Fixing auto-correlations to be be real-only, after some imaginary"
@@ -11518,19 +11519,21 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         ],
     ],
 )
-def test_from_file(filename, msg, fhd_data_files):
+def test_from_file(fetch_name, msg, fhd_data_files):
     kwargs = {}
-    if "miriad" in filename:
+    if "miriad" in fetch_name:
         pytest.importorskip("pyuvdata.uvdata._miriad", exc_type=ImportError)
-    elif "fhd" in filename:
+    if "fhd" in fetch_name:
         filename = fhd_data_files["filename"]
         kwargs = fhd_data_files
         del kwargs["filename"]
-
+    else:
+        filename = fetch_data(fetch_name)
     if isinstance(filename, str):
         testfile = os.path.join(DATA_PATH, filename)
     else:
         testfile = filename
+
     uvd = UVData()
 
     if len(msg) == 0:
@@ -11924,12 +11927,9 @@ def test_normalize_by_autos_flag_noautos(hera_uvh5):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("multi_phase", [True, False])
-def test_split_write_comb_read(tmp_path, multi_phase):
+def test_split_write_comb_read(tmp_path, casa_uvfits, multi_phase):
     """Pulled from a failed tutorial example."""
-    uvd = UVData()
-    filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-
-    uvd.read(filename)
+    uvd = casa_uvfits
 
     if multi_phase:
         mask = np.full(uvd.Nblts, False)
@@ -12290,8 +12290,8 @@ def test_select_partial_pol_match(sma_mir, invert):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_near_field_corrections():
-    uvfits_raw = os.path.join(DATA_PATH, "1061316296.uvfits")
-    corr_w_path = os.path.join(DATA_PATH, "1061316296_nearfield_w.npy")
+    uvfits_raw = fetch_data("mwa_2013_uvfits")
+    corr_w_path = fetch_data("mwa_2013_nearfield_uvw")
 
     uvd_raw = UVData()
     uvd_raw.read(uvfits_raw)
@@ -12310,7 +12310,7 @@ def test_near_field_corrections():
 
 
 def test_near_field_err():
-    uvfits_sample = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
 
     uvd = UVData()
     uvd.read(uvfits_sample)
@@ -12349,7 +12349,7 @@ def test_near_field_err():
     ],
 )
 def test_write_near_field_err(file_format, import_check, error_message):
-    uvfits_sample = os.path.join(DATA_PATH, "1061316296.uvfits")
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
 
     uvd = UVData()
     uvd.read(uvfits_sample)

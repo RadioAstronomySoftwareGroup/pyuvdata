@@ -3,17 +3,11 @@
 
 """pytest fixtures for UVBeam tests."""
 
-import os
-
 import numpy as np
 import pytest
 
 from pyuvdata import UVBeam
-from pyuvdata.data import DATA_PATH
-
-filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
-cst_folder = "NicCSTbeams"
-cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
+from pyuvdata.datasets import fetch_data
 
 # define some values for optional params here so same across efield & power beams
 receiver_temperature_array = np.random.normal(50.0, 5, size=2)
@@ -33,7 +27,7 @@ def make_cst_beam(beam_type):
 
     beam = UVBeam()
     beam.read_cst_beam(
-        cst_files,
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]),
         beam_type=beam_type,
         frequency=[150e6, 123e6],
         telescope_name="HERA",
