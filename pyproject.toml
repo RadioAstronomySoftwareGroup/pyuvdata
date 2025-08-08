@@ -62,6 +62,7 @@ lunar = ["lunarsky>=0.2.5"]
 novas = ["novas", "novas_de405"]
 all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas]"]
 test = [
+    "pooch>=1.8",
     "pytest>=8.2.0",
     "pytest-xdist",
     "pytest-cases>=3.9.1",
