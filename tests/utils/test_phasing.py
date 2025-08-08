@@ -2,7 +2,6 @@
 # Licensed under the 2-clause BSD License
 """Tests for phasing utility functions."""
 
-import os
 import re
 
 import numpy as np
@@ -13,7 +12,7 @@ from astropy.time import Time
 
 import pyuvdata.utils.phasing as phs_utils
 from pyuvdata import UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 
 from .test_coordinates import frame_selenoid
 
@@ -2007,7 +2006,7 @@ def test_uvw_track_generator_errs():
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
-    sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
+    sma_mir = UVData.from_file(fetch_data("sma_mir"))
     sma_mir.set_lsts_from_time_array()
     sma_mir._set_app_coords_helper()
     sma_mir.set_uvws_from_antenna_positions()

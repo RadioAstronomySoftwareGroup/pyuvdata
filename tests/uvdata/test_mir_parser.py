@@ -16,7 +16,7 @@ import h5py
 import numpy as np
 import pytest
 
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_parser import (
     NEW_AUTO_DTYPE,
@@ -541,9 +541,9 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
 def test_scan_int_headers_errs():
     """Verify _scan_int_headers throws errors when expected."""
     with pytest.raises(MirPackdataError, match="Cannot read scan start if headers"):
+        dataset = fetch_data("sma_mir")
         MirParser._scan_int_headers(
-            os.path.join(DATA_PATH, "sma_test.mir/autoCorrelations"),
-            hdr_fmt=OLD_AUTO_HEADER,
+            os.path.join(dataset, "autoCorrelations"), hdr_fmt=OLD_AUTO_HEADER
         )
 
 
@@ -551,8 +551,9 @@ def test_scan_int_headers_errs():
 def test_scan_int_headers(use_dict):
     """Verify that we can correctly scan integration starting periods."""
     true_dict = {1: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
+    dataset = fetch_data("sma_mir")
     assert true_dict == MirParser._scan_int_headers(
-        os.path.join(DATA_PATH, "sma_test.mir/sch_read"),
+        os.path.join(dataset, "sch_read"),
         hdr_fmt=NEW_VIS_HEADER,
         old_int_dict=true_dict if use_dict else None,
     )
@@ -560,8 +561,9 @@ def test_scan_int_headers(use_dict):
 
 def test_scan_int_header_bad_record_size():
     with pytest.raises(MirPackdataError, match="record_size was negative/invalid."):
+        dataset = fetch_data("sma_mir")
         MirParser._scan_int_headers(
-            os.path.join(DATA_PATH, "sma_test.mir/autoCorrelations"),
+            os.path.join(dataset, "autoCorrelations"),
             hdr_fmt=OLD_AUTO_HEADER,
             old_int_dict={1: {"inhid": 1, "record_size": -120, "record_start": 0}},
         )
@@ -572,8 +574,9 @@ def test_scan_int_header_record_conflict():
         1: {"inhid": 1, "record_size": 1048680, "record_start": 120},
         2: {"inhid": 2, "record_size": 1048680, "record_start": 1048680},
     }
+    dataset = fetch_data("sma_mir")
     new_dict = MirParser._scan_int_headers(
-        os.path.join(DATA_PATH, "sma_test.mir/sch_read"),
+        os.path.join(dataset, "sch_read"),
         hdr_fmt=NEW_VIS_HEADER,
         old_int_dict=old_int_dict,
     )
@@ -2347,7 +2350,7 @@ def test_mir_remember_me_vis_data(mir_data):
 def test_mir_parser_read_path_vs_str():
     from pathlib import Path
 
-    sma_data_path = str(os.path.join(DATA_PATH, "sma_test.mir"))
+    sma_data_path = str(fetch_data("sma_mir"))
     sma_str_init = MirParser(
         sma_data_path, load_cross=True, load_auto=True, has_auto=True
     )

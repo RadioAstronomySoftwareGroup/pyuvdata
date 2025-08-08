@@ -11,7 +11,7 @@ from astropy.io import fits
 
 import pyuvdata.utils.io.fits as fits_utils
 from pyuvdata import UVCal, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 from ..utils.test_coordinates import frame_selenoid, selenoids
@@ -174,13 +174,9 @@ def test_write_inttime_equal_timediff(gain_data, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize(
-    "filein,caltype",
-    [
-        ("zen.2457698.40355.xx.gain.calfits", "gain"),
-        ("zen.2457698.40355.xx.delay.calfits", "delay"),
-    ],
+    ("dname", "caltype"), [("hera_omnical2", "gain"), ("hera_firstcal_delay", "delay")]
 )
-def test_read_metadata_only(filein, caltype, gain_data, delay_data):
+def test_read_metadata_only(dname, caltype, gain_data, delay_data):
     """
     check that metadata only reads work
     """
@@ -191,7 +187,7 @@ def test_read_metadata_only(filein, caltype, gain_data, delay_data):
 
     # check that metadata only reads work
     cal2 = cal_in.copy(metadata_only=True)
-    testfile = os.path.join(DATA_PATH, filein)
+    testfile = fetch_data(dname)
     cal3 = UVCal.from_file(testfile, read_data=False)
     assert cal2 == cal3
 
@@ -214,7 +210,7 @@ def test_readwriteread_no_freq_range(gain_data, tmp_path):
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_readwriteread_no_time_range(tmp_path):
     # test without time_range parameter
-    testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    testfile = fetch_data("hera_omnical2")
     write_file = str(tmp_path / "outtest_omnical.fits")
 
     cal_in = UVCal.from_file(testfile)

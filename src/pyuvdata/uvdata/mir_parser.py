@@ -192,9 +192,13 @@ class MirParser:
         the MirParser class. It's here mostly to make interactive testing (i.e., outside
         of pytest) easier and faster, without having to worry about extra imports.
         """
-        from ..data import DATA_PATH
+        # TODO: Not sure this should stay here. It introduces a run-time dependency
+        # on pooch
+        # maybe the same thing could be achieved with astropy's downloading funtions,
+        # but then you'd have the same data cached in two different places...
+        from ..datasets import fetch_data
 
-        self.__init__(os.path.join(DATA_PATH, "sma_test.mir"), **kwargs)
+        self.__init__(fetch_data("sma_mir"), **kwargs)
 
         return self
 

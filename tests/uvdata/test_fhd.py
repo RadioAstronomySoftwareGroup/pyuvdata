@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from pyuvdata import Telescope, UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
 
@@ -204,13 +204,7 @@ def test_fhd_antenna_pos(fhd_data):
     """
     Check that FHD antenna positions are handled as rotated ECEF coords, like uvfits.
     """
-    mwa_corr_dir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")
-
-    mwa_corr_files = [
-        "1131733552.metafits",
-        "1131733552_20151116182537_mini_gpubox01_00.fits",
-    ]
-    mwa_corr_file_list = [os.path.join(mwa_corr_dir, fname) for fname in mwa_corr_files]
+    mwa_corr_file_list = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
 
     mwa_corr_obj = UVData()
     mwa_corr_obj.read(
@@ -226,7 +220,7 @@ def test_fhd_antenna_pos(fhd_data):
         == mwa_corr_obj.telescope._antenna_positions
     )
 
-    cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
+    cotter_file = fetch_data("mwa_2013_uvfits")
     cotter_obj = UVData()
     cotter_obj.read(cotter_file)
 
@@ -255,7 +249,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
     uvfits_uv = UVData()
 
     variant_flags_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_variant_flags.sav"
+        fetch_data("mwa_fhd"), "1061316296_variant_flags.sav"
     )
     fhd_data_files["flags_file"] = variant_flags_file
 
@@ -305,11 +299,11 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
 
 def test_read_fhd_latlonalt_match_xyz(fhd_data_files):
     fhd_data_files["layout_file"] = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_known_match_xyz_layout.sav"
+        fetch_data("mwa_fhd"), "1061316296_known_match_xyz_layout.sav"
     )
 
     fhd_data_files["obs_file"] = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_known_match_latlonalt_obs.sav"
+        fetch_data("mwa_fhd"), "1061316296_known_match_latlonalt_obs.sav"
     )
 
     with check_warnings(
@@ -343,7 +337,7 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_data_files):
     uvfits_uv = UVData()
 
     layout_fixed_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_fixed_arr_center_layout.sav"
+        fetch_data("mwa_fhd"), "1061316296_fixed_arr_center_layout.sav"
     )
 
     fhd_data_files["layout_file"] = layout_fixed_file
@@ -402,10 +396,10 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path, fhd_data_fi
     fhd_uv = UVData()
     uvfits_uv = UVData()
     bad_obs_loc_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_bad_obs_loc_vis_XX.sav"
+        fetch_data("mwa_fhd"), "1061316296_bad_obs_loc_vis_XX.sav"
     )
     layout_fixed_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_fixed_arr_center_layout.sav"
+        fetch_data("mwa_fhd"), "1061316296_fixed_arr_center_layout.sav"
     )
     messages = [
         "Telescope location derived from obs",
@@ -442,7 +436,7 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path, fhd_data_files):
     fhd_uv = UVData()
     uvfits_uv = UVData()
     bad_obs_loc_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_bad_obs_loc_vis_XX.sav"
+        fetch_data("mwa_fhd"), "1061316296_bad_obs_loc_vis_XX.sav"
     )
     messages = [
         "Telescope location derived from obs",
@@ -480,7 +474,7 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_data_files):
 
     # bad layout structure values
     altered_layout_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_broken_layout.sav"
+        fetch_data("mwa_fhd"), "1061316296_broken_layout.sav"
     )
 
     fhd_data_files["layout_file"] = altered_layout_file
@@ -608,7 +602,7 @@ def test_read_fhd_warnings(fhd_data_files):
     """Test warnings with various broken inputs."""
     # bad obs structure values
     broken_data_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_broken_vis_XX.sav"
+        fetch_data("mwa_fhd"), "1061316296_broken_vis_XX.sav"
     )
 
     warn_messages = [
@@ -630,7 +624,7 @@ def test_read_fhd_warnings(fhd_data_files):
 
     # bad flag file
     broken_flags_file = os.path.join(
-        DATA_PATH, "fhd_vis_data/", "1061316296_broken_flags.sav"
+        fetch_data("mwa_fhd"), "1061316296_broken_flags.sav"
     )
 
     fhd_data_files["flags_file"] = broken_flags_file
@@ -757,7 +751,7 @@ def test_single_time():
     """
     test reading in a file with a single time.
     """
-    single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
+    single_time_filelist = glob.glob(fetch_data("sim_uniform_imaging_fhd") + "/*")
     file_dict = get_fhd_files(single_time_filelist)
     file_dict["filename"] = file_dict["data_files"]
     del file_dict["data_files"]
@@ -780,8 +774,8 @@ def test_single_time():
 
 def test_conjugation():
     """test uvfits vs fhd conjugation"""
-    uvfits_file = os.path.join(DATA_PATH, "ref_1.1_uniform.uvfits")
-    single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
+    uvfits_file = fetch_data("sim_uniform_imaging_uvfits")
+    single_time_filelist = glob.glob(fetch_data("sim_uniform_imaging_fhd") + "/*")
     file_dict = get_fhd_files(single_time_filelist)
     file_dict["filename"] = file_dict["data_files"]
     del file_dict["data_files"]

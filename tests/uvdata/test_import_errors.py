@@ -2,13 +2,11 @@
 # Licensed under the 2-clause BSD License
 """Tests for import error handling."""
 
-import os
-
 import pytest
 
 import pyuvdata.utils.io.ms as ms_utils
 from pyuvdata import UVData
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 
 
 def test_ms_file_checks_no_casacore():
@@ -25,7 +23,7 @@ def test_ms_read_no_casacore(casa_uvfits):
     try:
         import casacore  # noqa
     except ImportError:
-        testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+        testfile = fetch_data("vla_casa_tutorial_ms")
         with pytest.raises(ImportError, match=ms_utils.no_casa_message):
             uvd.read_ms(testfile)
 
@@ -40,7 +38,7 @@ def test_miriad_windows():
     try:
         import pyuvdata.uvdata.aipy_extracts  # noqa
     except ImportError:
-        testfile = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
+        testfile = fetch_data("paper_2014_miriad")
         with pytest.raises(
             ImportError,
             match="The miriad extension is not built but is required for reading "

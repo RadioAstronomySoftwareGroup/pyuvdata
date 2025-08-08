@@ -9,28 +9,69 @@ import numpy as np
 import pytest
 
 from pyuvdata import UVCal
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 
-# set up FHD files
-testdir = os.path.join(DATA_PATH, "fhd_cal_data/")
-testfile_prefix = "1061316296_"
-obs_testfile = os.path.join(testdir, "metadata", testfile_prefix + "obs.sav")
-cal_testfile = os.path.join(testdir, "calibration", testfile_prefix + "cal.sav")
-settings_testfile = os.path.join(testdir, "metadata", testfile_prefix + "settings.txt")
-settings_testfile_nodiffuse = os.path.join(
-    testdir, testfile_prefix + "nodiffuse_settings.txt"
-)
-layout_testfile = os.path.join(testdir, "metadata", testfile_prefix + "layout.sav")
 
-testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
-obs_file_multi = [obs_testfile, os.path.join(testdir2, testfile_prefix + "obs.sav")]
-cal_file_multi = [cal_testfile, os.path.join(testdir2, testfile_prefix + "cal.sav")]
-layout_file_multi = [layout_testfile, layout_testfile]
-settings_file_multi = [
-    settings_testfile,
-    os.path.join(testdir2, testfile_prefix + "settings.txt"),
-]
+# set up FHD files
+def fhd_files(name):
+    testdir = fetch_data("mwa_fhd_cal")
+    testfile_prefix = "1061316296_"
+    file_dict = {
+        "obs": os.path.join(testdir, "metadata", testfile_prefix + "obs.sav"),
+        "cal": os.path.join(testdir, "calibration", testfile_prefix + "cal.sav"),
+        "settings": os.path.join(testdir, "metadata", testfile_prefix + "settings.txt"),
+        "settings_nodiffuse": os.path.join(
+            testdir, testfile_prefix + "nodiffuse_settings.txt"
+        ),
+        "layout": os.path.join(testdir, "metadata", testfile_prefix + "layout.sav"),
+        "multimode_cal": os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
+        "multimode_settings": os.path.join(
+            testdir, testfile_prefix + "multimode_settings.txt"
+        ),
+        "telescopefoo": os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
+    }
+
+    if isinstance(name, str):
+        return file_dict[name]
+    else:
+        return [file_dict[key] for key in name]
+
+
+def fhd_files_multi(name):
+    testdir = fetch_data("mwa_fhd_cal")
+    testfile_prefix = "1061316296_"
+    testdir2 = os.path.join(testdir, "set2")
+    file_dict = {
+        "obs": [fhd_files("obs"), os.path.join(testdir2, testfile_prefix + "obs.sav")],
+        "cal": [fhd_files("cal"), os.path.join(testdir2, testfile_prefix + "cal.sav")],
+        "layout": [fhd_files("layout")] * 2,
+        "settings": [
+            fhd_files("settings"),
+            os.path.join(testdir2, testfile_prefix + "settings.txt"),
+        ],
+    }
+
+    if isinstance(name, str):
+        return file_dict[name]
+    else:
+        return [file_dict[key] for key in name]
+
+
+def fhd_files_flag(name):
+    testfile_prefix = "1061316296_"
+    testdir = os.path.join(fetch_data("mwa_fhd_cal"), "flag_set")
+    file_dict = {
+        "obs": os.path.join(testdir, testfile_prefix + "obs.sav"),
+        "cal": os.path.join(testdir, testfile_prefix + "cal.sav"),
+        "settings": os.path.join(testdir, testfile_prefix + "settings.txt"),
+        "layout": os.path.join(testdir, testfile_prefix + "layout.sav"),
+    }
+
+    if isinstance(name, str):
+        return file_dict[name]
+    else:
+        return [file_dict[key] for key in name]
 
 
 @pytest.mark.filterwarnings("ignore:The calfits format does not support")
@@ -50,7 +91,7 @@ def test_read_fhdcal_write_read_calfits_h5(
     else:
         fhd_cal = fhd_cal_fit
 
-    filelist = [cal_testfile, obs_testfile, layout_testfile, settings_testfile]
+    filelist = fhd_files(["cal", "obs", "layout", "settings"])
     assert set(fhd_cal.filename) == {os.path.basename(fn) for fn in filelist}
 
     assert np.max(fhd_cal.gain_array) < 2.0
@@ -80,10 +121,10 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
         fhd_cal_full = fhd_cal_fit
 
     fhd_cal = UVCal.from_file(
-        cal_testfile,
-        obs_file=obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=settings_testfile,
+        fhd_files("cal"),
+        obs_file=fhd_files("obs"),
+        layout_file=fhd_files("layout"),
+        settings_file=fhd_files("settings"),
         raw=raw,
         read_data=False,
     )
@@ -124,10 +165,10 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
         ],
     ):
         fhd_cal = UVCal.from_file(
-            cal_testfile,
-            obs_file=obs_testfile,
-            layout_file=layout_testfile,
-            settings_file=settings_testfile_nodiffuse,
+            fhd_files("cal"),
+            obs_file=fhd_files("obs"),
+            layout_file=fhd_files("layout"),
+            settings_file=fhd_files("settings_nodiffuse"),
             raw=raw,
             read_data=False,
         )
@@ -152,12 +193,10 @@ def test_read_fhdcal_multimode():
         ],
     ):
         fhd_cal = UVCal.from_file(
-            os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-            obs_file=obs_testfile,
-            layout_file=layout_testfile,
-            settings_file=os.path.join(
-                testdir, testfile_prefix + "multimode_settings.txt"
-            ),
+            fhd_files("multimode_cal"),
+            obs_file=fhd_files("obs"),
+            layout_file=fhd_files("layout"),
+            settings_file=fhd_files("multimode_settings"),
             raw=False,
         )
     assert fhd_cal.extra_keywords["MODE_FIT"] == "[90, 150, 230, 320, 400, 524]"
@@ -176,12 +215,10 @@ def test_read_fhdcal_multimode():
         ],
     ):
         fhd_cal = UVCal.from_file(
-            os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-            obs_file=obs_testfile,
-            layout_file=layout_testfile,
-            settings_file=os.path.join(
-                testdir, testfile_prefix + "multimode_settings.txt"
-            ),
+            fhd_files("multimode_cal"),
+            obs_file=fhd_files("obs"),
+            layout_file=fhd_files("layout"),
+            settings_file=fhd_files("multimode_settings"),
             raw=False,
             read_data=False,
         )
@@ -216,10 +253,10 @@ def test_read_fhdcal_multimode():
 def test_extra_history(extra_history, tmp_path):
     """Test that setting the extra_history keyword works."""
     fhd_cal = UVCal.from_file(
-        cal_testfile,
-        obs_file=obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=settings_testfile,
+        fhd_files("cal"),
+        obs_file=fhd_files("obs"),
+        layout_file=fhd_files("layout"),
+        settings_file=fhd_files("settings"),
         extra_history=extra_history,
     )
 
@@ -242,12 +279,6 @@ def test_extra_history(extra_history, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 def test_flags_galaxy(tmp_path):
     """Test files with time, freq and tile flags and galaxy models behave."""
-    testdir = os.path.join(DATA_PATH, "fhd_cal_data/flag_set")
-    obs_testfile_flag = os.path.join(testdir, testfile_prefix + "obs.sav")
-    cal_testfile_flag = os.path.join(testdir, testfile_prefix + "cal.sav")
-    settings_testfile_flag = os.path.join(testdir, testfile_prefix + "settings.txt")
-    layout_testfile_flag = os.path.join(testdir, testfile_prefix + "layout.sav")
-
     with check_warnings(
         UserWarning,
         match=[
@@ -258,10 +289,10 @@ def test_flags_galaxy(tmp_path):
         ],
     ):
         fhd_cal = UVCal.from_file(
-            cal_testfile_flag,
-            obs_file=obs_testfile_flag,
-            layout_file=layout_testfile_flag,
-            settings_file=settings_testfile_flag,
+            fhd_files_flag("cal"),
+            obs_file=fhd_files_flag("obs"),
+            layout_file=fhd_files_flag("layout"),
+            settings_file=fhd_files_flag("settings"),
         )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
@@ -286,25 +317,29 @@ def test_unknown_telescope():
         ],
     ):
         fhd_cal = UVCal.from_file(
-            cal_testfile,
-            obs_file=os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
-            layout_file=layout_testfile,
-            settings_file=settings_testfile,
+            fhd_files("cal"),
+            obs_file=fhd_files("telescopefoo"),
+            layout_file=fhd_files("layout"),
+            settings_file=fhd_files("settings"),
             default_mount_type="fixed",
         )
     assert fhd_cal.telescope.name == "foo"
 
 
-@pytest.mark.parametrize(
-    "cal_file,obs_file,layout_file,settings_file,nfiles",
-    [
-        [cal_testfile, obs_testfile, layout_testfile, settings_testfile, 1],
-        [cal_file_multi, obs_file_multi, layout_file_multi, settings_file_multi, 2],
-    ],
-)
-def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfiles):
+@pytest.mark.parametrize("multi", [True, False])
+def test_break_read_fhdcal(multi):
     """Try various cases of missing files."""
     # check useful error message for metadata only read with no settings file
+    if multi:
+        cal_file, obs_file, layout_file, settings_file = fhd_files_multi(
+            ["cal", "obs", "layout", "settings"]
+        )
+        nfiles = 2
+    else:
+        cal_file, obs_file, layout_file, settings_file = fhd_files(
+            ["cal", "obs", "layout", "settings"]
+        )
+        nfiles = 1
     with pytest.raises(
         ValueError, match="A settings_file must be provided if read_data is False."
     ):
@@ -320,7 +355,6 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['cal', 'obs']"
         )
-
     with check_warnings(UserWarning, message_list):
         fhd_cal = UVCal.from_file(cal_file, obs_file=obs_file, layout_file=layout_file)
 
@@ -368,11 +402,11 @@ def test_read_multi(tmp_path, concat_method, read_method):
     if concat_method == "fast_concat":
         with check_warnings(warn_type, match=msg):
             fhd_cal = UVCal.from_file(
-                cal_file_multi,
+                fhd_files_multi("cal"),
                 axis="time",
-                obs_file=obs_file_multi,
-                settings_file=settings_file_multi,
-                layout_file=layout_file_multi,
+                obs_file=fhd_files_multi("obs"),
+                settings_file=fhd_files_multi("settings"),
+                layout_file=fhd_files_multi("layout"),
             )
     else:
         if read_method == "read_fhd_cal":
@@ -384,10 +418,10 @@ def test_read_multi(tmp_path, concat_method, read_method):
         fhd_cal = UVCal()
         with check_warnings(warn_type, match=msg):
             getattr(fhd_cal, read_method)(
-                cal_file_multi,
-                obs_file=obs_file_multi,
-                settings_file=settings_file_multi,
-                layout_file=layout_file_multi,
+                fhd_files_multi("cal"),
+                obs_file=fhd_files_multi("obs"),
+                settings_file=fhd_files_multi("settings"),
+                layout_file=fhd_files_multi("layout"),
             )
 
     calfits_outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
@@ -402,87 +436,44 @@ def test_read_multi(tmp_path, concat_method, read_method):
 
 
 @pytest.mark.parametrize(
-    "cal_file,obs_file,layout_file,settings_file,message",
+    ("diff_nfiles", "nfiles", "message"),
     [
+        [["cal"], 1, "Number of obs_files must match number of cal_files"],
+        [["obs"], 1, "Number of obs_files must match number of cal_files"],
+        [["layout"], 1, "Number of layout_files must match number of cal_files"],
+        [["settings"], 1, "Number of settings_files must match number of cal_files"],
+        [["obs"], 4, "Number of obs_files must match number of cal_files"],
+        [["layout"], 4, "Number of layout_files must match number of cal_files"],
+        [["settings"], 4, "Number of settings_files must match number of cal_files"],
+        [["obs"], 1, "Number of obs_files must match number of cal_files"],
+        [["cal", "obs"], 1, "Number of layout_files must match number of cal_files"],
         [
-            cal_file_multi[0],
-            obs_file_multi,
-            layout_file_multi,
-            settings_file_multi,
-            "Number of obs_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            obs_file_multi[0],
-            layout_file_multi,
-            settings_file_multi,
-            "Number of obs_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            obs_file_multi,
-            layout_file_multi[0],
-            settings_file_multi,
-            "Number of layout_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            obs_file_multi,
-            layout_file_multi,
-            settings_file_multi[0],
+            ["cal", "obs", "layout"],
+            1,
             "Number of settings_files must match number of cal_files",
         ],
-        [
-            cal_file_multi,
-            obs_file_multi + obs_file_multi,
-            layout_file_multi,
-            settings_file_multi,
-            "Number of obs_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            obs_file_multi,
-            layout_file_multi + layout_file_multi,
-            settings_file_multi,
-            "Number of layout_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            obs_file_multi,
-            layout_file_multi,
-            settings_file_multi + settings_file_multi,
-            "Number of settings_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi[0],
-            obs_file_multi[0],
-            layout_file_multi,
-            settings_file_multi,
-            "Number of layout_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi[0],
-            obs_file_multi[0],
-            layout_file_multi[0],
-            settings_file_multi,
-            "Number of settings_files must match number of cal_files",
-        ],
-        [
-            cal_file_multi,
-            None,
-            layout_file_multi,
-            settings_file_multi,
-            "obs_file parameter must be set for FHD files.",
-        ],
+        [["obs"], 0, "obs_file parameter must be set for FHD files."],
     ],
 )
-def test_break_read_multi(cal_file, obs_file, layout_file, settings_file, message):
+def test_break_read_multi(diff_nfiles, nfiles, message):
     """Test errors for different numbers of files."""
+    files = {}
+    for key in ["cal", "obs", "layout", "settings"]:
+        init_files = fhd_files_multi(key)
+        if key in diff_nfiles:
+            if nfiles == 0:
+                files[key] = None
+            elif nfiles == 1:
+                files[key] = init_files[0]
+            elif nfiles > 2:
+                files[key] = init_files * 2
+        else:
+            files[key] = init_files
     cal = UVCal()
     with pytest.raises(ValueError, match=message):
         cal.read(
-            cal_file,
-            obs_file=obs_file,
-            layout_file=layout_file,
-            settings_file=settings_file,
+            files["cal"],
+            obs_file=files["obs"],
+            layout_file=files["layout"],
+            settings_file=files["settings"],
         )
