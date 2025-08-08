@@ -17,30 +17,11 @@ from astropy.io import fits
 
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mwa_corr_fits import input_output_mapping
 
 hasbench = importlib.util.find_spec("pytest_benchmark") is not None
-
-# set up MWA correlator file list
-testdir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")
-
-testfiles = [
-    "1131733552.metafits",
-    "1131733552_20151116182537_mini_gpubox01_00.fits",
-    "1131733552_20151116182637_mini_gpubox06_01.fits",
-    "1131733552_mini_01.mwaf",
-    "1131733552_mini_06.mwaf",
-    "1131733552_mod.metafits",
-    "1131733552_mini_cotter.uvfits",
-    "1131733552_metafits_ppds.fits",
-    "1061315448_20130823175130_mini_gpubox07_01.fits",
-    "1061315448.metafits",
-    "1061315448_20130823175130_mini_vv_07_01.uvh5",
-    "1320409688.metafits",
-    "1320409688_20211108122750_mini_ch137_000.fits",
-]
-filelist = [os.path.join(testdir, filei) for filei in testfiles]
 
 
 def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
@@ -50,7 +31,8 @@ def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
     meta_spoof = str(tmp_path / f"mwax_cb_spoof{fine_res}.metafits")
 
     outfiles = []
-    with fits.open(filelist[12]) as mini1:
+    filename = fetch_data("mwax_2021_raw_gpubox")
+    with fits.open(filename) as mini1:
         mini1[1].data = np.repeat(mini1[1].data, nfreq, axis=1)  # data
         mini1[2].data = np.repeat(mini1[2].data, nfreq, axis=1)  # weights
 
@@ -74,7 +56,7 @@ def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
         shutil.copy(cb_spoof, filename)
         outfiles.append(filename)
 
-    with fits.open(filelist[11]) as meta:
+    with fits.open(fetch_data("mwax_2021_metafits")) as meta:
         meta[0].header["FINECHAN"] = fine_res
         meta[0].header["NCHANS"] = len(meta[0].header["CHANNELS"].split(",")) * nfreq
         meta.writeto(meta_spoof)
@@ -84,13 +66,13 @@ def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
 
 
 def spoof_legacy(tmp_path, nfreq=16, ntimes=2, ncoarse=2):
-    input_files = filelist[1:3]
+    input_files = fetch_data(["mwa_2015_raw_gpubox01", "mwa_2015_raw_gpubox06"])
     spoof_files = [
         str(tmp_path / "spoof_01_00.fits"),
         str(tmp_path / "spoof_06_00.fits"),
     ]
 
-    files_use = [filelist[0]]
+    files_use = [fetch_data("mwa_2015_metafits")]
     for f_ind in range(ncoarse):
         with fits.open(input_files[f_ind]) as mini:
             mini[1].data = np.repeat(mini[1].data, nfreq, axis=0)
@@ -129,7 +111,9 @@ def test_read_mwa_write_uvfits(tmp_path):
         UserWarning, match="some coarse channel files were not submitted"
     ):
         mwa_uv.read(
-            filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
         )
 
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
@@ -199,11 +183,11 @@ def test_read_mwax_write_uvfits(tmp_path):
 def test_mwax_metafits_keys(tmp_path):
     """Check that mwax keywords are removed from extra_keywords for legacy files"""
     meta_spoof_file = str(tmp_path / "spoof_1131733552.metafits")
-    with fits.open(filelist[0]) as meta:
+    with fits.open(fetch_data("mwa_2015_metafits")) as meta:
         meta[0].header["DELAYMOD"] = None
         meta.writeto(meta_spoof_file)
     uv = UVData()
-    uv.read([meta_spoof_file, filelist[1]])
+    uv.read([meta_spoof_file, fetch_data("mwa_2015_raw_gpubox01")])
 
     assert "DELAYMOD" not in uv.extra_keywords
 
@@ -220,13 +204,13 @@ def test_read_mwa_read_cotter():
     cotter_uv = UVData()
     # cotter data has cable correction and is unphased
     mwa_uv.read(
-        filelist[0:2],
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
         correct_cable_len=True,
         remove_dig_gains=False,
         remove_coarse_band=False,
         remove_flagged_ants=False,
     )
-    cotter_uv.read(filelist[6])
+    cotter_uv.read(fetch_data("mwa_2015_cotter_uvfits"))
     # cotter doesn't record the auto xy polarizations
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
     # fix these before testing data_array
@@ -251,7 +235,7 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     mwa_uv = UVData()
     uvfits_uv = UVData()
     messages = ["some coarse channel files were not submitted"]
-    files = [filelist[1], filelist[5]]
+    files = fetch_data(["mwa_2015_raw_gpubox01", "mwa_2015_metafits_mod"])
     with check_warnings(UserWarning, messages):
         mwa_uv.read(files, correct_cable_len=True, phase_to_pointing_center=True)
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
@@ -285,8 +269,8 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
 @pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
 def test_read_mwa_multi():
     """Test reading in two sets of files."""
-    set1 = filelist[0:2]
-    set2 = [filelist[0], filelist[2]]
+    set1 = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
+    set2 = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox06"])
     mwa_uv = UVData()
 
     mwa_uv.read([set1, set2])
@@ -308,11 +292,11 @@ def test_read_mwa_multi_concat(tmp_path):
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
     mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
-    with fits.open(filelist[2]) as mini6:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox06")) as mini6:
         mini6[1].header["time"] = 1447698337
         mini6.writeto(mod_mini_6)
-    set1 = filelist[0:2]
-    set2 = [filelist[0], mod_mini_6]
+    set1 = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
+    set2 = [fetch_data("mwa_2015_metafits"), mod_mini_6]
     mwa_uv = UVData()
     mwa_uv.read([set1, set2], axis="freq")
 
@@ -332,7 +316,14 @@ def test_read_mwa_multi_concat(tmp_path):
 def test_read_mwa_flags():
     """Test handling of flag files."""
     mwa_uv = UVData()
-    subfiles = [filelist[0], filelist[1], filelist[3], filelist[4]]
+    subfiles = fetch_data(
+        [
+            "mwa_2015_metafits",
+            "mwa_2015_raw_gpubox01",
+            "mwa_2015_mwaf01",
+            "mwa_2015_mwaf06",
+        ]
+    )
     messages = [
         "mwaf files submitted with use_aoflagger_flags=False",
         "some coarse channel files were not submitted",
@@ -355,8 +346,12 @@ def test_multiple_coarse():
     Read in MWA correlator files with two different orderings of the files
     and check for object equality.
     """
-    order1 = filelist[0:3]
-    order2 = [filelist[0], filelist[2], filelist[1]]
+    order1 = fetch_data(
+        ["mwa_2015_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_raw_gpubox06"]
+    )
+    order2 = fetch_data(
+        ["mwa_2015_metafits", "mwa_2015_raw_gpubox06", "mwa_2015_raw_gpubox01"]
+    )
     mwa_uv1 = UVData()
     mwa_uv2 = UVData()
     messages = [
@@ -377,7 +372,9 @@ def test_ppds(tmp_path):
     # turnaround test with just ppds file given
     mwa_uv = UVData()
     mwa_uv.read(
-        [filelist[1], filelist[7]], phase_to_pointing_center=True, flag_init=False
+        fetch_data(["mwa_2015_raw_gpubox01", "mwa_2015_ppds"]),
+        phase_to_pointing_center=True,
+        flag_init=False,
     )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile)
@@ -411,7 +408,9 @@ def test_ppds(tmp_path):
 
     # check that extra keywords are added when both ppds file and metafits file given
     mwa_uv = UVData()
-    mwa_uv.read([filelist[0], filelist[1], filelist[7]])
+    mwa_uv.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_ppds"])
+    )
     assert "MWAVER" in mwa_uv.extra_keywords and "MWADATE" in mwa_uv.extra_keywords
 
 
@@ -424,13 +423,13 @@ def test_fine_channels(tmp_path):
     """
     mwa_uv = UVData()
     bad_fine = str(tmp_path / "bad_gpubox06_01.fits")
-    with fits.open(filelist[2]) as mini6:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox06")) as mini6:
         mini6[1].data = np.concatenate((mini6[1].data, mini6[1].data))
         mini6.writeto(bad_fine)
     with pytest.raises(
         ValueError, match="files submitted have different numbers of fine channels"
     ):
-        mwa_uv.read([bad_fine, filelist[1]])
+        mwa_uv.read([bad_fine, fetch_data("mwa_2015_raw_gpubox01")])
     del mwa_uv
 
 
@@ -446,23 +445,24 @@ def test_fine_channels_mwax(tmp_path):
     with pytest.raises(
         ValueError, match="files submitted have different numbers of fine channels"
     ):
-        mwax_uv.read(spoof_files + [filelist[12]])
+        mwax_uv.read(spoof_files + [fetch_data("mwax_2021_raw_gpubox")])
     del mwax_uv
 
 
 @pytest.mark.parametrize(
-    "files,err_msg",
+    ("dataset_names", "err_msg"),
     [
-        ([filelist[0]], "no data files submitted"),
-        ([filelist[1]], "no metafits file submitted"),
+        (["mwa_2015_metafits"], "no data files submitted"),
+        (["mwa_2015_raw_gpubox01"], "no metafits file submitted"),
         (
-            [filelist[0], filelist[1], filelist[5]],
+            ["mwa_2015_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_metafits_mod"],
             "multiple metafits files in filelist",
         ),
     ],
 )
-def test_break_read_mwacorrfits(files, err_msg):
+def test_break_read_mwacorrfits(dataset_names, err_msg):
     """Break read_mwa_corr_fits by submitting files incorrectly."""
+    files = fetch_data(dataset_names)
     mwa_uv = UVData()
     with pytest.raises(ValueError, match=err_msg):
         mwa_uv.read(files)
@@ -478,7 +478,7 @@ def test_file_extension(tmp_path):
     """
     mwa_uv = UVData()
     bad_ext = str(tmp_path / "1131733552.meta")
-    with fits.open(filelist[0]) as meta:
+    with fits.open(fetch_data("mwa_2015_metafits")) as meta:
         meta.writeto(bad_ext)
     with pytest.raises(
         ValueError, match="only fits, metafits, and mwaf files supported"
@@ -496,11 +496,17 @@ def test_diff_obs(tmp_path):
     """
     mwa_uv = UVData()
     bad_obs = str(tmp_path / "bad2_gpubox06_01.fits")
-    with fits.open(filelist[2]) as mini6:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox06")) as mini6:
         mini6[0].header["OBSID"] = "1131733555"
         mini6.writeto(bad_obs)
     with pytest.raises(ValueError, match="files from different observations"):
-        mwa_uv.read([bad_obs, filelist[0], filelist[1]])
+        mwa_uv.read(
+            [
+                bad_obs,
+                fetch_data("mwa_2015_metafits"),
+                fetch_data("mwa_2015_raw_gpubox01"),
+            ]
+        )
     del mwa_uv
 
 
@@ -513,11 +519,17 @@ def test_misaligned_times(tmp_path):
     """
     mwa_uv = UVData()
     bad_obs = str(tmp_path / "bad3_gpubox06_01.fits")
-    with fits.open(filelist[2]) as mini6:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox06")) as mini6:
         mini6[1].header["MILLITIM"] = 250
         mini6.writeto(bad_obs)
     with pytest.raises(ValueError, match="coarse channel start times are misaligned"):
-        mwa_uv.read([bad_obs, filelist[0], filelist[1]])
+        mwa_uv.read(
+            [
+                bad_obs,
+                fetch_data("mwa_2015_metafits"),
+                fetch_data("mwa_2015_raw_gpubox01"),
+            ]
+        )
     del mwa_uv
 
 
@@ -531,7 +543,9 @@ def test_flag_nsample_basic():
     """
     uv = UVData()
     uv.read(
-        filelist[0:3],
+        fetch_data(
+            ["mwa_2015_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_raw_gpubox06"]
+        ),
         flag_init=False,
         propagate_coarse_flags=False,
         remove_flagged_ants=False,
@@ -672,7 +686,7 @@ def test_read_metadata_only(tmp_path):
     messages = ["some coarse channel files were not submitted"]
     with check_warnings(UserWarning, messages):
         uvd.read(
-            filelist[0:2],
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
             correct_cable_len=True,
             phase_to_pointing_center=True,
             read_data=False,
@@ -686,9 +700,15 @@ def test_data_array_precision():
     uv = UVData()
     uv2 = UVData()
     # read in data array as single precision
-    uv.read(filelist[0:2], data_array_dtype=np.complex64)
+    uv.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        data_array_dtype=np.complex64,
+    )
     # now read as double precision
-    uv2.read(filelist[0:2], data_array_dtype=np.complex128)
+    uv2.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        data_array_dtype=np.complex128,
+    )
 
     assert uv == uv2
     assert uv.data_array.dtype.type is np.complex64
@@ -703,9 +723,18 @@ def test_nsample_array_precision():
     uv2 = UVData()
     uv3 = UVData()
     # read in nsample array at different precisions
-    uv.read(filelist[0:2], nsample_array_dtype=np.float32)
-    uv2.read(filelist[0:2], nsample_array_dtype=np.float64)
-    uv3.read(filelist[0:2], nsample_array_dtype=np.float16)
+    uv.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        nsample_array_dtype=np.float32,
+    )
+    uv2.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        nsample_array_dtype=np.float64,
+    )
+    uv3.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        nsample_array_dtype=np.float16,
+    )
 
     assert uv == uv2
     assert uv == uv3
@@ -721,12 +750,18 @@ def test_invalid_precision_errors():
 
     # raise errors by passing bogus precision values
     with pytest.raises(ValueError, match="data_array_dtype must be np.complex64"):
-        uv.read(filelist[0:2], data_array_dtype=np.float64)
+        uv.read(
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+            data_array_dtype=np.float64,
+        )
 
     with pytest.raises(
         ValueError, match="nsample_array_dtype must be one of: np.float64"
     ):
-        uv.read(filelist[0:2], nsample_array_dtype=np.complex128)
+        uv.read(
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+            nsample_array_dtype=np.complex128,
+        )
 
     return
 
@@ -735,12 +770,18 @@ def test_invalid_precision_errors():
 def test_remove_dig_gains():
     """Test digital gain removal."""
     uv1 = UVData()
-    uv1.read(filelist[0:2], data_array_dtype=np.complex64)
+    uv1.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        data_array_dtype=np.complex64,
+    )
 
     uv2 = UVData()
-    uv2.read(filelist[0:2], remove_dig_gains=False)
+    uv2.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        remove_dig_gains=False,
+    )
 
-    with fits.open(filelist[0]) as meta:
+    with fits.open(fetch_data("mwa_2015_metafits")) as meta:
         meta_tbl = meta[1].data
         antenna_inds = meta_tbl["Antenna"][1::2]
         dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64) / 64
@@ -856,8 +897,8 @@ def test_remove_coarse_band_mwax_warning(tmp_path):
 def test_aoflagger_flags():
     """Test using aoflagger flags"""
     uv = UVData()
-    files = filelist[0:2]
-    files.append(filelist[3])
+    files = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
+    files.append(fetch_data("mwa_2015_mwaf01"))
     messages = [
         "some coarse channel files were not submitted",
         "coarse channel, start time, and end time flagging will default",
@@ -867,7 +908,7 @@ def test_aoflagger_flags():
             files, flag_init=False, remove_flagged_ants=False, correct_cable_len=False
         )
 
-    with fits.open(filelist[3]) as aoflags:
+    with fits.open(fetch_data("mwa_2015_mwaf01")) as aoflags:
         flags = aoflags[1].data.field("FLAGS")
     flags = flags[:, :, np.newaxis]
     flags = np.repeat(flags, 4, axis=2)
@@ -883,18 +924,25 @@ def test_aoflagger_flags():
 def test_aoflagger_flags_multiple(tmp_path):
     """Test aoflagger flags with multiple coarse bands"""
     mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
-    with fits.open(filelist[2]) as mini6:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox06")) as mini6:
         mini6[1].header["time"] = 1447698337
         mini6.writeto(mod_mini_6)
-    files = filelist[0:2] + filelist[3:5]
+    files = fetch_data(
+        [
+            "mwa_2015_metafits",
+            "mwa_2015_raw_gpubox01",
+            "mwa_2015_mwaf01",
+            "mwa_2015_mwaf06",
+        ]
+    )
     files.append(mod_mini_6)
 
     uv = UVData()
     uv.read(files, flag_init=False, remove_flagged_ants=False)
 
-    with fits.open(filelist[3]) as aoflags:
+    with fits.open(fetch_data("mwa_2015_mwaf01")) as aoflags:
         flags1 = aoflags[1].data.field("FLAGS")
-    with fits.open(filelist[4]) as aoflags:
+    with fits.open(fetch_data("mwa_2015_mwaf06")) as aoflags:
         flags2 = aoflags[1].data.field("FLAGS")
     flags = np.array([flags2[:, 0], flags1[:, 0]])
     flags = np.transpose(flags)
@@ -909,8 +957,8 @@ def test_aoflagger_flags_multiple(tmp_path):
 def test_mismatch_flags():
     """Break by submitting flag and gpubox files from different coarse bands."""
     uv = UVData()
-    files = filelist[0:2]
-    files.append(filelist[4])
+    files = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
+    files.append(fetch_data("mwa_2015_mwaf06"))
     with pytest.raises(ValueError, match="flag file coarse bands do not match"):
         uv.read(files)
 
@@ -924,7 +972,13 @@ def test_propagate_coarse_flags():
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
-    uv.read(filelist[0:3], flag_init=False, propagate_coarse_flags=True)
+    uv.read(
+        fetch_data(
+            ["mwa_2015_metafits", "mwa_2015_raw_gpubox01", "mwa_2015_raw_gpubox06"]
+        ),
+        flag_init=False,
+        propagate_coarse_flags=True,
+    )
     assert np.all(uv.flag_array)
 
 
@@ -933,7 +987,7 @@ def test_start_flag(tmp_path):
     """Test the default value of start_flag."""
     uv1 = UVData()
     uv1.read(
-        filelist[0:2],
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
         flag_init=True,
         start_flag="goodtime",
         end_flag=0,
@@ -945,12 +999,12 @@ def test_start_flag(tmp_path):
     # start_time is after goodtime, so data for good antennas should be unflagged
     assert np.all(~uv1.flag_array)
     mod_mini = str(tmp_path / "starttime_gpubox01_00.fits")
-    with fits.open(filelist[1]) as mini:
+    with fits.open(fetch_data("mwa_2015_raw_gpubox01")) as mini:
         mini[1].header["time"] = 1447698334
         mini.writeto(mod_mini)
     uv2 = UVData()
     uv2.read(
-        [filelist[0], mod_mini],
+        [fetch_data("mwa_2015_metafits"), mod_mini],
         flag_init=True,
         start_flag="goodtime",
         end_flag=0,
@@ -966,7 +1020,11 @@ def test_start_flag_goodtime_ppds():
     """Test that error is thrown using 'goodtime' with only ppds file."""
     uv = UVData()
     with pytest.raises(ValueError, match="To use start_flag='goodtime',"):
-        uv.read([filelist[1], filelist[7]], flag_init=True, start_flag="goodtime")
+        uv.read(
+            fetch_data(["mwa_2015_raw_gpubox01", "mwa_2015_ppds"]),
+            flag_init=True,
+            start_flag="goodtime",
+        )
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -976,7 +1034,11 @@ def test_start_flag_bad_string():
     with pytest.raises(
         ValueError, match="start_flag must be int or float or 'goodtime'"
     ):
-        uv.read(filelist[0:2], flag_init=True, start_flag="badstring")
+        uv.read(
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+            flag_init=True,
+            start_flag="badstring",
+        )
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -984,10 +1046,14 @@ def test_start_flag_int_time(tmp_path):
     """Test goodtime returning a start_flag smaller than integration time."""
     uv = UVData()
     new_meta = str(tmp_path / "1131733552_goodtime.metafits")
-    with fits.open(filelist[0]) as meta:
+    with fits.open(fetch_data("mwa_2015_metafits")) as meta:
         meta[0].header["GOODTIME"] = 1447698337.25
         meta.writeto(new_meta)
-    uv.read([new_meta, filelist[1]], flag_init=True, start_flag="goodtime")
+    uv.read(
+        [new_meta, fetch_data("mwa_2015_raw_gpubox01")],
+        flag_init=True,
+        start_flag="goodtime",
+    )
     # first integration time should be flagged
     # data only has one integration time, so all data should be flagged
     assert np.all(uv.flag_array)
@@ -1019,8 +1085,9 @@ def test_input_output_mapping():
 def test_van_vleck_int():
     """Test van vleck correction integral implementation."""
     uv1 = UVData()
+    files = fetch_data(["mwa_2013_raw_gpubox", "mwa_2013_metafits"])
     uv1.read(
-        filelist[8:10],
+        files,
         flag_init=False,
         data_array_dtype=np.complex64,
         correct_van_vleck=True,
@@ -1032,7 +1099,7 @@ def test_van_vleck_int():
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    uv2.read(fetch_data("mwa_2013_vv"))
 
     np.testing.assert_allclose(
         uv1.data_array,
@@ -1046,8 +1113,9 @@ def test_van_vleck_int():
 def test_van_vleck_cheby():
     """Test van vleck correction chebyshev implementation."""
     uv1 = UVData()
+    files = fetch_data(["mwa_2013_raw_gpubox", "mwa_2013_metafits"])
     uv1.read(
-        filelist[8:10],
+        files,
         flag_init=False,
         correct_van_vleck=True,
         cheby_approx=True,
@@ -1057,7 +1125,7 @@ def test_van_vleck_cheby():
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    uv2.read(fetch_data("mwa_2013_vv"))
 
     # select only good ants
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
@@ -1074,7 +1142,7 @@ def test_van_vleck_cheby():
 def test_van_vleck_interp(tmp_path):
     """Test van vleck correction with sigmas out of cheby interpolation range."""
     small_sigs = str(tmp_path / "small_sigs07_01.fits")
-    with fits.open(filelist[8]) as mini:
+    with fits.open(fetch_data("mwa_2013_raw_gpubox")) as mini:
         mini[1].data = np.full((1, 66048), 7744)
         mini.writeto(small_sigs)
     messages = ["values are being corrected with the van vleck integral"]
@@ -1084,7 +1152,7 @@ def test_van_vleck_interp(tmp_path):
     uv = UVData()
     with check_warnings(UserWarning, messages):
         uv.read(
-            [small_sigs, filelist[9]],
+            [small_sigs, fetch_data("mwa_2013_metafits")],
             flag_init=False,
             correct_van_vleck=True,
             cheby_approx=True,
@@ -1095,12 +1163,13 @@ def test_van_vleck_interp(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_remove_flagged_ants(tmp_path):
+def test_remove_flagged_ants():
     """Test remove_flagged_ants."""
     uv1 = UVData()
-    uv1.read(filelist[8:10], remove_flagged_ants=True)
+    files = fetch_data(["mwa_2013_raw_gpubox", "mwa_2013_metafits"])
+    uv1.read(files, remove_flagged_ants=True)
     uv2 = UVData()
-    uv2.read(filelist[8:10], remove_flagged_ants=False)
+    uv2.read(files, remove_flagged_ants=False)
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
 
     uv2.select(antenna_nums=good_ants)
@@ -1113,12 +1182,14 @@ def test_remove_flagged_ants(tmp_path):
 def test_small_sigs(tmp_path):
     """Test flag_small_auto_ants."""
     small_sigs = str(tmp_path / "small_sigs07_02.fits")
-    with fits.open(filelist[8]) as mini:
+    with fits.open(fetch_data("mwa_2013_raw_gpubox")) as mini:
         mini[1].data[0, 0] = 1000
         mini.writeto(small_sigs)
     uv1 = UVData()
     uv1.read(
-        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_auto_ants=True
+        [small_sigs, fetch_data("mwa_2013_metafits")],
+        correct_van_vleck=True,
+        flag_small_auto_ants=True,
     )
     messages = ["values are being corrected with the van vleck integral"]
     messages = messages * 8
@@ -1126,7 +1197,7 @@ def test_small_sigs(tmp_path):
     uv2 = UVData()
     with check_warnings(UserWarning, messages):
         uv2.read(
-            [small_sigs, filelist[9]],
+            [small_sigs, fetch_data("mwa_2013_metafits")],
             correct_van_vleck=True,
             flag_small_auto_ants=False,
         )
@@ -1141,7 +1212,9 @@ def test_bscale(tmp_path):
     """Test that bscale is saved correctly"""
     # some data does not have bscale in the zeroth hdu
     bscale = str(tmp_path / "bscale_01_00.fits")
-    with fits.open(filelist[1], do_not_scale_image_data=True) as mini:
+    with fits.open(
+        fetch_data("mwa_2015_raw_gpubox01"), do_not_scale_image_data=True
+    ) as mini:
         mini[0].header.remove("BSCALE")
         mini.writeto(bscale)
     uv1 = UVData()
@@ -1149,16 +1222,17 @@ def test_bscale(tmp_path):
     uv3 = UVData()
     uv4 = UVData()
     # check when bscale is not in zeroth hdu but is in first
-    uv1.read([filelist[0], bscale])
+    uv1.read([fetch_data("mwa_2015_metafits"), bscale])
     assert uv1.extra_keywords["SCALEFAC"] == 0.5
     # check when bscale is in both zeroth and first hdu
-    uv2.read(filelist[0:2])
+    uv2.read(fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]))
     assert uv2.extra_keywords["SCALEFAC"] == 0.5
     # check pre-October 2014 data
-    uv3.read(filelist[8:10])
+    files = fetch_data(["mwa_2013_raw_gpubox", "mwa_2013_metafits"])
+    uv3.read(files)
     assert uv3.extra_keywords["SCALEFAC"] == 0.25
     # check mwax data
-    uv4.read(filelist[11:13])
+    uv4.read(fetch_data(["mwax_2021_raw_gpubox", "mwax_2021_metafits"]))
     assert "SCALEFAC" not in uv4.extra_keywords
 
 
@@ -1170,8 +1244,8 @@ def test_default_corrections(tmp_path):
     # digital gains, and the polyphase filter bank bandpass
     uv1 = UVData()
     uv2 = UVData()
-    uv1.read(filelist[0:2])
-    uv2.read(filelist[11:13])
+    uv1.read(fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]))
+    uv2.read(fetch_data(["mwax_2021_raw_gpubox", "mwax_2021_metafits"]))
 
     assert "Divided out digital gains" in uv1.history
     assert "Divided out digital gains" in uv2.history
@@ -1196,7 +1270,7 @@ def test_read_mwa(benchmark, tmp_path):
         warnings.simplefilter("ignore")
         benchmark(
             mwa_uv.read,
-            filelist[0:2],
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
             correct_cable_len=True,
             phase_to_pointing_center=True,
         )
@@ -1240,7 +1314,7 @@ def test_read_mwax(benchmark, tmp_path):
     """
     # spoof testfile to contain 2 times and 2 freqs
     spoof_file = str(tmp_path / "mwax_spoof_ch137_000.fits")
-    with fits.open(filelist[12]) as mini1:
+    with fits.open(fetch_data("mwax_2021_raw_gpubox")) as mini1:
         mini1[1].data = np.repeat(mini1[1].data, 2, axis=1)
         mini1[2].data = np.repeat(mini1[2].data, 2, axis=1)
         extra_dat = np.copy(mini1[1].data)
@@ -1260,7 +1334,7 @@ def test_read_mwax(benchmark, tmp_path):
         warnings.simplefilter("ignore")
         benchmark(
             mwax_uv.read,
-            [spoof_file, filelist[11]],
+            [spoof_file, fetch_data("mwax_2021_raw_gpubox")],
             correct_cable_len=True,
             phase_to_pointing_center=True,
         )
@@ -1287,7 +1361,10 @@ def test_read_mwax(benchmark, tmp_path):
 def test_corr_fits_select_on_read(benchmark):
     mwa_uv = UVData()
     mwa_uv2 = UVData()
-    mwa_uv.read(filelist[0:2], correct_cable_len=True)
+    mwa_uv.read(
+        fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
+        correct_cable_len=True,
+    )
     unique_times = np.unique(mwa_uv.time_array)
     select_times = unique_times[
         np.where(
@@ -1301,7 +1378,7 @@ def test_corr_fits_select_on_read(benchmark):
         warnings.simplefilter("ignore")
         benchmark(
             mwa_uv2.read,
-            filelist[0:2],
+            fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"]),
             correct_cable_len=True,
             time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
         )
@@ -1316,9 +1393,10 @@ def test_corr_fits_select_on_read(benchmark):
 @pytest.mark.parametrize("cheby", [True, False], ids=lambda x: f"cheby={x:}")
 def test_van_vleck(benchmark, cheby):
     uv1 = UVData()
+    files = fetch_data(["mwa_2013_raw_gpubox", "mwa_2013_metafits"])
     benchmark(
         uv1.read,
-        filelist[8:10],
+        files,
         flag_init=False,
         correct_van_vleck=True,
         cheby_approx=cheby,
@@ -1329,7 +1407,7 @@ def test_van_vleck(benchmark, cheby):
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    uv2.read(fetch_data("mwa_2013_vv"))
 
     if cheby:
         # select only good ants

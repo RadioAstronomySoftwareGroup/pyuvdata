@@ -30,17 +30,17 @@ from astropy.coordinates import Angle
 from astropy.time import Time, TimeDelta
 
 from pyuvdata import UVData, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.telescopes import known_telescope_location
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.miriad import Miriad
 
-aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
+aipy_extracts = pytest.importorskip(
+    "pyuvdata.uvdata.aipy_extracts", exc_type=ImportError
+)
 
 # always ignore the Altitude not present warning
 pytestmark = pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad")
-
-paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 
 # This is a dictionary of warning strings to aid warning checks
 warn_dict = {
@@ -163,7 +163,7 @@ def uv_in_uvfits(paper_miriad, tmp_path):
 def test_read_write_read_atca(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
-    atca_file = os.path.join(DATA_PATH, "atca_miriad/")
+    atca_file = fetch_data("atca_miriad")
     testfile = os.path.join(tmp_path, "outtest_atca_miriad.uv")
     with check_warnings(
         UserWarning,
@@ -228,7 +228,7 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
 def test_read_write_read_carma(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
-    carma_file = os.path.join(DATA_PATH, "carma_miriad")
+    carma_file = fetch_data("carma_miriad")
     testfile = os.path.join(tmp_path, "outtest_carma_miriad.uv")
 
     with check_warnings(
@@ -294,7 +294,7 @@ def test_read_carma_miriad_write_ms(tmp_path):
 
     uv_in = UVData()
     uv_out = UVData()
-    carma_file = os.path.join(DATA_PATH, "carma_miriad")
+    carma_file = fetch_data("carma_miriad")
     testfile = os.path.join(tmp_path, "outtest_carma_miriad.ms")
 
     with check_warnings(
@@ -417,7 +417,7 @@ def test_miriad_read_warning_lat_lon_corrected():
             warn_dict["uvw_mismatch"],
         ],
     ):
-        miriad_uv.read(paper_miriad_file, correct_lat_lon=False)
+        miriad_uv.read(fetch_data("paper_2014_miriad"), correct_lat_lon=False)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -453,7 +453,7 @@ def test_wronglatlon(tmp_path, override_dict, correct_lat_lon):
 
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
 
     # make new file
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
@@ -497,7 +497,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     uv_out = UVData()
 
     testfile = os.path.join(tmp_path, "outtest_miriad.uv")
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
 
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
@@ -545,7 +545,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # test for handling no altitude, unknown telescope, no antenna positions
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -573,7 +573,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -604,7 +604,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -639,7 +639,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -689,7 +689,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # make new file
     if os.path.exists(testfile):
         shutil.rmtree(testfile)
-    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
     # initialize headers from old file
     # change telescope name (so the position isn't set from known_telescopes)
@@ -728,7 +728,7 @@ def test_singletimeselect_unprojected(tmp_path):
     Check behavior with writing & reading after selecting a single time from
     an unprojected file.
     """
-    uv_in = UVData.from_file(paper_miriad_file)
+    uv_in = UVData.from_file(fetch_data("paper_2014_miriad"))
 
     uv_in_copy = uv_in.copy()
     uv_in.select(times=uv_in.time_array[0])
@@ -1296,7 +1296,7 @@ def test_miriad_write_read_diameters(tmp_path):
     # check for backwards compatibility with old keyword 'diameter' for
     # antenna diameters
 
-    orig_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
+    orig_file = fetch_data("hera_old_miriad")
     testfile = os.path.join(tmp_path, "diameter_miriad")
 
     aipy_uv = aipy_extracts.UV(orig_file)
@@ -1341,13 +1341,13 @@ def test_miriad_and_aipy_reads(uv_in_paper):
 def test_miriad_telescope_locations():
     # test load_telescope_coords w/ blank Miriad
     uv_in = Miriad()
-    uv = aipy_extracts.UV(paper_miriad_file)
+    uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     uv_in._load_telescope_coords(uv)
     assert uv_in.telescope.location is not None
     uv.close()
     # test load_antpos w/ blank Miriad
     uv_in = Miriad()
-    uv = aipy_extracts.UV(paper_miriad_file)
+    uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
     uv_in._load_antpos(uv)
     assert uv_in.telescope.antenna_positions is not None
 
@@ -1715,7 +1715,7 @@ def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
 
     # try metadata only read
     uv_in_meta = UVData()
-    uv_in_meta.read(paper_miriad_file, read_data=False)
+    uv_in_meta.read(fetch_data("paper_2014_miriad"), read_data=False)
     assert uv_in_meta.time_array is None
     assert uv_in_meta.data_array is None
     assert uv_in_meta.integration_time is None
@@ -1768,7 +1768,7 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
     pytest.importorskip("casacore")
     ms_uv = UVData()
     miriad_uv = UVData()
-    ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    ms_file = fetch_data("vla_casa_tutorial_ms")
     testfile = os.path.join(tmp_path, "outtest_miriad")
     ms_uv.read(ms_file)
 
@@ -1974,7 +1974,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     test time_array is converted properly from Miriad format
     """
     # test read-in
-    fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA")
+    fname = fetch_data("hera_old_miriad")
     uvd = UVData()
     uvd.read(fname)
     uvd_t = uvd.time_array.min()
@@ -2015,7 +2015,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
 
 def test_file_with_bad_extra_words():
     """Test file with bad extra words is iterated and popped correctly."""
-    fname = os.path.join(DATA_PATH, "test_miriad_changing_extra.uv")
+    fname = fetch_data("paper_miriad_changing_extra")
     uv = UVData()
     warn_message = [
         (
@@ -2055,7 +2055,7 @@ def test_miriad_read_xorient(tmp_path):
     """
     # set the xorient variable directly as we used to do to check for backwards
     # compatibility
-    orig_file = os.path.join(DATA_PATH, "new.uvA")
+    orig_file = fetch_data("paper_2012_miriad")
     testfile = os.path.join(tmp_path, "xorient_miriad")
 
     aipy_uv = aipy_extracts.UV(orig_file)

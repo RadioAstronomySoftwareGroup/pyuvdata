@@ -1,22 +1,19 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-import os
 
 import numpy as np
 import pytest
 
 from pyuvdata import UVBeam, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
-
-filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
 
 @pytest.fixture(scope="module")
 def mwa_beam_1ppd_main():
     beam = UVBeam()
-    beam.read_mwa_beam(filename, pixels_per_deg=1)
+    beam.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1)
 
     yield beam
     del beam
@@ -35,7 +32,7 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     beam1 = mwa_beam_1ppd
     beam2 = UVBeam()
 
-    beam1.read_mwa_beam(filename, pixels_per_deg=1)
+    beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1)
     assert beam1.filename == ["mwa_full_EE_test.h5"]
 
     assert beam1.pixel_coordinate_system == "az_za"
@@ -105,7 +102,9 @@ def test_mwa_orientation(mwa_beam_1ppd):
     # single dipole
     delays = np.full((2, 16), 32, dtype=int)
     delays[:, 5] = 0
-    efield_beam = UVBeam.from_file(filename, pixels_per_deg=1, delays=delays)
+    efield_beam = UVBeam.from_file(
+        fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays
+    )
 
     za_val = np.nonzero(np.isclose(efield_beam.axis2_array, 80.0 * np.pi / 180))
 
@@ -154,7 +153,7 @@ def test_mwa_pointing(delay_set, az_val, za_range):
         delays[pol] = delay_set
 
     mwa_beam = UVBeam.from_file(
-        filename, pixels_per_deg=1, beam_type="efield", delays=delays
+        fetch_data("mwa_full_EE"), pixels_per_deg=1, beam_type="efield", delays=delays
     )
     mwa_beam.efield_to_power(calc_cross_pols=False)
 
@@ -212,23 +211,33 @@ def test_freq_range(mwa_beam_1ppd):
     beam2 = UVBeam()
 
     # include all
-    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    beam2.read_mwa_beam(
+        fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 200e6]
+    )
     assert beam1 == beam2
 
-    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 150e6])
+    beam2.read_mwa_beam(
+        fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 150e6]
+    )
     beam1.select(freq_chans=[0, 1])
     assert beam1.history != beam2.history
     beam1.history = beam2.history
     assert beam1 == beam2
 
     with check_warnings(UserWarning, match="Only one available frequency"):
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 130e6])
+        beam1.read_mwa_beam(
+            fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 130e6]
+        )
 
     with pytest.raises(ValueError, match="No frequencies available in freq_range"):
-        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 110e6])
+        beam2.read_mwa_beam(
+            fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 110e6]
+        )
 
     with pytest.raises(ValueError, match="freq_range must have 2 elements."):
-        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6])
+        beam2.read_mwa_beam(
+            fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6]
+        )
 
 
 def test_p1sin_array():
@@ -254,7 +263,9 @@ def test_bad_amps():
 
     amps = np.ones([2, 8])
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, amplitudes=amps)
+        beam1.read_mwa_beam(
+            fetch_data("mwa_full_EE"), pixels_per_deg=1, amplitudes=amps
+        )
     assert str(cm.value).startswith("amplitudes must be shape")
 
 
@@ -263,18 +274,18 @@ def test_bad_delays():
 
     delays = np.zeros([2, 8], dtype="int")
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
     assert str(cm.value).startswith("delays must be shape")
 
     delays = np.zeros((2, 16), dtype="int")
     delays = delays + 64
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
     assert str(cm.value).startswith("There are delays greater than 32")
 
     delays = np.zeros((2, 16), dtype="float")
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
     assert str(cm.value).startswith("Delays must be integers.")
 
 
@@ -285,7 +296,7 @@ def test_dead_dipoles():
     delays[:, 0] = 32
 
     with check_warnings(UserWarning, "There are some terminated dipoles"):
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
 
     delay_str = (
         "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "

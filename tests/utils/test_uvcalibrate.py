@@ -2,7 +2,6 @@
 # Licensed under the 2-clause BSD License
 """Tests for uvcalibrate function."""
 
-import os
 import re
 from types import SimpleNamespace
 
@@ -10,7 +9,7 @@ import numpy as np
 import pytest
 
 from pyuvdata import UVCal, utils
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.utils import uvcalibrate
 from pyuvdata.utils.uvcalibrate import _get_pol_conventions
@@ -140,7 +139,7 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
     )
 
     uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"))
+    uvc.read_calfits(fetch_data("hera_omnical2"))
     # downselect to match each other in shape (but not in actual values!)
     uvd.select(frequencies=uvd.freq_array[:10])
     uvc.select(times=uvc.time_array[:3])
@@ -196,7 +195,7 @@ def test_uvcalibrate_delay_oldfiles(uvcalibrate_uvdata_oldfiles):
     uvd = uvcalibrate_uvdata_oldfiles
 
     uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
+    uvc.read_calfits(fetch_data("hera_firstcal_delay"))
     # downselect to match
     uvc.select(times=uvc.time_array[3])
     uvc.gain_convention = "multiply"
@@ -736,7 +735,7 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_uvdata_oldfiles):
     uvd = uvcalibrate_uvdata_oldfiles
 
     uvc = UVCal()
-    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
+    uvc.read_calfits(fetch_data("hera_firstcal_delay"))
     # downselect to match
     uvc.select(times=uvc.time_array[3])
     uvc.gain_convention = "multiply"

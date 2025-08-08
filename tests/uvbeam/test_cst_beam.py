@@ -8,15 +8,9 @@ import pytest
 import yaml
 
 from pyuvdata import UVBeam
-from pyuvdata.data import DATA_PATH
+from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.cst_beam import CSTBeam
-
-filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
-cst_folder = "NicCSTbeams"
-cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
-cst_yaml_file = os.path.join(DATA_PATH, cst_folder, "NicCSTbeams.yaml")
-cst_yaml_vivaldi = os.path.join(DATA_PATH, cst_folder, "HERA_Vivaldi_CST_beams.yaml")
 
 
 @pytest.fixture(scope="function")
@@ -52,7 +46,10 @@ def cst_efield_2freq_mod(cst_efield_2freq_main):
 def test_basic_frequencyparse():
     beam1 = CSTBeam()
 
-    parsed_freqs = [beam1.name2freq(f) for f in cst_files]
+    parsed_freqs = [
+        beam1.name2freq(f)
+        for f in fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    ]
     assert parsed_freqs == [150e6, 123e6]
 
 
@@ -67,7 +64,9 @@ def test_frequencyparse_extra_numbers():
         "pyuvdata",
         "data",
     )
-    test_files = [os.path.join(test_path, f) for f in filenames]
+    full_filenames = fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    basenames = [os.path.basename(fname) for fname in full_filenames]
+    test_files = [os.path.join(test_path, f) for f in basenames]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     assert parsed_freqs == [150e6, 123e6]
 
@@ -80,7 +79,9 @@ def test_frequencyparse_nicf_path():
         "E-field pattern-Rigging height4.9m",
         "HERA_4.9m_E-pattern_100-200MHz",
     )
-    test_files = [os.path.join(test_path, f) for f in filenames]
+    full_filenames = fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    basenames = [os.path.basename(fname) for fname in full_filenames]
+    test_files = [os.path.join(test_path, f) for f in basenames]
     parsed_freqs = [beam1.name2freq(f) for f in test_files]
     assert parsed_freqs == [150e6, 123e6]
 
@@ -117,13 +118,12 @@ def test_read_yaml(cst_efield_2freq_mod):
     beam1 = cst_efield_2freq_mod
     assert beam1.filename == ["HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
 
-    beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    filename = fetch_data("hera_fagnoni_dipole_yaml")
+    beam2.read_cst_beam(filename, beam_type="efield")
     assert beam2.filename == sorted(
-        [
-            os.path.basename(cst_yaml_file),
-            "HERA_NicCST_123MHz.txt",
-            "HERA_NicCST_150MHz.txt",
-        ]
+        [os.path.basename(filename), "HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
     )
 
     assert beam1 == beam2
@@ -135,11 +135,13 @@ def test_read_yaml(cst_efield_2freq_mod):
 def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
     # copy the beam files to the tmp directory so that it can read them
     # when the yaml is stored there
-    for fname in cst_files:
+    for fname in fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]):
         shutil.copy2(src=fname, dst=tmp_path)
 
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
-    with open(cst_yaml_file) as file:
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    with open(fetch_data("hera_fagnoni_dipole_yaml")) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["filenames"] = [settings_dict["filenames"][0]]
@@ -182,6 +184,8 @@ def test_read_yaml_override(cst_efield_2freq_mod):
 
     beam1.telescope_name = "test"
 
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
     with check_warnings(
         UserWarning,
         match=[
@@ -192,7 +196,7 @@ def test_read_yaml_override(cst_efield_2freq_mod):
         ],
     ):
         beam2.read_cst_beam(
-            cst_yaml_file,
+            fetch_data("hera_fagnoni_dipole_yaml"),
             beam_type="efield",
             telescope_name="test",
             mount_type="fixed",
@@ -214,27 +218,35 @@ def test_read_yaml_freq_select(cst_efield_1freq_mod):
 
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(cst_yaml_file, beam_type="efield", frequency_select=[150e6])
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    filename = fetch_data("hera_fagnoni_dipole_yaml")
+    beam2.read_cst_beam(filename, beam_type="efield", frequency_select=[150e6])
 
     assert beam1 == beam2
 
     # test error with using frequency_select where no such frequency
     freq = 180e6
     with pytest.raises(ValueError, match=f"frequency {freq} not in frequency list"):
-        beam2.read_cst_beam(cst_yaml_file, beam_type="power", frequency_select=[freq])
+        beam2.read_cst_beam(filename, beam_type="power", frequency_select=[freq])
 
 
-def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
+def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod, tmpdir):
     # make yaml with a list of (the same) feed_pols
 
-    test_yaml_file = os.path.join(DATA_PATH, cst_folder, "test_cst_settings.yaml")
-    with open(cst_yaml_file) as file:
+    test_yaml_file = os.path.join(tmpdir, "test_cst_settings.yaml")
+    # make sure the datafiles are cached
+    data_files = fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    with open(fetch_data("hera_fagnoni_dipole_yaml")) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["feed_pol"] = ["x", "x"]
 
     with open(test_yaml_file, "w") as outfile:
         yaml.dump(settings_dict, outfile, default_flow_style=False)
+    # copy data files to the same directory
+    for file in data_files:
+        shutil.copy(file, tmpdir / os.path.basename(file))
 
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -268,11 +280,13 @@ def test_read_yaml_multi_pol(tmp_path):
 
     # copy the beam files to the tmp directory so that it can read them
     # when the yaml is stored there
-    for fname in cst_files:
+    for fname in fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]):
         shutil.copy2(src=fname, dst=tmp_path)
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
 
-    with open(cst_yaml_file) as file:
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    with open(fetch_data("hera_fagnoni_dipole_yaml")) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["feed_pol"] = ["x", "y"]
@@ -298,7 +312,7 @@ def test_read_yaml_multi_pol(tmp_path):
         UserWarning, "No frequency provided. Detected frequency is", nwarnings=2
     ):
         beam1.read_cst_beam(
-            [cst_files[0], cst_files[0]],
+            [fetch_data("hera_fagnoni_dipole_150")] * 2,
             beam_type="efield",
             feed_pol=["x", "y"],
             telescope_name="HERA",
@@ -329,7 +343,9 @@ def test_read_yaml_errors(tmp_path):
     # test error if required key is not present in yaml file
 
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
-    with open(cst_yaml_file) as file:
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    with open(fetch_data("hera_fagnoni_dipole_yaml")) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict.pop("telescope_name")
@@ -346,7 +362,10 @@ def test_read_yaml_errors(tmp_path):
     ):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
-    with open(cst_yaml_file) as file:
+    # make sure the datafiles are cached
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    filename = fetch_data("hera_fagnoni_dipole_yaml")
+    with open(filename) as file:
         settings_dict = yaml.safe_load(file)
     settings_dict["filenames"] = settings_dict["filenames"][0]
 
@@ -357,7 +376,7 @@ def test_read_yaml_errors(tmp_path):
     with pytest.raises(ValueError, match=("filenames in yaml file must be a list.")):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
-    with open(cst_yaml_file) as file:
+    with open(filename) as file:
         settings_dict = yaml.safe_load(file)
     settings_dict["frequencies"] = settings_dict["frequencies"][0]
 
@@ -391,7 +410,7 @@ def test_read_power(cst_power_2freq):
 
     # test passing in other polarization
     beam2.read_cst_beam(
-        np.array(cst_files),
+        np.array(fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])),
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
@@ -434,7 +453,7 @@ def test_read_power_single_freq(cst_power_1freq):
     # test single frequency and not rotating the polarization
     with check_warnings(UserWarning, "No frequency provided. Detected frequency is"):
         beam2.read_cst_beam(
-            cst_files[0],
+            fetch_data("hera_fagnoni_dipole_150"),
             beam_type="power",
             telescope_name="TEST",
             feed_name="bob",
@@ -465,7 +484,7 @@ def test_read_power_multi_pol():
     beam2 = UVBeam()
 
     beam1.read_cst_beam(
-        [cst_files[0], cst_files[0]],
+        fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_150"]),
         beam_type="power",
         frequency=[150e6],
         feed_pol=np.array(["xx", "yy"]),
@@ -488,7 +507,7 @@ def test_read_power_multi_pol():
 
     # test reading in cross polarization files
     beam2.read_cst_beam(
-        [cst_files[0]],
+        [fetch_data("hera_fagnoni_dipole_150")],
         beam_type="power",
         frequency=[150e6],
         feed_pol=np.array(["xy"]),
@@ -511,30 +530,30 @@ def test_read_power_multi_pol():
 
 
 @pytest.mark.parametrize(
-    ["files", "kwargs", "err_msg"],
+    ["file_inds", "kwargs", "err_msg"],
     [
         [
-            cst_files,
+            [0, 1],
             {"beam_type": "power", "frequency": [150e6, 123e6, 100e6]},
             "If frequency and filename are both lists they need to be the same length",
         ],
         [
-            cst_files[0],
+            0,
             {"beam_type": "power", "frequency": [150e6, 123e6]},
             "Too many frequencies specified",
         ],
         [
-            [cst_files[0], cst_files[0], cst_files[0]],
+            [0, 0, 0],
             {"beam_type": "power", "feed_pol": ["x", "y"]},
             "If feed_pol and filename are both lists they need to be the same length",
         ],
         [
-            cst_files[0],
+            0,
             {"beam_type": "power", "feed_pol": ["x", "y"]},
             "Too many feed_pols specified",
         ],
         [
-            [[cst_files[0]], [cst_files[1]]],
+            [[0], [1]],
             {
                 "beam_type": "power",
                 "frequency": [150e6, 123e6],
@@ -544,27 +563,27 @@ def test_read_power_multi_pol():
             "filename can not be a nested list",
         ],
         [
-            np.array([[cst_files[0]], [cst_files[1]]]),
+            np.array([[0], [1]]),
             {"beam_type": "power", "frequency": [150e6, 123e6], "feed_pol": ["x"]},
             "filename can not be a multi-dimensional array",
         ],
         [
-            cst_files,
+            [0, 1],
             {"beam_type": "power", "frequency": [[150e6], [123e6]]},
             "frequency can not be a nested list",
         ],
         [
-            cst_files,
+            [0, 1],
             {"beam_type": "power", "frequency": np.array([[150e6], [123e6]])},
             "frequency can not be a multi-dimensional array",
         ],
         [
-            cst_files,
+            [0, 1],
             {"beam_type": "power", "frequency": 150e6, "feed_pol": [["x"], ["y"]]},
             "feed_pol can not be a nested list",
         ],
         [
-            cst_files,
+            [0, 1],
             {
                 "beam_type": "power",
                 "frequency": 150e6,
@@ -574,9 +593,27 @@ def test_read_power_multi_pol():
         ],
     ],
 )
-def test_read_errors(files, kwargs, err_msg):
+def test_read_errors(file_inds, kwargs, err_msg):
     # test errors
     beam1 = UVBeam()
+
+    beam_files = fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+
+    def build_filelist(file_inds: list):
+        files = []
+        for item in file_inds:
+            if isinstance(item, list):
+                files.append(build_filelist(item))
+            else:
+                files.append(beam_files[item])
+        return files
+
+    if isinstance(file_inds, list):
+        files = build_filelist(file_inds)
+    elif isinstance(file_inds, np.ndarray):
+        files = np.asarray(build_filelist(file_inds.tolist()))
+    else:
+        files = beam_files[file_inds]
 
     kwargs.update(
         {
@@ -605,7 +642,7 @@ def test_read_efield(cst_efield_2freq):
     # test passing in other polarization
     with check_warnings(UserWarning, ["Feed information not supplied"] * 2):
         beam2.read_cst_beam(
-            cst_files,
+            fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]),
             beam_type="efield",
             frequency=[150e6, 123e6],
             feed_pol="y",
@@ -630,7 +667,7 @@ def test_read_efield(cst_efield_2freq):
     # test single frequency and not rotating the polarization
     with check_warnings(UserWarning, "No frequency provided. Detected frequency is"):
         beam2.read_cst_beam(
-            cst_files[0],
+            fetch_data("hera_fagnoni_dipole_150"),
             beam_type="efield",
             telescope_name="TEST",
             feed_name="bob",
@@ -656,7 +693,7 @@ def test_read_efield(cst_efield_2freq):
 
     # test reading in multiple polarization files
     beam1.read_cst_beam(
-        [cst_files[0], cst_files[0]],
+        [fetch_data("hera_fagnoni_dipole_150")] * 2,
         beam_type="efield",
         frequency=[150e6],
         feed_pol=["x", "y"],
@@ -680,11 +717,11 @@ def test_read_efield(cst_efield_2freq):
 def test_no_deg_units(tmp_path):
     # need to write a modified file to test headers not in degrees
     testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
-    with open(cst_files[0]) as file:
+    with open(fetch_data("hera_fagnoni_dipole_150")) as file:
         line1 = file.readline()
         line2 = file.readline()
 
-    data = np.loadtxt(cst_files[0], skiprows=2)
+    data = np.loadtxt(fetch_data("hera_fagnoni_dipole_150"), skiprows=2)
 
     raw_names = line1.split("]")
     raw_names = [raw_name for raw_name in raw_names if "\n" not in raw_name]
@@ -837,7 +874,7 @@ def test_no_deg_units(tmp_path):
         ],
     ):
         beam1.read_cst_beam(
-            cst_files[0],
+            fetch_data("hera_fagnoni_dipole_150"),
             beam_type="efield",
             telescope_name="TEST",
             feed_name="bob",
@@ -893,11 +930,11 @@ def test_no_deg_units(tmp_path):
 def test_wrong_column_names(tmp_path):
     # need to write modified files to test headers with wrong column names
     testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
-    with open(cst_files[0]) as file:
+    with open(fetch_data("hera_fagnoni_dipole_150")) as file:
         line1 = file.readline()
         line2 = file.readline()
 
-    data = np.loadtxt(cst_files[0], skiprows=2)
+    data = np.loadtxt(fetch_data("hera_fagnoni_dipole_150"), skiprows=2)
 
     raw_names = line1.split("]")
     raw_names = [raw_name for raw_name in raw_names if "\n" not in raw_name]
@@ -999,7 +1036,10 @@ def test_hera_yaml():
     beam1 = UVBeam()
     beam2 = UVBeam()
 
-    beam1.read_cst_beam(cst_yaml_vivaldi, beam_type="efield", frequency_select=[150e6])
+    # make sure the datafile is cached
+    fetch_data("hera_fagnoni_vivaldi_150")
+    filename = fetch_data("hera_fagnoni_vivaldi_yaml")
+    beam1.read_cst_beam(filename, beam_type="efield", frequency_select=[150e6])
 
     assert beam1.reference_impedance == 100
     extra_keywords = {
@@ -1010,7 +1050,7 @@ def test_hera_yaml():
     }
     assert beam1.extra_keywords == extra_keywords
 
-    beam2.read_cst_beam(cst_yaml_vivaldi, beam_type="power", frequency_select=[150e6])
+    beam2.read_cst_beam(filename, beam_type="power", frequency_select=[150e6])
 
     beam1.efield_to_power(calc_cross_pols=False)
 
@@ -1050,7 +1090,7 @@ def test_read_cst_feed_errors(kwargs, beam_type, err_msg):
     beam = UVBeam()
     with pytest.raises(ValueError, match=err_msg):
         beam.read_cst_beam(
-            cst_files,
+            fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"]),
             beam_type=beam_type,
             frequency=[150e6, 123e6],
             feed_pol=np.array(["y"]),
