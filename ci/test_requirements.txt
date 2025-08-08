@@ -1,5 +1,6 @@
 coverage
 packaging
+pooch>=1.8
 pytest>=8.2.0
 pytest-cov
 pytest-cases>=3.9.1
