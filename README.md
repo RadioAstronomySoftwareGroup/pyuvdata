@@ -171,6 +171,7 @@ Optional:
 * lunarsky >=0.2.5 (for working with simulated datasets for lunar telescopes)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * python-casacore >= 3.5.2 (for working with CASA measurement sets)
+* pooch >= 1.8 (for downloading test data for tutorials)
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
@@ -192,6 +193,7 @@ in pyuvdata. The options that can be passed in this way are:
 - ``lunar``
 - ``novas``
 - ``all``
+- ``tutorial``
 - ``test``
 - ``doc``
 - ``dev``
