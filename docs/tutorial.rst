@@ -1,6 +1,8 @@
 Tutorial
 ========
 
+.. include:: tutorial_data_note.rst
+
 By default, following the tutorial will write any files to the current working directory.
 Alternatively you can change the location the output files are saved to
 by changing the arguments to the ``os.path.join`` calls.
