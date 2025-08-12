@@ -10,8 +10,20 @@ from astropy.time import Time
 from astropy.utils import iers
 
 from pyuvdata import UVCal, UVData
-from pyuvdata.datasets import fetch_data
+from pyuvdata.datasets import fetch_data, fetch_dict
 from pyuvdata.testing import check_warnings
+
+
+def pytest_sessionstart(session):
+    """Download test data prior to test collection."""
+    if getattr(session.config, "workerinput", None) is not None:
+        # No need to download, the master process has already done that.
+        return
+
+    # download all the test data now to avoid clashes when running parallel tests
+    # this is especially an issue in Windows
+    for dname in fetch_dict:
+        fetch_data(dname)
 
 
 @pytest.fixture(autouse=True, scope="session")
