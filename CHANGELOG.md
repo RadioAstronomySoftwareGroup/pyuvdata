@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Moved test data to a new repo (https://github.com/RadioAstronomySoftwareGroup/rasg-datasets/),
+use pooch to download and cache the test data in testing and in tutorials.
+- Added pooch as a testing dependency, added a new optional dependency option
+called `tutorial` which currently adds pooch and matplotlib.
+
 ## [3.2.3] - 2025-07-21
 
 ### Added
