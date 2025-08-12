@@ -61,6 +61,8 @@ parameters for common beam pixel and E-field coordinate systems include:
     - ``basis_vector_array[1, 0, :] = 0``
     - ``basis_vector_array[1, 1, :] = 1``
 
+.. include:: tutorial_data_note.rst
+
 UVBeam: Reading/writing
 -----------------------
 Reading and writing beam files using UVBeam.
@@ -83,25 +85,23 @@ a) Reading a CST power beam file
 
   >>> import os
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
+  >>> from pyuvdata.datasets import fetch_data
 
   # you can pass several filenames and the objects from each file will be
   # combined across the appropriate axis -- in this case frequency
-  >>> filenames = [os.path.join(DATA_PATH, f) for f
-  ...              in ['NicCSTbeams/HERA_NicCST_150MHz.txt',
-  ...                  'NicCSTbeams/HERA_NicCST_123MHz.txt']]
+  >>> filenames = fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
 
   # You have to specify the telescope_name, feed_name, feed_version, model_name
   # and model_version because they are not included in the raw CST files.
   # You should also specify the polarization that the file represents and you can
   # set rotate_pol to generate the other polarization by rotating by 90 degrees.
-  # The feed_pol defaults to 'x' and rotate_pol defaults to True.
+  # The feed_pol defaults to "x" and rotate_pol defaults to True.
   >>> beam = UVBeam.from_file(
-  ...   filenames, beam_type='power', frequency=[150e6, 123e6],
-  ...   feed_pol='x', rotate_pol=True, telescope_name='HERA',
-  ...   feed_name='PAPER_dipole', feed_version='0.1',
-  ...   model_name='E-field pattern - Rigging height 4.9m',
-  ...   model_version='1.0', mount_type='fixed',
+  ...   filenames, beam_type="power", frequency=[150e6, 123e6],
+  ...   feed_pol="x", rotate_pol=True, telescope_name="HERA",
+  ...   feed_name="PAPER_dipole", feed_version="0.1",
+  ...   model_name="E-field pattern - Rigging height 4.9m",
+  ...   model_version="1.0", mount_type="fixed",
   ... )
   >>> print(beam.beam_type)
   power
@@ -111,9 +111,8 @@ a) Reading a CST power beam file
   physical
 
   >>> # You can also use a yaml settings file.
-  >>> # Note that using a yaml file requires that pyyaml is installed.
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="power")
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -135,13 +134,13 @@ b) Reading a CST E-field beam file
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.datasets import fetch_data
 
-  >>> # the same interface as for power beams, just specify beam_type = 'efield'
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
+  >>> # the same interface as for power beams, just specify beam_type = "efield"
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="efield")
   >>> print(beam.beam_type)
   efield
 
@@ -151,32 +150,28 @@ b) Reading a CST E-field beam file
   True
 
 c) Reading a FEKO beam file (Power & E-field)
-**********************************
+*********************************************
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
+  >>> from pyuvdata import UVBeam
+  >>> from pyuvdata.datasets import fetch_data
 
-  >>> filename_x = "OVRO_LWA_x.ffe"
-  >>> filename_y = "OVRO_LWA_y.ffe"
-  >>> feko_folder = "OVRO_LWA_FEKOBeams"
-  >>> feko_filename_x = os.path.join(DATA_PATH, feko_folder, filename_x)
-  >>> feko_filename_y = os.path.join(DATA_PATH, feko_folder, filename_y)
+  >>> feko_filenames = fetch_data(["ovro_lwa_feko_x", "ovro_lwa_feko_y"])
 
   >>> pbeam_feko = UVBeam.from_file(
-  ...   [feko_filename_x, feko_filename_y], beam_type='power', feed_pol=['x', 'y'],
-  ...   feed_angle=[np.pi/2, 0.0], telescope_name='LWA',feed_name='LWA', feed_version='1',
-  ...   model_name='FEKO_MROsoil_test', model_version='1.0', mount_type="fixed"
+  ...   feko_filenames, beam_type="power", feed_pol=["x", "y"],
+  ...   feed_angle=[np.pi/2, 0.0], telescope_name="LWA",feed_name="LWA", feed_version="1",
+  ...   model_name="FEKO_MROsoil_test", model_version="1.0", mount_type="fixed"
   ... )
   >>> print(np.shape(pbeam_feko.data_array))
   (1, 2, 3, 181, 181)
 
   >>> ebeam_feko = UVBeam.from_file(
-  ...   [feko_filename_x, feko_filename_y], beam_type='efield', feed_pol=['x', 'y'],
-  ...   feed_angle=[np.pi/2, 0.0], telescope_name='LWA',feed_name='LWA', feed_version='1',
-  ...   model_name='FEKO_MROsoil_test', model_version='1.0', mount_type="fixed"
+  ...   feko_filenames, beam_type="efield", feed_pol=["x", "y"],
+  ...   feed_angle=[np.pi/2, 0.0], telescope_name="LWA",feed_name="LWA", feed_version="1",
+  ...   model_name="FEKO_MROsoil_test", model_version="1.0", mount_type="fixed"
   ... )
   >>> print(np.shape(ebeam_feko.data_array))
   (2, 2, 3, 181, 181)
@@ -200,14 +195,14 @@ d) Reading in the MWA full embedded element beam
   >>> import os
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
+  >>> from pyuvdata.datasets import fetch_data
 
-  >>> mwa_beam_file = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
+  >>> mwa_beam_file = fetch_data("mwa_full_EE")
   >>> beam = UVBeam.from_file(mwa_beam_file)
   >>> print(beam.beam_type)
   efield
 
-  >>> delays = np.zeros((2, 16), dtype='int')
+  >>> delays = np.zeros((2, 16), dtype="int")
   >>> delays[:, 0] = 32
   >>> beam = UVBeam.from_file(mwa_beam_file, pixels_per_deg=1, delays=delays)
 
@@ -224,16 +219,17 @@ files and az/za grid.
 
   >>> import os
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
   >>> beam = UVBeam()
   >>> beam.read(
   ...    settings_file,
-  ...    beam_type='power',
+  ...    beam_type="power",
   ...    freq_range=(1e8, 1.5e8),
   ...    za_range=(0, 90.0),
   ... )
-  >>> write_file = os.path.join('.', 'tutorial.fits')
+  >>> write_file = os.path.join(".", "tutorial.fits")
   >>> beam.write_beamfits(write_file, clobber=True)
 
 e) Writing a HEALPix beam FITS file
@@ -245,9 +241,10 @@ See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_h
   >>> import os
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="power")
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -257,7 +254,7 @@ See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_h
   >>> beam.select(axis2_inds=za_inds_use)
 
   >>> beam.to_healpix()
-  >>> write_file = os.path.join('.', 'tutorial.fits')
+  >>> write_file = os.path.join(".", "tutorial.fits")
   >>> beam.write_beamfits(write_file, clobber=True)
 
 
@@ -271,9 +268,10 @@ of creating a consistent object from a minimal set of inputs
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVBeam
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
+  >>> from pyuvdata import UVBeam
+
   >>> uvb = UVBeam.new(
   ...     telescope_name="test",
   ...     data_normalization="physical",
@@ -306,26 +304,27 @@ a) Selecting a range of Zenith Angles
 .. code-block:: python
 
   >>> import os
+  >>> import matplotlib.pyplot as plt
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import matplotlib.pyplot as plt
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="power")
   >>> # Make a new object with a reduced zenith angle range with the select method
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
   >>> # plot zenith angle cut through beams
   >>> fig, ax = plt.subplots(1, 1)
   >>> _ = ax.plot(np.rad2deg(beam.axis2_array), beam.data_array[0, 0, 0, :, 0], label="original")
-  >>> _ = ax.plot(np.rad2deg(new_beam.axis2_array), new_beam.data_array[0, 0, 0, :, 0], 'r', label="cut down")
-  >>> _ = ax.set_xscale('log')
-  >>> _ = ax.set_yscale('log')
-  >>> _ = ax.set_xlabel('Zenith Angle (degrees)')
-  >>> _ = ax.set_ylabel('Power')
+  >>> _ = ax.plot(np.rad2deg(new_beam.axis2_array), new_beam.data_array[0, 0, 0, :, 0], "r", label="cut down")
+  >>> _ = ax.set_xscale("log")
+  >>> _ = ax.set_yscale("log")
+  >>> _ = ax.set_xlabel("Zenith Angle (degrees)")
+  >>> _ = ax.set_ylabel("Power")
   >>> _ = fig.legend(loc="upper right", bbox_to_anchor=[0.9,0.88])
   >>> plt.show()  # doctest: +SKIP
-  >>> plt.savefig("Images/select_beam_cut.png", bbox_inches='tight')
+  >>> plt.savefig("Images/select_beam_cut.png", bbox_inches="tight")
   >>> plt.clf()
 
 .. image:: Images/select_beam_cut.png
@@ -347,11 +346,11 @@ of the feed (e.g. "nn" or "ee") can also be used if the feeds are oriented towar
 
   >>> import os
   >>> import numpy as np
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> from pyuvdata import utils
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> uvb = UVBeam.from_file(settings_file, beam_type='efield')
+  >>> from pyuvdata import utils, UVBeam
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> uvb = UVBeam.from_file(settings_file, beam_type="efield")
 
   >>> # The feeds names can be found in the feed_array
   >>> print(uvb.feed_array)
@@ -441,15 +440,15 @@ extra interpolation errors.
 .. code-block:: python
 
   >>> import os
-  >>> import numpy as np
   >>> from astropy_healpix import HEALPix
   >>> import matplotlib.pyplot as plt
   >>> from matplotlib.colors import LogNorm
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import pyuvdata.utils as uvutils
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
+  >>> import numpy as np
+  >>> from pyuvdata import utils, UVBeam
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="power")
 
   >>> # Let's cut down to a small area near zenith so we can see the pixelization
   >>> za_max = np.deg2rad(20.0)
@@ -464,7 +463,7 @@ extra interpolation errors.
 
   >>> az_array, za_array = np.meshgrid(beam.axis1_array, beam.axis2_array)
   >>> az_za_radial_val = np.sin(za_array)
-  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection='polar'), figsize=(15, 15))
+  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection="polar"), figsize=(15, 15))
   >>> ax1.grid(True)
   >>> img1 = ax1.scatter(az_array, az_za_radial_val, c=beam.data_array[0,0,0,:], cmap="plasma", norm=LogNorm())
   >>> cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
@@ -474,7 +473,7 @@ extra interpolation errors.
 
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
   >>> hpx_lon, hpx_lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
-  >>> za, az = uvutils.coordinates.hpx_latlon_to_zenithangle_azimuth(hpx_lat.rad, hpx_lon.rad)
+  >>> za, az = utils.coordinates.hpx_latlon_to_zenithangle_azimuth(hpx_lat.rad, hpx_lon.rad)
   >>> hpx_radial_val = np.sin(za)
 
   >>> ax2.grid(True)
@@ -487,7 +486,7 @@ extra interpolation errors.
 
   >>> fig.tight_layout()
   >>> plt.show() # doctest: +SKIP
-  >>> plt.savefig("Images/hera_orig_healpix.png", bbox_inches='tight', dpi=80)
+  >>> plt.savefig("Images/hera_orig_healpix.png", bbox_inches="tight", dpi=80)
   >>> plt.clf()
 
 .. image:: Images/hera_orig_healpix.png
@@ -502,41 +501,42 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
 .. code-block:: python
 
   >>> import os
-  >>> import numpy as np
   >>> import matplotlib.pyplot as plt
+  >>> import numpy as np
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="efield")
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   >>> # plot zenith angle cut through the beams
-  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].real, label='E-field real')
-  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].imag, 'r', label='E-field imaginary')
-  >>> _ = plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, :, 0]), 'black', label='sqrt Power')
-  >>> _ = plt.xlabel('Zenith Angle (radians)')
-  >>> _ = plt.ylabel('Magnitude')
+  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].real, label="E-field real")
+  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].imag, "r", label="E-field imaginary")
+  >>> _ = plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, :, 0]), "black", label="sqrt Power")
+  >>> _ = plt.xlabel("Zenith Angle (radians)")
+  >>> _ = plt.ylabel("Magnitude")
   >>> _ = plt.legend()
   >>> plt.show() # doctest: +SKIP
-  >>> plt.savefig("Images/efield_power_beam_cut.png", bbox_inches='tight')
+  >>> plt.savefig("Images/efield_power_beam_cut.png", bbox_inches="tight")
   >>> plt.clf()
 
 .. image:: Images/efield_power_beam_cut.png
   :width: 600
 
-b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
+b) Generating pseudo Stokes ("pI", "pQ", "pU", "pV") beams
 **********************************************************
 .. code-block:: python
 
   >>> import os
-  >>> import numpy as np
   >>> import matplotlib.pyplot as plt
   >>> from matplotlib.colors import LogNorm
-  >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> from pyuvdata import utils
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
+  >>> import numpy as np
+  >>> from pyuvdata import utils, UVBeam
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="efield")
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(90.0)
@@ -547,14 +547,14 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 
   >>> # plotting pseudo-stokes
   >>> pol_array = pstokes_beam.polarization_array
-  >>> pI_ind = np.where(np.isin(pol_array, utils.polstr2num('pI')))[0][0]
-  >>> pQ_ind = np.where(np.isin(pol_array, utils.polstr2num('pQ')))[0][0]
+  >>> pI_ind = np.where(np.isin(pol_array, utils.polstr2num("pI")))[0][0]
+  >>> pQ_ind = np.where(np.isin(pol_array, utils.polstr2num("pQ")))[0][0]
 
   >>> # Now plot the pixels on an polar projection with zenith in the center
   >>> radial_ticks_deg = [10, 30, 50, 90]
   >>> az_array, za_array = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
   >>> az_za_radial_val = np.sin(za_array)
-  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection='polar'), figsize=(15, 15))
+  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection="polar"), figsize=(15, 15))
   >>> ax1.grid(True)
   >>> img1 = ax1.scatter(az_array, az_za_radial_val, c=pstokes_beam.data_array[0,  pI_ind, 0], cmap="plasma", norm=LogNorm())
   >>> cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
@@ -571,7 +571,7 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 
   >>> fig.tight_layout()
   >>> plt.show() # doctest: +SKIP
-  >>> plt.savefig("Images/hera_pstokes.png", bbox_inches='tight')
+  >>> plt.savefig("Images/hera_pstokes.png", bbox_inches="tight")
   >>> plt.clf()
 
 .. image:: Images/hera_pstokes.png
@@ -586,16 +586,17 @@ and :meth:`pyuvdata.UVBeam.get_beam_sq_area` methods. Currently these methods do
 that the beams are in Healpix coordinates in order to take advantage of equal pixel areas.
 They can be interpolated to HEALPix using the :meth:`pyuvdata.UVBeam.to_healpix` method.
 
-a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared area
+a) Calculating pseudo Stokes ("pI", "pQ", "pU", "pV") beam area and beam squared area
 *************************************************************************************
 .. code-block:: python
 
   >>> import os
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
-  >>> from pyuvdata.data import DATA_PATH
-  >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
+  >>> from pyuvdata.datasets import fetch_data
+
+  >>> settings_file = fetch_data("hera_fagnoni_dipole_yaml")
+  >>> beam = UVBeam.from_file(settings_file, beam_type="efield")
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -609,16 +610,16 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
 
   >>> # calculating beam area
   >>> freqs = pstokes_beam.freq_array
-  >>> pI_area = pstokes_beam.get_beam_area('pI')
-  >>> pQ_area = pstokes_beam.get_beam_area('pQ')
-  >>> pU_area = pstokes_beam.get_beam_area('pU')
-  >>> pV_area = pstokes_beam.get_beam_area('pV')
+  >>> pI_area = pstokes_beam.get_beam_area("pI")
+  >>> pQ_area = pstokes_beam.get_beam_area("pQ")
+  >>> pU_area = pstokes_beam.get_beam_area("pU")
+  >>> pV_area = pstokes_beam.get_beam_area("pV")
   >>> pI_area1, pI_area2 = round(pI_area[0].real, 5), round(pI_area[1].real, 5)
   >>> pQ_area1, pQ_area2 = round(pQ_area[0].real, 5), round(pQ_area[1].real, 5)
   >>> pU_area1, pU_area2 = round(pU_area[0].real, 5), round(pU_area[1].real, 5)
   >>> pV_area1, pV_area2 = round(pV_area[0].real, 5), round(pV_area[1].real, 5)
 
-  >>> print (f'Beam area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_area1}\nQ: {pQ_area1}\nU: {pU_area1}\nV: {pV_area1}')
+  >>> print (f"Beam area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_area1}\nQ: {pQ_area1}\nU: {pU_area1}\nV: {pV_area1}")
   Beam area at 123.0 MHz for pseudo-stokes
   I: 0.04674
   Q: 0.02904
@@ -626,7 +627,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   V: 0.0464
 
 
-  >>> print (f'Beam area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_area2}\nQ: {pQ_area2}\nU: {pU_area2}\nV: {pV_area2}')
+  >>> print (f"Beam area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_area2}\nQ: {pQ_area2}\nU: {pU_area2}\nV: {pV_area2}")
   Beam area at 150.0 MHz for pseudo-stokes
   I: 0.03237
   Q: 0.01995
@@ -636,16 +637,16 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
 
   >>> # calculating beam squared area
   >>> freqs = pstokes_beam.freq_array
-  >>> pI_sq_area = pstokes_beam.get_beam_sq_area('pI')
-  >>> pQ_sq_area = pstokes_beam.get_beam_sq_area('pQ')
-  >>> pU_sq_area = pstokes_beam.get_beam_sq_area('pU')
-  >>> pV_sq_area = pstokes_beam.get_beam_sq_area('pV')
+  >>> pI_sq_area = pstokes_beam.get_beam_sq_area("pI")
+  >>> pQ_sq_area = pstokes_beam.get_beam_sq_area("pQ")
+  >>> pU_sq_area = pstokes_beam.get_beam_sq_area("pU")
+  >>> pV_sq_area = pstokes_beam.get_beam_sq_area("pV")
   >>> pI_sq_area1, pI_sq_area2 = round(pI_sq_area[0].real, 5), round(pI_sq_area[1].real, 5)
   >>> pQ_sq_area1, pQ_sq_area2 = round(pQ_sq_area[0].real, 5), round(pQ_sq_area[1].real, 5)
   >>> pU_sq_area1, pU_sq_area2 = round(pU_sq_area[0].real, 5), round(pU_sq_area[1].real, 5)
   >>> pV_sq_area1, pV_sq_area2 = round(pV_sq_area[0].real, 5), round(pV_sq_area[1].real, 5)
 
-  >>> print (f'Beam squared area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area1}\nQ: {pQ_sq_area1}\nU: {pU_sq_area1}\nV: {pV_sq_area1}')
+  >>> print (f"Beam squared area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area1}\nQ: {pQ_sq_area1}\nU: {pU_sq_area1}\nV: {pV_sq_area1}")
   Beam squared area at 123.0 MHz for pseudo-stokes
   I: 0.02474
   Q: 0.01186
@@ -653,7 +654,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   V: 0.0246
 
 
-  >>> print (f'Beam squared area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area2}\nQ: {pQ_sq_area2}\nU: {pU_sq_area2}\nV: {pV_sq_area2}')
+  >>> print (f"Beam squared area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area2}\nQ: {pQ_sq_area2}\nU: {pU_sq_area2}\nV: {pV_sq_area2}")
   Beam squared area at 150.0 MHz for pseudo-stokes
   I: 0.01696
   Q: 0.00798

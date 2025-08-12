@@ -8,6 +8,8 @@ with either a :class:`pyuvdata.UVBeam` or :class:`AnalyticBeam` and the beam
 response can be calculated using the :meth:`pyuvdata.BeamInterface.compute_response`
 method.
 
+.. include:: tutorial_data_note.rst
+
 Using BeamInterface
 -------------------
 
@@ -26,9 +28,9 @@ that is attached to it is an analytic beam or a UVBeam.
   >>> from matplotlib.colors import LogNorm
 
   >>> from pyuvdata import ShortDipoleBeam, BeamInterface, UVBeam
-  >>> from pyuvdata.data import DATA_PATH
+  >>> from pyuvdata.datasets import fetch_data
 
-  >>> filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
+  >>> filename = fetch_data("mwa_full_EE")
 
   >>> dipole_beam = BeamInterface(ShortDipoleBeam(), beam_type="power")
   >>> mwa_beam = BeamInterface(UVBeam.from_file(filename, pixels_per_deg=1), beam_type="power")
