@@ -14,6 +14,8 @@ from pyuvdata.datasets import fetch_data, fetch_dict
 from pyuvdata.testing import check_warnings
 
 
+# set this up to run only once per testing call (not per worker)
+# see https://github.com/pytest-dev/pytest-xdist/issues/271#issuecomment-826396320
 def pytest_sessionstart(session):
     """Download test data prior to test collection."""
     if getattr(session.config, "workerinput", None) is not None:
