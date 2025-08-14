@@ -1412,7 +1412,7 @@ pyuvdata.
   >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
   >>> uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame="altaz", cat_type="driftscan", select_mask=select_mask)
 
-  >>> # Now when using `print_phase_center_info`, we"ll see that there are multiple
+  >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
   >>> # phase centers present in the data
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
@@ -1424,7 +1424,7 @@ pyuvdata.
   >>> # We can unproject (unphase) data using the `unproject_phase` method
   >>> uvd.unproject_phase()
 
-  >>> # Now when using `print_phase_center_info`, we"ll see that all the data are unprojected
+  >>> # Now when using `print_phase_center_info`, we'll see that all the data are unprojected
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
       #          Name                          deg           deg
@@ -1870,7 +1870,7 @@ set of inputs but can accept any other parameters supported by the class.
 Importantly, the times and baselines can be provided either as unique values,
 with the intention that their cartesian outer product should be
 used (i.e. the combination of each provided time with each baseline), or as full
-length-Nblt arrays (if you don"t require all combinations). While this behaviour can
+length-Nblt arrays (if you don't require all combinations). While this behaviour can
 be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
 to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
 where each baseline observed one time each. This case is ambiguous without the

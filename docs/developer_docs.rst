@@ -1,10 +1,43 @@
 Developer Docs
 ==============
+
+Test data management
+--------------------
+All our test data is hosted in the
+`RASG datasets repo <https://github.com/RadioAstronomySoftwareGroup/rasg-datasets/>`__.
+We use pooch via the :func:`pyuvdata.datasets.fetch_data` function to download and
+cache the test data in our tests. If you need to add new test data the steps are:
+
+- Make a PR on the rasg-datasets repo adding the test data. Make sure to update
+  the readme in the folder to give some provenance information for the test data
+  that you are adding. Note that datasets that contain multiple files should be
+  tarred and gzipped into one file.
+
+- Once the PR is merged, we need to make a new release of that repo in order to
+  be able to use it in tests. Update ``pyuvdata.datasets.py`` with the new
+  version number for the rasg-datasets repo.
+
+- Add the new test file information to the ``test_data_registry.txt`` and
+  ``test_data.yaml`` files in the ``src/pyuvdata/data`` folder. The registry file
+  requires a checksum which can be calculated with ``sha256sum <your_new_file>``.
+  The yaml maps the test file to a nickname used in our tests. The nickname
+  should include the telescope name and descriptive information about the dataset.
+
+- Call :func:`pyuvdata.datasets.fetch_data` with the nickname in any test
+  requiring your new dataset to get the path to the dataset on disk. We strongly
+  suggest setting up fixtures for new datasets, particularly if there are multiple
+  tests that use them. Please avoid calling ``fetch_data`` in pytest.parametrize
+  decorators to avoid invoking it during test setup, instead call it inside a
+  fixture or test function.
+
+Under-the-hood classes and functions
+------------------------------------
+
 Documentation for all the under-the-hood classes and functions that most users
 won't need to interact with.
 
 Base Classes
-------------
+************
 These classes are the under-the-hood classes that provide much of the
 infrastructure for pyuvdata's user classes.
 
@@ -32,8 +65,9 @@ attribute shapes and values.
 .. autoclass:: pyuvdata.uvbase.UVBase
   :members:
 
+
 File Type Specific Classes
---------------------------
+**************************
 These classes inherit from pyuvdata's user classes and hold the file type
 specific code. The read and write methods on the user classes convert between
 the user classes and the file-specific classes automatically as needed, so users
@@ -41,8 +75,7 @@ generally do not need to interact with these classes, but developers may need to
 
 
 UVData Classes
-**************
-
+~~~~~~~~~~~~~~
 
 .. autoclass:: pyuvdata.uvdata.fhd.FHD
   :members:
@@ -67,7 +100,7 @@ UVData Classes
 
 
 UVCal Classes
-*************
+~~~~~~~~~~~~~
 
 .. autoclass:: pyuvdata.uvcal.calfits.CALFITS
   :members:
@@ -79,7 +112,7 @@ UVCal Classes
   :members:
 
 UVBeam Classes
-**************
+~~~~~~~~~~~~~~
 
 .. autoclass:: pyuvdata.uvbeam.beamfits.BeamFITS
   :members:
@@ -92,30 +125,36 @@ UVBeam Classes
 
 
 Other Modules and Functions
----------------------------
+***************************
 
 aipy extracts
-*************
+~~~~~~~~~~~~~
 
 .. automodule:: pyuvdata.uvdata.aipy_extracts
   :members:
 
+datasets
+~~~~~~~~
+
+.. automodule:: pyuvdata.datasets
+  :members:
+
 
 MIR parser
-**********
+~~~~~~~~~~
 
 .. automodule:: pyuvdata.uvdata.mir_parser
   :members:
 
 MIR metadata
-************
+~~~~~~~~~~~~
 
 .. automodule:: pyuvdata.uvdata.mir_meta_data
   :members:
 
 
 UVFlag Functions
-****************
+~~~~~~~~~~~~~~~~
 Some useful flag handling functions.
 
 .. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols

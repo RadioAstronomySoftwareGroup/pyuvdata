@@ -169,9 +169,10 @@ Optional:
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
 * hdf5plugin >= 3.3.1 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
 * lunarsky >=0.2.5 (for working with simulated datasets for lunar telescopes)
+* matplotlib (for making plots in the tutorials)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
-* python-casacore >= 3.5.2 (for working with CASA measurement sets)
 * pooch >= 1.8 (for downloading test data for tutorials)
+* python-casacore >= 3.5.2 (for working with CASA measurement sets)
 
 The numpy and astropy versions are important, so make sure these are up to date.
 
@@ -243,6 +244,15 @@ you will need the following packages:
 * matplotlib
 * sphinx
 * pypandoc
+
+We manage our test data using pooch, which will download the file the first time
+it's needed and save it in a cache folder, subsequent calls to fetch that data
+will not re-download it. The test data are hosted in the
+[RASG datasets repo](https://github.com/RadioAstronomySoftwareGroup/rasg-datasets/),
+organized by data type and telescope. In the tests this data is downloaded and
+cached using pooch via the ``pyuvdata.datasets.fetch_data`` function. For more
+details and directions on adding test data see the
+[developer docs](docs/developer_docs.rst)
 
 One other package, pytest-xdist, is not required, but can be used to speed up running
 the test suite by running tests in parallel. To use it call pytest with the
