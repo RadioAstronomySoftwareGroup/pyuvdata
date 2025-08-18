@@ -4012,7 +4012,7 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
         [
             [],
             [["unproject_phase", {}], ["select", {"freq_chans": np.arange(32, 64)}]],
-            "UVParameter phase_center_catalog does not match. Cannot combine objects.",
+            "UVParameter phase_center_app_dec does not match. Cannot combine objects.",
         ],
         [
             [["vis_units", "Jy"]],
@@ -4024,6 +4024,11 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
             [["select", {"freq_chans": np.arange(32, 64)}]],
             "UVParameter integration_time does not match.",
         ],
+        [
+            [["scan_number_array", np.arange(1360)]],
+            [["select", {"freq_chans": np.arange(32, 64)}]],
+            "UVParameter scan_number_array does not match.",
+        ],
     ],
 )
 def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
@@ -4033,6 +4038,7 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
     """
     # Test failure modes of add function
     uv1 = casa_uvfits
+    uv1._set_scan_numbers()
     uv2 = uv1.copy()
     uv1.select(freq_chans=np.arange(0, 32))
 
