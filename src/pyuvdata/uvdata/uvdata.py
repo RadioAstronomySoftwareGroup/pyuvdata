@@ -40,6 +40,19 @@ reporting_request = (
 )
 
 
+def flt_ind_str_arr(*, fltarr, intarr, flt_tols, flt_first=True):
+    """Create a string array built from float and integer arrays for matching."""
+    prec_flt = -2 * np.floor(np.log10(flt_tols[-1])).astype(int)
+    prec_int = 8
+    flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
+    int_str_list = [str(intv).zfill(prec_int) for intv in intarr]
+    if flt_first:
+        zipped = zip(flt_str_list, int_str_list, strict=True)
+    else:
+        zipped = zip(int_str_list, flt_str_list, strict=True)
+    return np.array(["_".join(zpval) for zpval in zipped])
+
+
 def _axis_add_helper(this, other, axis_name: str, other_inds, final_order=None):
     update_params = this._get_param_axis(axis_name, single_named_axis=True)
     other_form_dict = {axis_name: other_inds}
@@ -5397,15 +5410,20 @@ class UVData(UVBase):
 
     def blt_str_arr(self):
         """Create a string array with baseline and time info for matching purposes."""
-        prec_t = -2 * np.floor(np.log10(self._time_array.tols[-1])).astype(int)
-        prec_b = 8
-        return np.array(
-            [
-                "_".join(
-                    ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
-                )
-                for blt in zip(self.time_array, self.baseline_array, strict=True)
-            ]
+        return flt_ind_str_arr(
+            fltarr=self.time_array,
+            intarr=self.baseline_array,
+            flt_tols=self._time_array.tols,
+            flt_first=True,
+        )
+
+    def spw_freq_str_arr(self):
+        """Create a string array with spw and freq info for matching purposes."""
+        return flt_ind_str_arr(
+            fltarr=self.freq_array,
+            intarr=self.flex_spw_id_array,
+            flt_tols=self._freq_array.tols,
+            flt_first=False,
         )
 
     def flexpol_dict(self):
@@ -5504,9 +5522,10 @@ class UVData(UVBase):
         axis_params_check = {}
         axis_overlap_params = {
             "Nblts": ["time_array", "baseline_array"],
-            "Nfreqs": ["freq_array"],
+            "Nfreqs": ["freq_array", "flex_spw_id_array"],
             "Npols": ["polarization_array"],
         }
+        axis_combined_func = {"Nblts": "blt_str_arr", "Nfreqs": "spw_freq_str_arr"}
         axis_dict = {}
         for axis in axes:
             axis_dict[axis] = this._get_param_axis(axis)
@@ -5522,56 +5541,28 @@ class UVData(UVBase):
         # the blt axis because we need a combo of time and baseline.
         axis_vals = {}
         for axis, overlap_params in axis_overlap_params.items():
-            if axis == "Nblts":
-                # Create combined arrays for convenience
-                this_blts = this.blt_str_arr()
-                other_blts = other.blt_str_arr()
-                axis_vals[axis] = {"this": this_blts, "other": other_blts}
+            if len(overlap_params) > 1:
+                axis_vals[axis] = {
+                    "this": getattr(this, axis_combined_func[axis])(),
+                    "other": getattr(other, axis_combined_func[axis])(),
+                }
             else:
                 axis_vals[axis] = {
                     "this": getattr(this, overlap_params[0]),
                     "other": getattr(other, overlap_params[0]),
                 }
+
         # Check we don't have overlapping data
         axis_inds = {}
         for axis, val_arr in axis_vals.items():
-            if axis == "Nfreqs":
-                # This is more complicated because we are allowed to have channels
-                # with the same frequency *if* they belong to different spectral
-                # windows (one real-life example: you might want to preserve
-                # guard bands in the correlator, which can have overlaping RF
-                # frequency channels)
-                this_freq_ind = np.array([], dtype=np.int64)
-                other_freq_ind = np.array([], dtype=np.int64)
-                both_freq_ind = np.array([], dtype=float)
-                both_spw = np.intersect1d(this.spw_array, other.spw_array)
-                for idx in both_spw:
-                    this_mask = np.where(this.flex_spw_id_array == idx)[0]
-                    other_mask = np.where(other.flex_spw_id_array == idx)[0]
-                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
-                        this.freq_array[this_mask],
-                        other.freq_array[other_mask],
-                        return_indices=True,
-                    )
-                    this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
-                    other_freq_ind = np.append(
-                        other_freq_ind, other_mask[other_spw_ind]
-                    )
-                    both_freq_ind = np.append(both_freq_ind, both_spw_freq)
-                axis_inds["Nfreqs"] = {
-                    "this": this_freq_ind,
-                    "other": other_freq_ind,
-                    "both": both_freq_ind,
-                }
-            else:
-                both_inds, this_inds, other_inds = np.intersect1d(
-                    val_arr["this"], val_arr["other"], return_indices=True
-                )
-                axis_inds[axis] = {
-                    "this": this_inds,
-                    "other": other_inds,
-                    "both": both_inds,
-                }
+            both_inds, this_inds, other_inds = np.intersect1d(
+                val_arr["this"], val_arr["other"], return_indices=True
+            )
+            axis_inds[axis] = {
+                "this": this_inds,
+                "other": other_inds,
+                "both": both_inds,
+            }
 
         history_update_string = ""
         if not self.metadata_only and np.all(
@@ -5622,12 +5613,11 @@ class UVData(UVBase):
         }
         # find the indices in "other" but not in "this"
         for axis in axes:
-            if axis != "Nfreqs":
-                temp = np.nonzero(
-                    ~np.isin(axis_vals[axis]["other"], axis_vals[axis]["this"])
-                )[0]
-            else:
-                # more complicated because of spws
+            if axis == "Nfreqs" and (
+                this.flex_spw_polarization_array is not None
+                or other.flex_spw_polarization_array is not None
+            ):
+                # special checking for flex_spw
                 if (this.flex_spw_polarization_array is None) != (
                     other.flex_spw_polarization_array is None
                 ):
@@ -5652,27 +5642,18 @@ class UVData(UVBase):
                         except KeyError:
                             this_flexpol_dict[key] = other_flexpol_dict[key]
 
-                other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
-                for idx in np.intersect1d(this.spw_array, other.spw_array):
-                    other_mask[other.flex_spw_id_array == idx] = np.isin(
-                        other.freq_array[other.flex_spw_id_array == idx],
-                        this.freq_array[this.flex_spw_id_array == idx],
-                        invert=True,
-                    )
-                temp = np.where(other_mask)[0]
+            temp = np.nonzero(
+                ~np.isin(axis_vals[axis]["other"], axis_vals[axis]["this"])
+            )[0]
             if len(temp) > 0:
                 new_inds[axis] = temp
                 # add params associated with the other axes to compatibility_params
                 for axis2 in axes:
                     if axis2 != axis:
                         compatibility_params.extend(axis_params_check[axis2])
-                if axis == "Nblts":
-                    new_blts = other_blts[temp]
                 additions.append(axis_descriptions[axis])
             else:
                 new_inds[axis] = []
-                if axis == "Nblts":
-                    new_blts = ([], [])
 
         # Actually check compatibility parameters
         for cp in compatibility_params:
@@ -5720,6 +5701,7 @@ class UVData(UVBase):
         order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
         for axis, ind_dict in axis_inds.items():
             if len(ind_dict["this"]) != 0:
+                # there is some overlap, so sorting matters
                 this_argsort = np.argsort(ind_dict["this"])
                 other_argsort = np.argsort(ind_dict["other"])
 
@@ -5733,16 +5715,18 @@ class UVData(UVBase):
                     getattr(this, reorder_method[axis]["method"])(**kwargs)
 
         # Pad out self to accommodate new data
+        new_axis_inds = {}
         for axis_ind, axis in enumerate(axes):
             if len(new_inds[axis]) > 0:
-                if axis == "Nblts":
-                    this_blts = np.concatenate((this_blts, new_blts))
-                    order_dict["Nblts"] = np.argsort(this_blts)
-                    order_use = order_dict["Nblts"]
+                new_axis_inds[axis] = np.concatenate(
+                    (axis_vals[axis]["this"], axis_vals[axis]["other"][new_inds[axis]])
+                )
+                if axis == "Npols":
+                    order_dict[axis] = np.argsort(np.abs(new_axis_inds[axis]))
                 else:
-                    order_use = None
+                    order_dict[axis] = np.argsort(new_axis_inds[axis])
 
-                _axis_add_helper(this, other, axis, new_inds[axis], order_use)
+                _axis_add_helper(this, other, axis, new_inds[axis], order_dict[axis])
 
                 if not self.metadata_only:
                     pad_shape = list(this.data_array.shape)
@@ -5757,6 +5741,8 @@ class UVData(UVBase):
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad], axis=axis_ind
                     ).astype(np.bool_)
+            else:
+                new_axis_inds[axis] = axis_vals[axis]["this"]
 
         if len(new_inds["Nfreqs"]) > 0:
             # We want to preserve per-spw information based on first appearance
@@ -5771,51 +5757,24 @@ class UVData(UVBase):
                 this.flex_spw_polarization_array = np.array(
                     [this_flexpol_dict[key] for key in this.spw_array]
                 )
-            # Need to sort out the order of the individual windows first.
-            order_dict["Nfreqs"] = np.concatenate(
-                [
-                    np.where(this.flex_spw_id_array == idx)[0]
-                    for idx in sorted(this.spw_array)
-                ]
-            )
-
-            # With spectral windows sorted, check and see if channels within
-            # windows need sorting. If they are ordered in ascending or descending
-            # fashion, leave them be. If not, sort in ascending order
-            for idx in this.spw_array:
-                select_mask = this.flex_spw_id_array[order_dict["Nfreqs"]] == idx
-                check_freqs = this.freq_array[order_dict["Nfreqs"][select_mask]]
-                if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
-                    not np.all(check_freqs[1:] < check_freqs[:-1])
-                ):
-                    subsort_order = order_dict["Nfreqs"][select_mask]
-                    order_dict["Nfreqs"][select_mask] = subsort_order[
-                        np.argsort(check_freqs)
-                    ]
-
-        if len(new_inds["Npols"]) > 0:
-            order_dict["Npols"] = np.argsort(np.abs(this.polarization_array))
 
         # Now populate the data
-        pol_t2o = np.nonzero(
-            np.isin(this.polarization_array, other.polarization_array)
-        )[0]
-        this_freqs = this.freq_array
-        other_freqs = other.freq_array
-
-        freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
-        for spw_id in set(this.spw_array).intersection(other.spw_array):
-            mask = this.flex_spw_id_array == spw_id
-            freq_t2o[mask] |= np.isin(
-                this_freqs[mask], other_freqs[other.flex_spw_id_array == spw_id]
-            )
-        freq_t2o = np.nonzero(freq_t2o)[0]
-        blt_t2o = np.nonzero(np.isin(this_blts, other_blts))[0]
+        t2o_dict = {}
+        for axis, inds_dict in axis_vals.items():
+            t2o_dict[axis] = np.nonzero(
+                np.isin(new_axis_inds[axis], inds_dict["other"])
+            )[0]
 
         if not self.metadata_only:
-            this.data_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.data_array
-            this.nsample_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.nsample_array
-            this.flag_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.flag_array
+            this.data_array[
+                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
+            ] = other.data_array
+            this.nsample_array[
+                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
+            ] = other.nsample_array
+            this.flag_array[
+                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
+            ] = other.flag_array
 
             # Fix ordering
             for axis_ind, axis in enumerate(axes):
@@ -5830,16 +5789,6 @@ class UVData(UVBase):
                         setattr(
                             this, name, np.take(param, order_dict[axis], axis=axis_ind)
                         )
-
-        # reorder freq, pol axes but not blt axis because that was already done.
-        for axis in axes[1:]:
-            params_to_update = axis_params_check[axis] + [
-                "_" + param for param in axis_overlap_params[axis]
-            ]
-            if len(new_inds[axis]) > 0:
-                for param in params_to_update:
-                    this_param = getattr(this, param)
-                    this_param.value = this_param.value[order_dict[axis]]
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
@@ -5881,8 +5830,8 @@ class UVData(UVBase):
                         )
 
         # Reset blt_order if blt axis was added to and it is set
-        if len(blt_t2o) > 0:
-            this.blt_order = None
+        if len(t2o_dict["Nblts"]) > 0:
+            this.blt_order = ("time", "baseline")
 
         this.set_rectangularity(force=True)
 
