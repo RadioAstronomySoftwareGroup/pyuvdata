@@ -5395,6 +5395,23 @@ class UVData(UVBase):
                 use_ant_pos=False,
             )
 
+    def blt_str_arr(self):
+        """Create a string array with baseline and time info for matching purposes."""
+        prec_t = -2 * np.floor(np.log10(self._time_array.tols[-1])).astype(int)
+        prec_b = 8
+        return np.array(
+            [
+                "_".join(
+                    ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
+                )
+                for blt in zip(self.time_array, self.baseline_array, strict=True)
+            ]
+        )
+
+    def flexpol_dict(self):
+        """Create a dict with flexpol information for comparison."""
+        return dict(zip(self.spw_array, self.flex_spw_polarization_array, strict=True))
+
     def __add__(
         self,
         other,
@@ -5507,34 +5524,8 @@ class UVData(UVBase):
         for axis, overlap_params in axis_overlap_params.items():
             if axis == "Nblts":
                 # Create combined arrays for convenience
-                prec_t = -2 * np.floor(np.log10(this._time_array.tols[-1])).astype(int)
-                prec_b = 8
-                this_blts = np.array(
-                    [
-                        "_".join(
-                            [
-                                "{1:.{0}f}".format(prec_t, blt[0]),
-                                str(blt[1]).zfill(prec_b),
-                            ]
-                        )
-                        for blt in zip(
-                            this.time_array, this.baseline_array, strict=True
-                        )
-                    ]
-                )
-                other_blts = np.array(
-                    [
-                        "_".join(
-                            [
-                                "{1:.{0}f}".format(prec_t, blt[0]),
-                                str(blt[1]).zfill(prec_b),
-                            ]
-                        )
-                        for blt in zip(
-                            other.time_array, other.baseline_array, strict=True
-                        )
-                    ]
-                )
+                this_blts = this.blt_str_arr()
+                other_blts = other.blt_str_arr()
                 axis_vals[axis] = {"this": this_blts, "other": other_blts}
             else:
                 axis_vals[axis] = {
@@ -5646,20 +5637,8 @@ class UVData(UVBase):
                         "have a regular polarization axis."
                     )
                 elif this.flex_spw_polarization_array is not None:
-                    this_flexpol_dict = dict(
-                        zip(
-                            this.spw_array,
-                            this.flex_spw_polarization_array,
-                            strict=True,
-                        )
-                    )
-                    other_flexpol_dict = dict(
-                        zip(
-                            other.spw_array,
-                            other.flex_spw_polarization_array,
-                            strict=True,
-                        )
-                    )
+                    this_flexpol_dict = this.flexpol_dict()
+                    other_flexpol_dict = other.flexpol_dict()
                     for key in other_flexpol_dict:
                         try:
                             if this_flexpol_dict[key] != other_flexpol_dict[key]:
@@ -6176,26 +6155,23 @@ class UVData(UVBase):
 
         this.telescope = tel_obj
 
+        # update the relevant shape parameter
+        _axis_fast_concat_helper(this, other, axis_shape[axis])
+        new_shape = sum(
+            [getattr(this, axis_shape[axis])]
+            + [getattr(obj, axis_shape[axis]) for obj in other]
+        )
+        setattr(this, axis_shape[axis], new_shape)
+
         if axis == "freq":
-            this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
-            _axis_fast_concat_helper(this, other, "Nfreqs")
-            _axis_fast_concat_helper(this, other, "Nspws")
             # We want to preserve per-spw information based on first appearance
             # in the concatenated array.
             unique_index = np.sort(
                 np.unique(this.flex_spw_id_array, return_index=True)[1]
             )
             this.spw_array = this.flex_spw_id_array[unique_index]
-
             this.Nspws = len(this.spw_array)
-
-        elif axis == "polarization":
-            _axis_fast_concat_helper(this, other, "Npols")
-            this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
-
         elif axis == "blt":
-            this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
-            _axis_fast_concat_helper(this, other, "Nblts")
             this.Nants_data = this._calc_nants_data()
             this.Ntimes = len(np.unique(this.time_array))
             this.Nbls = len(np.unique(this.baseline_array))
