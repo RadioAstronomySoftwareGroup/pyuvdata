@@ -46,11 +46,32 @@ def flt_ind_str_arr(*, fltarr, intarr, flt_tols, flt_first=True):
     prec_int = 8
     flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
     int_str_list = [str(intv).zfill(prec_int) for intv in intarr]
+    list_of_lists = []
     if flt_first:
-        zipped = zip(flt_str_list, int_str_list, strict=True)
+        list_of_lists = [flt_str_list, int_str_list]
     else:
-        zipped = zip(int_str_list, flt_str_list, strict=True)
+        list_of_lists = [int_str_list, flt_str_list]
+    zipped = zip(*list_of_lists, strict=True)
     return np.array(["_".join(zpval) for zpval in zipped])
+
+
+def _get_freq_order(spw_id, freq_arr):
+    spws = np.unique(spw_id)
+    f_order = np.concatenate([np.where(spw_id == spw)[0] for spw in np.unique(spw_id)])
+
+    # With spectral windows sorted, check and see if channels within
+    # windows need sorting. If they are ordered in ascending or descending
+    # fashion, leave them be. If not, sort in ascending order
+    for spw in spws:
+        select_mask = spw_id[f_order] == spw
+        check_freqs = freq_arr[f_order[select_mask]]
+        if not np.all(np.diff(check_freqs) > 0) and not np.all(
+            np.diff(check_freqs) < 0
+        ):
+            subsort_order = f_order[select_mask]
+            f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
+
+    return f_order
 
 
 def _axis_add_helper(this, other, axis_name: str, other_inds, final_order=None):
@@ -5699,7 +5720,6 @@ class UVData(UVBase):
             "Nfreqs": {"method": "reorder_freqs", "parameter": "channel_order"},
             "Npols": {"method": "reorder_pols", "parameter": "order"},
         }
-        order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
         for axis, ind_dict in axis_inds.items():
             if len(ind_dict["this"]) != 0:
                 # there is some overlap, so sorting matters
@@ -5717,6 +5737,7 @@ class UVData(UVBase):
 
         # Pad out self to accommodate new data
         new_axis_inds = {}
+        order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
         for axis_ind, axis in enumerate(axes):
             if len(new_inds[axis]) > 0:
                 new_axis_inds[axis] = np.concatenate(
@@ -5724,6 +5745,23 @@ class UVData(UVBase):
                 )
                 if axis == "Npols":
                     order_dict[axis] = np.argsort(np.abs(new_axis_inds[axis]))
+                elif axis == "Nfreqs" and (
+                    np.any(np.diff(this.freq_array) < 0)
+                    or np.any(np.diff(other.freq_array) < 0)
+                ):
+                    # deal with the possibility of spws with channels in
+                    # descending order.
+                    order_dict[axis] = _get_freq_order(
+                        np.concatenate(
+                            (
+                                this.flex_spw_id_array,
+                                other.flex_spw_id_array[new_inds[axis]],
+                            )
+                        ),
+                        np.concatenate(
+                            (this.freq_array, other.freq_array[new_inds[axis]])
+                        ),
+                    )
                 else:
                     order_dict[axis] = np.argsort(new_axis_inds[axis])
 
