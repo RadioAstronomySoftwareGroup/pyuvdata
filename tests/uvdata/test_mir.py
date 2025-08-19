@@ -592,8 +592,10 @@ def test_flex_pol_add(sma_mir_filt):
     sma_yy_copy._make_flex_pol()
 
     # Add the two back together here, and make sure we can the same value out,
-    # modulo the history.
+    # modulo the history and sorting.
     sma_check = sma_yy_copy + sma_xx_copy
+
+    sma_mir_filt.reorder_freqs(channel_order="freq")
 
     assert sma_check.history != sma_mir_filt.history
     sma_check.history = sma_mir_filt.history = None
