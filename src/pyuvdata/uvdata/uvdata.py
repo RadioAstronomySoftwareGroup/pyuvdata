@@ -5537,8 +5537,9 @@ class UVData(UVBase):
                 ):
                     axis_params_check[axis].append("_" + param)
 
-        # build this/other arrays for checking for overlap. More complicated for
-        # the blt axis because we need a combo of time and baseline.
+        # build this/other arrays for checking for overlap.
+        # Use a combined string if there are multiple arrays defining overlap
+        # (e.g. baseline-time, spw-freq)
         axis_vals = {}
         for axis, overlap_params in axis_overlap_params.items():
             if len(overlap_params) > 1:
@@ -5660,7 +5661,7 @@ class UVData(UVBase):
             params_match = None
             for axis, check_list in axis_params_check.items():
                 if cp in check_list:
-                    # only check that overlapping blt indices match
+                    # only check that overlapping indices match
                     this_param = getattr(this, cp)
                     this_param_overlap = this_param.get_from_form(
                         {axis: axis_inds[axis]["this"]}
@@ -5829,7 +5830,7 @@ class UVData(UVBase):
                             + extra_history
                         )
 
-        # Reset blt_order if blt axis was added to and it is set
+        # Reset blt_order if blt axis was added to
         if len(t2o_dict["Nblts"]) > 0:
             this.blt_order = ("time", "baseline")
 
