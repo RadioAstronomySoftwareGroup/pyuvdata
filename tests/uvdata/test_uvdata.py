@@ -3983,6 +3983,7 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
     if np.any(np.logical_and(screen1, screen2)):
         flag_screen = screen2[screen1]
         uv1.data_array[:, flag_screen] = 0.0
+        uv1.nsample_array[:, flag_screen] = 0.0
         uv1.flag_array[:, flag_screen] = True
 
     uv_recomb = getattr(uv1, add_method[0])(uv2, **add_method[1])

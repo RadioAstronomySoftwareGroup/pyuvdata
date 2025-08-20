@@ -5777,36 +5777,49 @@ class UVData(UVBase):
             }
 
         history_update_string = ""
-        # TODO do this programmatically for multidimensional parameters
-        if not self.metadata_only and np.all(
-            [len(axis_inds[axis]["both"]) > 0 for axis in axis_inds]
-        ):
-            # We have overlaps, check that overlapping data is not valid
-            this_inds = np.ravel_multi_index(
-                (
-                    axis_inds["Nblts"]["this"][:, np.newaxis, np.newaxis],
-                    axis_inds["Nfreqs"]["this"][np.newaxis, :, np.newaxis],
-                    axis_inds["Npols"]["this"][np.newaxis, np.newaxis, :],
-                ),
-                this.data_array.shape,
-            ).flatten()
-            other_inds = np.ravel_multi_index(
-                (
-                    axis_inds["Nblts"]["other"][:, np.newaxis, np.newaxis],
-                    axis_inds["Nfreqs"]["other"][np.newaxis, :, np.newaxis],
-                    axis_inds["Npols"]["other"][np.newaxis, np.newaxis, :],
-                ),
-                other.data_array.shape,
-            ).flatten()
-            this_all_zero = np.all(this.data_array.flatten()[this_inds] == 0)
-            this_all_flag = np.all(this.flag_array.flatten()[this_inds])
-            other_all_zero = np.all(other.data_array.flatten()[other_inds] == 0)
-            other_all_flag = np.all(other.flag_array.flatten()[other_inds])
 
-            if this_all_zero and this_all_flag:
+        if np.all([len(axis_inds[axis]["both"]) > 0 for axis in axis_inds]):
+            # We have overlaps, check that overlapping data is not valid
+            multi_axis_params = this._get_multi_axis_params()
+            this_test = []
+            other_test = []
+            for param in multi_axis_params:
+                form = getattr(this, "_" + param).form
+                this_shape = getattr(this, param).shape
+                other_shape = getattr(other, param).shape
+                this_param_type = getattr(this, "_" + param).expected_type
+                bool_type = this_param_type is bool or bool in this_param_type
+
+                this_index_list = []
+                other_index_list = []
+                for ax_ind, axis in enumerate(form):
+                    expand_axes = [ax for ax in range(len(form)) if ax != ax_ind]
+                    this_index_list.append(
+                        np.expand_dims(axis_inds[axis]["this"], axis=expand_axes)
+                    )
+                    other_index_list.append(
+                        np.expand_dims(axis_inds[axis]["other"], axis=expand_axes)
+                    )
+                this_inds = np.ravel_multi_index(this_index_list, this_shape).flatten()
+
+                other_inds = np.ravel_multi_index(
+                    other_index_list, other_shape
+                ).flatten()
+
+                this_arr = getattr(this, param).flatten()[this_inds]
+                other_arr = getattr(other, param).flatten()[other_inds]
+
+                if bool_type:
+                    this_test.append(np.all(this_arr))
+                    other_test.append(np.all(other_arr))
+                else:
+                    this_test.append(np.all(this_arr == 0))
+                    other_test.append(np.all(other_arr == 0))
+
+            if np.all(this_test):
                 # we're fine to overwrite; update history accordingly
                 history_update_string = " Overwrote invalid data using pyuvdata."
-            elif other_all_zero and other_all_flag:
+            elif np.all(other_test):
                 raise ValueError(
                     "To combine these data, please run the add operation again, "
                     "but with the object whose data is to be overwritten as the "
