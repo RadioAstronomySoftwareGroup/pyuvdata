@@ -771,6 +771,7 @@ class UVBase:
             The keys are UVParameter names that have an axis with axis_name
             (axis_name appears in their form). The values are a list of the axis
             indices where axis_name appears in their form.
+
         """
         ret_dict = {}
         for param in self:
@@ -794,6 +795,22 @@ class UVBase:
                 # here in the case of a repeated param_name in the form.
                 ret_dict[attr.name] = np.nonzero(np.asarray(attr.form) == axis_name)[0]
         return ret_dict
+
+    def _get_multi_axis_params(self) -> list[str]:
+        """Get a list of all multidimensional parameters."""
+        ret_list = []
+        for param in self:
+            # For each attribute, if the value is None, then bail, otherwise
+            # attempt to figure out along which axis ind_arr will apply.
+
+            attr = getattr(self, param)
+            if (
+                attr.value is not None
+                and isinstance(attr.form, tuple)
+                and sum([isinstance(entry, str) for entry in attr.form]) > 1
+            ):
+                ret_list.append(attr.name)
+        return ret_list
 
     def _select_along_param_axis(self, param_dict: dict):
         """
