@@ -15,6 +15,7 @@ from collections.abc import Iterable
 from typing import Literal
 
 import numpy as np
+import numpy.typing as npt
 from astropy import constants as const, coordinates as coord, units
 from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
@@ -40,8 +41,33 @@ reporting_request = (
 )
 
 
-def flt_ind_str_arr(*, fltarr, intarr, flt_tols, flt_first=True):
-    """Create a string array built from float and integer arrays for matching."""
+def flt_ind_str_arr(
+    *,
+    fltarr: npt.NDArray[float],
+    intarr: npt.NDArray[int],
+    flt_tols: tuple(float, float),
+    flt_first: bool = True,
+) -> npt.NDArray[str]:
+    """
+    Create a string array built from float and integer arrays for matching.
+
+    Parameters
+    ----------
+    fltarr : np.ndarray of float
+        float array to be used in output string array
+    intarr : np.ndarray of int
+        integer array to be used in output string array
+    flt_tols : 2-tuple of float
+        Tolerances (relative, absolute) to use in formatting the floats as strings.
+    flt_first : bool
+        Whether to put the float first in the out put string or not (if False
+        the int comes first.)
+
+    Returns
+    -------
+    np.ndarray of str
+        String array that combines the float and integer values, useful for matching.
+    """
     prec_flt = -2 * np.floor(np.log10(flt_tols[-1])).astype(int)
     prec_int = 8
     flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
@@ -55,7 +81,27 @@ def flt_ind_str_arr(*, fltarr, intarr, flt_tols, flt_first=True):
     return np.array(["_".join(zpval) for zpval in zipped])
 
 
-def _get_freq_order(spw_id, freq_arr):
+def _add_freq_order(
+    spw_id: npt.NDArray[int], freq_arr: npt.NDArray[float]
+) -> npt.NDArray[int]:
+    """
+    Get the sorting order for the frequency axis after an add.
+
+    Sort first by spw then by channel, but don't reorder channels if they are
+    changing monotonically (all ascending or descending).
+
+    Parameters
+    ----------
+    spw_id : np.ndarray of int
+        SPW id array of combined data to be sorted.
+    freq_arr : np.ndarray of float
+        Frequency array of combined data to be sorted.
+
+    Returns
+    -------
+    f_order : np.ndarray of int
+        index array giving the sort order.
+    """
     spws = np.unique(spw_id)
     f_order = np.concatenate([np.where(spw_id == spw)[0] for spw in np.unique(spw_id)])
 
@@ -74,7 +120,29 @@ def _get_freq_order(spw_id, freq_arr):
     return f_order
 
 
-def _axis_add_helper(this, other, axis_name: str, other_inds, final_order=None):
+def _axis_add_helper(
+    this: UVData,
+    other: UVData,
+    axis_name: str,
+    other_inds: npt.NDArray[int],
+    final_order: npt.NDArray[int] | None = None,
+):
+    """
+    Combine UVData objects along an axis.
+
+    Parameters
+    ----------
+    this : UVData
+        The left UVData object in the add.
+    other : UVData
+        The right UVData object in the add.
+    axis_name : str
+        The axis name (e.g. "Nblts", "Npols").
+    other_inds : np.ndarray of int
+        Indices into the other object along this axis to include.
+    final_order : np.ndarray of int
+        Final ordering array giving the sort order after concatenation.
+    """
     update_params = this._get_param_axis(axis_name, single_named_axis=True)
     other_form_dict = {axis_name: other_inds}
     for param, axis_list in update_params.items():
@@ -92,7 +160,19 @@ def _axis_add_helper(this, other, axis_name: str, other_inds, final_order=None):
         setattr(this, param, new_array)
 
 
-def _axis_fast_concat_helper(this, other, axis_name: str):
+def _axis_fast_concat_helper(this: UVData, other: UVData, axis_name: str):
+    """
+    Concatenate UVData objects along an axis assuming no overlap.
+
+    Parameters
+    ----------
+    this : UVData
+        The left UVData object in the add.
+    other : UVData
+        The right UVData object in the add.
+    axis_name : str
+        The axis name (e.g. "Nblts", "Npols").
+    """
     update_params = this._get_param_axis(axis_name)
     for param, axis_list in update_params.items():
         axis = axis_list[0]
@@ -5410,7 +5490,7 @@ class UVData(UVBase):
                 use_ant_pos=False,
             )
 
-    def blt_str_arr(self):
+    def blt_str_arr(self) -> npt.NDArray[str]:
         """Create a string array with baseline and time info for matching purposes."""
         return flt_ind_str_arr(
             fltarr=self.time_array,
@@ -5419,7 +5499,7 @@ class UVData(UVBase):
             flt_first=True,
         )
 
-    def spw_freq_str_arr(self):
+    def spw_freq_str_arr(self) -> npt.NDArray[str]:
         """Create a string array with spw and freq info for matching purposes."""
         return flt_ind_str_arr(
             fltarr=self.freq_array,
@@ -5428,7 +5508,7 @@ class UVData(UVBase):
             flt_first=False,
         )
 
-    def flexpol_dict(self):
+    def flexpol_dict(self) -> dict:
         """Create a dict with flexpol information for comparison."""
         return dict(zip(self.spw_array, self.flex_spw_polarization_array, strict=True))
 
@@ -5732,7 +5812,7 @@ class UVData(UVBase):
                 ):
                     # deal with the possibility of spws with channels in
                     # descending order.
-                    order_dict[axis] = _get_freq_order(
+                    order_dict[axis] = _add_freq_order(
                         np.concatenate(
                             (
                                 this.flex_spw_id_array,
