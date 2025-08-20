@@ -67,6 +67,7 @@ def flt_ind_str_arr(
     -------
     np.ndarray of str
         String array that combines the float and integer values, useful for matching.
+
     """
     prec_flt = -2 * np.floor(np.log10(flt_tols[-1])).astype(int)
     prec_int = 8
@@ -99,6 +100,7 @@ def _add_freq_order(spw_id: IntArray, freq_arr: FloatArray) -> IntArray:
     -------
     f_order : np.ndarray of int
         index array giving the sort order.
+
     """
     spws = np.unique(spw_id)
     f_order = np.concatenate([np.where(spw_id == spw)[0] for spw in np.unique(spw_id)])
@@ -126,7 +128,7 @@ def _axis_add_helper(
     final_order: IntArray | None = None,
 ):
     """
-    Combine UVData objects along an axis.
+    Combine UVParameter objects with a single axis along an axis.
 
     Parameters
     ----------
@@ -140,6 +142,7 @@ def _axis_add_helper(
         Indices into the other object along this axis to include.
     final_order : np.ndarray of int
         Final ordering array giving the sort order after concatenation.
+
     """
     update_params = this._get_param_axis(axis_name, single_named_axis=True)
     other_form_dict = {axis_name: other_inds}
@@ -158,9 +161,90 @@ def _axis_add_helper(
         setattr(this, param, new_array)
 
 
+def _axis_pad_helper(this: UVData, axis_name: str, add_len: int):
+    """
+    Pad out UVParameter objects with multiple dimensions along an axis.
+
+    Parameters
+    ----------
+    this : UVData
+        The left UVData object in the add.
+    axis_name : str
+        The axis name (e.g. "Nblts", "Npols").
+    add_len : int
+        The extra length to be padded on for this axis.
+
+    """
+    update_params = this._get_param_axis(axis_name)
+    multi_axis_params = this._get_multi_axis_params()
+    for param, axis_list in update_params.items():
+        if param not in multi_axis_params:
+            continue
+        this_param_shape = getattr(this, param).shape
+        this_param_type = getattr(this, "_" + param).expected_type
+        bool_type = this_param_type is bool or bool in this_param_type
+        pad_shape = list(this_param_shape)
+        for ax in axis_list:
+            pad_shape[ax] = add_len
+            if bool_type:
+                pad_array = np.ones(tuple(pad_shape), dtype=bool)
+            else:
+                pad_array = np.zeros(tuple(pad_shape))
+            new_array = np.concatenate([getattr(this, param), pad_array], axis=ax)
+            if bool_type:
+                new_array = new_array.astype(np.bool_)
+            setattr(this, param, new_array)
+
+
+def _fill_multi_helper(
+    this: UVData, other: UVData, t2o_dict: dict, sort_axes: list[str], order_dict: dict
+):
+    """
+    Fill UVParameter objects with multiple dimensions from the right side object.
+
+    Parameters
+    ----------
+    this : UVData
+        The left UVData object in the add.
+    other : UVData
+        The right UVData object in the add.
+    t2o_dict : dict
+        dict giving the indices in the left object to be filled from the right
+        object for each axis (keys are axes, values are index arrays).
+    sort_axes : list of str
+        The axes that need to be sorted along.
+    order_dict : dict
+        dict giving the final sort indices for each axis (keys are axes, values
+        are index arrays for sorting).
+
+    """
+    multi_axis_params = this._get_multi_axis_params()
+    for param in multi_axis_params:
+        form = getattr(this, "_" + param).form
+        index_list = []
+        for axis in form:
+            index_list.append(t2o_dict[axis])
+        new_arr = getattr(this, param)
+        new_arr[np.ix_(*index_list)] = getattr(other, param)
+        setattr(this, param, new_arr)
+
+        # Fix ordering
+        for axis_ind, axis in enumerate(form):
+            if axis in sort_axes:
+                unique_order_diffs = np.unique(np.diff(order_dict[axis]))
+                if np.array_equal(unique_order_diffs, np.array([1])):
+                    # everything is already in order
+                    continue
+                setattr(
+                    this,
+                    param,
+                    np.take(getattr(this, param), order_dict[axis], axis=axis_ind),
+                )
+
+
 def _axis_fast_concat_helper(this: UVData, other: UVData, axis_name: str):
     """
-    Concatenate UVData objects along an axis assuming no overlap.
+    Concatenate UVParameter objects along an axis assuming no overlap.
 
     Parameters
     ----------
@@ -5816,7 +5900,7 @@ class UVData(UVBase):
         # Pad out self to accommodate new data
         new_axis_inds = {}
         order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
-        for axis_ind, axis in enumerate(axes):
+        for axis in axes:
             if len(new_inds[axis]) > 0:
                 new_axis_inds[axis] = np.concatenate(
                     (axis_vals[axis]["this"], axis_vals[axis]["other"][new_inds[axis]])
@@ -5843,23 +5927,26 @@ class UVData(UVBase):
                 else:
                     order_dict[axis] = np.argsort(new_axis_inds[axis])
 
+                # first handle parameters with a single axis
                 _axis_add_helper(this, other, axis, new_inds[axis], order_dict[axis])
 
-                if not self.metadata_only:
-                    pad_shape = list(this.data_array.shape)
-                    pad_shape[axis_ind] = len(new_inds[axis])
-                    zero_pad = np.zeros(tuple(pad_shape))
-                    this.data_array = np.concatenate(
-                        [this.data_array, zero_pad], axis=axis_ind
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array, zero_pad], axis=axis_ind
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array, 1 - zero_pad], axis=axis_ind
-                    ).astype(np.bool_)
+                # then pad out parameters with multiple axes
+                _axis_pad_helper(this, axis, len(new_inds[axis]))
             else:
                 new_axis_inds[axis] = axis_vals[axis]["this"]
+
+        # Now fill in multidimensional arrays
+        t2o_dict = {}
+        for axis, inds_dict in axis_vals.items():
+            t2o_dict[axis] = np.nonzero(
+                np.isin(new_axis_inds[axis], inds_dict["other"])
+            )[0]
+
+        sort_axes = []
+        for axis in axes:
+            if len(new_inds[axis]) > 0:
+                sort_axes.append(axis)
+        _fill_multi_helper(this, other, t2o_dict, sort_axes, order_dict)
 
         if len(new_inds["Nfreqs"]) > 0:
             # We want to preserve per-spw information based on first appearance
@@ -5874,38 +5961,6 @@ class UVData(UVBase):
                 this.flex_spw_polarization_array = np.array(
                     [this_flexpol_dict[key] for key in this.spw_array]
                 )
-
-        # Now populate the data
-        t2o_dict = {}
-        for axis, inds_dict in axis_vals.items():
-            t2o_dict[axis] = np.nonzero(
-                np.isin(new_axis_inds[axis], inds_dict["other"])
-            )[0]
-
-        if not self.metadata_only:
-            this.data_array[
-                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
-            ] = other.data_array
-            this.nsample_array[
-                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
-            ] = other.nsample_array
-            this.flag_array[
-                np.ix_(t2o_dict["Nblts"], t2o_dict["Nfreqs"], t2o_dict["Npols"])
-            ] = other.flag_array
-
-            # Fix ordering
-            for axis_ind, axis in enumerate(axes):
-                for name, param in zip(
-                    this._data_params, this.data_like_parameters, strict=True
-                ):
-                    if len(new_inds[axis]) > 0:
-                        unique_order_diffs = np.unique(np.diff(order_dict[axis]))
-                        if np.array_equal(unique_order_diffs, np.array([1])):
-                            # everything is already in order
-                            continue
-                        setattr(
-                            this, name, np.take(param, order_dict[axis], axis=axis_ind)
-                        )
 
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
