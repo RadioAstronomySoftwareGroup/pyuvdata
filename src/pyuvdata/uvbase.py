@@ -801,8 +801,7 @@ class UVBase:
         ret_list = []
         for param in self:
             # For each attribute, if the value is None, then bail, otherwise
-            # attempt to figure out along which axis ind_arr will apply.
-
+            # check if it's multidimensional
             attr = getattr(self, param)
             if (
                 attr.value is not None
