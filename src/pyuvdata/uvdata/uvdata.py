@@ -78,8 +78,7 @@ def flt_ind_str_arr(
         list_of_lists = [flt_str_list, int_str_list]
     else:
         list_of_lists = [int_str_list, flt_str_list]
-    zipped = zip(*list_of_lists, strict=True)
-    return np.array(["_".join(zpval) for zpval in zipped])
+    return np.array(["_".join(zpval) for zpval in zip(*list_of_lists, strict=True)])
 
 
 def _add_freq_order(spw_id: IntArray, freq_arr: FloatArray) -> IntArray:
@@ -87,7 +86,7 @@ def _add_freq_order(spw_id: IntArray, freq_arr: FloatArray) -> IntArray:
     Get the sorting order for the frequency axis after an add.
 
     Sort first by spw then by channel, but don't reorder channels if they are
-    changing monotonically (all ascending or descending).
+    changing monotonically (all ascending or descending) within the spw.
 
     Parameters
     ----------
@@ -5697,6 +5696,35 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
+        if (
+            this.flex_spw_polarization_array is not None
+            or other.flex_spw_polarization_array is not None
+        ):
+            # special checking for flex_spw
+            if (this.flex_spw_polarization_array is None) != (
+                other.flex_spw_polarization_array is None
+            ):
+                raise ValueError(
+                    "Cannot add a flex-pol and non-flex-pol UVData objects. Use "
+                    "the `remove_flex_pol` method to convert the objects to "
+                    "have a regular polarization axis."
+                )
+            elif this.flex_spw_polarization_array is not None:
+                this_flexpol_dict = this.flexpol_dict()
+                other_flexpol_dict = other.flexpol_dict()
+                for key in other_flexpol_dict:
+                    try:
+                        if this_flexpol_dict[key] != other_flexpol_dict[key]:
+                            raise ValueError(
+                                "Cannot add a flex-pol UVData objects where "
+                                "the same spectral window contains different "
+                                "polarizations. Use the `remove_flex_pol` "
+                                "method to convert the objects to have a "
+                                "regular polarization axis."
+                            )
+                    except KeyError:
+                        this_flexpol_dict[key] = other_flexpol_dict[key]
+
         # Define parameters that must be the same to add objects
         compatibility_params = ["_vis_units"]
 
@@ -5736,7 +5764,7 @@ class UVData(UVBase):
                     "other": getattr(other, overlap_params[0]),
                 }
 
-        # Check we don't have overlapping data
+        # Check if we have overlapping data
         axis_inds = {}
         for axis, val_arr in axis_vals.items():
             both_inds, this_inds, other_inds = np.intersect1d(
@@ -5749,10 +5777,11 @@ class UVData(UVBase):
             }
 
         history_update_string = ""
+        # TODO do this programmatically for multidimensional parameters
         if not self.metadata_only and np.all(
             [len(axis_inds[axis]["both"]) > 0 for axis in axis_inds]
         ):
-            # check that overlapping data is not valid
+            # We have overlaps, check that overlapping data is not valid
             this_inds = np.ravel_multi_index(
                 (
                     axis_inds["Nblts"]["this"][:, np.newaxis, np.newaxis],
@@ -5797,35 +5826,6 @@ class UVData(UVBase):
         }
         # find the indices in "other" but not in "this"
         for axis in axes:
-            if axis == "Nfreqs" and (
-                this.flex_spw_polarization_array is not None
-                or other.flex_spw_polarization_array is not None
-            ):
-                # special checking for flex_spw
-                if (this.flex_spw_polarization_array is None) != (
-                    other.flex_spw_polarization_array is None
-                ):
-                    raise ValueError(
-                        "Cannot add a flex-pol and non-flex-pol UVData objects. Use "
-                        "the `remove_flex_pol` method to convert the objects to "
-                        "have a regular polarization axis."
-                    )
-                elif this.flex_spw_polarization_array is not None:
-                    this_flexpol_dict = this.flexpol_dict()
-                    other_flexpol_dict = other.flexpol_dict()
-                    for key in other_flexpol_dict:
-                        try:
-                            if this_flexpol_dict[key] != other_flexpol_dict[key]:
-                                raise ValueError(
-                                    "Cannot add a flex-pol UVData objects where "
-                                    "the same spectral window contains different "
-                                    "polarizations. Use the `remove_flex_pol` "
-                                    "method to convert the objects to have a "
-                                    "regular polarization axis."
-                                )
-                        except KeyError:
-                            this_flexpol_dict[key] = other_flexpol_dict[key]
-
             temp = np.nonzero(
                 ~np.isin(axis_vals[axis]["other"], axis_vals[axis]["this"])
             )[0]
@@ -5884,7 +5884,7 @@ class UVData(UVBase):
         }
         for axis, ind_dict in axis_inds.items():
             if len(ind_dict["this"]) != 0:
-                # there is some overlap, so sorting matters
+                # there is some overlap, so check sorting
                 this_argsort = np.argsort(ind_dict["this"])
                 other_argsort = np.argsort(ind_dict["other"])
 
@@ -5897,7 +5897,7 @@ class UVData(UVBase):
 
                     getattr(this, reorder_method[axis]["method"])(**kwargs)
 
-        # Pad out self to accommodate new data
+        # start updating parameters
         new_axis_inds = {}
         order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
         for axis in axes:
@@ -5935,7 +5935,7 @@ class UVData(UVBase):
             else:
                 new_axis_inds[axis] = axis_vals[axis]["this"]
 
-        # Now fill in multidimensional arrays
+        # Now fill in multidimensional parameters
         t2o_dict = {}
         for axis, inds_dict in axis_vals.items():
             t2o_dict[axis] = np.nonzero(
@@ -5965,9 +5965,9 @@ class UVData(UVBase):
         # Update N parameters (e.g. Npols)
         this.Ntimes = len(np.unique(this.time_array))
         this.Nbls = len(np.unique(this.baseline_array))
-        this.Nblts = this.uvw_array.shape[0]
+        this.Nblts = this.baseline_array.size
         this.Nfreqs = this.freq_array.size
-        this.Npols = this.polarization_array.shape[0]
+        this.Npols = this.polarization_array.size
         this.Nants_data = this._calc_nants_data()
 
         # Update filename parameter
@@ -6002,7 +6002,7 @@ class UVData(UVBase):
                         )
 
         # Reset blt_order if blt axis was added to
-        if len(t2o_dict["Nblts"]) > 0:
+        if "Nblts" in sort_axes:
             this.blt_order = ("time", "baseline")
 
         this.set_rectangularity(force=True)
