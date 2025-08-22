@@ -3385,6 +3385,7 @@ def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_freq(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv1 = uv_full.select(freq_chans=np.arange(0, 32), inplace=False)
     uv2 = uv_full.select(freq_chans=np.arange(32, 64), inplace=False)
@@ -3415,6 +3416,7 @@ def test_add_freq(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_pols(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv1 = uv_full.select(polarizations=uv_full.polarization_array[0:2], inplace=False)
     uv2 = uv_full.select(polarizations=uv_full.polarization_array[2:4], inplace=False)
@@ -3453,6 +3455,7 @@ def test_add_pols(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_times(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     times = np.unique(uv_full.time_array)
     uv1 = uv_full.select(times=times[0 : len(times) // 2], inplace=False)
@@ -3474,6 +3477,8 @@ def test_add_times(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_bls(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.reorder_blts()
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     ant_list = list(range(15))  # Roughly half the antennas in the data
     # All blts where ant_1 is in list
@@ -3514,6 +3519,7 @@ def test_add_bls(casa_uvfits):
     uv3.ant_1_array = uv3.ant_1_array[-1::-1]
     uv3.ant_2_array = uv3.ant_2_array[-1::-1]
     uv3.baseline_array = uv3.baseline_array[-1::-1]
+    uv3.scan_number_array = uv3.scan_number_array[-1::-1]
     uv1 += uv3
     uv1 += uv2
     assert utils.history._check_histories(
@@ -3532,6 +3538,7 @@ def test_add_bls(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_add_multi_axis(casa_uvfits):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     uv_ref = uv_full.copy()
     times = np.unique(uv_full.time_array)
@@ -3976,6 +3983,7 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
     if np.any(np.logical_and(screen1, screen2)):
         flag_screen = screen2[screen1]
         uv1.data_array[:, flag_screen] = 0.0
+        uv1.nsample_array[:, flag_screen] = 0.0
         uv1.flag_array[:, flag_screen] = True
 
     uv_recomb = getattr(uv1, add_method[0])(uv2, **add_method[1])
@@ -4005,7 +4013,7 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
         [
             [],
             [["unproject_phase", {}], ["select", {"freq_chans": np.arange(32, 64)}]],
-            "UVParameter phase_center_catalog does not match. Cannot combine objects.",
+            "UVParameter phase_center_app_dec does not match. Cannot combine objects.",
         ],
         [
             [["vis_units", "Jy"]],
@@ -4017,6 +4025,11 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
             [["select", {"freq_chans": np.arange(32, 64)}]],
             "UVParameter integration_time does not match.",
         ],
+        [
+            [["scan_number_array", np.arange(1360)]],
+            [["select", {"freq_chans": np.arange(32, 64)}]],
+            "UVParameter scan_number_array does not match.",
+        ],
     ],
 )
 def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
@@ -4026,6 +4039,7 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
     """
     # Test failure modes of add function
     uv1 = casa_uvfits
+    uv1._set_scan_numbers()
     uv2 = uv1.copy()
     uv1.select(freq_chans=np.arange(0, 32))
 
@@ -4170,6 +4184,7 @@ def test_fast_concat_times(casa_uvfits):
 @pytest.mark.parametrize("in_order", [True, False])
 def test_fast_concat_bls(casa_uvfits, in_order):
     uv_full = casa_uvfits
+    uv_full.scan_number_array = np.arange(uv_full.Nblts)
 
     if in_order:
         # divide in half to keep in order
