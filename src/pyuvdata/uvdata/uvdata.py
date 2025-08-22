@@ -43,11 +43,11 @@ reporting_request = (
 
 def flt_ind_str_arr(
     *,
-    fltarr: npt.NDArray[float],
-    intarr: npt.NDArray[int],
-    flt_tols: tuple(float, float),
+    fltarr: npt.NDArray[np.floating],
+    intarr: npt.NDArray[np.int_],
+    flt_tols: tuple[float, float],
     flt_first: bool = True,
-) -> npt.NDArray[str]:
+) -> npt.NDArray[np.str_]:
     """
     Create a string array built from float and integer arrays for matching.
 
@@ -82,8 +82,8 @@ def flt_ind_str_arr(
 
 
 def _add_freq_order(
-    spw_id: npt.NDArray[int], freq_arr: npt.NDArray[float]
-) -> npt.NDArray[int]:
+    spw_id: npt.NDArray[np.int_], freq_arr: npt.NDArray[np.floating]
+) -> npt.NDArray[np.int_]:
     """
     Get the sorting order for the frequency axis after an add.
 
@@ -125,8 +125,8 @@ def _axis_add_helper(
     this: UVData,
     other: UVData,
     axis_name: str,
-    other_inds: npt.NDArray[int],
-    final_order: npt.NDArray[int] | None = None,
+    other_inds: npt.NDArray[np.int_],
+    final_order: npt.NDArray[np.int_] | None = None,
 ):
     """
     Combine UVParameter objects with a single axis along an axis.
@@ -5569,7 +5569,7 @@ class UVData(UVBase):
                 use_ant_pos=False,
             )
 
-    def blt_str_arr(self) -> npt.NDArray[str]:
+    def blt_str_arr(self) -> npt.NDArray[np.str_]:
         """Create a string array with baseline and time info for matching purposes."""
         return flt_ind_str_arr(
             fltarr=self.time_array,
@@ -5578,7 +5578,7 @@ class UVData(UVBase):
             flt_first=True,
         )
 
-    def spw_freq_str_arr(self) -> npt.NDArray[str]:
+    def spw_freq_str_arr(self) -> npt.NDArray[np.str_]:
         """Create a string array with spw and freq info for matching purposes."""
         return flt_ind_str_arr(
             fltarr=self.freq_array,
