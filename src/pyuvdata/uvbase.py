@@ -776,7 +776,7 @@ class UVBase:
         ret_dict = {}
         for param in self:
             # For each attribute, if the value is None, then bail, otherwise
-            # attempt to figure out along which axis ind_arr will apply.
+            # find the axis number(s) with the named shape.
 
             attr = getattr(self, param)
             if (
@@ -791,8 +791,8 @@ class UVBase:
                     continue
 
                 # Only look at where form is a tuple, since that's the only case we
-                # can have a dynamically defined shape. Note that index doesn't work
-                # here in the case of a repeated param_name in the form.
+                # can have a dynamically defined shape. Handle a repeated
+                # param_name in the form.
                 ret_dict[attr.name] = np.nonzero(np.asarray(attr.form) == axis_name)[0]
         return ret_dict
 
