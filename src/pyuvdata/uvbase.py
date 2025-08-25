@@ -16,6 +16,7 @@ from astropy.units import Quantity
 
 from . import __version__, parameter as uvp
 from .utils.tools import _get_iterable, slicify
+from .utils.types import IntArray
 
 __all__ = ["UVBase"]
 
@@ -865,3 +866,135 @@ class UVBase:
                     # here in the case of a repeated param_name in the form.
                     attr.value = attr.get_from_form(slice_dict)
                     attr.setter(self)
+
+    def _axis_add_helper(
+        self,
+        other,
+        axis_name: str,
+        other_inds: IntArray,
+        final_order: IntArray | None = None,
+    ):
+        """
+        Combine UVParameter objects with a single axis along an axis.
+
+        Parameters
+        ----------
+        other : UVBase
+            The UVBase object to be added.
+        axis_name : str
+            The axis name (e.g. "Nblts", "Npols").
+        other_inds : np.ndarray of int
+            Indices into the other object along this axis to include.
+        final_order : np.ndarray of int
+            Final ordering array giving the sort order after concatenation.
+
+        """
+        update_params = self._get_param_axis(axis_name, single_named_axis=True)
+        other_form_dict = {axis_name: other_inds}
+        for param, axis_list in update_params.items():
+            axis = axis_list[0]
+            new_array = np.concatenate(
+                [
+                    getattr(self, param),
+                    getattr(other, "_" + param).get_from_form(other_form_dict),
+                ],
+                axis=axis,
+            )
+            if final_order is not None:
+                new_array = np.take(new_array, final_order, axis=axis)
+
+            setattr(self, param, new_array)
+
+    def _axis_pad_helper(self, axis_name: str, add_len: int):
+        """
+        Pad out UVParameter objects with multiple dimensions along an axis.
+
+        Parameters
+        ----------
+        axis_name : str
+            The axis name (e.g. "Nblts", "Npols").
+        add_len : int
+            The extra length to be padded on for this axis.
+
+        """
+        update_params = self._get_param_axis(axis_name)
+        multi_axis_params = self._get_multi_axis_params()
+        for param, axis_list in update_params.items():
+            if param not in multi_axis_params:
+                continue
+            this_param_shape = getattr(self, param).shape
+            this_param_type = getattr(self, "_" + param).expected_type
+            bool_type = this_param_type is bool or bool in this_param_type
+            pad_shape = list(this_param_shape)
+            for ax in axis_list:
+                pad_shape[ax] = add_len
+                if bool_type:
+                    pad_array = np.ones(tuple(pad_shape), dtype=bool)
+                else:
+                    pad_array = np.zeros(tuple(pad_shape))
+                new_array = np.concatenate([getattr(self, param), pad_array], axis=ax)
+                if bool_type:
+                    new_array = new_array.astype(np.bool_)
+                setattr(self, param, new_array)
+
+    def _fill_multi_helper(self, other, t2o_dict: dict, order_dict: dict):
+        """
+        Fill UVParameter objects with multiple dimensions from the right side object.
+
+        Parameters
+        ----------
+        other : UVBase
+            The UVBase object to be added.
+        t2o_dict : dict
+            dict giving the indices in the left object to be filled from the right
+            object for each axis (keys are axes, values are index arrays).
+        order_dict : dict
+            dict giving the final sort indices for each axis (keys are axes, values
+            are index arrays for sorting).
+
+        """
+        multi_axis_params = self._get_multi_axis_params()
+        for param in multi_axis_params:
+            form = getattr(self, "_" + param).form
+            index_list = []
+            for axis in form:
+                index_list.append(t2o_dict[axis])
+            new_arr = getattr(self, param)
+            new_arr[np.ix_(*index_list)] = getattr(other, param)
+            setattr(self, param, new_arr)
+
+            # Fix ordering
+            for axis_ind, axis in enumerate(form):
+                if order_dict[axis] is not None:
+                    unique_order_diffs = np.unique(np.diff(order_dict[axis]))
+                    if np.array_equal(unique_order_diffs, np.array([1])):
+                        # everything is already in order
+                        continue
+                    setattr(
+                        self,
+                        param,
+                        np.take(getattr(self, param), order_dict[axis], axis=axis_ind),
+                    )
+
+    def _axis_fast_concat_helper(self, other, axis_name: str):
+        """
+        Concatenate UVParameter objects along an axis assuming no overlap.
+
+        Parameters
+        ----------
+        other : UVBase
+            The UVBase object to be added.
+        axis_name : str
+            The axis name (e.g. "Nblts", "Npols").
+        """
+        update_params = self._get_param_axis(axis_name)
+        for param, axis_list in update_params.items():
+            axis = axis_list[0]
+            setattr(
+                self,
+                param,
+                np.concatenate(
+                    [getattr(self, param)] + [getattr(obj, param) for obj in other],
+                    axis=axis,
+                ),
+            )
