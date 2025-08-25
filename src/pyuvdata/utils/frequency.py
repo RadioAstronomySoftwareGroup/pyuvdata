@@ -8,6 +8,7 @@ import numpy as np
 
 from . import tools
 from .pol import jstr2num, polstr2num
+from .types import FloatArray, IntArray
 
 
 def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, strict=True):
@@ -549,3 +550,41 @@ def _select_freq_helper(
         freq_inds = freq_inds.tolist()
 
     return freq_inds, spw_inds, selections
+
+
+def _add_freq_order(spw_id: IntArray, freq_arr: FloatArray) -> IntArray:
+    """
+    Get the sorting order for the frequency axis after an add.
+
+    Sort first by spw then by channel, but don't reorder channels if they are
+    changing monotonically (all ascending or descending) within the spw.
+
+    Parameters
+    ----------
+    spw_id : np.ndarray of int
+        SPW id array of combined data to be sorted.
+    freq_arr : np.ndarray of float
+        Frequency array of combined data to be sorted.
+
+    Returns
+    -------
+    f_order : np.ndarray of int
+        index array giving the sort order.
+
+    """
+    spws = np.unique(spw_id)
+    f_order = np.concatenate([np.where(spw_id == spw)[0] for spw in np.unique(spw_id)])
+
+    # With spectral windows sorted, check and see if channels within
+    # windows need sorting. If they are ordered in ascending or descending
+    # fashion, leave them be. If not, sort in ascending order
+    for spw in spws:
+        select_mask = spw_id[f_order] == spw
+        check_freqs = freq_arr[f_order[select_mask]]
+        if not np.all(np.diff(check_freqs) > 0) and not np.all(
+            np.diff(check_freqs) < 0
+        ):
+            subsort_order = f_order[select_mask]
+            f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
+
+    return f_order
