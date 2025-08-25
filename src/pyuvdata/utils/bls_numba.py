@@ -4,25 +4,29 @@
 
 import numba
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 
 
 @numba.njit()
-def _max_ant(ant1: npt.NDArray[np.int64], ant2: npt.NDArray[np.int64]) -> np.int64:
+def _max_ant(
+    ant1: nptype.NDArray[np.int64], ant2: nptype.NDArray[np.int64]
+) -> np.int64:
     return np.maximum(np.max(ant1), np.max(ant2))
 
 
 @numba.njit()
-def _min_ant(ant1: npt.NDArray[np.int64], ant2: npt.NDArray[np.int64]) -> np.int64:
+def _min_ant(
+    ant1: nptype.NDArray[np.int64], ant2: nptype.NDArray[np.int64]
+) -> np.int64:
     return np.minimum(np.min(ant1), np.min(ant2))
 
 
 @numba.njit()
 def _baseline_to_antnums(
-    baselines: npt.NDArray[np.uint64],
+    baselines: nptype.NDArray[np.uint64],
     max_baseline: np.uint64,
     use_miriad_convention: bool = False,
-) -> npt.NDArray[np.uint64]:
+) -> nptype.NDArray[np.uint64]:
     if max_baseline < np.uint64(65536):
         offset = np.uint64(0)
         bitmask = np.uint64(255)  # 2**8 - 1 (all bits)
@@ -68,12 +72,12 @@ def _antnums_to_baseline_vec(ant1, ant2, offset, modulus):
 
 @numba.njit()
 def _antnums_to_baseline(
-    ant1: npt.NDArray[np.uint64],
-    ant2: npt.NDArray[np.uint64],
+    ant1: nptype.NDArray[np.uint64],
+    ant2: nptype.NDArray[np.uint64],
     use256: bool = False,
     use2048: bool = True,
     use_miriad_convention: bool = False,
-) -> npt.NDArray[np.uint64]:
+) -> nptype.NDArray[np.uint64]:
     if use256:
         offset = np.uint64(0)
         modulus = np.uint64(256)

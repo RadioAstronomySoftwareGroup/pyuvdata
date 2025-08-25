@@ -8,7 +8,7 @@ from copy import deepcopy
 from functools import lru_cache, wraps
 
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 
 from . import tools
 
@@ -515,7 +515,7 @@ def determine_pol_order(pols, *, order="AIPS"):
 
 
 def convert_feeds_to_pols(
-    feed_array: npt.NDArray[str],
+    feed_array: nptype.NDArray[np.str_],
     include_cross_pols: bool = True,
     x_orientation: str | None = None,
     return_feed_pol_order: bool = False,
