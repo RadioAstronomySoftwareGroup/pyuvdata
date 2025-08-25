@@ -27,7 +27,7 @@ from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
 from ..utils.phasing import _get_focus_xyz, _get_nearfield_delay
-from ..utils.types import FloatArray, IntArray, StrArray
+from ..utils.types import StrArray
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
@@ -39,228 +39,6 @@ reporting_request = (
     " Please report this in our issue log, we have not been able to find a file with "
     "this feature, we would like to investigate this more."
 )
-
-
-def flt_ind_str_arr(
-    *,
-    fltarr: FloatArray,
-    intarr: IntArray,
-    flt_tols: tuple[float, float],
-    flt_first: bool = True,
-) -> StrArray:
-    """
-    Create a string array built from float and integer arrays for matching.
-
-    Parameters
-    ----------
-    fltarr : np.ndarray of float
-        float array to be used in output string array
-    intarr : np.ndarray of int
-        integer array to be used in output string array
-    flt_tols : 2-tuple of float
-        Tolerances (relative, absolute) to use in formatting the floats as strings.
-    flt_first : bool
-        Whether to put the float first in the out put string or not (if False
-        the int comes first.)
-
-    Returns
-    -------
-    np.ndarray of str
-        String array that combines the float and integer values, useful for matching.
-
-    """
-    prec_flt = -2 * np.floor(np.log10(flt_tols[-1])).astype(int)
-    prec_int = 8
-    flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
-    int_str_list = [str(intv).zfill(prec_int) for intv in intarr]
-    list_of_lists = []
-    if flt_first:
-        list_of_lists = [flt_str_list, int_str_list]
-    else:
-        list_of_lists = [int_str_list, flt_str_list]
-    return np.array(["_".join(zpval) for zpval in zip(*list_of_lists, strict=True)])
-
-
-def _add_freq_order(spw_id: IntArray, freq_arr: FloatArray) -> IntArray:
-    """
-    Get the sorting order for the frequency axis after an add.
-
-    Sort first by spw then by channel, but don't reorder channels if they are
-    changing monotonically (all ascending or descending) within the spw.
-
-    Parameters
-    ----------
-    spw_id : np.ndarray of int
-        SPW id array of combined data to be sorted.
-    freq_arr : np.ndarray of float
-        Frequency array of combined data to be sorted.
-
-    Returns
-    -------
-    f_order : np.ndarray of int
-        index array giving the sort order.
-
-    """
-    spws = np.unique(spw_id)
-    f_order = np.concatenate([np.where(spw_id == spw)[0] for spw in np.unique(spw_id)])
-
-    # With spectral windows sorted, check and see if channels within
-    # windows need sorting. If they are ordered in ascending or descending
-    # fashion, leave them be. If not, sort in ascending order
-    for spw in spws:
-        select_mask = spw_id[f_order] == spw
-        check_freqs = freq_arr[f_order[select_mask]]
-        if not np.all(np.diff(check_freqs) > 0) and not np.all(
-            np.diff(check_freqs) < 0
-        ):
-            subsort_order = f_order[select_mask]
-            f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
-
-    return f_order
-
-
-def _axis_add_helper(
-    this: UVData,
-    other: UVData,
-    axis_name: str,
-    other_inds: IntArray,
-    final_order: IntArray | None = None,
-):
-    """
-    Combine UVParameter objects with a single axis along an axis.
-
-    Parameters
-    ----------
-    this : UVData
-        The left UVData object in the add.
-    other : UVData
-        The right UVData object in the add.
-    axis_name : str
-        The axis name (e.g. "Nblts", "Npols").
-    other_inds : np.ndarray of int
-        Indices into the other object along this axis to include.
-    final_order : np.ndarray of int
-        Final ordering array giving the sort order after concatenation.
-
-    """
-    update_params = this._get_param_axis(axis_name, single_named_axis=True)
-    other_form_dict = {axis_name: other_inds}
-    for param, axis_list in update_params.items():
-        axis = axis_list[0]
-        new_array = np.concatenate(
-            [
-                getattr(this, param),
-                getattr(other, "_" + param).get_from_form(other_form_dict),
-            ],
-            axis=axis,
-        )
-        if final_order is not None:
-            new_array = np.take(new_array, final_order, axis=axis)
-
-        setattr(this, param, new_array)
-
-
-def _axis_pad_helper(this: UVData, axis_name: str, add_len: int):
-    """
-    Pad out UVParameter objects with multiple dimensions along an axis.
-
-    Parameters
-    ----------
-    this : UVData
-        The left UVData object in the add.
-    axis_name : str
-        The axis name (e.g. "Nblts", "Npols").
-    add_len : int
-        The extra length to be padded on for this axis.
-
-    """
-    update_params = this._get_param_axis(axis_name)
-    multi_axis_params = this._get_multi_axis_params()
-    for param, axis_list in update_params.items():
-        if param not in multi_axis_params:
-            continue
-        this_param_shape = getattr(this, param).shape
-        this_param_type = getattr(this, "_" + param).expected_type
-        bool_type = this_param_type is bool or bool in this_param_type
-        pad_shape = list(this_param_shape)
-        for ax in axis_list:
-            pad_shape[ax] = add_len
-            if bool_type:
-                pad_array = np.ones(tuple(pad_shape), dtype=bool)
-            else:
-                pad_array = np.zeros(tuple(pad_shape))
-            new_array = np.concatenate([getattr(this, param), pad_array], axis=ax)
-            if bool_type:
-                new_array = new_array.astype(np.bool_)
-            setattr(this, param, new_array)
-
-
-def _fill_multi_helper(this: UVData, other: UVData, t2o_dict: dict, order_dict: dict):
-    """
-    Fill UVParameter objects with multiple dimensions from the right side object.
-
-    Parameters
-    ----------
-    this : UVData
-        The left UVData object in the add.
-    other : UVData
-        The right UVData object in the add.
-    t2o_dict : dict
-        dict giving the indices in the left object to be filled from the right
-        object for each axis (keys are axes, values are index arrays).
-    order_dict : dict
-        dict giving the final sort indices for each axis (keys are axes, values
-        are index arrays for sorting).
-
-    """
-    multi_axis_params = this._get_multi_axis_params()
-    for param in multi_axis_params:
-        form = getattr(this, "_" + param).form
-        index_list = []
-        for axis in form:
-            index_list.append(t2o_dict[axis])
-        new_arr = getattr(this, param)
-        new_arr[np.ix_(*index_list)] = getattr(other, param)
-        setattr(this, param, new_arr)
-
-        # Fix ordering
-        for axis_ind, axis in enumerate(form):
-            if order_dict[axis] is not None:
-                unique_order_diffs = np.unique(np.diff(order_dict[axis]))
-                if np.array_equal(unique_order_diffs, np.array([1])):
-                    # everything is already in order
-                    continue
-                setattr(
-                    this,
-                    param,
-                    np.take(getattr(this, param), order_dict[axis], axis=axis_ind),
-                )
-
-
-def _axis_fast_concat_helper(this: UVData, other: UVData, axis_name: str):
-    """
-    Concatenate UVParameter objects along an axis assuming no overlap.
-
-    Parameters
-    ----------
-    this : UVData
-        The left UVData object in the add.
-    other : UVData
-        The right UVData object in the add.
-    axis_name : str
-        The axis name (e.g. "Nblts", "Npols").
-    """
-    update_params = this._get_param_axis(axis_name)
-    for param, axis_list in update_params.items():
-        axis = axis_list[0]
-        setattr(
-            this,
-            param,
-            np.concatenate(
-                [getattr(this, param)] + [getattr(obj, param) for obj in other],
-                axis=axis,
-            ),
-        )
 
 
 class UVData(UVBase):
@@ -5588,7 +5366,7 @@ class UVData(UVBase):
 
     def blt_str_arr(self) -> StrArray:
         """Create a string array with baseline and time info for matching purposes."""
-        return flt_ind_str_arr(
+        return utils.tools.flt_ind_str_arr(
             fltarr=self.time_array,
             intarr=self.baseline_array,
             flt_tols=self._time_array.tols,
@@ -5597,7 +5375,7 @@ class UVData(UVBase):
 
     def spw_freq_str_arr(self) -> StrArray:
         """Create a string array with spw and freq info for matching purposes."""
-        return flt_ind_str_arr(
+        return utils.tools.flt_ind_str_arr(
             fltarr=self.freq_array,
             intarr=self.flex_spw_id_array,
             flt_tols=self._freq_array.tols,
@@ -5947,7 +5725,7 @@ class UVData(UVBase):
                 ):
                     # deal with the possibility of spws with channels in
                     # descending order.
-                    order_dict[axis] = _add_freq_order(
+                    order_dict[axis] = utils.frequency._add_freq_order(
                         np.concatenate(
                             (
                                 this.flex_spw_id_array,
@@ -5962,12 +5740,12 @@ class UVData(UVBase):
                     order_dict[axis] = np.argsort(combined_key_arrays[axis])
 
                 # first handle parameters with a single named axis
-                _axis_add_helper(
-                    this, other, axis, other_inds_use[axis], order_dict[axis]
+                this._axis_add_helper(
+                    other, axis, other_inds_use[axis], order_dict[axis]
                 )
 
                 # then pad out parameters with multiple axes
-                _axis_pad_helper(this, axis, len(other_inds_use[axis]))
+                this._axis_pad_helper(axis, len(other_inds_use[axis]))
             else:
                 # no add along this axis, so it's the same as what's already on this
                 combined_key_arrays[axis] = axis_key_arrays[axis]["this"]
@@ -5981,7 +5759,7 @@ class UVData(UVBase):
                 np.isin(combined_key_arrays[axis], inds_dict["other"])
             )[0]
 
-        _fill_multi_helper(this, other, t2o_dict, order_dict)
+        this._fill_multi_helper(other, t2o_dict, order_dict)
 
         if len(other_inds_use["Nfreqs"]) > 0:
             # We want to preserve per-spw information based on first appearance
@@ -6312,7 +6090,7 @@ class UVData(UVBase):
         this.telescope = tel_obj
 
         # update the relevant shape parameter
-        _axis_fast_concat_helper(this, other, axis_shape[axis])
+        this._axis_fast_concat_helper(other, axis_shape[axis])
         new_shape = sum(
             [getattr(this, axis_shape[axis])]
             + [getattr(obj, axis_shape[axis]) for obj in other]
