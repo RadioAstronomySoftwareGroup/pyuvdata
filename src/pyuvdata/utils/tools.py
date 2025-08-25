@@ -9,6 +9,8 @@ from collections.abc import Iterable, Iterable as IterableType
 
 import numpy as np
 
+from .types import FloatArray, IntArray, StrArray
+
 
 def _get_iterable(x):
     """Return iterable version of input."""
@@ -687,3 +689,43 @@ def _ntimes_to_nblts(uvd):
         inds.append(np.where(unique_t == i)[0][0])
 
     return np.asarray(inds)
+
+
+def flt_ind_str_arr(
+    *,
+    fltarr: FloatArray,
+    intarr: IntArray,
+    flt_tols: tuple[float, float],
+    flt_first: bool = True,
+) -> StrArray:
+    """
+    Create a string array built from float and integer arrays for matching.
+
+    Parameters
+    ----------
+    fltarr : np.ndarray of float
+        float array to be used in output string array
+    intarr : np.ndarray of int
+        integer array to be used in output string array
+    flt_tols : 2-tuple of float
+        Tolerances (relative, absolute) to use in formatting the floats as strings.
+    flt_first : bool
+        Whether to put the float first in the out put string or not (if False
+        the int comes first.)
+
+    Returns
+    -------
+    np.ndarray of str
+        String array that combines the float and integer values, useful for matching.
+
+    """
+    prec_flt = -2 * np.floor(np.log10(flt_tols[-1])).astype(int)
+    prec_int = 8
+    flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
+    int_str_list = [str(intv).zfill(prec_int) for intv in intarr]
+    list_of_lists = []
+    if flt_first:
+        list_of_lists = [flt_str_list, int_str_list]
+    else:
+        list_of_lists = [int_str_list, flt_str_list]
+    return np.array(["_".join(zpval) for zpval in zip(*list_of_lists, strict=True)])
