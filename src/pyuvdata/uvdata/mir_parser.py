@@ -4251,8 +4251,10 @@ class MirParser:
 
         # These isb and ant1rx should _only_ be either 0 or 1. This should never happen
         # unless the data are corrupt in some substantial way.
-        assert np.all(np.isin(sb_idx, [0, 1])), "Bad SB index values detected."
-        assert np.all(np.isin(rx_idx, [0, 1])), "Bad RX index values detected."
+        if not np.all(np.isin(sb_idx, [0, 1])):  # pragma: no cover
+            raise RuntimeError("Bad SB index values detected.")
+        if not np.all(np.isin(rx_idx, [0, 1])):  # pragma: no cover
+            raise RuntimeError("Bad RX index values detected.")
 
         u_vals = self.bl_data["u"]
         v_vals = self.bl_data["v"]

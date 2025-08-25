@@ -239,9 +239,11 @@ class Mir(UVData):
             np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data.get_header_keys())
         ):
             raise KeyError(
-                "Mismatch between keys in vis_data and sphid in sp_data, which "
-                "should not happen. Please file an issue in our GitHub issue log "
-                "so that we can fix it."
+                "Something went wrong in Mir._prep_and_insert_data. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                " Developer info: Mismatch between keys in vis_data and sphid in "
+                "sp_data."
             )
 
         # Go through the data record-by-record to fill things in
@@ -760,7 +762,11 @@ class Mir(UVData):
         # entry for UVData, then grab ra/dec/position data.
         self.phase_center_id_array = phase_center_id_array
         for val in np.unique(self.phase_center_id_array):
-            assert val in self.phase_center_catalog
+            if val not in self.phase_center_catalog:  # pragma: no cover
+                raise RuntimeError(
+                    "phase_center_id_array not in phase_center_catalog. This is "
+                    "a bug, please make an issue."
+                )
 
         # Fill in the apparent coord calculations
         self.phase_center_app_ra = app_ra

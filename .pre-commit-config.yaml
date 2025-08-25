@@ -26,4 +26,5 @@ repos:
     rev: 1.8.6
     hooks:
       - id: bandit
-        args: [--skip, "B101", --recursive, pyuvdata]
+        args: ["-c", "pyproject.toml", "--recursive"]
+        additional_dependencies: ["bandit[toml]"]

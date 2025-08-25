@@ -108,8 +108,9 @@ class MSCal(UVCal):
             # I don't know what this is, so don't proceed any further.
             raise NotImplementedError(  # pragma: no cover
                 f"Calibration type {main_info_dict['subType']} is not "
-                "recognized/supported by UVCal. Please file an issue in our "
-                "GitHub issue log so that we can add support for it."
+                "recognized/supported by UVCal. If you need support for it please "
+                "file an issue in our GitHub issue log: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
             )
 
         par_type = tb_main.getkeyword("ParType")
@@ -120,8 +121,9 @@ class MSCal(UVCal):
         else:
             raise NotImplementedError(  # pragma: no cover
                 f"Parameter type {par_type} is not recognized/supported by "
-                "UVCal. Please file an issue in our GitHub issue log so that we "
-                "can add support for it."
+                "UVCal. If you need support for it please file an issue in our "
+                "GitHub issue log: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
             )
 
         main_keywords = tb_main.getkeywords()
@@ -229,9 +231,10 @@ class MSCal(UVCal):
                 )
         else:
             raise NotImplementedError(  # pragma: no cover
-                "Polarization basis {} is not recognized/supported by UVCal. Please "
-                "file an issue in our GitHub issue log so that we can add support for "
-                "it.".format(main_keywords["PolBasis"])
+                f"Polarization basis {main_keywords['PolBasis']} is not "
+                "recognized/supported by UVCal. If you need support for it "
+                "please file an issue in our GitHub issue log: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
             )
 
         if casa_subtype == "D Jones":

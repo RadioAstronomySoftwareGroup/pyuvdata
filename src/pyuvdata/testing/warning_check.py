@@ -106,7 +106,13 @@ class WarningsChecker(warnings.catch_warnings):
             raise RuntimeError(f"Cannot enter {self!r} twice")
         _list = super().__enter__()
         # record=True means it's None.
-        assert _list is not None
+        if _list is None:  # pragma: no cover
+            raise RuntimeError(
+                "Something went wrong in pyuvdata's warning checker. Please file "
+                "an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+                "Developer info: _list is None"
+            )
         self._list = _list
         warnings.simplefilter("always")
         # Filter annoying Cython warnings that serve no good purpose. see numpy#432

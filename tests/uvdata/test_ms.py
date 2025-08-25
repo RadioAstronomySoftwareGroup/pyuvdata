@@ -804,8 +804,10 @@ def test_ms_weights(sma_mir, tmp_path, onewin):
         [
             "timescale",
             None,
-            ValueError,
-            "This file has a timescale that is not supported by astropy.",
+            NotImplementedError,
+            "This file has a timescale that is not supported by astropy. If you "
+            "need support for this timescale please file an issue in our GitHub "
+            "issue log: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues.",
         ],
     ),
 )

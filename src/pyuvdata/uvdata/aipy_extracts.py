@@ -290,8 +290,20 @@ class UV(_miriad.UV):
         corrmode : str
             options are 'r' (float32 data storage) or 'j' (int16 with shared exponent)
         """
-        assert status in ["old", "new", "append"]
-        assert corrmode in ["r", "j"]
+        if status not in ["old", "new", "append"]:  # pragma: no cover
+            raise RuntimeError(
+                "Something went wrong in aipy_extracts.__init__. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                " Developer info: unknown status"
+            )
+        if corrmode not in ["r", "j"]:  # pragma: no cover
+            raise RuntimeError(
+                "Something went wrong in aipy_extracts.__init__. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                " Developer info: unknown corrmode."
+            )
         # when reading mutliple files we may get a numpy array of file names
         # numpy casts arrays as np.str_ and cython does not like this
         _miriad.UV.__init__(self, str(filename), status, corrmode)
@@ -389,7 +401,13 @@ class UV(_miriad.UV):
                 offset = 0
             else:
                 t, offset = _miriad.hread_init(h)
-                assert itype == t
+                if itype != t:  # pragma: no cover
+                    raise RuntimeError(
+                        "Something went wrong in aipy_extracts._rdhd. Please "
+                        "file an issue in our GitHub issue log so that we can help: "
+                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                        " Developer info: itype != t"
+                    )
 
             while True:
                 try:
@@ -409,7 +427,13 @@ class UV(_miriad.UV):
                 rv = "".join(rv)
         else:
             t, offset = _miriad.hread_init(h)
-            assert t == "b"
+            if t != "b":  # pragma: no cover
+                raise RuntimeError(
+                    "Something went wrong in aipy_extracts._rdhd. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: t != b."
+                )
 
             for t in itype:
                 v, o = _miriad.hread(h, offset, t)
