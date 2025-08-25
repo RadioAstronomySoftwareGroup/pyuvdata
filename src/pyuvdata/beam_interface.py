@@ -12,7 +12,7 @@ from itertools import product
 from typing import Literal
 
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 
 from .analytic_beam import AnalyticBeam
 from .utils import pol as upol
@@ -221,9 +221,9 @@ class BeamInterface:
     def compute_response(
         self,
         *,
-        az_array: npt.NDArray[float],
-        za_array: npt.NDArray[float],
-        freq_array: npt.NDArray[float] | None,
+        az_array: nptype.NDArray[np.floating],
+        za_array: nptype.NDArray[np.floating],
+        freq_array: nptype.NDArray[np.floating] | None,
         az_za_grid: bool = False,
         interpolation_function=None,
         freq_interp_kind=None,
