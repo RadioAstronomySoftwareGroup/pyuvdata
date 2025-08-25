@@ -318,7 +318,7 @@ the ``_efield_eval`` method is specified in this beam.
     from dataclasses import dataclass
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from astropy.constants import c as speed_of_light
     from scipy.special import j1
     from pyuvdata.analytic_beam import UnpolarizedAnalyticBeam
@@ -358,10 +358,10 @@ the ``_efield_eval`` method is specified in this beam.
         def _efield_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the efield at the given coordinates."""
             data_array = self._get_empty_data_array(az_grid.shape)
 
@@ -388,7 +388,7 @@ which can be defined with just the ``_power_eval`` method.
     from dataclasses import dataclass
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from pyuvdata.analytic_beam import UnpolarizedAnalyticBeam
 
     @dataclass(kw_only=True)
@@ -418,10 +418,10 @@ which can be defined with just the ``_power_eval`` method.
         def _power_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the power at the given coordinates."""
 
             data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
@@ -437,7 +437,7 @@ Defining a cosine beam with no free parameters is even simpler:
   :linenos:
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from pyuvdata.analytic_beam import UnpolarizedAnalyticBeam
 
     class CosBeam(UnpolarizedAnalyticBeam):
@@ -455,10 +455,10 @@ Defining a cosine beam with no free parameters is even simpler:
         def _power_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the power at the given coordinates."""
 
             data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
@@ -485,7 +485,7 @@ method was not defined (we have tests verifying this).
   :linenos:
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from pyuvdata.analytic_beam import AnalyticBeam
 
 
@@ -528,10 +528,10 @@ method was not defined (we have tests verifying this).
         def _efield_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the efield at the given coordinates."""
             data_array = self._get_empty_data_array(az_grid.shape)
 
@@ -547,10 +547,10 @@ method was not defined (we have tests verifying this).
         def _power_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the power at the given coordinates."""
             data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
 
@@ -578,7 +578,7 @@ fields cannot have mutable defaults. We also do some other validation in that me
     from dataclasses import dataclass
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from pyuvdata.analytic_beam import AnalyticBeam
 
     @dataclass(kw_only=True)
@@ -616,7 +616,7 @@ fields cannot have mutable defaults. We also do some other validation in that me
 
         """
 
-        feed_array: npt.NDArray[str] | list[str] | None = None
+        feed_array: nptype.NDArray[np.str_] | list[str] | None = None
         x_orientation: Literal["east", "north"] | None = "north"
 
         basis_vector_type = "az_za"
@@ -637,10 +637,10 @@ fields cannot have mutable defaults. We also do some other validation in that me
         def _efield_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the efield at the given coordinates."""
             data_array = self._get_empty_data_array(az_grid.shape)
 
@@ -656,10 +656,10 @@ fields cannot have mutable defaults. We also do some other validation in that me
         def _power_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the power at the given coordinates."""
             data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
 
@@ -691,11 +691,11 @@ optional configurations that require some validation, which we do using the
     from typing import Literal
 
     import numpy as np
-    import numpy.typing as npt
+    import numpy.typing as nptype
     from astropy.constants import c as speed_of_light
     from pyuvdata.analytic_beam import UnpolarizedAnalyticBeam
 
-    def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
+    def diameter_to_sigma(diameter: float, freq_array: nptype.NDArray[np.floating]) -> float:
         """
         Find the sigma that gives a beam width similar to an Airy disk.
 
@@ -818,7 +818,7 @@ optional configurations that require some validation, which we do using the
                 if self.reference_frequency is None:
                     self.reference_frequency = 1.0
 
-        def get_sigmas(self, freq_array: npt.NDArray[float]) -> npt.NDArray[float]:
+        def get_sigmas(self, freq_array: nptype.NDArray[np.floating]) -> nptype.NDArray[np.floating]:
             """
             Get the sigmas for the gaussian beam using the diameter (if defined).
 
@@ -846,10 +846,10 @@ optional configurations that require some validation, which we do using the
         def _power_eval(
             self,
             *,
-            az_grid: npt.NDArray[float],
-            za_grid: npt.NDArray[float],
-            f_grid: npt.NDArray[float],
-        ) -> npt.NDArray[float]:
+            az_grid: nptype.NDArray[np.floating],
+            za_grid: nptype.NDArray[np.floating],
+            f_grid: nptype.NDArray[np.floating],
+        ) -> nptype.NDArray[np.floating]:
             """Evaluate the power at the given coordinates."""
             sigmas = self.get_sigmas(f_grid)
 

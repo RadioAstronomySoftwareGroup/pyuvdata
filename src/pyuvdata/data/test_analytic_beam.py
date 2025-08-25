@@ -5,7 +5,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 
 from ..analytic_beam import UnpolarizedAnalyticBeam
 
@@ -19,10 +19,10 @@ class CosPowerTest(UnpolarizedAnalyticBeam):
     def _power_eval(
         self,
         *,
-        az_grid: npt.NDArray[float],
-        za_grid: npt.NDArray[float],
-        f_grid: npt.NDArray[float],
-    ) -> npt.NDArray[float]:
+        az_grid: nptype.NDArray[np.floating],
+        za_grid: nptype.NDArray[np.floating],
+        f_grid: nptype.NDArray[np.floating],
+    ) -> nptype.NDArray[np.floating]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
 
@@ -43,10 +43,10 @@ class CosEfieldTest(UnpolarizedAnalyticBeam):
     def _efield_eval(
         self,
         *,
-        az_grid: npt.NDArray[float],
-        za_grid: npt.NDArray[float],
-        f_grid: npt.NDArray[float],
-    ) -> npt.NDArray[float]:
+        az_grid: nptype.NDArray[np.floating],
+        za_grid: nptype.NDArray[np.floating],
+        f_grid: nptype.NDArray[np.floating],
+    ) -> nptype.NDArray[np.floating]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_grid.shape)
 

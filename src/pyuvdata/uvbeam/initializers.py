@@ -9,7 +9,7 @@ import warnings
 from typing import Literal
 
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 from astropy.time import Time
 
 from .. import __version__, utils
@@ -19,34 +19,34 @@ def new_uvbeam(
     *,
     telescope_name: str,
     data_normalization: Literal["physical", "peak", "solid_angle"],
-    freq_array: npt.NDArray[float],
+    freq_array: nptype.NDArray[np.floating],
     feed_name: str = "default",
     feed_version: str = "0.0",
     model_name: str = "default",
     model_version: str = "0.0",
-    feed_array: npt.NDArray[str] | None = None,
-    feed_angle: npt.NDArray[float] | None = None,
+    feed_array: nptype.NDArray[np.str_] | None = None,
+    feed_angle: nptype.NDArray[np.floating] | None = None,
     mount_type: str | None = "fixed",
     polarization_array: (
-        npt.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
+        nptype.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
     ) = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     pixel_coordinate_system: (
         Literal["az_za", "orthoslant_zenith", "healpix"] | None
     ) = None,
-    axis1_array: npt.NDArray[float] | None = None,
-    axis2_array: npt.NDArray[float] | None = None,
+    axis1_array: nptype.NDArray[np.floating] | None = None,
+    axis2_array: nptype.NDArray[np.floating] | None = None,
     nside: int | None = None,
     ordering: Literal["ring", "nested"] | None = None,
-    healpix_pixel_array: npt.NDArray[int] | None = None,
-    basis_vector_array: npt.NDArray[float] | None = None,
-    bandpass_array: npt.NDArray[float] | None = None,
-    element_location_array: npt.NDArray[float] | None = None,
+    healpix_pixel_array: nptype.NDArray[np.int_] | None = None,
+    basis_vector_array: nptype.NDArray[np.floating] | None = None,
+    bandpass_array: nptype.NDArray[np.floating] | None = None,
+    element_location_array: nptype.NDArray[np.floating] | None = None,
     element_coordinate_system: Literal["n-e", "x-y"] | None = None,
-    delay_array: npt.NDArray[float] | None = None,
-    gain_array: npt.NDArray[float] | None = None,
-    coupling_matrix: npt.NDArray[float] | None = None,
-    data_array: npt.NDArray[float] | None = None,
+    delay_array: nptype.NDArray[np.floating] | None = None,
+    gain_array: nptype.NDArray[np.floating] | None = None,
+    coupling_matrix: nptype.NDArray[np.floating] | None = None,
+    data_array: nptype.NDArray[np.floating] | None = None,
     history: str = "",
     **kwargs,
 ):

@@ -5,7 +5,7 @@
 import os
 
 import numpy as np
-import numpy.typing as npt
+import numpy.typing as nptype
 from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
@@ -38,10 +38,10 @@ class FEKOBeam(UVBeam):
         model_version: str,
         beam_type: str = "power",
         feed_pol: str | None = "x",
-        feed_angle: npt.NDArray[float] | None = None,
+        feed_angle: nptype.NDArray[np.floating] | None = None,
         mount_type: str | None = "fixed",
         history: str | None,
-        reference_impedance: npt.NDArray[float] | None = None,
+        reference_impedance: nptype.NDArray[np.floating] | None = None,
         extra_keywords: dict | None,
         run_check: bool = True,
         check_extra: bool = True,
