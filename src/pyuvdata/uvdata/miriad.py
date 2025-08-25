@@ -1433,8 +1433,10 @@ class Miriad(UVData):
                     # in files written by pyuvdata, so this should not happen
                     if unique_phase_frames.size != 1:  # pragma: no cover
                         raise RuntimeError(
-                            "This is a bug, please make an issue in our issue log at "
-                            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+                            "Something went wrong in read_miriad. Please file an "
+                            "issue in our GitHub issue log so that we can help: "
+                            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                            " Developer info: unique_phase_frames.size != 1"
                         )
                     cat_frame = unique_phase_frames[0]
 

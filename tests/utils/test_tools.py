@@ -109,9 +109,10 @@ def test_array_constant_errors(tols):
     inp_arr = UVParameter("test", value=np.array([0, 0, 0, 0]))
     with pytest.raises(
         ValueError,
-        match="tols must be a length-2 tuple. This should not happen "
-        "when called from higher level functions, please make an issue in our "
-        "issue log.",
+        match="Something went wrong in utils.tools._test_array_constant. Please "
+        "file an issue in our GitHub issue log so that we can help: "
+        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+        "Developer info: tols must be a length-2 tuple.",
     ):
         utils.tools._test_array_constant(inp_arr, tols=tols)
 
@@ -146,23 +147,28 @@ def test_array_consistent(inp_arr, inp2_arr, is_param, tols, exp_outcome):
             np.array([0, 0, 0, 0]),
             np.array([0, 0, 0]),
             (0, 0),
-            "array and deltas must have same shape. This should not happen when "
-            "called from higher level functions, please make an issue in our "
-            "issue log.",
+            "Something went wrong in utils.tools._test_array_consistent. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: array and deltas must have same shape.",
         ),
         (
             np.array([0, 0, 0, 0]),
             np.array([0, 0, 0, 0]),
             (0, 0, 0),
-            "tols must be a length-2 tuple. This should not happen when called "
-            "from higher level functions, please make an issue in our issue log.",
+            "Something went wrong in utils.tools._test_array_consistent. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: tols must be a length-2 tuple.",
         ),
         (
             np.array([0, 0, 0, 0]),
             np.array([0, 0, 0, 0]),
             [0, 0],
-            "tols must be a length-2 tuple. This should not happen when called "
-            "from higher level functions, please make an issue in our issue log.",
+            "Something went wrong in utils.tools._test_array_consistent. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: tols must be a length-2 tuple.",
         ),
     ],
 )

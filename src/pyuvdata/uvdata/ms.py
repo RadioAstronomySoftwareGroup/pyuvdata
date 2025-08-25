@@ -595,7 +595,10 @@ class MS(UVData):
         for key in sorted(spw_dict.keys()):
             if len(data_dict) != len(spw_dict):  # pragma: no cover
                 raise RuntimeError(
-                    "This is a bug, please make an issue in our issue log."
+                    "Something went wrong in MS._read_ms_main. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: len(data_dict) != len(spw_dict)"
                 )
             data_dict_key = spw_dict[key]["DATA_DICT_KEY"]
             nchan = spw_dict[key]["NUM_CHAN"]

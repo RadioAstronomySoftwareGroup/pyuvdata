@@ -194,11 +194,12 @@ def _get_time_scale(ms_table, *, raise_error=False):
     if timescale.lower() not in Time.SCALES:
         msg = (
             "This file has a timescale that is not supported by astropy. "
-            "If you need support for this timescale please make an issue on our "
-            "GitHub repo."
+            "If you need support for this timescale please file an issue in our "
+            "GitHub issue log: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
         )
         if raise_error:
-            raise ValueError(
+            raise NotImplementedError(
                 msg + " To bypass this error, you can set raise_error=False, which "
                 "will raise a warning instead and treat the time as being in UTC."
             )
@@ -661,7 +662,9 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             if phase_dir.shape[0] != 1:  # pragma: no cover
                 raise NotImplementedError(
                     "PHASE_DIR is expressed as a polynomial.  We do not currently "
-                    "support this mode, please make an issue."
+                    "support this mode, if you need support for it please file "
+                    "an issue in our GitHub issue log: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
                 )
 
             field_dict["ra"][idx] = float(phase_dir[0, 0])
@@ -1378,10 +1381,11 @@ def read_ms_feed(filepath, select_ants=None):
             Nfeeds = feed_table.getcol("NUM_RECEPTORS")
             if not all(max(Nfeeds) == Nfeeds):
                 # This seems like a rare possibility, but screen for it here.
-                raise ValueError(  # pragma: no cover
-                    "Support for differing numbers of feeds is not supported. Please "
-                    "file an issue in our GitHub issue log so that we can add support "
-                    "for it."
+                raise NotImplementedError(  # pragma: no cover
+                    "Support for differing numbers of feeds is not supported. If "
+                    "you need support for it please file an issue in our GitHub "
+                    "issue log: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
                 )
             Nfeeds = int(Nfeeds[0])
             ant_arr = feed_table.getcol("ANTENNA_ID")

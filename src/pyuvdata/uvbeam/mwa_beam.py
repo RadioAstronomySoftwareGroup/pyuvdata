@@ -428,8 +428,10 @@ class MWABeam(UVBeam):
                 nmax = int(np.max(N))
                 if np.max(N) - nmax != 0:  # pragma: no cover
                     raise RuntimeError(
-                        "The maximum of N should be an integer value! This is a "
-                        "bug, please make an issue in our issue log."
+                        "Something went wrong in mwa_beam._get_response. Please "
+                        "file an issue in our GitHub issue log so that we can help: "
+                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                        " Developer info: The maximum of N is not an integer value"
                     )
 
                 # calculate equation C_mn from equation 4 of

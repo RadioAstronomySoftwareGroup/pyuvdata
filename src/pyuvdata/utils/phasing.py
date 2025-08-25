@@ -1409,8 +1409,10 @@ def transform_app_to_icrs(
 
     if time_array.size == 0:
         raise ValueError(
-            "time_array has size 0. This should not happen when called from "
-            "higher level functions, please make an issue in our issue log."
+            "Something went wrong in utils.phasing.transform_app_to_icrs. "
+            "Please file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: time_array has size 0."
         )
     if isinstance(time_array, Time):
         time_obj_array = time_array

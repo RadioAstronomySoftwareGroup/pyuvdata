@@ -736,8 +736,10 @@ def test_transform_icrs_to_app_no_novas_error(astrometry_args):
         [{"time_array": np.arange(10)}, "time_array must be of either of length 1"],
         [
             {"time_array": np.arange(0)},
-            "time_array has size 0. This should not happen when called from "
-            "higher level functions, please make an issue in our issue log.",
+            "Something went wrong in utils.phasing.transform_app_to_icrs. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: time_array has size 0.",
         ],
     ),
 )

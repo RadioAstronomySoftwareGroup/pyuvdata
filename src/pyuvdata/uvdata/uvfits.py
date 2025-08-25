@@ -261,15 +261,19 @@ class UVFITS(UVData):
 
         min_frac = np.min([blt_frac, freq_frac, pol_frac])
 
+        bad_data_shape_msg = (
+            "Something went wrong in UVFits._get_data. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: data array does not have expected shape."
+        )
+
         if min_frac == 1:
             # no select, read in all the data
             if vis_hdu.header["NAXIS"] == 7:
                 raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
                 if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                    raise RuntimeError(
-                        "data array does not have expected shape. This is a bug, "
-                        "please make an issue."
-                    )
+                    raise RuntimeError(bad_data_shape_msg)
 
             else:
                 # in many uvfits files the spw axis is left out,
@@ -294,10 +298,7 @@ class UVFITS(UVData):
                     raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(
-                            "data array does not have expected shape. This is a bug, "
-                            "please make an issue."
-                        )
+                        raise RuntimeError(bad_data_shape_msg)
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -313,10 +314,7 @@ class UVFITS(UVData):
                     raw_data_array = vis_hdu.data.data[:, :, :, :, freq_inds, :, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(
-                            "data array does not have expected shape. This is a bug, "
-                            "please make an issue."
-                        )
+                        raise RuntimeError(bad_data_shape_msg)
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -333,10 +331,7 @@ class UVFITS(UVData):
                     raw_data_array = vis_hdu.data.data[:, :, :, :, :, pol_inds, :]
                     raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
                     if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(
-                            "data array does not have expected shape. This is a bug, "
-                            "please make an issue."
-                        )
+                        raise RuntimeError(bad_data_shape_msg)
                 else:
                     # in many uvfits files the spw axis is left out,
                     # here we put it back in so the dimensionality stays the same
@@ -350,10 +345,7 @@ class UVFITS(UVData):
                     raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
         if len(raw_data_array.shape) != 5:  # pragma: no cover
-            raise RuntimeError(
-                "data array does not have expected shape. This is a bug, "
-                "please make an issue."
-            )
+            raise RuntimeError(bad_data_shape_msg)
 
         # Reshape the data array to be the right size if we are working w/ multiple
         # spectral windows
