@@ -2576,8 +2576,10 @@ class UVBeam(UVBase):
             hp_obj = HEALPix(nside=nside)
             if hp_obj.pixel_resolution.to_value(units.radian) > min_res:
                 raise RuntimeError(  # pragma: no cover
-                    "Something went wrong with computing HEALPix nside to use. "
-                    "Please make an issue in our issue log"
+                    "Something went wrong in UVBeam.to_healpix. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: computed HEALPix nside too low."
                 )
         else:
             hp_obj = HEALPix(nside=nside)

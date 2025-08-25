@@ -42,8 +42,11 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, strict=True):
     # settings they shouldn't be.
     if not np.all(np.isin(flex_spw_id_array, exp_spw_ids)):  # pragma: no cover
         raise RuntimeError(
-            "There are some entries in flex_spw_id_array that are not in spw_array. "
-            "This is a bug, please report it in an issue."
+            "Something went wrong in utils.frequency._check_flex_spw_contiguous. "
+            "Please file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: There are some entries in flex_spw_id_array that "
+            "are not in spw_array."
         )
 
     n_breaks = np.sum(flex_spw_id_array[1:] != flex_spw_id_array[:-1])

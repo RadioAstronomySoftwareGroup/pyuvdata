@@ -852,9 +852,11 @@ class UVParameter:
             # If this is a list, it _should_ always have 1-dimension.
             if len(val_slice) != 1:  # pragma: no cover
                 raise RuntimeError(
-                    "Something is wrong, len(UVParameter.form) != 1 when selecting"
-                    " on a list, which should not be possible. Please file an "
-                    "issue in our GitHub issue log so that we can fix it."
+                    "Something went wrong in UVParameter.get_from_form. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+                    "Developer info: len(UVParameter.form) != 1 when selecting "
+                    "on a list."
                 )
             if isinstance(val_slice[0], slice):
                 value = self.value[val_slice[0]]
@@ -943,9 +945,11 @@ class UVParameter:
                     self.value if self.value.base is None else self.value.base
                 ):  # pragma: no cover
                     raise RuntimeError(
-                        "Something is wrong, slicing self.value does not return a view "
-                        "on the original array. Please file an issue in our GitHub "
-                        "issue log so that we can fix it."
+                        "Something went wrong in UVParameter.set_from_form. Please "
+                        "file an issue in our GitHub issue log so that we can help: "
+                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                        " Developer info: slicing self.value does not return a "
+                        "view on the original array."
                     )
                 ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
 
@@ -959,9 +963,11 @@ class UVParameter:
             # If this is a list, it _should_ always have 1-dimension.
             if len(val_slice) != 1:  # pragma: no cover
                 raise RuntimeError(
-                    "Something is wrong, len(UVParameter.form) != 1 when setting a "
-                    "list, which should not be possible. Please file an "
-                    "issue in our GitHub issue log so that we can fix it."
+                    "Something went wrong in UVParameter.set_from_form. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: len(UVParameter.form) != 1 when setting "
+                    "a list"
                 )
             if isinstance(val_slice[0], slice):
                 self.value[val_slice[0]] = values

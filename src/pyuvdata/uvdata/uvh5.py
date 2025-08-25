@@ -36,9 +36,10 @@ except ImportError as error:
     hdf5plugin_error = error
 
 arr_shape_msg = (
-    "The size of arrays in this file are not internally consistent, "
-    "which should not happen. Please file an issue in our GitHub issue "
-    "log so that we can fix it."
+    "Something went wrong in UVH5. Please "
+    "file an issue in our GitHub issue log so that we can help: "
+    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+    " Developer info: The size of arrays in this file are not internally consistent."
 )
 
 

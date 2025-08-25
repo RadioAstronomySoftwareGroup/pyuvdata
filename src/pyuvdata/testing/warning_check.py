@@ -108,8 +108,10 @@ class WarningsChecker(warnings.catch_warnings):
         # record=True means it's None.
         if _list is None:  # pragma: no cover
             raise RuntimeError(
-                "Something is wrong, _list should not be None. Please file an "
-                "issue in our GitHub issue log so that we can fix it."
+                "Something went wrong in pyuvdata's warning checker. Please file "
+                "an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+                "Developer info: _list is None"
             )
         self._list = _list
         warnings.simplefilter("always")

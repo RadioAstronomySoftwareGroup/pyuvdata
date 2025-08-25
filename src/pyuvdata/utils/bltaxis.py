@@ -115,9 +115,10 @@ def determine_blt_order(
         )
     ):  # pragma: no cover
         raise RuntimeError(
-            "Something went wrong when trying to determine the order of the blts axis. "
-            "Please raise an issue on github, as this is not meant to happen."
-            "None of the following should ever be True: \n"
+            "Something went wrong in utils.bltaxis.determine_blt_order. Please "
+            "file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: None of the following should ever be True: \n"
             f"\ttime_bl and bl_time: {time_bl and bl_time}\n"
             f"\ttime_a and a_time: {time_a and a_time}\n"
             f"\ttime_b and b_time: {time_b and b_time}\n"

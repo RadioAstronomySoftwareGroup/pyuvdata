@@ -7830,9 +7830,11 @@ class UVData(UVBase):
         # make sure we've populated the right number of baseline-times
         if temp_idx != temp_Nblts:  # pragma: no cover
             raise RuntimeError(
-                f"Wrong number of baselines. Got {temp_idx:d},  "
-                f"expected {temp_Nblts:d}. This is a bug, please make an issue at "
-                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+                "Something went wrong in UVData.downsample_in_time. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                f" Developer info: Wrong number of baselines. Got {temp_idx:d}, "
+                f"expected {temp_Nblts:d}."
             )
 
         # harmonize temporary arrays with existing ones

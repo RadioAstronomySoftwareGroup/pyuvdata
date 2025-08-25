@@ -591,8 +591,10 @@ class MirMetaData:
                 self.dtype = obj.dtype
             if self.dtype != obj.dtype:
                 raise RuntimeError(
-                    "ndarray dtype must match object dtype. This is a bug, "
-                    "please make an issue."
+                    "Something went wrong in MirMetaData.__init__. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: ndarray dtype must match object dtype."
                 )
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()

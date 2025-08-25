@@ -661,8 +661,10 @@ class UVCal(UVBase):
                 self.flex_spw_id_array, self.spw_array
             ):  # pragma: no cover
                 raise RuntimeError(
-                    "flex_spw_id_array must be unset or equal to spw_array to "
-                    "set wide_band. This is a bug, please make an issue."
+                    "Something went wrong in UVCal._set_wide_band. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: flex_spw_id_array is set but != spw_array."
                 )
         elif self.cal_type == "delay":  # pragma: no cover
             raise RuntimeError(

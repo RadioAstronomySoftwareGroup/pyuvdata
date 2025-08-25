@@ -625,7 +625,12 @@ def test_bad_sphid(mir_data):
 
     with pytest.raises(KeyError) as err:
         mir_obj._init_from_mir_parser(mir_data)
-    assert str(err.value).startswith("'Mismatch between keys in vis_data and sphid")
+    assert str(err.value).startswith(
+        "'Something went wrong in Mir._prep_and_insert_data. Please file an issue "
+        "in our GitHub issue log so that we can help: "
+        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+        " Developer info: Mismatch between keys in vis_data and sphid in sp_data."
+    )
 
 
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")

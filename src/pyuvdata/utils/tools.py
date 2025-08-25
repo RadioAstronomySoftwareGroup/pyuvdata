@@ -260,8 +260,10 @@ def _test_array_constant(array, *, tols=None, mask=...):
             tols = (0, 0)
     if not isinstance(tols, tuple) or len(tols) != 2:
         raise ValueError(
-            "tols must be a length-2 tuple. This should not happen when called "
-            "from higher level functions, please make an issue in our issue log."
+            "Something went wrong in utils.tools._test_array_constant. "
+            "Please file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: tols must be a length-2 tuple."
         )
 
     if array_to_test.size < 2:
@@ -320,16 +322,19 @@ def _test_array_consistent(array, deltas, *, tols=None, mask=...):
     else:
         if array_to_test.shape != deltas_to_test.shape:
             raise ValueError(
-                "array and deltas must have same shape. This should not happen "
-                "when called from higher level functions, please make an issue "
-                "in our issue log."
+                "Something went wrong in utils.tools._test_array_consistent. "
+                "Please file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+                "Developer info: array and deltas must have same shape."
             )
         exp_deltas = (deltas_to_test[:-1] + deltas_to_test[1:]) * 0.5
 
     if not isinstance(tols, tuple) or len(tols) != 2:
         raise ValueError(
-            "tols must be a length-2 tuple. This should not happen when called "
-            "from higher level functions, please make an issue in our issue log."
+            "Something went wrong in utils.tools._test_array_consistent. "
+            "Please file an issue in our GitHub issue log so that we can help: "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Developer info: tols must be a length-2 tuple."
         )
 
     if array is None or deltas is None or array_to_test.size < 2:

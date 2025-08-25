@@ -292,13 +292,17 @@ class UV(_miriad.UV):
         """
         if status not in ["old", "new", "append"]:  # pragma: no cover
             raise RuntimeError(
-                "unknown status in aipy_extract.UV. This is a bug, please make "
-                "an issue."
+                "Something went wrong in aipy_extracts.__init__. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                " Developer info: unknown status"
             )
         if corrmode not in ["r", "j"]:  # pragma: no cover
             raise RuntimeError(
-                "unknown corrmode in aipy_extract.UV. This is a bug, please make "
-                "an issue."
+                "Something went wrong in aipy_extracts.__init__. Please "
+                "file an issue in our GitHub issue log so that we can help: "
+                "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                " Developer info: unknown corrmode."
             )
         # when reading mutliple files we may get a numpy array of file names
         # numpy casts arrays as np.str_ and cython does not like this
@@ -399,8 +403,10 @@ class UV(_miriad.UV):
                 t, offset = _miriad.hread_init(h)
                 if itype != t:  # pragma: no cover
                     raise RuntimeError(
-                        "itype != t in aipy_extract.UV. This is a bug, please make "
-                        "an issue."
+                        "Something went wrong in aipy_extracts._rdhd. Please "
+                        "file an issue in our GitHub issue log so that we can help: "
+                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                        " Developer info: itype != t"
                     )
 
             while True:
@@ -423,7 +429,10 @@ class UV(_miriad.UV):
             t, offset = _miriad.hread_init(h)
             if t != "b":  # pragma: no cover
                 raise RuntimeError(
-                    "t != b in aipy_extract.UV. This is a bug, please make an issue."
+                    "Something went wrong in aipy_extracts._rdhd. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    " Developer info: t != b."
                 )
 
             for t in itype:
