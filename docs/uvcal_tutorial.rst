@@ -84,193 +84,98 @@ as inputs.
 
 .. include:: tutorial_data_note.rst
 
-UVCal: Reading/writing
-----------------------
-Calibration files using UVCal.
+UVCal: Instantiating a UVCal object from a file (i.e. reading data)
+-------------------------------------------------------------------
 
-a) Reading a CalFITS gain calibration file.
-*******************************************
-.. code-block:: python
+Use the :meth:`pyuvdata.UVCal.from_file` to instantiate a UVCal object from
+data in a file (alternatively you can create an object with no inputs and then
+call the :meth:`pyuvdata.UVCal.read` method). Most file types require a single
+file or folder to instantiate an object, FHD data sets require the user to
+specify multiple files for each dataset.
 
-  >>> import os
-  >>> import matplotlib.pyplot as plt
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+``pyuvdata`` can also be used to create a UVCal object from arrays in memory
+(see :ref:`new_uvcal`) or from a UVData object (see :ref:`from_uvdata`) and to read
+in multiple datasets (files) into a single object (see :ref:`multiple_files_uvcal`).
 
-  >>> filename = fetch_data("hera_omnical2")
-  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
-  >>> # Can optionally specify the ``file_type`` to either method
-  >>> cal = UVCal.from_file(filename)
-  >>> cal = UVCal()
-  >>> cal.read(filename, file_type="calfits")
+.. note::
+    Reading or writing CASA Measurement sets requires python-casacore to be
+    installed (see the readme for details). Reading or writing Miriad files is not
+    supported on Windows.
 
-  >>> # Cal type:
-  >>> print(cal.cal_type)
-  gain
+a) Instantiate an object from a single file or folder
+*****************************************************
+CalFITS and calh5 and datasets are stored in a single file. CASA Measurement Sets
+are stored in structured folders, for this file type pass in the folder name.
 
-  >>> # number of calibration jones components and component type.
-  >>> print((cal.Njones, cal.jones_array))
-  (1, array([-5]))
-
-  >>> # Number of antennas with data
-  >>> print(cal.Nants_data)
-  19
-
-  >>> # Number of frequencies
-  >>> print(cal.Nfreqs)
-  10
-
-  >>> # Shape of the gain_array
-  >>> print(cal.gain_array.shape)
-  (19, 10, 5, 1)
-
-  >>> # plot abs of all gains for first time and first jones component.
-  >>> fig, ax = plt.subplots(1, 1)
-  >>> for ant in range(cal.Nants_data):
-  ...    _ = ax.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, :, 0, 0]), label=f"ant {ant}")
-  >>> _ = ax.set_xlabel("Frequency (Hz)")
-  >>> _ = ax.set_ylabel("Abs(gains)")
-  >>> _ = fig.legend(bbox_to_anchor=(1.08, 0.5), loc="outside center right")
-  >>> plt.show() # doctest: +SKIP
-  >>> plt.savefig("Images/abs_gains.png", bbox_inches="tight")
-  >>> plt.clf()
-
-.. image:: Images/abs_gains.png
-    :width: 600
-
-b) FHD cal to CalFITS
-*********************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> fhd_path = fetch_data("mwa_fhd_cal")
-  >>> obs_testfile = os.path.join(fhd_path, "metadata/1061316296_obs.sav")
-  >>> cal_testfile = os.path.join(fhd_path, "calibration/1061316296_cal.sav")
-  >>> settings_testfile = os.path.join(fhd_path, "metadata/1061316296_settings.txt")
-  >>> layout_testfile = os.path.join(fhd_path, "metadata/1061316296_layout.sav")
-
-  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
-  >>> # Can optionally specify the ``file_type`` to either method
-  >>> fhd_cal = UVCal.from_file(
-  ...    cal_testfile,
-  ...    obs_file=obs_testfile,
-  ...    settings_file=settings_testfile,
-  ...    layout_file=layout_testfile,
-  ... )
-  >>> fhd_cal = UVCal()
-  >>> fhd_cal.read(
-  ...    cal_testfile,
-  ...    obs_file=obs_testfile,
-  ...    settings_file=settings_testfile,
-  ...    layout_file=layout_testfile,
-  ...    file_type="fhd",
-  ... )
-  >>> fhd_cal.write_calfits(os.path.join(".", "tutorial_cal.fits"), clobber=True)
-
-
-b) CalFITS to CalH5
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_omnical2")
-  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
-  >>> # Can optionally specify the ``file_type`` to either method
-  >>> cal = UVCal.from_file(filename)
-
-  >>> cal.write_calh5(os.path.join(".", "tutorial_cal.calh5"), clobber=True)
-
-
-c) MSCal to CalH5
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("sma_amp_gcal")
-  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
-  >>> # Can optionally specify the ``file_type`` to either method
-  >>> cal = UVCal.from_file(filename)
-
-  >>> cal.write_calh5(os.path.join(".", "tutorial_cal.ms"), clobber=True)
-
-
-UVCal: Initializing from a UVData object
-----------------------------------------
-The :meth:`pyuvdata.UVCal.initialize_from_uvdata` method allows you to initialize a UVCal
-object from the metadata in a UVData object. This is useful for codes that are calculating
-calibration solutions from UVData objects. There are many optional parameters to allow
-users to specify additional metadata or changes from the uvdata metadata. By default,
-this method creats a metadata only UVCal object, but it can optionally create the
-data-like arrays as well, filled with zeros.
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVCal, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> vis_file = fetch_data("hera_uvcalibrate_uvh5")
-  >>> uvd = UVData.from_file(vis_file, file_type="uvh5")
-  >>> uvc = UVCal.initialize_from_uvdata(uvd, gain_convention="multiply", cal_style="redundant")
-  >>> print(uvc.ant_array)
-  [ 0  1 11 12 13 23 24 25]
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
 
+b) Instantiate an object from an FHD dataset
+********************************************
+When reading FHD datasets, we need to pass in several auxilliary files.
 
-UVCal: Instantiating from arrays in memory
-------------------------------------------
-``pyuvdata`` can also be used to create a UVCal object from arrays in memory. This
-is useful for mocking up data for testing or for creating a UVCal object from
-simulated data. Instead of instantiating a blank object and setting each required
-parameter, you can use the ``.new()`` static method, which deals with the task
-of creating a consistent object from a minimal set of inputs
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> from pyuvdata import Telescope, UVCal
+    import os
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvc = UVCal.new(
-  ...     gain_convention = "multiply",
-  ...     cal_style = "redundant",
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     jones_array = ["ee", "nn"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         x_orientation = "east",
-  ...         mount_type = "fixed",
-  ...     ),
-  ...     time_array = np.linspace(2459855, 2459856, 20),
-  ... )
+    # Set up the files we need
+    fhd_path = fetch_data("mwa_fhd_cal")
+    obs_testfile = os.path.join(fhd_path, "metadata/1061316296_obs.sav")
+    cal_testfile = os.path.join(fhd_path, "calibration/1061316296_cal.sav")
+    settings_testfile = os.path.join(fhd_path, "metadata/1061316296_settings.txt")
+    layout_testfile = os.path.join(fhd_path, "metadata/1061316296_layout.sav")
 
-Notice that you need only provide the required parameters, and the rest will be
-filled in with sensible defaults. The telescope related metadata is passed
-directly to a simple Telescope constructor which also only requires the minimal
-set of inputs but can accept any other parameters supported by the class.
+    fhd_uvc = UVCal.from_file(
+        cal_testfile,
+        obs_file=obs_testfile,
+        settings_file=settings_testfile,
+        layout_file=layout_testfile,
+    )
 
-See the full documentation for the method
-:func:`pyuvdata.uvcal.UVCal.new` for more information.
+
+UVCal: Writing UVCal objects to disk
+------------------------------------
+
+pyuvdata can write UVCal objects to CalFITS, CASA Measurement Set and Calh5 files.
+Each of these has an associated write method:
+:meth:`pyuvdata.UVCal.write_calfits`, :meth:`pyuvdata.UVCal.write_ms_cal`,
+:meth:`pyuvdata.UVCal.write_calh5`, which only require a filename (or folder name
+for CASA Measurement Sets) to write the data to.
+
+pyuvdata can be used to simply convert data from one file type to another by
+reading in one file type and writing out another.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import os
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    ms_file =  filename = fetch_data("sma_amp_gcal")
+    # Instantiate an object from a measurement set
+    uvc = UVCal.from_file(ms_file)
+
+    # Write the data out to a calh5 file
+    write_file = os.path.join(".", "tutorial.calh5")
+    uvc.write_calh5(write_file)
 
 
 UVCal: Quick data access
 ------------------------
-Method for quick data access, similar to those on :class:`pyuvdata.UVData`
+Methods for quick data access, similar to those on :class:`pyuvdata.UVData`
 (:ref:`quick_access`), are available for :class:`pyuvdata.UVCal`.
 There are three specific methods that will return numpy arrays:
 :meth:`pyuvdata.UVCal.get_gains`, :meth:`pyuvdata.UVCal.get_flags`, and
@@ -279,26 +184,62 @@ MemoryView objects, which is relatively fast and adds minimal memory overhead.
 
 a) Data for a single antenna and instrumental polarization
 **********************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_omnical1")
-  >>> uvc = UVCal.from_file(filename)
-  >>> gain = uvc.get_gains(9, "Jxx")  # gain for ant=9, pol="Jxx"
+    filename = fetch_data("hera_omnical1")
+    uvc = UVCal.from_file(filename)
+    gain = uvc.get_gains(9, "Jxx")  # gain for ant=9, pol="Jxx"
 
-  >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
-  >>> gain = uvc.get_gains((9, "Jxx"))
+    # One can equivalently make any of these calls with the input wrapped in a tuple.
+    gain = uvc.get_gains((9, "Jxx"))
 
-  >>> # If no polarization is fed, then all polarizations are returned
-  >>> gain = uvc.get_gains(9)
+    # If no polarization is fed, then all polarizations are returned
+    gain = uvc.get_gains(9)
 
-  >>> # One can also request flags and quality arrays in a similar manner
-  >>> flags = uvc.get_flags(9, "Jxx")
-  >>> quals = uvc.get_quality(9, "Jxx")
+    # One can also request flags and quality arrays in a similar manner
+    flags = uvc.get_flags(9, "Jxx")
+    quals = uvc.get_quality(9, "Jxx")
+
+
+UVCal: Plotting
+---------------
+Making a simple gain plot.
+
+Note: there is now support for reading in only part of a file for many file types
+(see :ref:`large_files_uvcal`), so you need not read in the entire file to plot one time.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
+
+    # plot abs of all gains for first time and first jones component.
+    fig, ax = plt.subplots(1, 1)
+    for ant in range(uvc.Nants_data):
+        _ = ax.plot(uvc.freq_array.flatten(), np.abs(uvc.gain_array[ant, :, 0, 0]), label=f"ant {ant}")
+        _ = ax.set_xlabel("Frequency (Hz)")
+        _ = ax.set_ylabel("Abs(gains)")
+        _ = fig.legend(bbox_to_anchor=(1.08, 0.5), loc="outside center right")
+    plt.show() # doctest: +SKIP
+    plt.savefig("Images/abs_gains.png", bbox_inches="tight")
+    plt.clf()
+
+.. image:: Images/abs_gains.png
+    :width: 600
+
 
 UVCal: Calibrating UVData
 -------------------------
@@ -333,13 +274,13 @@ that should be noted:
 * Regardless of the value of ``undo``, the convention that is inferred for the
   calibration solutions is determined as follows:
 
-  * If neither ``uvc_pol_convention`` nor ``uvcal.pol_convention`` are specified, a
+  * If neither ``uvc_pol_convention`` nor ``UVCal.pol_convention`` are specified, a
     a warning is raised (since the resulting calibrated data is not well-determined),
     and it is *assumed* that the solutions have the same convention as the ``UVData``
     (i.e. the desired convention in the case of calibration, or the actual convention
     in the case of uncalibration). If these are also not specified, no convention
     corrections are applied, and the result is ambiguous.
-  * If both ``uvc_pol_convention`` and ``uvcal.pol_convention`` are specified and are
+  * If both ``uvc_pol_convention`` and ``UVCal.pol_convention`` are specified and are
     different, an error is raised.
 
 * When **calibrating** in :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=False``):
@@ -349,7 +290,7 @@ that should be noted:
   * The convention applied to the resulting ``UVData`` object is inferred in the
     following precedence: (i) the value of ``uvd_pol_convention``, (ii) whatever is
     specified as the convention of the ``UVCal`` object (either via ``uvc_pol_convention``
-    or ``uvcal.pol_convention``, see above), (iii) if still unspecified, no convention
+    or ``UVCal.pol_convention``, see above), (iii) if still unspecified, no convention
     will be used and a warning will be raised. This was always the behaviour in earlier
     versions of ``pyuvdata`` (pre-v3).
 
@@ -370,36 +311,32 @@ that should be noted:
   necessary corrections in the calibration will be made to obtain the correct desired
   convention.
 
-a) Calibration of UVData by UVCal
-*********************************
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> # We can calibrate directly using a UVCal object
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import utils, UVCal, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import utils, UVCal, UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> vis_file = fetch_data("hera_uvcalibrate_uvh5")
-  >>> cal_file = fetch_data("hera_uvcalibrate_calfits")
-  >>> uvd = UVData.from_file(vis_file)
-  >>> uvc = UVCal.from_file(cal_file)
-  >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
-  >>> # fix the antenna names in the uvcal object to match the uvdata object
-  >>> uvc.telescope.antenna_names = np.array(
-  ...     [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
-  ... )
-  >>> # We should also set the gain_scale and pol_convention, which was not set
-  >>> # in this old file. In old HERA files, like this one, the pol_convention
-  >>> # was implicitly "avg" but in new files it is explicitly "sum"
-  >>> uvc.gain_scale = "Jy"
-  >>> uvc.pol_convention = "avg"
-  >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
-  >>> print(uvd_calibrated.pol_convention)
-  avg
+    vis_file = fetch_data("hera_uvcalibrate_uvh5")
+    cal_file = fetch_data("hera_uvcalibrate_calfits")
+    uvd = UVData.from_file(vis_file)
+    uvc = UVCal.from_file(cal_file)
+    # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
+    # fix the antenna names in the uvcal object to match the uvdata object
+    uvc.telescope.antenna_names = np.array(
+         [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
+    )
+    # We should also set the gain_scale and pol_convention, which was not set
+    # in this old file. In old HERA files, like this one, the pol_convention
+    # was implicitly "avg" but in new files it is explicitly "sum"
+    uvc.gain_scale = "Jy"
+    uvc.pol_convention = "avg"
+    uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
 
-  >>> # We can also un-calibrate using the same UVCal
-  >>> uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
+    # We can also un-calibrate using the same UVCal
+    uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
 
 
 UVCal: Selecting data
@@ -412,91 +349,73 @@ select data that matches the supplied criteria, but by setting ``invert=True``, 
 can instead *deselect* this data and preserve only that which does not match the
 selection.
 
+Note: The same select interface is now supported on the read for many file types
+(see :ref:`large_files_uvcal`), so you need not read in the entire file before
+doing the select.
+
 a) Select antennas to keep on UVCal object using the antenna number.
 ********************************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_uvcalibrate_calfits")
-  >>> cal = UVCal.from_file(filename)
+    filename = fetch_data("hera_uvcalibrate_calfits")
+    uvc = UVCal.from_file(filename)
+    assert uvc.Nants_data == 8
 
-  >>> # print all the antennas numbers with data in the original file
-  >>> print(cal.ant_array)
-  [ 0  1 11 12 13 23 24 25]
-  >>> cal.select(antenna_nums=[0, 11, 12], invert=True)
+    uvc.select(antenna_nums=[0, 11, 12], invert=True)
+    assert uvc.Nants_data == 5
 
-  >>> # print all the antenna numbers with data after deselection
-  >>> print(cal.ant_array)
-  [ 1 13 23 24 25]
-  >>> cal.select(antenna_nums=[1, 13, 25])
+    uvc.select(antenna_nums=[1, 13, 25])
+    assert uvc.Nants_data == 3
 
-  >>> # print all the antennas numbers with data after the select
-  >>> print(cal.ant_array)
-  [ 1 13 25]
 
 b) Select antennas to keep using the antenna names, also select frequencies to keep.
 ************************************************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_uvcalibrate_calfits")
-  >>> cal = UVCal.from_file(filename)
+    filename = fetch_data("hera_uvcalibrate_calfits")
+    uvc = UVCal.from_file(filename)
+    assert uvc.Nants_data == 8
+    assert uvc.Nfreqs == 64
 
-  >>> # print all the antenna names with data in the original file
-  >>> print([str(cal.telescope.antenna_names[np.where(cal.telescope.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
-  ['ant0', 'ant1', 'ant11', 'ant12', 'ant13', 'ant23', 'ant24', 'ant25']
-
-  >>> # print the first 10 frequencies in the original file
-  >>> print(cal.freq_array[0:10])
-  [1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08 1.062500e+08
-   1.078125e+08 1.093750e+08 1.109375e+08 1.125000e+08 1.140625e+08]
-  >>> cal.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
-
-  >>> # print all the antenna names with data after the select
-  >>> print([str(cal.telescope.antenna_names[np.where(cal.telescope.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
-  ['ant11', 'ant13', 'ant25']
-
-  >>> # print all the frequencies after the select
-  >>> print(cal.freq_array)
-  [1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08]
+    uvc.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
+    assert uvc.Nants_data == 3
+    assert uvc.Nfreqs == 4
 
 d) Select times
 ***************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_uvcalibrate_calfits")
-  >>> cal = UVCal.from_file(filename)
-  >>> cal2 = cal.copy()
+    filename = fetch_data("hera_uvcalibrate_calfits")
+    uvc = UVCal.from_file(filename)
+    uvc2 = uvc.copy()
+    assert uvc.Ntimes == 10
 
-  >>> # print all the times in the original file
-  >>> print(cal.time_array)
-  [2458098.45677626 2458098.45690053 2458098.45702481 2458098.45714908
-   2458098.45727336 2458098.45739763 2458098.45752191 2458098.45764619
-   2458098.45777046 2458098.45789474]
+    # select the first 3 times
+    uvc.select(times=uvc.time_array[0:3])
+    assert uvc.Ntimes == 3
 
-  >>> # select the first 3 times
-  >>> cal.select(times=cal.time_array[0:3])
-
-  >>> print(cal.time_array)
-  [2458098.45677626 2458098.45690053 2458098.45702481]
-
-  >>> # Or select using a time range
-  >>> cal2.select(time_range=[2458098.4567, 2458098.4571])
-  >>> print(cal2.time_array)
-  [2458098.45677626 2458098.45690053 2458098.45702481]
+    # Or select using a time range
+    uvc2.select(time_range=[2458098.4567, 2458098.4571])
+    assert uvc2.Ntimes == 3
 
 d) Select Jones components
 **************************
@@ -508,217 +427,39 @@ to a line perpendicular to the horizon (as record in ``telescope.feed_angle``) a
 y-polarization are aligned to -90 or 0 degrees, strings representing the cardinal
 orientation of the dipole can also be used (e.g. "Jnn" or "ee").
 
-.. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import utils, UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_uvcalibrate_calfits")
-  >>> cal = UVCal.from_file(filename)
-
-  >>> # Jones component numbers can be found in the jones_array
-  >>> print(cal.jones_array)
-  [-5 -6]
-
-  >>> # Jones component numbers can be converted to strings using a utility function
-  >>> print(utils.jnum2str(cal.jones_array))
-  ['Jxx', 'Jyy']
-
-  >>> # make a copy of the object and select Jones components using the component numbers
-  >>> cal2 = cal.copy()
-  >>> cal2.select(jones=[-5])
-
-  >>> # print Jones component numbers and strings after select
-  >>> print(cal2.jones_array)
-  [-5]
-  >>> print(utils.jnum2str(cal2.jones_array))
-  ['Jxx']
-
-  >>> # make a copy of the object and select Jones components using the component strings
-  >>> cal2 = cal.copy()
-  >>> cal2.select(jones=["Jxx"])
-
-  >>> # print Jones component numbers and strings after select
-  >>> print(cal2.jones_array)
-  [-5]
-  >>> print(utils.jnum2str(cal2.jones_array))
-  ['Jxx']
-
-  >>> # print x_orientation
-  >>> print(cal.telescope.get_x_orientation_from_feeds())
-  east
-
-  >>> # make a copy of the object and select Jones components using the physical orientation strings
-  >>> cal2 = cal.copy()
-  >>> cal2.select(jones=["Jee"])
-
-  >>> # print Jones component numbers and strings after select
-  >>> print(cal2.jones_array)
-  [-5]
-  >>> print(utils.jnum2str(cal2.jones_array))
-  ['Jxx']
-
-UVCal: Adding data
-------------------
-The :meth:`~pyuvdata.UVCal.__add__` method lets you combine UVCal objects along
-the antenna, time, frequency, and/or polarization axis.
-
-a) Add frequencies.
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal1 = UVCal.from_file(filename)
-  >>> cal2 = cal1.copy()
-
-  >>> # Downselect frequencies to recombine
-  >>> cal1.select(freq_chans=np.arange(0, 5))
-  >>> cal2.select(freq_chans=np.arange(5, 10))
-  >>> cal3 = cal1 + cal2
-  >>> print((cal1.Nfreqs, cal2.Nfreqs, cal3.Nfreqs))
-  (5, 5, 10)
-
-b) Add times.
-****************
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal1 = UVCal.from_file(filename)
-  >>> cal2 = cal1.copy()
-
-  >>> # Downselect times to recombine
-  >>> times = np.unique(cal1.time_array)
-  >>> cal1.select(times=times[0:len(times) // 2])
-  >>> cal2.select(times=times[len(times) // 2:])
-  >>> cal3 = cal1 + cal2
-  >>> print((cal1.Ntimes, cal2.Ntimes, cal3.Ntimes))
-  (2, 3, 5)
-
-c) Adding in place.
-*******************
-The following two commands are equivalent, and act on cal1
-directly without creating a third uvcal object.
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import utils, UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal1 = UVCal.from_file(filename)
-  >>> cal2 = cal1.copy()
-  >>> times = np.unique(cal1.time_array)
-  >>> cal1.select(times=times[0:len(times) // 2])
-  >>> cal2.select(times=times[len(times) // 2:])
-  >>> cal1.__add__(cal2, inplace=True)
+    filename = fetch_data("hera_uvcalibrate_calfits")
+    uvc = UVCal.from_file(filename)
+    assert uvc.jones_array.tolist() == [-5, -6]
+    assert utils.jnum2str(uvc.jones_array) == ['Jxx', 'Jyy']
 
-  >>> cal1.read(filename)
-  >>> cal2 = cal1.copy()
-  >>> cal1.select(times=times[0:len(times) // 2])
-  >>> cal2.select(times=times[len(times) // 2:])
-  >>> cal1 += cal2
+    # make a copy of the object and select Jones components using the component numbers
+    uvc2 = uvc.copy()
+    uvc2.select(jones=[-5])
+    assert uvc2.jones_array.tolist() == [-5]
+    assert utils.jnum2str(uvc2.jones_array) == ['Jxx']
 
-d) Reading multiple files.
-**************************
-If you pass a list of files to the read or from_file methods (:meth:`pyuvdata.UVCal.read`,
-:meth:`pyuvdata.UVCal.from_file`), each file will be read in succession and combined
-with the previous file(s).
+    # make a copy of the object and select Jones components using the component strings
+    uvc2 = uvc.copy()
+    uvc2.select(jones=["Jxx"])
+    assert uvc2.jones_array.tolist() == [-5]
+    assert utils.jnum2str(uvc2.jones_array) == ['Jxx']
 
-.. code-block:: python
+    # print x_orientation
+    assert uvc2.telescope.get_x_orientation_from_feeds() == "east"
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal = UVCal.from_file(filename)
-  >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
-  >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
-  >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
-  >>> cal1.write_calfits(os.path.join(".", "tutorial1.fits"))
-  >>> cal2.write_calfits(os.path.join(".", "tutorial2.fits"))
-  >>> cal3.write_calfits(os.path.join(".", "tutorial3.fits"))
-  >>> filenames = [os.path.join(".", f) for f
-  ...              in ["tutorial1.fits", "tutorial2.fits", "tutorial3.fits"]]
-  >>> cal.read(filenames)
-
-  >>> # For FHD cal datasets pass lists for each file type
-  >>> fhd_path = fetch_data("mwa_fhd_cal")
-  >>> obs_testfiles = [
-  ...   os.path.join(fhd_path, "metadata/1061316296_obs.sav"),
-  ...   os.path.join(fhd_path, "set2/1061316296_obs.sav"),
-  ... ]
-  >>> cal_testfiles = [
-  ...   os.path.join(fhd_path, "calibration/1061316296_cal.sav"),
-  ...   os.path.join(fhd_path, "set2/1061316296_cal.sav"),
-  ... ]
-  >>> settings_testfiles = [
-  ...   os.path.join(fhd_path, "metadata/1061316296_settings.txt"),
-  ...   os.path.join(fhd_path, "set2/1061316296_settings.txt"),
-  ... ]
-  >>> layout_testfiles = [
-  ...   os.path.join(fhd_path, "metadata/1061316296_layout.sav"),
-  ...   os.path.join(fhd_path, "metadata/1061316296_layout.sav"),
-  ... ]
-  >>> fhd_cal = UVCal.from_file(
-  ...    cal_testfiles,
-  ...    obs_file=obs_testfiles,
-  ...    settings_file=settings_testfiles,
-  ...    layout_file=layout_testfiles,
-  ... )
-
-e) Fast concatenation
-*********************
-As an alternative to the :meth:`pyuvdata.UVCal.__add__` method,
-the :meth:`pyuvdata.UVCal.fast_concat` method can be used.
-The user specifies a UVCal object to combine with the existing one,
-along with the axis along which they should be combined. Fast concatenation can
-be invoked implicitly when reading in multiple files as above by passing the
-``axis`` keyword argument. This will use the ``fast_concat`` method instead of
-the ``__add__`` method to combine the data contained in the files into a single
-UVCal object.
-
-.. warning::
-  There is no guarantee that two objects combined in this fashion
-  will result in a self-consistent object after concatenation. Basic checking is
-  done, but time-consuming robust checks are eschewed for the sake of speed. The
-  data will also *not* be reordered or sorted as part of the concatenation, and so
-  this must be done manually by the user if a reordering is desired
-  (see :ref:`uvcal_sorting_data`).
-
-.. code-block:: python
-
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
-
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal = UVCal.from_file(filename)
-  >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
-  >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
-  >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
-  >>> cal1.write_calfits(os.path.join(".", "tutorial1.fits"), clobber=True)
-  >>> cal2.write_calfits(os.path.join(".", "tutorial2.fits"), clobber=True)
-  >>> cal3.write_calfits(os.path.join(".", "tutorial3.fits"), clobber=True)
-  >>> filenames = [os.path.join(".", f) for f
-  ...              in ["tutorial1.fits", "tutorial2.fits", "tutorial3.fits"]]
-  >>> cal.read(filenames, axis="freq")
+    # make a copy of the object and select Jones components using the physical orientation strings
+    uvc2 = uvc.copy()
+    uvc2.select(jones=["Jee"])
+    assert uvc2.jones_array.tolist() == [-5]
+    assert utils.jnum2str(uvc2.jones_array) == ['Jxx']
 
 
 .. _uvcal_sorting_data:
@@ -734,24 +475,24 @@ The :meth:`pyuvdata.UVCal.reorder_antennas` method will reorder the antenna axis
 sorting by antenna names or numbers, in ascending or descending order, or in an order
 specified by passing an index array.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal = UVCal.from_file(filename)
-  >>> # Default is to order by antenna number
-  >>> cal.reorder_antennas()
-  >>> print(np.min(np.diff(cal.ant_array)) >= 0)
-  True
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
+    # Default is to order by antenna number
+    uvc.reorder_antennas()
+    assert np.all(np.diff(uvc.ant_array) >= 0)
 
-  >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_antennas("-number")
-  >>> print(np.min(np.diff(cal.ant_array)) <= 0)
-  True
+    # Prepend a ``-`` to the sort string to sort in descending order.
+    uvc.reorder_antennas("-number")
+    assert np.all(np.diff(uvc.ant_array) <= 0)
 
 b) Sorting along the frequency axis
 ***********************************
@@ -762,53 +503,46 @@ spectral windows). Spectral windows or channels can be sorted by ascending or de
 number or in an order specified by passing an index array for spectral window or
 channels.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal = UVCal.from_file(filename)
-  >>> # First create a multi-spectral window UVCal object:
-  >>> cal.Nspws = 2
-  >>> cal.flex_spw_id_array = np.concatenate((np.ones(cal.Nfreqs // 2, dtype=int), np.full(cal.Nfreqs // 2, 2, dtype=int)))
-  >>> cal.spw_array = np.array([1, 2])
-  >>> spw2_inds = np.nonzero(cal.flex_spw_id_array == 2)[0]
-  >>> spw2_chan_width = cal.channel_width[0] * 2
-  >>> cal.freq_array[spw2_inds] = cal.freq_array[spw2_inds[0]] + spw2_chan_width * np.arange(spw2_inds.size)
-  >>> cal.channel_width[spw2_inds] = spw2_chan_width
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
+    # First create a multi-spectral window UVCal object:
+    uvc.Nspws = 2
+    uvc.flex_spw_id_array = np.concatenate((np.ones(uvc.Nfreqs // 2, dtype=int), np.full(uvc.Nfreqs // 2, 2, dtype=int)))
+    uvc.spw_array = np.array([1, 2])
+    spw2_inds = np.nonzero(uvc.flex_spw_id_array == 2)[0]
+    spw2_chan_width = uvc.channel_width[0] * 2
+    uvc.freq_array[spw2_inds] = uvc.freq_array[spw2_inds[0]] + spw2_chan_width * np.arange(spw2_inds.size)
+    uvc.channel_width[spw2_inds] = spw2_chan_width
 
-  >>> # Sort by spectral window number and by frequency within the spectral window
-  >>> # Now the spectral windows are in ascending order and the frequencies in each window
-  >>> # are in ascending order.
-  >>> cal.reorder_freqs(spw_order="number", channel_order="freq")
-  >>> print(cal.spw_array)
-  [1 2]
+    # Sort by spectral window number and by frequency within the spectral window
+    # Now the spectral windows are in ascending order and the frequencies in each window
+    # are in ascending order.
+    uvc.reorder_freqs(spw_order="number", channel_order="freq")
+    assert uvc.spw_array.tolist() == [1, 2]
+    assert np.all(np.diff(uvc.freq_array[np.nonzero(uvc.flex_spw_id_array == 1)]) >= 0)
 
-  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
-  True
+    # Prepend a ``-`` to the sort string to sort in descending order.
+    # Now the spectral windows are in descending order but the frequencies in each window
+    # are in ascending order.
+    uvc.reorder_freqs(spw_order="-number", channel_order="freq")
+    assert uvc.spw_array.tolist() == [2, 1]
+    assert np.all(np.diff(uvc.freq_array[np.nonzero(uvc.flex_spw_id_array == 1)]) >= 0)
 
-  >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> # Now the spectral windows are in descending order but the frequencies in each window
-  >>> # are in ascending order.
-  >>> cal.reorder_freqs(spw_order="-number", channel_order="freq")
-  >>> print(cal.spw_array)
-  [2 1]
-
-  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
-  True
-
-  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
-  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
-  >>> # in spectral window 2 are in ascending order
-  >>> cal.reorder_freqs(select_spw=1, channel_order="-freq")
-  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) <= 0)
-  True
-
-  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 2)])) >= 0)
-  True
+    # Use the ``select_spw`` keyword to sort only one spectral window.
+    # Now the frequencies in spectral window 1 are in descending order but the frequencies
+    # in spectral window 2 are in ascending order
+    uvc.reorder_freqs(select_spw=1, channel_order="-freq")
+    assert np.all(np.diff(uvc.freq_array[np.nonzero(uvc.flex_spw_id_array == 1)]) <= 0)
+    assert np.all(np.diff(uvc.freq_array[np.nonzero(uvc.flex_spw_id_array == 2)]) >= 0)
 
 c) Sorting along the time axis
 ******************************
@@ -817,25 +551,25 @@ The :meth:`pyuvdata.UVCal.reorder_times` method will reorder the time axis by
 sorting by time (ascending or descending) or in an order specified by passing an index
 array for the time axis.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_omnical2")
-  >>> cal = UVCal.from_file(filename)
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
 
-  >>> # Default is to order by ascending time
-  >>> cal.reorder_times()
-  >>> print(np.min(np.diff(cal.time_array)) >= 0)
-  True
+    # Default is to order by ascending time
+    uvc.reorder_times()
+    assert np.all(np.diff(uvc.time_array) >= 0)
 
-  >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_times("-time")
-  >>> print(np.min(np.diff(cal.time_array)) <= 0)
-  True
+    # Prepend a ``-`` to the sort string to sort in descending order.
+    uvc.reorder_times("-time")
+    assert np.all(np.diff(uvc.time_array) <= 0)
 
 d) Sorting along the Jones component axis
 *****************************************
@@ -843,19 +577,268 @@ d) Sorting along the Jones component axis
 The :meth:`pyuvdata.UVCal.reorder_jones` method will reorder the Jones component axis
 by the Jones component number or name, or by an explicit index ordering set by the user.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_uvcalibrate_calfits")
-  >>> cal = UVCal.from_file(filename)
-  >>> # Default is to order by Jones component name
-  >>> cal.reorder_jones()
-  >>> print(cal.jones_array)
-  [-5 -6]
+    filename = fetch_data("hera_uvcalibrate_calfits")
+    uvc = UVCal.from_file(filename)
+    # Default is to order by Jones component name
+    uvc.reorder_jones()
+    assert uvc.jones_array.tolist() == [-5, -6]
+
+UVCal: Combining and concatenating data
+---------------------------------------
+The :meth:`~pyuvdata.UVCal.__add__` method lets you combine UVCal objects along
+the antenna, time, frequency, and/or polarization axis.
+
+a) Add frequencies.
+*******************
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc1 = UVCal.from_file(filename)
+    uvc2 = uvc1.copy()
+
+    # Downselect frequencies to recombine
+    uvc1.select(freq_chans=np.arange(0, 5))
+    assert uvc1.Nfreqs == 5
+    uvc2.select(freq_chans=np.arange(5, 10))
+    assert uvc2.Nfreqs == 5
+    uvc3 = uvc1 + uvc2
+    assert uvc3.Nfreqs == 10
+
+b) Add times.
+****************
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc1 = UVCal.from_file(filename)
+    uvc2 = uvc1.copy()
+
+    # Downselect times to recombine
+    times = np.unique(uvc1.time_array)
+    uvc1.select(times=times[0:len(times) // 2])
+    assert uvc1.Ntimes == 2
+    uvc2.select(times=times[len(times) // 2:])
+    assert uvc2.Ntimes == 3
+    uvc3 = uvc1 + uvc2
+    assert uvc3.Ntimes == 5
+
+
+c) Adding in place.
+*******************
+The following two commands are equivalent, and act on uvc1
+directly without creating a third uvcal object.
+
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc1 = UVCal.from_file(filename)
+    uvc2 = uvc1.copy()
+    times = np.unique(uvc1.time_array)
+    uvc1.select(times=times[0:len(times) // 2])
+    uvc2.select(times=times[len(times) // 2:])
+    uvc1.__add__(uvc2, inplace=True)
+
+    uvc1.read(filename)
+    uvc2 = uvc1.copy()
+    uvc1.select(times=times[0:len(times) // 2])
+    uvc2.select(times=times[len(times) // 2:])
+    uvc1 += uvc2
+
+.. _multiple_files_uvcal:
+
+d) Reading multiple files.
+**************************
+If you pass a list of files to the read or from_file methods (:meth:`pyuvdata.UVCal.read`,
+:meth:`pyuvdata.UVCal.from_file`), each file will be read in succession and combined
+with the previous file(s).
+
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import os
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
+    uvc1 = uvc.select(freq_chans=np.arange(0, 2), inplace=False)
+    uvc2 = uvc.select(freq_chans=np.arange(2, 4), inplace=False)
+    uvc3 = uvc.select(freq_chans=np.arange(4, 7), inplace=False)
+    uvc1.write_calfits(os.path.join(".", "tutorial1.fits"))
+    uvc2.write_calfits(os.path.join(".", "tutorial2.fits"))
+    uvc3.write_calfits(os.path.join(".", "tutorial3.fits"))
+    filenames = [
+        os.path.join(".", f) for f in ["tutorial1.fits", "tutorial2.fits", "tutorial3.fits"]
+    ]
+    uvc.read(filenames)
+
+    # For FHD cal datasets pass lists for each file type
+    fhd_path = fetch_data("mwa_fhd_cal")
+    obs_testfiles = [
+        os.path.join(fhd_path, "metadata/1061316296_obs.sav"),
+        os.path.join(fhd_path, "set2/1061316296_obs.sav"),
+    ]
+    cal_testfiles = [
+        os.path.join(fhd_path, "calibration/1061316296_cal.sav"),
+        os.path.join(fhd_path, "set2/1061316296_cal.sav"),
+    ]
+    settings_testfiles = [
+        os.path.join(fhd_path, "metadata/1061316296_settings.txt"),
+        os.path.join(fhd_path, "set2/1061316296_settings.txt"),
+    ]
+    layout_testfiles = [
+        os.path.join(fhd_path, "metadata/1061316296_layout.sav"),
+        os.path.join(fhd_path, "metadata/1061316296_layout.sav"),
+    ]
+    fhd_uvc = UVCal.from_file(
+        cal_testfiles,
+        obs_file=obs_testfiles,
+        settings_file=settings_testfiles,
+        layout_file=layout_testfiles,
+    )
+
+e) Fast concatenation
+*********************
+As an alternative to the :meth:`pyuvdata.UVCal.__add__` method,
+the :meth:`pyuvdata.UVCal.fast_concat` method can be used.
+The user specifies a UVCal object to combine with the existing one,
+along with the axis along which they should be combined. Fast concatenation can
+be invoked implicitly when reading in multiple files as above by passing the
+``axis`` keyword argument. This will use the ``fast_concat`` method instead of
+the ``__add__`` method to combine the data contained in the files into a single
+UVCal object.
+
+.. warning::
+    There is no guarantee that two objects combined in this fashion
+    will result in a self-consistent object after concatenation. Basic checking is
+    done, but time-consuming robust checks are eschewed for the sake of speed. The
+    data will also *not* be reordered or sorted as part of the concatenation, and so
+    this must be done manually by the user if a reordering is desired
+    (see :ref:`uvcal_sorting_data`).
+
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import os
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename)
+    uvc1 = uvc.select(freq_chans=np.arange(0, 2), inplace=False)
+    uvc2 = uvc.select(freq_chans=np.arange(2, 4), inplace=False)
+    uvc3 = uvc.select(freq_chans=np.arange(4, 7), inplace=False)
+    uvc1.write_calfits(os.path.join(".", "tutorial1.fits"), clobber=True)
+    uvc2.write_calfits(os.path.join(".", "tutorial2.fits"), clobber=True)
+    uvc3.write_calfits(os.path.join(".", "tutorial3.fits"), clobber=True)
+    filenames = [
+        os.path.join(".", f) for f in ["tutorial1.fits", "tutorial2.fits", "tutorial3.fits"]
+    ]
+    uvc.read(filenames, axis="freq")
+
+
+.. _large_files_uvcal:
+
+UVCal: Working with large files
+-------------------------------
+To save on memory and time, pyuvdata supports reading only parts of CalH5 and
+CalFITS files.
+
+Note that select on read (partial reading) is not always faster than reading an
+entire file and then downselecting. Which approach is faster depends on the
+fraction of data that is selected as well on the relationship between the
+selection and the internal data ordering in the file. When the select is on a
+small area of the file or has a regular stride it can be much faster to do the
+select on read, but in other cases it can be slower. Select on read does
+generally reduce the memory footprint.
+
+a) Reading just the metadata of a file
+******************************************
+For CalH5, CalFITS and FHD files, reading in the only the metadata results in a
+metadata only UVCal object (which has every attribute except the gain or delay
+arrays, quality arrays and flag arrays filled out).
+
+Measurement set (ms) files do not support reading only the metadata
+(the read_data keyword is ignored for ms files).
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+
+    # read the metadata but not the data
+    uvc = UVCal.from_file(filename, read_data=False)
+    assert uvc.metadata_only
+    assert uvc.time_array.size == 5
+    assert uvc.gain_array is None
+
+
+b) Reading only parts of files
+******************************
+The same options that are available for the :meth:`pyuvdata.UVCal.select` method can
+also be passed to the :meth:`pyuvdata.UVCal.read` method to do the select on the read,
+saving memory and time if only a portion of the data are needed.
+
+Note that these keywords can be used for any file type, but for FHD and
+measurement set (ms) files, the select is done after the read, which does not
+save memory.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("hera_omnical2")
+    uvc = UVCal.from_file(filename, freq_chans=np.arange(7))
+    assert uvc.Nfreqs == 7
+
+    # Reading in the metadata can help with specifying what data to read in
+    uvc = UVCal.from_file(filename, read_data=False)
+    assert uvc.Ntimes == 5
+
+    uvc = UVCal.from_file(filename, times=uvc.time_array[[0, 2]])
+    assert uvc.Ntimes == 2
 
 
 UVCal: Changing cal_type from "delay" to "gain"
@@ -864,43 +847,114 @@ UVCal includes the method :meth:`pyuvdata.UVCal.convert_to_gain`, which changes 
 UVCal object's ``cal_type`` parameter from "delay" to "gain", and accordingly sets the
 object's ``gain_array`` to an array consistent with its pre-existing ``delay_array``.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVCal
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVCal
+    from pyuvdata.datasets import fetch_data
 
-  >>> # This file has a cal_type of "delay".
-  >>> filename = fetch_data("hera_firstcal_delay")
-  >>> cal = UVCal.from_file(filename)
-  >>> print(cal.cal_type)
-  delay
+    # This file has a cal_type of "delay".
+    filename = fetch_data("hera_firstcal_delay")
+    uvc = UVCal.from_file(filename)
+    assert uvc.cal_type == "delay"
 
-  >>> # But we can convert it to a "gain" type calibration.
-  >>> channel_width = 1e8 # 1 MHz
-  >>> n_freqs = (cal.freq_range[0, 1] - cal.freq_range[0, 0]) / channel_width
-  >>> freq_array = np.arange(n_freqs) * channel_width + cal.freq_range[0]
-  >>> channel_width = np.full(freq_array.size, channel_width, dtype=float) # 1 MHz
-  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width)
-  >>> print(cal.cal_type)
-  gain
+    # But we can convert it to a "gain" type calibration.
+    channel_width = 1e8 # 1 MHz
+    n_freqs = (uvc.freq_range[0, 1] - uvc.freq_range[0, 0]) / channel_width
+    freq_array = np.arange(n_freqs) * channel_width + uvc.freq_range[0]
+    channel_width = np.full(freq_array.size, channel_width, dtype=float) # 1 MHz
+    uvc.convert_to_gain(freq_array=freq_array, channel_width=channel_width)
+    assert uvc.cal_type == "gain"
 
-  >>> # If we want the calibration to use a positive value in its exponent, rather
-  >>> # than the default negative value:
-  >>> cal = UVCal.from_file(filename)
-  >>> cal.convert_to_gain(delay_convention="plus", freq_array=freq_array, channel_width=channel_width)
+    # If we want the calibration to use a positive value in its exponent, rather
+    # than the default negative value:
+    uvc = UVCal.from_file(filename)
+    uvc.convert_to_gain(delay_convention="plus", freq_array=freq_array, channel_width=channel_width)
 
-  >>> # Convert to gain *without* running the default check that internal arrays are
-  >>> # of compatible shapes:
-  >>> cal.read(filename)
-  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check=False)
+    # Convert to gain *without* running the default check that internal arrays are
+    # of compatible shapes:
+    uvc.read(filename)
+    uvc.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check=False)
 
-  >>> # Convert to gain *without* running the default check that optional parameters
-  >>> # are properly shaped and typed:
-  >>> cal.read(filename)
-  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, check_extra=False)
+    # Convert to gain *without* running the default check that optional parameters
+    # are properly shaped and typed:
+    uvc.read(filename)
+    uvc.convert_to_gain(freq_array=freq_array, channel_width=channel_width, check_extra=False)
 
-  >>> # Convert to gain *without* running the default checks on the reasonableness
-  >>> # of the resulting calibration's parameters.
-  >>> cal.read(filename)
-  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check_acceptability=False)
+    # Convert to gain *without* running the default checks on the reasonableness
+    # of the resulting calibration's parameters.
+    uvc.read(filename)
+    uvc.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check_acceptability=False)
+
+
+.. _new_uvcal:
+
+UVCal: Instantiating from arrays in memory
+------------------------------------------
+``pyuvdata`` can also be used to create a UVCal object from arrays in memory. This
+is useful for mocking up data for testing or for creating a UVCal object from
+simulated data. Instead of instantiating a blank object and setting each required
+parameter, you can use the ``.new()`` static method, which deals with the task
+of creating a consistent object from a minimal set of inputs
+
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from astropy.coordinates import EarthLocation
+    import numpy as np
+    from pyuvdata import Telescope, UVCal
+
+    uvc = UVCal.new(
+         gain_convention = "multiply",
+         cal_style = "redundant",
+         freq_array = np.linspace(1e8, 2e8, 100),
+         jones_array = ["ee", "nn"],
+         telescope = Telescope.new(
+             antenna_positions = {
+                 0: [0.0, 0.0, 0.0],
+                 1: [0.0, 0.0, 1.0],
+                 2: [0.0, 0.0, 2.0],
+             },
+             location = EarthLocation.from_geodetic(0, 0, 0),
+             name = "test",
+             x_orientation = "east",
+             mount_type = "fixed",
+         ),
+         time_array = np.linspace(2459855, 2459856, 20),
+    )
+
+Notice that you need only provide the required parameters, and the rest will be
+filled in with sensible defaults. The telescope related metadata is passed
+directly to a simple Telescope constructor which also only requires the minimal
+set of inputs but can accept any other parameters supported by the class.
+
+See the full documentation for the method
+:func:`pyuvdata.UVCal.UVCal.new` for more information.
+
+
+.. _from_uvdata:
+
+UVCal: Initializing from a UVData object
+----------------------------------------
+The :meth:`pyuvdata.UVCal.initialize_from_uvdata` method allows you to initialize
+a UVCal object from the metadata in a UVData object. This is useful for codes
+that are calculating calibration solutions from UVData objects. There are many
+optional parameters to allow users to specify additional metadata or changes
+from the uvdata metadata. By default, this method creats a metadata only UVCal
+object, but it can optionally create the data-like arrays as well, filled with zeros.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVCal, UVData
+    from pyuvdata.datasets import fetch_data
+
+    vis_file = fetch_data("hera_uvcalibrate_uvh5")
+    uvd = UVData.from_file(vis_file, file_type="uvh5")
+    uvc = UVCal.initialize_from_uvdata(uvd, gain_convention="multiply", cal_style="redundant")
