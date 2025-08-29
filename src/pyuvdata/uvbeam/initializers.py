@@ -9,44 +9,44 @@ import warnings
 from typing import Literal
 
 import numpy as np
-import numpy.typing as nptype
 from astropy.time import Time
 
 from .. import __version__, utils
+from ..utils.types import FloatArray, IntArray, StrArray
 
 
 def new_uvbeam(
     *,
     telescope_name: str,
     data_normalization: Literal["physical", "peak", "solid_angle"],
-    freq_array: nptype.NDArray[np.floating],
+    freq_array: FloatArray,
     feed_name: str = "default",
     feed_version: str = "0.0",
     model_name: str = "default",
     model_version: str = "0.0",
-    feed_array: nptype.NDArray[np.str_] | None = None,
-    feed_angle: nptype.NDArray[np.floating] | None = None,
+    feed_array: StrArray | None = None,
+    feed_angle: FloatArray | None = None,
     mount_type: str | None = "fixed",
     polarization_array: (
-        nptype.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
+        StrArray | IntArray | list[str | int] | tuple[str | int] | None
     ) = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     pixel_coordinate_system: (
         Literal["az_za", "orthoslant_zenith", "healpix"] | None
     ) = None,
-    axis1_array: nptype.NDArray[np.floating] | None = None,
-    axis2_array: nptype.NDArray[np.floating] | None = None,
+    axis1_array: FloatArray | None = None,
+    axis2_array: FloatArray | None = None,
     nside: int | None = None,
     ordering: Literal["ring", "nested"] | None = None,
-    healpix_pixel_array: nptype.NDArray[np.int_] | None = None,
-    basis_vector_array: nptype.NDArray[np.floating] | None = None,
-    bandpass_array: nptype.NDArray[np.floating] | None = None,
-    element_location_array: nptype.NDArray[np.floating] | None = None,
+    healpix_pixel_array: IntArray | None = None,
+    basis_vector_array: FloatArray | None = None,
+    bandpass_array: FloatArray | None = None,
+    element_location_array: FloatArray | None = None,
     element_coordinate_system: Literal["n-e", "x-y"] | None = None,
-    delay_array: nptype.NDArray[np.floating] | None = None,
-    gain_array: nptype.NDArray[np.floating] | None = None,
-    coupling_matrix: nptype.NDArray[np.floating] | None = None,
-    data_array: nptype.NDArray[np.floating] | None = None,
+    delay_array: FloatArray | None = None,
+    gain_array: FloatArray | None = None,
+    coupling_matrix: FloatArray | None = None,
+    data_array: FloatArray | None = None,
     history: str = "",
     **kwargs,
 ):

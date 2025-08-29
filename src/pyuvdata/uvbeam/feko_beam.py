@@ -5,11 +5,11 @@
 import os
 
 import numpy as np
-import numpy.typing as nptype
 from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
+from ..utils.types import FloatArray
 from .uvbeam import UVBeam
 
 __all__ = ["FEKOBeam"]
@@ -38,10 +38,10 @@ class FEKOBeam(UVBeam):
         model_version: str,
         beam_type: str = "power",
         feed_pol: str | None = "x",
-        feed_angle: nptype.NDArray[np.floating] | None = None,
+        feed_angle: FloatArray | None = None,
         mount_type: str | None = "fixed",
         history: str | None,
-        reference_impedance: nptype.NDArray[np.floating] | None = None,
+        reference_impedance: FloatArray | None = None,
         extra_keywords: dict | None,
         run_check: bool = True,
         check_extra: bool = True,
