@@ -8,9 +8,9 @@ from copy import deepcopy
 from functools import lru_cache, wraps
 
 import numpy as np
-import numpy.typing as nptype
 
 from . import tools
+from .types import StrArray
 
 __all__ = [
     "POL_STR2NUM_DICT",
@@ -515,7 +515,7 @@ def determine_pol_order(pols, *, order="AIPS"):
 
 
 def convert_feeds_to_pols(
-    feed_array: nptype.NDArray[np.str_],
+    feed_array: StrArray,
     include_cross_pols: bool = True,
     x_orientation: str | None = None,
     return_feed_pol_order: bool = False,
