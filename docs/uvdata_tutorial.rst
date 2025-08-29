@@ -66,13 +66,13 @@ file or folder to instantiate an object, FHD and raw MWA correlator data sets
 require the user to specify multiple files for each dataset.
 
 ``pyuvdata`` can also be used to create a UVData object from arrays in memory
-(see :ref:`new`) and to read in mulitple datasets (files) into a single object
-(see :ref:`multiple_files`).
+(see :ref:`new_uvdata`) and to read in multiple datasets (files) into a single object
+(see :ref:`multiple_files_uvdata`).
 
 .. note::
-  Reading or writing CASA Measurement sets requires python-casacore to be
-  installed (see the readme for details). Reading or writing Miriad files is not
-  supported on Windows.
+    Reading or writing CASA Measurement sets requires python-casacore to be
+    installed (see the readme for details). Reading or writing Miriad files is not
+    supported on Windows.
 
 a) Instantiate an object from a single file or folder
 *****************************************************
@@ -80,41 +80,44 @@ UVFITS and uvh5 and datasets are stored in a single file. Miriad,
 CASA Measurement Sets and MIR datasets are stored in structured folders, for these
 file types pass in the folder name.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
 b) Instantiate an object from an FHD dataset
 ********************************************
 When reading FHD datasets, we need to pass in several auxilliary files.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import os
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> # Set up the files we need
-  >>> fhd_prefix = "1061316296_"
-  >>> fhd_path = fetch_data("mwa_fhd")
-  >>> fhd_vis_files = [os.path.join(fhd_path, "vis_data", fhd_prefix + f) for f in ["vis_XX.sav", "vis_YY.sav"]]
-  >>> flags_file = os.path.join(fhd_path, "vis_data", fhd_prefix + "flags.sav")
-  >>> layout_file = os.path.join(fhd_path, "metadata", fhd_prefix + "layout.sav")
-  >>> params_file = os.path.join(fhd_path, "metadata", fhd_prefix + "params.sav")
-  >>> settings_file = os.path.join(fhd_path, "metadata", fhd_prefix + "settings.txt")
+    # Set up the files we need
+    fhd_prefix = '1061316296_'
+    fhd_path = fetch_data("mwa_fhd")
+    fhd_vis_files = [os.path.join(fhd_path, "vis_data", fhd_prefix + f) for f in ["vis_XX.sav", "vis_YY.sav"]]
+    flags_file = os.path.join(fhd_path, "vis_data", fhd_prefix + "flags.sav")
+    layout_file = os.path.join(fhd_path, "metadata", fhd_prefix + "layout.sav")
+    params_file = os.path.join(fhd_path, "metadata", fhd_prefix + "params.sav")
+    settings_file = os.path.join(fhd_path, "metadata", fhd_prefix + "settings.txt")
 
-  >>> uvd = UVData.from_file(
-  ...    fhd_vis_files,
-  ...    flags_file=flags_file,
-  ...    layout_file=layout_file,
-  ...    params_file=params_file,
-  ...    settings_file=settings_file,
-  ... )
+    uvd = UVData.from_file(
+      fhd_vis_files,
+      flags_file=flags_file,
+      layout_file=layout_file,
+      params_file=params_file,
+      settings_file=settings_file,
+    )
 
 c) Instantiate an object from a raw MWA correlator dataset
 **********************************************************
@@ -130,18 +133,20 @@ optional to apply a Van Vleck correction for Legacy correlator data. The default
 for this correction is to use a Chebyshev polynomial approximation, and there is
 an option to instead use a slower integral implementation.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> # Construct the list of files. Separate files for each coarse band, the
-  >>> # associated metafits file is also required.
-  >>> filelist = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
+    # Construct the list of files. Separate files for each coarse band, the
+    # associated metafits file is also required.
+    filelist = fetch_data(["mwa_2015_metafits", "mwa_2015_raw_gpubox01"])
 
-  >>> # Apply cable corrections and routine time/frequency flagging, phase data to pointing center
-  >>> uvd = UVData.from_file(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=True)
+    # Apply cable corrections and routine time/frequency flagging, phase data to pointing center
+    uvd = UVData().from_file(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=True)
 
 c) Options for SMA MIR data sets
 ********************************
@@ -155,76 +160,74 @@ selection, and visibility handling.
 
 In addition to the selection keywords supported with UVData objects, there are a few
 extra keywords supported for MIR data sets:
--   ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
+- ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
 
--   ``receiver``: Specifies a receiver type (generally some combination of "230", "240",
+- ``receiver``: Specifies a receiver type (generally some combination of "230", "240",
     "345", and/or "400") to load, with different receivers typically used to target
     different bands and/or polarizations.
 
--   ``sideband``: Specifies which sideband to load, with the two options being "l" for
+- ``sideband``: Specifies which sideband to load, with the two options being "l" for
     lower and "u" for upper.
 
--   ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
+- ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
     constructed as the average of all channels across a single spectral window (set to
     ``False`` by default).
 
--   ``select_where`` : An keyword which allows for more advanced selection criterion.
+- ``select_where`` : An keyword which allows for more advanced selection criterion.
     See the documentation in :meth:`pyuvdata.mir_parser.MirParser` for more details.
 
 Some example use cases for the selection keywords:
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> # Create a path to the SMA MIR test data set in pyuvdata
-  >>> data_path = fetch_data("sma_mir")
-  >>> # Let's first try loading just the "230" receivers.
-  >>> uvd = UVData.from_file(data_path, receivers="230")
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 131072)
+    # Create a path to the SMA MIR test data set in pyuvdata
+    data_path = fetch_data("sma_mir")
+    # Let's first try loading just the "230" receivers.
+    uvd = UVData.from_file(data_path, receivers="230")
+    assert (uvd.Npols, uvd.Nfreqs) == (1, 131072)
 
-  >>> # Now try one sideband, say the lower ("l")
-  >>> uvd.read(data_path, sidebands="l")
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 65536)
+    # Now try one sideband, say the lower ("l")
+    uvd.read(data_path, sidebands="l")
+    assert (uvd.Npols, uvd.Nfreqs) == (2, 65536)
 
-  >>> # Now try one just one chunk (2)
-  >>> uvd.read(data_path, corrchunk=2)
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 32768)
+    # Now try one just one chunk (2)
+    uvd.read(data_path, corrchunk=2)
+    assert (uvd.Npols, uvd.Nfreqs) == (2, 32768)
 
-  >>> # Now all together -- "230" receiver, "l" sideband, chunks 1 and 3
-  >>> uvd.read(data_path, receivers="230", sidebands="l", corrchunk=[1, 3])
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 32768)
+    # Now all together -- "230" receiver, "l" sideband, chunks 1 and 3
+    uvd.read(data_path, receivers="230", sidebands="l", corrchunk=[1, 3])
+    assert (uvd.Npols, uvd.Nfreqs) == (1, 32768)
 
 As for visibility handling keywords:
 
 - ``rechunk``: Number of channels to spectrally average the data over on read. This is
-  generally the most commonly used keyword, as it reduces the memory/disk space needed
-  to complete read/write operations.
+    generally the most commonly used keyword, as it reduces the memory/disk space needed
+    to complete read/write operations.
 
 - ``apply_tsys``: Normalize the data using system temperature measurements to produces
-  values in (uncalibrated) Jy (default is ``True``).
+    values in (uncalibrated) Jy (default is ``True``).
 
 - ``apply_flags``: Apply on-line flags (default is ``True``).
 
 For example, the native resolution of the test MIR dataset is 140 kHz -- to
 average this down by a factor of 64 (8.96 MHz resolution) do the following:
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> # Build a path to the test SMA data set
-  >>> filename = fetch_data("sma_mir")
-  >>> # Set things up to average over 64-channel blocks.
-  >>> uvd = UVData.from_file(data_path, rechunk=64)
+    # Build a path to the test SMA data set
+    data_path = fetch_data("sma_mir")
+    # Set things up to average over 64-channel blocks.
+    uvd = UVData.from_file(data_path, rechunk=64)
 
 .. warning::
     Reading and writing of MIR data will on occasion generate a warning message about
@@ -246,19 +249,22 @@ write the data to.
 pyuvdata can be used to simply convert data from one file type to another by
 reading in one file type and writing out another.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import os
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> ms_file = fetch_data("vla_casa_tutorial_ms")
-  >>> # Instantiate an object from a measurement set
-  >>> uvd = UVData.from_file(ms_file)
+    ms_file = fetch_data("vla_casa_tutorial_ms")
+    # Instantiate an object from a measurement set
+    uvd = UVData.from_file(ms_file)
 
-  >>> # Write the data out to a uvfits file
-  >>> write_file = os.path.join(".", "tutorial.uvfits")
-  >>> uvd.write_uvfits(write_file)
+    # Write the data out to a uvfits file
+    write_file = os.path.join(".", "tutorial.uvfits")
+    uvd.write_uvfits(write_file)
 
 
 .. _quick_access:
@@ -279,81 +285,77 @@ which will overwrite sections of these datasets with user-provided data.
 
 a) Data for single antenna pair / polarization combination.
 ************************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
-  >>> data = uvd.get_data(1, 2, "rr")  # data for ant1=1, ant2=2, pol="rr"
-  >>> times = uvd.get_times(1, 2)  # times corresponding to 0th axis in data
-  >>> print(data.shape)
-  (9, 64)
-  >>> print(times.shape)
-  (9,)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    data = uvd.get_data(1, 2, "rr")  # data for ant1=1, ant2=2, pol="rr"
+    times = uvd.get_times(1, 2)  # times for ant1=1, ant2=2 (0th axis of "data" above)
+    assert data.shape == (9, 64)
+    assert times.shape == (9,)
 
-  >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
-  >>> data = uvd.get_data((1, 2, "rr"))
-  >>> times = uvd.get_times((1, 2))
+    # One can equivalently make any of these calls with the input wrapped in a tuple.
+    data = uvd.get_data((1, 2, "rr"))
+    times = uvd.get_times((1, 2))
 
 b) Flags and nsamples for above data.
 *************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> flags = uvd.get_flags(1, 2, "rr")
-  >>> nsamples = uvd.get_nsamples(1, 2, "rr")
-  >>> print(flags.shape)
-  (9, 64)
-  >>> print(nsamples.shape)
-  (9, 64)
+    flags = uvd.get_flags(1, 2, "rr")
+    nsamples = uvd.get_nsamples(1, 2, "rr")
+    assert flags.shape == (9, 64)
+    assert nsamples.shape == (9, 64)
 
 c) Data for single antenna pair, all polarizations.
 ***************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> data = uvd.get_data(1, 2)
-  >>> print(data.shape)
-  (9, 64, 4)
+    data = uvd.get_data(1, 2)
+    assert data.shape == (9, 64, 4)
 
-  >>> # Can also give baseline number
-  >>> data2 = uvd.get_data(uvd.antnums_to_baseline(1, 2))
-  >>> print(np.all(data == data2))
-  True
+    # Can also give baseline number, this gives the same array:
+    data2 = uvd.get_data(uvd.antnums_to_baseline(1, 2))
 
 d) Data for single polarization, all baselines.
 ***********************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> data = uvd.get_data("rr")
-  >>> print(data.shape)
-  (1360, 64)
+    data = uvd.get_data("rr")
+    assert data.shape == (1360, 64)
 
 e) Update data arrays in place for UVData
 *****************************************
@@ -362,77 +364,77 @@ nsamples arrays in place. We show how to use the :meth:`pyuvdata.UVData.set_data
 method below, and note there are analogous :meth:`pyuvdata.UVData.set_flags`
 and :meth:`pyuvdata.UVData.set_nsamples` methods.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> data = uvd.get_data(1, 2, "rr", force_copy=True, squeeze="none")
-  >>> data *= 2
-  >>> uvd.set_data(data, 1, 2, "rr")
+    data = uvd.get_data(1, 2, "rr", force_copy=True, squeeze="none")
+    data *= 2
+    uvd.set_data(data, 1, 2, "rr")
 
 f) Iterate over all antenna pair / polarizations.
 *************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> for key, data in uvd.antpairpol_iter():
-  ...  flags = uvd.get_flags(key)
-  ...  nsamples = uvd.get_nsamples(key)
+    for key, data in uvd.antpairpol_iter():
+        flags = uvd.get_flags(key)
+        nsamples = uvd.get_nsamples(key)
 
-    >>> # Do something with the data, flags, nsamples
+      # Do something with the data, flags, nsamples
 
 g) Convenience functions to ask what antennas, baselines, and pols are in the data.
 ***********************************************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Get all unique antennas in data
-  >>> print(uvd.get_ants())
-  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
+    # Get all unique antennas in data
+    unique_ants = uvd.get_ants()
 
-  >>> # Get all baseline nums in data, print first 10.
-  >>> print(uvd.get_baseline_nums()[0:10])
-  [67586 67587 67588 67591 67592 67593 67596 67599 67603 67604]
+    # Get all baseline nums in data.
+    bl_nums = uvd.get_baseline_nums()
 
-  >>> # Get all (ordered) antenna pairs in data (same info as baseline_nums), print first 10.
-  >>> print(uvd.get_antpairs()[0:10])
-  [(1, 2), (1, 3), (1, 4), (1, 7), (1, 8), (1, 9), (1, 12), (1, 15), (1, 19), (1, 20)]
+    # Get all (ordered) antenna pairs in data (same info as baseline_nums)
+    antpairs = uvd.get_antpairs()
 
-  >>> # Get all antenna pairs and polarizations, i.e. keys produced in UVData.antpairpol_iter(), print first 5.
-  >>> print(uvd.get_antpairpols()[0:5])
-  [(1, 2, 'rr'), (1, 2, 'll'), (1, 2, 'rl'), (1, 2, 'lr'), (1, 3, 'rr')]
+    # Get all antenna pairs and polarizations, i.e. keys produced in UVData.antpairpol_iter()
+    antpair_pols = uvd.get_antpairpols()
 
 h) Quick access to file attributes of a UV* object (UVData, UVCal, UVBeam)
 **************************************************************************
-.. code-block:: python
+
+.. code-block:: bash
 
   ## in bash ##
-  >>> # Print data_array.shape to stdout
+  # Print data_array.shape to stdout
   pyuvdata_inspect.py --attr=data_array.shape <uv*_file>
 
-  >>> # Print Ntimes,Nfreqs,Nbls to stdout
+  # Print Ntimes,Nfreqs,Nbls to stdout
   pyuvdata_inspect.py --attr=Ntimes,Nfreqs,Nbls <uv*_file>
 
-  >>> # Load object to instance name "uv" and will remain in interpreter
+  # Load object to instance name "uv" and will remain in interpreter
   pyuvdata_inspect.py -i <uv*_file>
 
 
@@ -441,44 +443,43 @@ UVData: Plotting
 Making a simple waterfall plot.
 
 Note: there is now support for reading in only part of a file for many file types
-(see :ref:`large_files`), so you need not read in the entire file to plot one
+(see :ref:`large_files_uvdata`), so you need not read in the entire file to plot one
 waterfall.
+
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> import os
-  >>> from astropy.time import Time
-  >>> import numpy as np
-  >>> import matplotlib.pyplot as plt
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from astropy.time import Time
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> print(uvd.data_array.shape)
-  (1360, 64, 4)
-  >>> print(uvd.Ntimes)
-  15
-  >>> print(uvd.Nfreqs)
-  64
-  >>> # get the data for a single baseline and polarization
-  >>> waterfall_data = uvd.get_data((1, 2, uvd.polarization_array[0]))
-  >>> # get the corresponding times for this waterfall
-  >>> waterfall_times = Time(uvd.get_times((1, 2, uvd.polarization_array[0])), format="jd").iso
+    # get the data for a single baseline and polarization
+    waterfall_data = uvd.get_data((1, 2, uvd.polarization_array[0]))
+    # get the corresponding times for this waterfall
+    waterfall_times = Time(uvd.get_times((1, 2, uvd.polarization_array[0])), format="jd").iso
 
-  >>> # Amplitude waterfall for all spectral channels and 0th polarization
-  >>> fig, ax = plt.subplots(1, 1)
-  >>> _ = ax.imshow(np.abs(waterfall_data), interpolation="none", origin="lower")
-  >>> _ = ax.set_yticks([0, waterfall_times.size - 1])
-  >>> _ = ax.set_yticklabels([waterfall_times[0], waterfall_times[1]])
-  >>> freq_tick_inds = np.concatenate((np.arange(0, uvd.Nfreqs, 16), [uvd.Nfreqs-1]))
-  >>> _ = ax.set_xticks(freq_tick_inds)
-  >>> _ = ax.set_xticklabels([f"{val:.3f}" for val in uvd.freq_array[freq_tick_inds]*1e-9])
-  >>> _ = ax.set_xlabel("Frequency (GHz)")
-  >>> fig.show() # doctest: +SKIP
-  >>> plt.savefig("Images/amplitude_waterfall.png", bbox_inches="tight")
-  >>> plt.clf()
+    # Amplitude waterfall for all spectral channels and 0th polarization
+    fig, ax = plt.subplots(1, 1)
+    _ = ax.imshow(np.abs(waterfall_data), interpolation="none", origin="lower")
+    _ = ax.set_yticks([0, waterfall_times.size - 1])
+    _ = ax.set_yticklabels([waterfall_times[0], waterfall_times[1]])
+    freq_tick_inds = np.concatenate((np.arange(0, uvd.Nfreqs, 16), [uvd.Nfreqs-1]))
+    _ = ax.set_xticks(freq_tick_inds)
+    _ = ax.set_xticklabels([f"{val:.3f}" for val in uvd.freq_array[freq_tick_inds]*1e-9])
+    _ = ax.set_xlabel("Frequency (GHz)")
+
+.. skip: next
+
+    fig.show() # code-block: +SKIP
+
+    plt.savefig("Images/amplitude_waterfall.png", bbox_inches="tight")
+    plt.clf()
 
 .. image:: Images/amplitude_waterfall.png
     :width: 600
@@ -494,105 +495,86 @@ can instead *deselect* this data and preserve only that which does not match the
 selection.
 
 Note: The same select interface is now supported on the read for many file types
-(see :ref:`large_files`), so you need not read in the entire file before doing the select.
+(see :ref:`large_files_uvdata`), so you need not read in the entire file before
+doing the select.
 
 a) Select 3 antennas to keep using the antenna number.
 ******************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    assert uvd.Nants_data == 18
 
-  >>> # print all the antennas numbers with data in the original file
-  >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
-  >>> uvd.select(antenna_nums=[1, 12, 21])
+    uvd.select(antenna_nums=[1, 12, 21])
+    assert uvd.Nants_data == 3
+    assert uvd.get_ants().tolist() == [1, 12, 21]
 
-  >>> # print all the antennas numbers with data after the select
-  >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 1 12 21]
 
 b) Select 3 antennas by name and 4 frequencies to keep
 ******************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    assert uvd.Nants_data == 18
+    assert uvd.Nfreqs == 64
 
-  >>> # print all the antenna names with data in the original file
-  >>> unique_ants = np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist())
-  >>> print([uvd.telescope.antenna_names[np.where(uvd.telescope.antenna_numbers==a)[0][0]] for a in unique_ants])
-  ['W09', 'E02', 'E09', 'W01', 'N06', 'N01', 'E06', 'E08', 'W06', 'W04', 'N05', 'E01', 'N04', 'E07', 'W05', 'N02', 'E03', 'N08']
-
-  >>> # print how many frequencies in the original file
-  >>> print(uvd.freq_array.size)
-  64
-  >>> uvd.select(antenna_names=["N02", "E09", "W06"], frequencies=uvd.freq_array[0:4])
-
-  >>> # print all the antenna names with data after the select
-  >>> unique_ants = np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist())
-  >>> print([uvd.telescope.antenna_names[np.where(uvd.telescope.antenna_numbers==a)[0][0]] for a in unique_ants])
-  ['E09', 'W06', 'N02']
-
-  >>> # print all the frequencies after the select
-  >>> print(uvd.freq_array)
-  [3.6304542e+10 3.6304667e+10 3.6304792e+10 3.6304917e+10]
+    uvd.select(antenna_names=["N02", "E09", "W06"], frequencies=uvd.freq_array[0:4])
+    assert uvd.Nants_data == 3
+    assert uvd.Nfreqs == 4
 
 c) Select a few antenna pairs to keep
 *************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # print how many antenna pairs with data in the original file
-  >>> print(len(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
-  153
-  >>> uvd.select(bls=[(1, 2), (7, 1), (1, 21)])
+    # note that order of the values in the pair does not matter
+    uvd.select(bls=[(1, 2), (7, 1), (1, 21)])
 
-  >>> # note that order of the values in the pair does not matter
-  >>> # print all the antenna pairs after the select
-  >>> print(sorted(set(zip(uvd.ant_1_array.tolist(), uvd.ant_2_array.tolist()))))
-  [(1, 2), (1, 7), (1, 21)]
+    # get all the antenna pairs after the select
+    antpairs = uvd.get_antpairs()
+    # note that the antpair is listed as it is in the data, not as it was selected on.
+    assert antpairs == [(1, 2), (1, 7), (1, 21)]
+
 
 d) Select antenna pairs using baseline numbers
 **********************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # baseline numbers can be found in the baseline_array
-  >>> print(len(uvd.baseline_array))
-  1360
-
-  >>> # select baselines using the baseline numbers
-  >>> uvd.select(bls=[73736, 73753, 81945])
-
-  >>> # print unique baselines and antennas after select
-  >>> print(np.unique(uvd.baseline_array))
-  [73736 73753 81945]
-  >>> print(list(set(zip(uvd.ant_1_array.tolist(), uvd.ant_2_array.tolist()))))
-  [(8, 25), (4, 25), (4, 8)]
+    # select baselines using the baseline numbers
+    uvd.select(bls=[73736, 73753, 81945])
+    print(uvd.get_antpairs())
+    assert uvd.get_antpairs() == [(4, 8), (4, 25), (8, 25)]
 
 e) Select polarizations
 ***********************
@@ -604,74 +586,51 @@ line perpendicular to the horizon (as record in ``telescope.feed_angle``) and/or
 y-polarization are aligned to -90 or 0 degrees, strings representing the cardinal
 orientation of the dipole can also be used (e.g. "nn" or "ee").
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import utils, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import utils, UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # polarization numbers can be found in the polarization_array
-  >>> print(uvd.polarization_array)
-  [-1 -2 -3 -4]
+    # polarization numbers can be found in the polarization_array
+    assert uvd.polarization_array.tolist() == [-1, -2, -3, -4]
 
-  >>> # polarization numbers can be converted to strings using a utility function
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'll', 'rl', 'lr']
+    # polarization numbers can be converted to strings using a utility function
+    assert utils.polnum2str(uvd.polarization_array) == ['rr', 'll', 'rl', 'lr']
 
-  >>> # select polarizations using the polarization numbers
-  >>> uvd.select(polarizations=[-1, -2, -3])
+    # select polarizations using the polarization numbers
+    uvd.select(polarizations=[-1, -2, -3])
+    assert uvd.polarization_array.tolist() == [-1, -2, -3]
+    assert utils.polnum2str(uvd.polarization_array) == ['rr', 'll', 'rl']
 
-  >>> # print polarization numbers and strings after select
-  >>> print(uvd.polarization_array)
-  [-1 -2 -3]
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'll', 'rl']
+    # select polarizations using the polarization strings
+    uvd.select(polarizations=["rr", "ll"])
+    assert uvd.polarization_array.tolist() == [-1, -2]
+    assert utils.polnum2str(uvd.polarization_array) == ['rr', 'll']
 
-  >>> # select polarizations using the polarization strings
-  >>> uvd.select(polarizations=["rr", "ll"])
+    # Now deselect polarizations
+    uvd.select(polarizations=["ll"], invert=True)
+    assert uvd.polarization_array.tolist() == [-1]
+    assert utils.polnum2str(uvd.polarization_array) == ['rr']
 
-  >>> # print polarization numbers and strings after select
-  >>> print(uvd.polarization_array)
-  [-1 -2]
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'll']
+    # read in a file with linear polarizations and an x_orientation
+    filename = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(filename)
+    assert uvd.polarization_array.tolist() == [-5, -6]
+    assert utils.polnum2str(uvd.polarization_array) == ['xx', 'yy']
 
+    # check x_orientation
+    assert uvd.telescope.get_x_orientation_from_feeds() == "north"
 
-  >>> # Now deselect polarizations
-  >>> uvd.select(polarizations=["ll"], invert=True)
-
-  >>> # print polarization numbers and strings after select
-  >>> print(uvd.polarization_array)
-  [-1]
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr']
-
-  >>> # read in a file with linear polarizations and an x_orientation
-  >>> filename = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(filename)
-
-  >>> # print polarization numbers and strings
-  >>> print(uvd.polarization_array)
-  [-5 -6]
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['xx', 'yy']
-
-  >>> # print x_orientation
-  >>> print(uvd.telescope.get_x_orientation_from_feeds())
-  north
-
-  >>> # select polarizations using the physical orientation strings
-  >>> uvd.select(polarizations=["ee"])
-
-  >>> # print polarization numbers and strings after select
-  >>> print(uvd.polarization_array)
-  [-6]
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['yy']
+    # select polarizations using the physical orientation strings
+    uvd.select(polarizations=["ee"])
+    assert uvd.polarization_array.tolist() == [-6]
+    assert utils.polnum2str(uvd.polarization_array) == ['yy']
 
 
 f) Select antenna pairs and polarizations using ant_str argument
@@ -687,25 +646,25 @@ ________________________________
 - 1: returns all antenna pairs containing antenna number 1 (including the auto correlation)
 - 1,2: returns all antenna pairs containing antennas 1 and/or 2
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Print the number of antenna pairs in the original file
-  >>> print(len(uvd.get_antpairs()))
-  153
+    # check the number of baselines (antenna pairs) in the original file
+    assert uvd.Nbls == 153
 
-  >>> # Apply select to UVData object
-  >>> uvd.select(ant_str="1,2,3")
+    # Apply select to UVData object
+    uvd.select(ant_str="1,2,3")
 
-  >>> # Print the number of antenna pairs after the select
-  >>> print(len(uvd.get_antpairs()))
-  48
+    # check the number of baselines (antenna pairs) after the select
+    assert uvd.Nbls == 48
 
 2. Individual baseline(s):
 ___________________________
@@ -715,25 +674,25 @@ ___________________________
 - (1,2)_3: returns antenna pairs (1,3),(2,3)
 - 1_(2,3): returns antenna pairs (1,2),(1,3)
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Print the number of antenna pairs in the original file
-  >>> print(len(uvd.get_antpairs()))
-  153
+    # check the number of baselines (antenna pairs) in the original file
+    assert uvd.Nbls == 153
 
-  >>> # Apply select to UVData object
-  >>> uvd.select(ant_str="(1,2)_(3,7)")
+    # Apply select to UVData object
+    uvd.select(ant_str="(1,2)_(3,7)")
 
-  >>> # Print the antennas pairs with data after the select
-  >>> print(uvd.get_antpairs())
-  [(1, 3), (1, 7), (2, 3), (2, 7)]
+    # check the antenna pairs after the select
+    assert uvd.get_antpairs() == [(1, 3), (1, 7), (2, 3), (2, 7)]
 
 3. Antenna number(s) and polarization(s):
 __________________________________________
@@ -750,25 +709,27 @@ all antenna pairs kept in the object will retain data for each specified polariz
 - 1l_3,2x_3: returns antenna pairs (1,3), (2,3) and polarizations ll, lr, xx, and xy
 - 1_3l,2_3x: returns antenna pairs (1,3), (2,3) and polarizations ll, rl, xx, and yx
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Print the number of antennas and polarizations with data in the original file
-  >>> print((len(uvd.get_antpairs()), uvd.get_pols()))
-  (153, ['rr', 'll', 'rl', 'lr'])
+    # check the number of baselines and polarizations in the original file
+    assert uvd.Nbls == 153
+    assert uvd.get_pols() == ['rr', 'll', 'rl', 'lr']
 
-  >>> # Apply select to UVData object
-  >>> uvd.select(ant_str="1r_2l,1l_3l,1r_7r")
+    # Apply select to UVData object
+    uvd.select(ant_str="1r_2l,1l_3l,1r_7r")
 
-  >>> # Print all the antennas numbers and polarizations with data after the select
-  >>> print((uvd.get_antpairs(), uvd.get_pols()))
-  ([(1, 2), (1, 3), (1, 7)], ['rr', 'll', 'rl'])
+    # check the number of antenna pairs and polarizations after the select
+    assert uvd.get_antpairs() == [(1, 2), (1, 3), (1, 7)]
+    assert uvd.get_pols() == ['rr', 'll', 'rl']
 
 4. Stokes parameter(s):
 ________________________
@@ -787,25 +748,25 @@ If a minus sign is present in front of an antenna number, it will not be kept in
 - 1,-1_3: returns all antenna pairs containing antenna 1, except the antenna pair (1,3)
 - 1x_(-3y,10x): returns antenna pair (1,10) and polarization xx
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Print the number of antenna pairs in the original file
-  >>> print(len(uvd.get_antpairs()))
-  153
+    # check the number of baselines (antenna pairs) in the original file
+    assert uvd.Nbls == 153
 
-  >>> # Apply select to UVData object
-  >>> uvd.select(ant_str="1,-1_3")
+    # Apply select to UVData object
+    uvd.select(ant_str="1,-1_3")
 
-  >>> # Print the number of antenna pairs with data after the select
-  >>> print(len(uvd.get_antpairs()))
-  16
+    # check the number of baselines (antenna pairs) after the select
+    assert uvd.Nbls == 16
 
 g) Select based on time or local sidereal time (LST)
 ****************************************************
@@ -815,75 +776,61 @@ be in radians (**not** hours), consistent with how the LSTs are stored on the
 object. When specifying an LST range, if the first number is larger than the
 second, the range is assumed to wrap around LST = 0 = 2*pi.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
 
-  >>> # Times can be found in the time_array, which is length Nblts.
-  >>> # Use unique to find the unique times
-  >>> print(np.unique(uvd.time_array))
-  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
-   2455312.64034724 2455312.64046293 2455312.64057797 2455312.64057869
-   2455312.64069444 2455312.64069492 2455312.64081019 2455312.64092547
-   2455312.64092594 2455312.6410417  2455312.64115739]
+    # Times can be found in the time_array, which is length Nblts.
+    # Use unique to find the unique times (number given by Ntimes)
+    unique_times = np.unique(uvd.time_array)
+    assert len(unique_times) == uvd.Ntimes
+    assert uvd.Ntimes == 15
 
-  >>> # make a copy and select some times that are on the object
-  >>> uvd2 = uvd.copy()
-  >>> uvd2.select(times=np.unique(uvd.time_array)[0:5])
+    # make a copy and select some times that are on the object
+    uvd2 = uvd.copy()
+    uvd2.select(times=unique_times[0:5])
+    assert uvd2.Ntimes == 5
 
-  >>> # print the unique times after the select
-  >>> print(np.unique(uvd2.time_array))
-  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
-   2455312.64034724]
+    # make a copy and select a time range
+    uvd2 = uvd.copy()
+    uvd2.select(time_range=[2455312.64023, 2455312.6406])
+    assert uvd2.Ntimes == 8
 
-  >>> # make a copy and select a time range
-  >>> uvd2 = uvd.copy()
-  >>> uvd2.select(time_range=[2455312.64023, 2455312.6406])
+    # make a copy and select some lsts
+    uvd2 = uvd.copy()
+    # LSTs can be found in the lst_array
+    lsts = np.unique(uvd2.lst_array)
+    assert len(lsts) == uvd2.Ntimes
 
-  >>> # print the unique times after the select
-  >>> print(np.unique(uvd2.time_array))
-  [2455312.64023149 2455312.64023727 2455312.64024305 2455312.64024884
-   2455312.64034724 2455312.64046293 2455312.64057797 2455312.64057869]
+    # select LSTs that are on the object
+    uvd2.select(lsts=lsts[0:len(lsts) // 2])
 
-  >>> # LSTs can be found in the lst_array
-  >>> lsts = np.unique(uvd.lst_array)
-  >>> print(len(lsts))
-  15
-
-  >>> # select LSTs that are on the object
-  >>> uvd.select(lsts=lsts[0:len(lsts) // 2])
-
-  >>> # print length of unique LSTs after select
-  >>> print(len(np.unique(uvd.lst_array)))
-  7
+    # print length of unique LSTs after select
+    assert uvd2.Ntimes == 7
 
 h) Select data and return new object (leaving original intact).
 ***************************************************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
-  >>> uvd2 = uvd.select(antenna_nums=[1, 12, 21], inplace=False)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    uvd2 = uvd.select(antenna_nums=[1, 12, 21], inplace=False)
 
-  >>> # print all the antennas numbers with data in the original file
-  >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
-  [ 1  2  3  4  7  8  9 12 15 19 20 21 22 23 24 25 27 28]
-
-  >>> # print all the antennas numbers with data after the select
-  >>> print(np.unique(uvd2.ant_1_array.tolist() + uvd2.ant_2_array.tolist()))
-  [ 1 12 21]
-
+    assert uvd2.Nants_data < uvd.Nants_data
 
 
 .. _uvdata_sorting_data:
@@ -900,22 +847,22 @@ The :meth:`pyuvdata.UVData.conjugate_bls` method will conjugate baselines to con
 various conventions (``"ant1<ant2"``, ``"ant2<ant1"``, ``"u<0"``, ``"u>0"``, ``"v<0"``,
 ``"v>0"``) or it can just conjugate a set of specific baseline-time indices.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(uvfits_file)
-  >>> uvd.conjugate_bls("ant1<ant2")
-  >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
-  True
+    uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(uvfits_file)
+    uvd.conjugate_bls("ant1<ant2")
+    assert np.all(uvd.ant_2_array > uvd.ant_1_array)
 
-  >>> uvd2.conjugate_bls("u<0", use_enu=False)
-  >>> print(np.max(uvd2.uvw_array[:, 0]) <= 0)
-  True
+    uvd.conjugate_bls("u<0", use_enu=False)
+    assert np.all(uvd.uvw_array[:, 0] <= 0)
 
 b) Sorting along the baseline-time axis
 ***************************************
@@ -926,36 +873,32 @@ preferred for data that have baseline dependent averaging ``"bda"``. A user can 
 just specify a desired order by passing an array of baseline-time indices. There is also
 an option to sort the auto visibilities before the cross visibilities (``autos_first``).
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(uvfits_file)
+    uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(uvfits_file)
 
-  >>> # The default is to sort first by time, then by baseline
-  >>> uvd.reorder_blts()
-  >>> print(np.min(np.diff(uvd.time_array)) >= 0)
-  True
+    # The default is to sort first by time, then by baseline
+    uvd.reorder_blts()
+    assert np.all(np.diff(uvd.time_array) >= 0)
 
-  >>> # Explicity sorting by "time" then "baseline" gets the same result
-  >>> uvd2 = uvd.copy()
-  >>> uvd2.reorder_blts("time", minor_order="baseline")
-  >>> print(uvd == uvd2)
-  True
+    # Explicity sorting by "time" then "baseline" gets the same result
+    uvd2 = uvd.copy()
+    uvd2.reorder_blts("time", minor_order="baseline")
+    assert uvd == uvd2
 
-  >>> uvd.reorder_blts("ant1", minor_order="ant2")
-  >>> print(np.min(np.diff(uvd.ant_1_array)) >= 0)
-  True
+    uvd.reorder_blts("ant1", minor_order="ant2")
+    assert np.all(np.diff(uvd.ant_1_array) >= 0)
 
-  >>> # You can also sort and conjugate in a single step for the purposes of comparing two objects
-  >>> uvd.reorder_blts("bda", conj_convention="ant1<ant2")
-  >>> uvd2.reorder_blts("bda", conj_convention="ant1<ant2")
-  >>> print(uvd == uvd2)
-  True
+    # You can also sort and conjugate in a single step
+    uvd.reorder_blts("bda", conj_convention="ant1<ant2")
 
 c) Sorting along the frequency axis
 ***********************************
@@ -966,45 +909,38 @@ spectral windows). Spectral windows or channels can be sorted by ascending or de
 number or in an order specified by passing an index array for spectral window or
 channels.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> testfile = fetch_data("sma_mir")
-  >>> uvd = UVData.from_file(testfile)
+    testfile = fetch_data("sma_mir")
+    uvd = UVData.from_file(testfile)
 
-  >>> # Sort by spectral window number and by frequency within the spectral window
-  >>> # Now the spectral windows are in ascending order and the frequencies in each window
-  >>> # are in ascending order.
-  >>> uvd.reorder_freqs(spw_order="number", channel_order="freq")
-  >>> print(uvd.spw_array)
-  [-4 -3 -2 -1  1  2  3  4]
+    # Sort by spectral window number and by frequency within the spectral window
+    # Now the spectral windows are in ascending order and the frequencies in each window
+    # are in ascending order.
+    uvd.reorder_freqs(spw_order="number", channel_order="freq")
+    assert np.all(np.diff(uvd.spw_array) > 0)
+    assert np.all(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)]) > 0)
 
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
-  True
+    # Prepend a ``-`` to the sort string to sort in descending order.
+    # Now the spectral windows are in descending order but the frequencies in each window
+    # are in ascending order.
+    uvd.reorder_freqs(spw_order="-number", channel_order="freq")
+    assert np.all(np.diff(uvd.spw_array) < 0)
+    assert np.all(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)]) > 0)
 
-  >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> # Now the spectral windows are in descending order but the frequencies in each window
-  >>> # are in ascending order.
-  >>> uvd.reorder_freqs(spw_order="-number", channel_order="freq")
-  >>> print(uvd.spw_array)
-  [ 4  3  2  1 -1 -2 -3 -4]
-
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) >= 0)
-  True
-
-  >>> # Use the ``select_spw`` keyword to sort only one spectral window.
-  >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
-  >>> # in spectral window 2 are in ascending order
-  >>> uvd.reorder_freqs(select_spw=1, channel_order="-freq")
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)])) <= 0)
-  True
-
-  >>> print(np.min(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 2)])) >= 0)
-  True
+    # Use the ``select_spw`` keyword to sort only one spectral window.
+    # Now the frequencies in spectral window 1 are in descending order but the frequencies
+    # in spectral window 2 are in ascending order
+    uvd.reorder_freqs(select_spw=1, channel_order="-freq")
+    assert np.all(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 1)]) < 0)
+    assert np.all(np.diff(uvd.freq_array[np.nonzero(uvd.flex_spw_id_array == 2)]) > 0)
 
 c) Sorting along the polarization axis
 **************************************
@@ -1013,20 +949,19 @@ The :meth:`pyuvdata.UVData.reorder_pols` method will reorder the polarization ax
 either following the ``"AIPS"`` or ``"CASA"`` convention, or by an explicit index
 ordering set by the user.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import utils, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import utils, UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(uvfits_file)
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'll', 'rl', 'lr']
+    uvfits_file = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(uvfits_file)
+    assert utils.polnum2str(uvd.polarization_array) == ['rr', 'll', 'rl', 'lr']
 
-  >>> uvd.reorder_pols("CASA")
-  >>> print(utils.polnum2str(uvd.polarization_array))
-  ['rr', 'rl', 'lr', 'll']
+    uvd.reorder_pols("CASA")
+    assert utils.polnum2str(uvd.polarization_array) == ['rr', 'rl', 'lr', 'll']
 
 
 UVData: Averaging and Resampling
@@ -1053,88 +988,65 @@ by or ``min_int_time`` to specify a minimum final integration time. Specifying
 ``min_int_time`` is most appropriate when the integration time varies, e.g. if
 the data have had baseline-dependent averaging applied.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> datafile = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> uvd2 = uvd.copy()
-  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times:  1.879048192 - 1.879048192
+    datafile = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(datafile)
+    uvd2 = uvd.copy()
+    assert np.unique(uvd.integration_time).tolist() == [1.879048192]
 
-  >>> # first use n_times_to_avg to average by a factor of 2 in time.
-  >>> uvd.downsample_in_time(n_times_to_avg=2)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
+    # first use n_times_to_avg to average by a factor of 2 in time.
+    uvd.downsample_in_time(n_times_to_avg=2)
+    assert np.unique(uvd.integration_time).tolist() == [3.758096384]
 
-  >>> print("Range of integration times after downsampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after downsampling:  3.758096384 - 3.758096384
-
-  >>> # Now use min_int_time to average by a factor of 2 in time.
-  >>> min_integration_time = np.amax(uvd2.integration_time) * 2.0
-  >>> uvd2.downsample_in_time(min_int_time=min_integration_time)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
-
-  >>> print("Range of integration times after downsampling: ", np.amin(uvd2.integration_time),
-  ...       "-", np.amax(uvd2.integration_time))
-  Range of integration times after downsampling:  3.758096384 - 3.758096384
-
+    # Now use min_int_time to average by a factor of 2 in time.
+    min_integration_time = np.amax(uvd2.integration_time) * 2.0
+    uvd2.downsample_in_time(min_int_time=min_integration_time)
+    assert np.unique(uvd2.integration_time).tolist() == [3.758096384]
 
 b) Upsampling in time
 *********************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> datafile = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> print("Range of integration times: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times:  1.879048192 - 1.879048192
+    datafile = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(datafile)
+    assert np.unique(uvd.integration_time).tolist() == [1.879048192]
 
-  >>> max_integration_time = np.amin(uvd.integration_time) / 2.0
-  >>> uvd.upsample_in_time(max_integration_time)
-  Data are unprojected or phased as a driftscan, phasing before resampling.
-  Undoing phasing.
-
-  >>> print("Range of integration times after upsampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after upsampling:  0.939524096 - 0.939524096
+    max_integration_time = np.amin(uvd.integration_time) / 2.0
+    uvd.upsample_in_time(max_integration_time)
+    assert np.unique(uvd.integration_time).tolist() == [0.939524096]
 
 c) Resampling a BDA dataset in time
 ***********************************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> testfile = fetch_data("sim_bda")
-  >>> uvd = UVData.from_file(testfile, default_mount_type="fixed")
-  >>> print(
-  ...    "Range of integration times: ", np.amin(uvd.integration_time), "-", np.amax(uvd.integration_time)
-  ... )
-  Range of integration times:  2.0 - 16.0
+    testfile = fetch_data("sim_bda")
+    uvd = UVData.from_file(testfile, default_mount_type="fixed")
+    assert np.unique(uvd.integration_time).tolist() == [2.0, 4.0, 8.0, 16.0]
 
-  >>> # Resample all baselines to an 8s integration time
-  >>> uvd.resample_in_time(8, allow_drift=True)
-  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
-  Data are unprojected or phased as a driftscan and allow_drift is True, so resampling will be done without phasing.
-
-  >>> print("Range of integration times after resampling: ", np.amin(uvd.integration_time),
-  ...       "-", np.amax(uvd.integration_time))
-  Range of integration times after resampling:  8.0 - 8.0
+    # Resample all baselines to an 8s integration time
+    uvd.resample_in_time(8, allow_drift=True)
+    assert np.unique(uvd.integration_time).tolist() == [8.0]
 
 d) Averaging in frequency
 *************************
@@ -1144,22 +1056,21 @@ number of frequencies in each spectral window does not divide evenly by the numb
 channels to be averaged together. Use the `respect_spws` parameter to control whether
 averaging will be done over spectral window boundaries.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> datafile = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(datafile)
-  >>> print("Channel width: ", uvd.channel_width)
-  Channel width:  [122070.3125 122070.3125 122070.3125 122070.3125]
+    datafile = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(datafile)
+    assert np.unique(uvd.channel_width).tolist() == [122070.3125]
 
-  >>> # Average by a factor of 2 in frequency
-  >>> uvd.frequency_average(n_chan_to_avg=2, keep_ragged=True)
-  >>> print("Channel width after frequency averaging: ", uvd.channel_width)
-  Channel width after frequency averaging:  [244140.625 244140.625]
+    # Average by a factor of 2 in frequency
+    uvd.frequency_average(n_chan_to_avg=2, keep_ragged=True)
+    assert np.unique(uvd.channel_width).tolist() == [244140.625]
 
 
 UVData: Combining and concatenating data
@@ -1169,73 +1080,80 @@ the baseline-time, frequency, and/or polarization axis.
 
 a) Combine frequencies.
 ***********************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd1 = UVData.from_file(filename)
-  >>> uvd2 = uvd1.copy()
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd1 = UVData.from_file(filename)
+    uvd2 = uvd1.copy()
 
-  >>> # Downselect frequencies to recombine
-  >>> uvd1.select(freq_chans=np.arange(0, 32))
-  >>> uvd2.select(freq_chans=np.arange(32, 64))
-  >>> uvd3 = uvd1 + uvd2
-  >>> print((uvd1.Nfreqs, uvd2.Nfreqs, uvd3.Nfreqs))
-  (32, 32, 64)
+    # Downselect frequencies to recombine
+    uvd1.select(freq_chans=np.arange(0, 32))
+    assert uvd1.Nfreqs == 32
+    uvd2.select(freq_chans=np.arange(32, 64))
+    assert uvd2.Nfreqs == 32
+    uvd3 = uvd1 + uvd2
+    assert uvd3.Nfreqs == 64
 
 b) Combine times.
 *****************
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd1 = UVData.from_file(filename)
-  >>> uvd2 = uvd1.copy()
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd1 = UVData.from_file(filename)
+    uvd2 = uvd1.copy()
 
-  >>> # Downselect times to recombine
-  >>> times = np.unique(uvd1.time_array)
-  >>> uvd1.select(times=times[0:len(times) // 2])
-  >>> uvd2.select(times=times[len(times) // 2:])
-  >>> uvd3 = uvd1 + uvd2
-  >>> print((uvd1.Ntimes, uvd2.Ntimes, uvd3.Ntimes))
-  (7, 8, 15)
-  >>> print((uvd1.Nblts, uvd2.Nblts, uvd3.Nblts))
-  (459, 901, 1360)
+    # Downselect times to recombine
+    times = np.unique(uvd1.time_array)
+    uvd1.select(times=times[0:len(times) // 2])
+    assert uvd1.Ntimes == 7
+    uvd2.select(times=times[len(times) // 2:])
+    assert uvd2.Ntimes == 8
+    uvd3 = uvd1 + uvd2
+    assert uvd3.Ntimes == 15
 
 c) Combine in place.
 ********************
 The following two commands are equivalent, and act on uvd1
 directly without creating a third uvdata object.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd1 = UVData.from_file(filename)
-  >>> uvd2 = uvd1.copy()
-  >>> uvd1.select(times=times[0:len(times) // 2])
-  >>> uvd2.select(times=times[len(times) // 2:])
-  >>> uvd1.__add__(uvd2, inplace=True)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd1 = UVData.from_file(filename)
+    uvd2 = uvd1.copy()
+    times = np.unique(uvd1.time_array)
+    uvd1.select(times=times[0:len(times) // 2])
+    uvd2.select(times=times[len(times) // 2:])
+    uvd1.__add__(uvd2, inplace=True)
 
-  >>> uvd1 = UVData.from_file(filename)
-  >>> uvd2 = uvd1.copy()
-  >>> uvd1.select(times=times[0:len(times) // 2])
-  >>> uvd2.select(times=times[len(times) // 2:])
-  >>> uvd1 += uvd2
+    uvd1 = UVData.from_file(filename)
+    uvd2 = uvd1.copy()
+    uvd1.select(times=times[0:len(times) // 2])
+    uvd2.select(times=times[len(times) // 2:])
+    uvd1 += uvd2
 
 
-.. _multiple_files:
+.. _multiple_files_uvdata:
 
 d) Reading multiple files.
 **************************
@@ -1243,24 +1161,25 @@ If the :meth:`pyuvdata.UVData.read` method is given a list of dataset files or
 folders (or list of lists for FHD or MWA correlator datasets), each dataset will
 be read in succession and combined with the previous file(s).
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import os
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
-  >>> uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
-  >>> uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
-  >>> uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uvd1.write_uvfits(os.path.join(".", "tutorial1.uvfits"))
-  >>> uvd2.write_uvfits(os.path.join(".", "tutorial2.uvfits"))
-  >>> uvd3.write_uvfits(os.path.join(".", "tutorial3.uvfits"))
-  >>> filenames = [os.path.join(".", f) for f
-  ...             in ["tutorial1.uvfits", "tutorial2.uvfits", "tutorial3.uvfits"]]
-  >>> uvd = UVData.from_file(filenames)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
+    uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
+    uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
+    uvd1.write_uvfits(os.path.join('.', 'tutorial1.uvfits'))
+    uvd2.write_uvfits(os.path.join('.', 'tutorial2.uvfits'))
+    uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
+    filenames = [os.path.join('.', f) for f in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
+    uvd = UVData.from_file(filenames)
 
 e) Fast concatenation
 *********************
@@ -1274,12 +1193,12 @@ the ``__add__`` method to combine the data contained in the files into a single
 UVData object.
 
 .. warning::
-  There is no guarantee that two objects combined in this fashion
-  will result in a self-consistent object after concatenation. Basic checking is
-  done, but time-consuming robust checks are eschewed for the sake of speed. The
-  data will also *not* be reordered or sorted as part of the concatenation, and so
-  this must be done manually by the user if a reordering is desired
-  (see :ref:`uvdata_sorting_data`).
+    There is no guarantee that two objects combined in this fashion
+    will result in a self-consistent object after concatenation. Basic checking is
+    done, but time-consuming robust checks are eschewed for the sake of speed. The
+    data will also *not* be reordered or sorted as part of the concatenation, and so
+    this must be done manually by the user if a reordering is desired
+    (see :ref:`uvdata_sorting_data`).
 
 The :meth:`pyuvdata.UVData.fast_concat` method is significantly faster than
 :meth:`pyuvdata.UVData.__add__`, especially for large UVData objects.
@@ -1288,24 +1207,25 @@ time-ordered visibilities from disk using the ``axis`` keyword argument can
 improve throughput by nearly an order of magnitude for 100 HERA data files
 stored as uvh5 files.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import os
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename)
-  >>> uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
-  >>> uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
-  >>> uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
-  >>> uvd1.write_uvfits(os.path.join(".", "tutorial1.uvfits"))
-  >>> uvd2.write_uvfits(os.path.join(".", "tutorial2.uvfits"))
-  >>> uvd3.write_uvfits(os.path.join(".", "tutorial3.uvfits"))
-  >>> filenames = [os.path.join(".", f) for f
-  ...             in ["tutorial1.uvfits", "tutorial2.uvfits", "tutorial3.uvfits"]]
-  >>> uvd = UVData.from_file(filenames, axis="freq")
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename)
+    uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
+    uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
+    uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
+    uvd1.write_uvfits(os.path.join('.', 'tutorial1.uvfits'))
+    uvd2.write_uvfits(os.path.join('.', 'tutorial2.uvfits'))
+    uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
+    filenames = [os.path.join('.', f) for f in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
+    uvd = UVData.from_file(filenames, axis='freq')
 
 
 UVData: Summing and differencing visibilities
@@ -1313,30 +1233,32 @@ UVData: Summing and differencing visibilities
 Simple summing and differencing of visibilities can be done with the :meth:`pyuvdata.UVData.sum_vis`
 and :meth:`pyuvdata.UVData.diff_vis` methods.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from astropy.time import Time
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from astropy.time import Time
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd1 = UVData.from_file(filename)
-  >>> uvd2 = uvd1.copy()
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd1 = UVData.from_file(filename)
+    uvd2 = uvd1.copy()
 
-  >>> # sum visibilities
-  >>> uvd1 = uvd1.sum_vis(uvd2)
+    # sum visibilities
+    uvd1 = uvd1.sum_vis(uvd2)
 
-  >>> # diff visibilities
-  >>> uvd1 = uvd1.diff_vis(uvd2)
+    # diff visibilities
+    uvd1 = uvd1.diff_vis(uvd2)
 
-  >>> # in place option
-  >>> uvd1.sum_vis(uvd2, inplace=True)
+    # in place option
+    uvd1.sum_vis(uvd2, inplace=True)
 
-  >>> # override a particular parameter
-  >>> rdate_obj = Time(np.floor(uvd1.time_array[0]), format="jd", scale="utc")
-  >>> uvd1.rdate = rdate_obj.strftime("%Y-%m-%d")
-  >>> uvd1.sum_vis(uvd2, inplace=True, override_params=["rdate"])
+    # override a particular parameter
+    rdate_obj = Time(np.floor(uvd1.time_array[0]), format="jd", scale="utc")
+    uvd1.rdate = rdate_obj.strftime("%Y-%m-%d")
+    uvd1.sum_vis(uvd2, inplace=True, override_params=["rdate"])
 
 
 UVData: Phasing
@@ -1347,92 +1269,121 @@ and other analyses is called phasing. See our
 for a detailed description of phasing and the specific implementation details in
 pyuvdata.
 
+We use the :meth:`pyuvdata.UVData.print_phase_center_info` to print a nice description
+of the phasing of the object.
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from astropy.time import Time
-  >>> from numpy import pi
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from astropy.time import Time
+    from numpy import pi
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvh5_file = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(uvh5_file)
+    uvh5_file = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(uvh5_file)
+    uvd.print_phase_center_info()
 
-  >>> # We can get information on the sources in the data set by using the
-  >>> # `print_phase_center_info` command. This object is initially unprojected (unphased)
-  >>> uvd.print_phase_center_info()
+This object is initially unprojected (unphased) so the print command yields::
+
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
       #          Name                          deg           deg
   ----------------------------------------------------------------------
       0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
-  >>> # When phasing, the user needs to supply a name for each phase
-  >>> # center, though it does not need to be unique. We are specifying that the type
-  >>> # here is "sidereal", which means that the position is represented by a fixed set
-  >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
-  >>> uvd.phase(lon=5.23368, lat=0.710940, epoch="J2000", cat_name="target1", cat_type="sidereal")
-  >>> uvd.print_phase_center_info()
+When phasing, the user needs to supply a name for each phase center, though it
+does not need to be unique. We are specifying that the type here is "sidereal",
+which means that the position is represented by a fixed set of coordinates in a
+sidereal coordinate frame (e.g., ICRS, FK5, etc).
+
+.. code-block:: python
+
+    uvd.phase(lon=5.23368, lat=0.710940, epoch="J2000", cat_name="target1", cat_type="sidereal")
+    uvd.print_phase_center_info()
+
+Now the print command yields::
+
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
       #          Name                       hours           deg
   ------------------------------------------------------------------------------
       1       target1      sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
 
 
-  >>> # You can use the `phase_to_time` method to phase to zenith at a particular time.
-  >>> # The time can be passed as an astropy Time object or as a float which will be
-  >>> # interpreted as a JD
-  >>> uvd.phase_to_time(Time(uvd.time_array[0], format="jd"))
-  >>> uvd.print_phase_center_info()
+You can use the `phase_to_time` method to phase to zenith at a particular time.
+The time can be passed as an astropy Time object or as a float which will be
+interpreted as a JD
+
+.. code-block:: python
+
+    uvd.phase_to_time(Time(uvd.time_array[0], format="jd"))
+    uvd.print_phase_center_info()
+
+Now the print command yields::
+
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
       #          Name                       hours           deg
   ------------------------------------------------------------------------------
       0  zenith_at_jd2458661.234803      sidereal   13:20:57.92  -30:37:09.44   icrs  J2000.0
 
 
-  >>> # You can also now phase to "ephem" objects, which
-  >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
-  >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
-  >>> uvd.phase(lon=0, lat=0, epoch="J2000", cat_name="Sun", lookup_name=True)
-  >>> uvd.print_phase_center_info()
+You can also now phase to "ephem" objects, which move with time, e.g. solar
+system bodies. The phase method has a `lookup_name` option which, if set to true,
+will allow you to search JPL-Horizons for coords
+
+.. code-block:: python
+
+    uvd.phase(lon=0, lat=0, epoch="J2000", cat_name="Sun", lookup_name=True)
+    uvd.print_phase_center_info()
+
+Now the print command yields::
+
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
   ---------------------------------------------------------------------------------------------------------------------
       1           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
 
-  >>> # Finally, we can use a selection mask to only phase part of the data at a time,
-  >>> # like only the data belonging to the first integration
-  >>> select_mask = uvd.time_array == uvd.time_array[0]
+Finally, we can use a selection mask to only phase part of the data at a time,
+like only the data belonging to the first integration. In this example we'll phase
+the first integration to a "driftscan" target, which is phased to a particular
+azimuth and elevation (note this is different than "unprojected" data -- which
+used to be designated with phase_type="drift" -- in that it is still phased and
+can be to any azimuth and elevation, not just zenith). Note that we need to
+supply `phase_frame` as "altaz", since driftscans are always in that frame.
 
-  >>> # Let's use this to create a "driftscan" target, which is phased to a particular
-  >>> # azimuth and elevation (note this is different than "unprojected" data -- which
-  >>> # used to be designated with phase_type="drift" -- in that it is still phased and
-  >>> # can be to any azimuth and elevation, not just zenith). Note that we need to
-  >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
-  >>> uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame="altaz", cat_type="driftscan", select_mask=select_mask)
+.. code-block:: python
 
-  >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
-  >>> # phase centers present in the data
-  >>> uvd.print_phase_center_info()
+    select_mask = uvd.time_array == uvd.time_array[0]
+    uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame="altaz", cat_type="driftscan", select_mask=select_mask)
+    uvd.print_phase_center_info()
+
+Now when using `print_phase_center_info`, we see that there are multiple phase
+centers present in the data::
+
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                          deg           deg                  Start-MJD    End-MJD       pc    km/s
   ----------------------------------------------------------------------------------------------------------------------
       0        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
       1           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
-  >>> # We can unproject (unphase) data using the `unproject_phase` method
-  >>> uvd.unproject_phase()
+We can unproject (unphase) data using the `unproject_phase` method:
 
-  >>> # Now when using `print_phase_center_info`, we'll see that all the data are unprojected
-  >>> uvd.print_phase_center_info()
+.. code-block:: python
+
+    uvd.unproject_phase()
+    uvd.print_phase_center_info()
+
+Now when using `print_phase_center_info`, we'll see that all the data are unprojected::
+
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
       #          Name                          deg           deg
   ----------------------------------------------------------------------
       2   unprojected   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
-.. _large_files:
+.. _large_files_uvdata:
 
 UVData: Working with large files
 --------------------------------
@@ -1459,25 +1410,21 @@ are available.
 Measurement set (ms) files do not support reading only the metadata
 (the read_data keyword is ignored for ms files).
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
+    filename = fetch_data("vla_casa_tutorial_uvfits")
 
-  >>> # read the metadata but not the data
-  >>> uvd = UVData.from_file(filename, read_data=False)
+    # read the metadata but not the data
+    uvd = UVData.from_file(filename, read_data=False)
+    assert uvd.metadata_only
+    assert uvd.time_array.size == 1360
+    assert uvd.data_array is None
 
-  >>> print(uvd.metadata_only)
-  True
-
-  >>> print(uvd.time_array.size)
-  1360
-
-  >>> print(uvd.data_array)
-  None
 
 b) Reading only parts of files
 ******************************
@@ -1491,40 +1438,36 @@ save memory. Miriad and Mir only supports some of the selections on the read, th
 unsupported ones are done after the read. MWA correlator fits has support for most
 but not all selections, the unsupported ones are done after the read.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("vla_casa_tutorial_uvfits")
-  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(32))
-  >>> print(uvd.data_array.shape)
-  (1360, 32, 4)
+    filename = fetch_data("vla_casa_tutorial_uvfits")
+    uvd = UVData.from_file(filename, freq_chans=np.arange(32))
+    assert uvd.Nfreqs == 32
 
-  >>> # Reading in the metadata can help with specifying what data to read in
-  >>> uvd = UVData.from_file(filename, read_data=False)
-  >>> unique_times = np.unique(uvd.time_array)
-  >>> print(unique_times.shape)
-  (15,)
+    # Reading in the metadata can help with specifying what data to read in
+    uvd = UVData.from_file(filename, read_data=False)
+    assert uvd.Ntimes == 15
 
-  >>> times_to_keep = unique_times[[0, 2, 4]]
-  >>> uvd = UVData.from_file(filename, times=times_to_keep)
-  >>> print(uvd.data_array.shape)
-  (179, 64, 4)
+    unique_times = np.unique(uvd.time_array)
+    times_to_keep = unique_times[[0, 2, 4]]
+    uvd = UVData.from_file(filename, times=times_to_keep)
+    assert uvd.Ntimes == 3
 
-  >>> # Select a few baselines from a miriad file
-  >>> filename = fetch_data("hera_old_miriad")
-  >>> uvd = UVData.from_file(filename, bls=[(9, 10), (9, 20)])
-  >>> print(uvd.get_antpairs())
-  [(9, 10), (9, 20)]
+    # Select a few baselines from a miriad file
+    filename = fetch_data("hera_old_miriad")
+    uvd = UVData.from_file(filename, bls=[(9, 10), (9, 20)])
+    assert uvd.get_antpairs() == [(9, 10), (9, 20)]
 
-  >>> # Select certain frequencies from a uvh5 file
-  >>> filename = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(2))
-  >>> print(uvd.data_array.shape)
-  (200, 2, 2)
+    # Select certain frequencies from a uvh5 file
+    filename = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(filename, freq_chans=np.arange(2))
+    assert uvd.Nfreqs == 2
 
 c) Writing to a uvh5 file in parts
 **********************************
@@ -1543,46 +1486,49 @@ parts of the data, flags, and nsample arrays should be written to. The user then
 also provides the data, flags, and nsample arrays of the proper size, and they
 are written to the appropriate parts of the file on disk.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import os
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> filename = fetch_data("hera_h3c_uvh5")
-  >>> uvd = UVData.from_file(filename, read_data=False)
-  >>> partfile = os.path.join(".", "tutorial_partial_io.uvh5")
-  >>> uvd.initialize_uvh5_file(partfile, clobber=True)
+    filename = fetch_data("hera_h3c_uvh5")
+    uvd = UVData.from_file(filename, read_data=False)
+    partfile = os.path.join('.', 'tutorial_partial_io.uvh5')
+    uvd.initialize_uvh5_file(partfile, clobber=True)
 
-  >>> # read in the lower and upper halves of the band separately, and apply different scalings
-  >>> Nfreqs = uvd.Nfreqs
-  >>> Hfreqs = Nfreqs // 2
-  >>> freq_inds1 = np.arange(Hfreqs)
-  >>> freq_inds2 = np.arange(Hfreqs, Nfreqs)
-  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds1)
-  >>> data_array = 0.5 * uvd2.data_array
-  >>> flag_array = uvd2.flag_array
-  >>> nsample_array = uvd2.nsample_array
-  >>> uvd.write_uvh5_part(
-  ...   partfile,
-  ...   data_array=data_array,
-  ...   flag_array=flag_array,
-  ...   nsample_array=nsample_array,
-  ...   freq_chans=freq_inds1
-  ... )
+    # read in the lower and upper halves of the band separately, and apply different scalings
+    Nfreqs = uvd.Nfreqs
+    Hfreqs = Nfreqs // 2
+    freq_inds1 = np.arange(Hfreqs)
+    freq_inds2 = np.arange(Hfreqs, Nfreqs)
+    uvd2 = UVData()
+    uvd2 = UVData.from_file(filename, freq_chans=freq_inds1)
+    data_array = 0.5 * uvd2.data_array
+    flag_array = uvd2.flag_array
+    nsample_array = uvd2.nsample_array
+    uvd.write_uvh5_part(
+        partfile,
+        data_array=data_array,
+        flag_array=flag_array,
+        nsample_array=nsample_array,
+        freq_chans=freq_inds1
+    )
 
-  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds2)
-  >>> data_array = 2.0 * uvd2.data_array
-  >>> flag_array = uvd2.flag_array
-  >>> nsample_array = uvd2.nsample_array
-  >>> uvd.write_uvh5_part(
-  ...   partfile,
-  ...   data_array=data_array,
-  ...   flag_array=flag_array,
-  ...   nsample_array=nsample_array,
-  ...   freq_chans=freq_inds2
-  ... )
+    uvd2 = UVData.from_file(filename, freq_chans=freq_inds2)
+    data_array = 2.0 * uvd2.data_array
+    flag_array = uvd2.flag_array
+    nsample_array = uvd2.nsample_array
+    uvd.write_uvh5_part(
+        partfile,
+        data_array=data_array,
+        flag_array=flag_array,
+        nsample_array=nsample_array,
+        freq_chans=freq_inds2
+    )
 
 
 UVData: Working with Redundant Baselines
@@ -1619,39 +1565,34 @@ functions for the baselines on an object is less memory efficient than using
 :meth:`pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
 the baseline array.
 
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import utils, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import utils, UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> # This file contains a HERA19 layout.
-  >>> uvd = UVData.from_file(fetch_data("sim_airy_hex"))
-  >>> uvd.unproject_phase(use_ant_pos=True)
-  >>> tol = 0.05  # Tolerance in meters
+    # This file contains a HERA19 layout.
+    uvd = UVData.from_file(fetch_data("sim_airy_hex"))
+    uvd.unproject_phase(use_ant_pos=True)
+    tol = 0.05  # Tolerance in meters
 
-  >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, include_conjugates=False)
-  >>> print(len(baseline_groups))
-  19
+    # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.
+    baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, include_conjugates=False)
+    assert len(baseline_groups) == 19
 
-  >>> # The include_conjugates option includes baselines that are redundant when reversed.
-  >>> # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
-  >>> baseline_groups, vec_bin_centers, lengths, conjugates = uvd.get_redundancies(tol=tol, include_conjugates=True)
-  >>> print(len(baseline_groups))
-  19
+    # The include_conjugates option includes baselines that are redundant when reversed.
+    # If used, the conjugates list will contain a list of indices of baselines that must be flipped to be redundant.
+    baseline_groups, vec_bin_centers, lengths, conjugates = uvd.get_redundancies(tol=tol, include_conjugates=True)
+    assert len(baseline_groups) == 19
 
-  >>> # Using antenna positions instead. This has one more group because it includes the autos.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
-  >>> print(len(baseline_groups))
-  20
+    # Using antenna positions instead. This has one more group because it includes the autos.
+    baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
+    assert len(baseline_groups) == 20
 
-  >>> # get_redundancies has the option to ignore autocorrelations.
-  >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True, include_autos=False)
-  >>> print(len(baseline_groups))
-  19
+    # get_redundancies has the option to ignore autocorrelations.
+    baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True, include_autos=False)
+    assert len(baseline_groups) == 19
 
 b) Compressing/inflating on Redundant Baselines
 ***********************************************
@@ -1670,30 +1611,31 @@ This action is (almost) inverted by the :meth:`pyuvdata.UVData.inflate_by_redund
 method, which finds all possible baselines from the antenna positions and fills
 in the full data array based on redundancy.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uv0 = UVData.from_file(fetch_data("sim_airy_hex"))
-  >>> tol = 0.02   # In meters
+    uv0 = UVData.from_file(fetch_data("sim_airy_hex"))
+    tol = 0.02   # In meters
 
-  >>> # Compression can be run in-place or return a separate UVData object.
-  >>> uv_backup = uv0.copy()
-  >>> uvd2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
-  >>> uv0.compress_by_redundancy(method="select", tol=tol)
-  >>> assert uvd2 == uv0
+    # Compression can be run in-place or return a separate UVData object.
+    uv_backup = uv0.copy()
+    uvd2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
+    uv0.compress_by_redundancy(method="select", tol=tol)
+    assert uvd2 == uv0
 
-  >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
-  >>> uv0.inflate_by_redundancy(tol=tol)
-  >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
-  >>> uv0.reorder_blts()
-  >>> assert np.all(uv0.baseline_array == uv_backup.baseline_array)
+    # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
+    uv0.inflate_by_redundancy(tol=tol)
+    uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
+    uv0.reorder_blts()
+    assert np.all(uv0.baseline_array == uv_backup.baseline_array)
 
-  >>> uvd2.inflate_by_redundancy(tol=tol)
-  >>> assert uvd2 == uv0
+    uvd2.inflate_by_redundancy(tol=tol)
+    assert uvd2 == uv0
 
 
 .. _flex_pol:
@@ -1737,53 +1679,46 @@ We do not currently have an SMA flex_pol file in the repo, so we first generate 
 using some low-level Mir interfaces, then explore some of its properties and convert it
 into a standard UVData object (which doubles its size).
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.uvdata.mir import Mir
-  >>> from pyuvdata.uvdata.mir_parser import MirParser
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.uvdata.mir import Mir
+    from pyuvdata.uvdata.mir_parser import MirParser
+    from pyuvdata.datasets import fetch_data
 
-  >>> mir_file = fetch_data("sma_mir")
-  >>> mir_data = MirParser(mir_file, load_cross=True, load_auto=True, has_auto=True)
+    mir_file = fetch_data("sma_mir")
+    mir_data = MirParser(mir_file, load_cross=True, load_auto=True, has_auto=True)
 
-  >>> # Read in the raw data so that we can manipulate it, and make it look like the
-  >>> # test data set was recorded with split-tuning
-  >>> mir_data.sp_data._data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
-  >>> mir_data.sp_data._data["fsky"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
+    # Read in the raw data so that we can manipulate it, and make it look like the
+    # test data set was recorded with split-tuning
+    mir_data.sp_data._data["gunnLO"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
+    mir_data.sp_data._data["fsky"][np.isin(mir_data.sp_data["blhid"], [1, 3])] += 30.0
 
-  >>> # Convert MirParser object into a UVData object with flex-pol enabled.
-  >>> mir_uv = UVData()
-  >>> mir_obj = Mir()
-  >>> mir_obj._init_from_mir_parser(mir_data)
-  >>> mir_uv._convert_from_filetype(mir_obj)
+    # Convert MirParser object into a UVData object with flex-pol enabled.
+    mir_uv = UVData()
+    mir_obj = Mir()
+    mir_obj._init_from_mir_parser(mir_data)
+    mir_uv._convert_from_filetype(mir_obj)
 
-  >>> # Start exploring SMA flex_pol object
-  >>> print(mir_uv.spw_array)
-  [-255   -4   -3   -2   -1    1    2    3    4  255  257  508  509  510
-    511  513  514  515  516  767]
-  >>> print(mir_uv.flex_spw_polarization_array)
-  [-5 -5 -5 -5 -5 -5 -5 -5 -5 -5 -6 -6 -6 -6 -6 -6 -6 -6 -6 -6]
-  >>> print(mir_uv.polarization_array)
-  [0]
-  >>> print(mir_uv.data_array.shape)
-  (1, 262160, 1)
+    # Start exploring SMA flex_pol object
+    assert mir_uv.spw_array.tolist() == [-255, -4, -3, -2, -1, 1, 2, 3, 4, 255, 257, 508, 509, 510, 511, 513, 514, 515, 516, 767]
+    print(mir_uv.flex_spw_polarization_array.tolist())
+    assert mir_uv.flex_spw_polarization_array.tolist() == [-5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -6, -6, -6, -6, -6, -6, -6, -6, -6, -6]
+    assert mir_uv.polarization_array == 0
+    assert mir_uv.data_array.shape == (1, 262160, 1)
 
-  >>> # Use the ``remove_flex_pol`` method to get a standard object. Note that it
-  >>> # doubles the data_array size
-  >>> mir_uv.remove_flex_pol(combine_spws=False)
-  >>> print(mir_uv.spw_array)
-  [-255   -4   -3   -2   -1    1    2    3    4  255  257  508  509  510
-    511  513  514  515  516  767]
-  >>> print(mir_uv.flex_spw_polarization_array)
-  None
-  >>> print(mir_uv.polarization_array)
-  [-6 -5]
-  >>> print(mir_uv.data_array.shape)
-  (1, 262160, 2)
-
+    # Use the ``remove_flex_pol`` method to get a standard object. Note that it
+    # doubles the data_array size
+    mir_uv.remove_flex_pol(combine_spws=False)
+    print(mir_uv.spw_array)
+    assert mir_uv.spw_array.tolist() == [-255, -4, -3, -2, -1, 1, 2, 3, 4, 255, 257, 508, 509, 510, 511, 513, 514, 515, 516, 767]
+    assert mir_uv.flex_spw_polarization_array is None
+    assert mir_uv.polarization_array.tolist() == [-6, -5]
+    assert mir_uv.data_array.shape == (1, 262160, 2)
 
 b) Converting between standard and flex_pol objects
 ***************************************************
@@ -1791,47 +1726,35 @@ Here we load a HERA dataset and convert it to a flex-pol object, which reshapes 
 data_array but does not change its total size and then back, recovering the initial
 object.
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvd = UVData.from_file(fetch_data("hera_h3c_uvh5"))
-  >>> # make a copy to enable comparisons after converting to and from flex_pol
-  >>> uvd_orig = uvd.copy()
-  >>> print(uvd.polarization_array)
-  [-5 -6]
-  >>> print(uvd.spw_array)
-  [0]
-  >>> print(uvd.flex_spw_polarization_array)
-  None
-  >>> print(uvd.data_array.shape)
-  (200, 4, 2)
+    uvd = UVData.from_file(fetch_data("hera_h3c_uvh5"))
+    # make a copy to enable comparisons after converting to and from flex_pol
+    uvd_orig = uvd.copy()
+    assert uvd.polarization_array.tolist() == [-5, -6]
+    assert uvd.spw_array.tolist() == [0]
+    assert uvd.flex_spw_polarization_array is None
+    assert uvd.data_array.shape == (200, 4, 2)
 
-  >>> uvd.convert_to_flex_pol()
-  >>> print(uvd.polarization_array)
-  [0]
-  >>> print(uvd.spw_array)
-  [0 1]
-  >>> print(uvd.flex_spw_polarization_array)
-  [-5 -6]
-  >>> print(uvd.data_array.shape)
-  (200, 8, 1)
+    uvd.convert_to_flex_pol()
+    assert uvd.polarization_array.tolist() == [0]
+    assert uvd.spw_array.tolist() == [0, 1]
+    assert uvd.flex_spw_polarization_array.tolist() == [-5, -6]
+    assert uvd.data_array.shape == (200, 8, 1)
 
-  >>> uvd.remove_flex_pol()
-  >>> print(uvd.polarization_array)
-  [-5 -6]
-  >>> print(uvd.spw_array)
-  [0]
-  >>> print(uvd.flex_spw_polarization_array)
-  None
-  >>> print(uvd.data_array.shape)
-  (200, 4, 2)
+    uvd.remove_flex_pol()
+    assert uvd.polarization_array.tolist() == [-5, -6]
+    assert uvd.spw_array.tolist() == [0]
+    assert uvd.flex_spw_polarization_array is None
+    assert uvd.data_array.shape == (200, 4, 2)
 
-
-.. _new:
+.. _new_uvdata:
 
 UVData: Instantiating from arrays in memory
 -------------------------------------------
@@ -1841,27 +1764,30 @@ simulated data. Instead of instantiating a blank object and setting each require
 parameter, you can use the  :meth:`pyuvdata.Telescope.new` static method, which
 deals with the task of creating a consistent object from a minimal set of inputs
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> from pyuvdata import Telescope, UVData
+    from astropy.coordinates import EarthLocation
+    import numpy as np
+    from pyuvdata import Telescope, UVData
 
-  >>> uvd = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = np.linspace(2459855, 2459856, 20),
-  ... )
+    uvd = UVData.new(
+           freq_array = np.linspace(1e8, 2e8, 100),
+           polarization_array = ["xx", "yy"],
+           telescope = Telescope.new(
+               antenna_positions = {
+                   0: [0.0, 0.0, 0.0],
+                   1: [0.0, 0.0, 1.0],
+                   2: [0.0, 0.0, 2.0],
+               },
+               location = EarthLocation.from_geodetic(0, 0, 0),
+               name = "test",
+               instrument = "test",
+           ),
+           times = np.linspace(2459855, 2459856, 20),
+    )
 
 Notice that you need only provide the required parameters, and the rest will be
 filled in with sensible defaults. The telescope related metadata is passed
@@ -1876,96 +1802,104 @@ to enable this. Let us for example create an unusual object with 4 times and 4 b
 where each baseline observed one time each. This case is ambiguous without the
 ``do_blt_outer`` keyword, so we must set it:
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> from pyuvdata import Telescope, UVData
+    from astropy.coordinates import EarthLocation
+    import numpy as np
+    from pyuvdata import Telescope, UVData
 
-  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
-  >>> antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
-  >>> uvd = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = times,
-  ...     antpairs=antpairs,
-  ...     do_blt_outer=False,
-  ... )
-  >>> uvd.time_array
-  array([2459855. , 2459855.1, 2459855.2, 2459855.3])
+    times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
+    antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
+    uvd = UVData.new(
+           freq_array = np.linspace(1e8, 2e8, 100),
+           polarization_array = ["xx", "yy"],
+           telescope = Telescope.new(
+               antenna_positions = {
+                   0: [0.0, 0.0, 0.0],
+                   1: [0.0, 0.0, 1.0],
+                   2: [0.0, 0.0, 2.0],
+               },
+               location = EarthLocation.from_geodetic(0, 0, 0),
+               name = "test",
+               instrument = "test",
+           ),
+           times = times,
+           antpairs=antpairs,
+           do_blt_outer=False,
+    )
+    assert uvd.Nblts == 4
+    assert np.allclose(uvd.time_array, times)
 
-Notice that the resulting ``time_array`` only has 4 values. If we had set
+Notice that the resulting object only has 4 baseline-times. If we had set
 ``do_blt_outer = True``, we would have gotten the cartesian outer product of the
-provided times and baselines, which would have resulted in 16 times:
+provided times and baselines, which would have resulted in 16 baseline-times:
+
+.. clear-namespace
 
 .. code-block:: python
 
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> from pyuvdata import Telescope, UVData
+    from astropy.coordinates import EarthLocation
+    import numpy as np
+    from pyuvdata import Telescope, UVData
 
-  >>> uvd_rect = UVData.new(
-  ...     freq_array = np.linspace(1e8, 2e8, 100),
-  ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.new(
-  ...         antenna_positions = {
-  ...             0: [0.0, 0.0, 0.0],
-  ...             1: [0.0, 0.0, 1.0],
-  ...             2: [0.0, 0.0, 2.0],
-  ...         },
-  ...         location = EarthLocation.from_geodetic(0, 0, 0),
-  ...         name = "test",
-  ...         instrument = "test",
-  ...     ),
-  ...     times = times,
-  ...     antpairs=antpairs,
-  ...     do_blt_outer=True,
-  ... )
-  >>> uvd_rect.time_array
-  array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
-         2459855.1, 2459855.1, 2459855.2, 2459855.2, 2459855.2, 2459855.2,
-         2459855.3, 2459855.3, 2459855.3, 2459855.3])
+    times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
+    antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
+    uvd_rect = UVData.new(
+           freq_array = np.linspace(1e8, 2e8, 100),
+           polarization_array = ["xx", "yy"],
+           telescope = Telescope.new(
+               antenna_positions = {
+                   0: [0.0, 0.0, 0.0],
+                   1: [0.0, 0.0, 1.0],
+                   2: [0.0, 0.0, 2.0],
+               },
+               location = EarthLocation.from_geodetic(0, 0, 0),
+               name = "test",
+               instrument = "test",
+           ),
+           times = times,
+           antpairs=antpairs,
+           do_blt_outer=True,
+    )
+    assert uvd_rect.Nblts == 16
+    assert np.allclose(uvd_rect.time_array, np.repeat(times, 4))
 
 To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keyword:
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> from astropy.coordinates import EarthLocation
-  >>> import numpy as np
-  >>> from pyuvdata import Telescope, UVData
+    from astropy.coordinates import EarthLocation
+    import numpy as np
+    from pyuvdata import Telescope, UVData
 
-  >>> uvd_rect = UVData.new(
-  ...   freq_array = np.linspace(1e8, 2e8, 100),
-  ...   polarization_array = ["xx", "yy"],
-  ...   telescope = Telescope.new(
-  ...     antenna_positions = {
-  ...       0: [0.0, 0.0, 0.0],
-  ...       1: [0.0, 0.0, 1.0],
-  ...       2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     name = "test",
-  ...     instrument = "test",
-  ...   ),
-  ...   times = times,
-  ...   antpairs=antpairs,
-  ...   do_blt_outer=True,
-  ...   time_axis_faster_than_bls=True,
-  ... )
-  >>> uvd_rect.time_array
-  array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
-         2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
-         2459855. , 2459855.1, 2459855.2, 2459855.3])
+    times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
+    antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
+    uvd_rect = UVData.new(
+         freq_array = np.linspace(1e8, 2e8, 100),
+         polarization_array = ["xx", "yy"],
+         telescope = Telescope.new(
+           antenna_positions = {
+             0: [0.0, 0.0, 0.0],
+             1: [0.0, 0.0, 1.0],
+             2: [0.0, 0.0, 2.0],
+           },
+           location = EarthLocation.from_geodetic(0, 0, 0),
+           name = "test",
+           instrument = "test",
+         ),
+         times = times,
+         antpairs=antpairs,
+         do_blt_outer=True,
+         time_axis_faster_than_bls=True,
+    )
+    assert uvd_rect.Nblts == 16
+    assert np.allclose(
+      uvd_rect.time_array, np.repeat(times[np.newaxis, :], 4, axis=0).flatten()
+    )
 
 See the full documentation for the method
 :func:`pyuvdata.uvdata.UVData.new` for more information.
@@ -1994,26 +1928,28 @@ positions in the ENU frame. Or use the ``telescope.location`` and
 to the ``telescope.location``) with the :meth:`pyuvdata.utils.ENU_from_ECEF`
 utility method.
 
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> # directly from Telescope object
-  >>> import os
-  >>> from astropy.units import Quantity
-  >>> from pyuvdata import utils, UVData
-  >>> from pyuvdata.datasets import fetch_data
+    # directly from Telescope object
+    from astropy.units import Quantity
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> data_file = fetch_data("paper_2012_miriad")
-  >>> uvd = UVData.from_file(data_file)
-  >>> antpos = uvd.telescope.get_enu_antpos()
+    data_file = fetch_data("paper_2012_miriad")
+    uvd = UVData.from_file(data_file)
+    antpos = uvd.telescope.get_enu_antpos()
 
-  >>> # using utils
-  >>> # get antennas positions in ECEF
-  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to_value("m")
-  >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
+    # using utils
+    from pyuvdata import utils
 
-  >>> # convert to East, North, Up (ENU) coords.
-  >>> antpos = utils.ENU_from_ECEF(antpos, center_loc=uvd.telescope.location)
+    # get antennas positions in ECEF
+    telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to_value("m")
+    antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
+    # convert to East, North, Up (ENU) coords.
+    antpos = utils.ENU_from_ECEF(antpos, center_loc=uvd.telescope.location)
 
 UVData: Normalizing data
 ------------------------
@@ -2027,41 +1963,38 @@ statistical uncertainty in the amplitude of the autos is under most circumstance
 relatively much less than that for the crosses, performing this step affords one the
 ability to perform some basic flux scaling of the data provided some a priori
 information about the antennas (namely the system temperature and the so-called "forward
-gain" of the antenna, which typically depend on geometric size and aperture efficiency
-).
+gain" of the antenna, which typically depend on geometric size and aperture efficiency).
 
 Note that when normalizing, if the corresponding autocorrelations are not found or are
 otherwise marked as bad in ``flag_array``, then the the cross-correlation will be
 flagged as well (e.g., if all of antenna 1's autos are flagged, then every baseline that
 contains antenna 1 will also be flagged).
 
+
+.. clear-namespace
+
 .. code-block:: python
 
-  >>> import os
-  >>> import numpy as np
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.datasets import fetch_data
+    import numpy as np
+    from pyuvdata import UVData
+    from pyuvdata.datasets import fetch_data
 
-  >>> uvd = UVData.from_file(fetch_data("hera_h3c_uvh5"))
-  >>> # Build a binary mask where the cross-correlations are stored.
-  >>> cross_mask = uvd.ant_1_array != uvd.ant_2_array
-  >>> # Check to see that all the crosses have amplitudes greater than 1
-  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) > 1))
-  True
+    uvd = UVData.from_file(fetch_data("hera_h3c_uvh5"))
+    # Build a binary mask where the cross-correlations are stored.
+    cross_mask = uvd.ant_1_array != uvd.ant_2_array
+    # Check to see that all the crosses have amplitudes greater than 1
+    assert np.all(np.abs(uvd.data_array[cross_mask]) > 1)
 
-  >>> # On normalization, you can convert arb scaled data to correlation coefficients,
-  >>> # which should always be less than 1 in amplitude.
-  >>> uvd.normalize_by_autos()
-  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) < 1))
-  True
+    # On normalization, you can convert arb scaled data to correlation coefficients,
+    # which should always be less than 1 in amplitude.
+    uvd.normalize_by_autos()
+    assert np.all(np.abs(uvd.data_array[cross_mask]) < 1)
 
-  >>> # An important note for using normalize_by_autos is that it will usually leave the
-  >>> # autos alone unless told otherwise, in order to make reverting normalization
-  >>> # possible. We can see this by checking the values of the autos.
-  >>> print(np.any(uvd.data_array[~cross_mask]) < 1)
-  False
+    # An important note for using normalize_by_autos is that it will usually leave the
+    # autos alone unless told otherwise, in order to make reverting normalization
+    # possible. We can see this by checking the values of the autos.
+    assert not np.any(uvd.data_array[~cross_mask] < 1)
 
-  >>> # Finally, we can undo the above by setting invert=True.
-  >>> uvd.normalize_by_autos(invert=True)
-  >>> print(np.all(np.abs(uvd.data_array[cross_mask]) > 1))
-  True
+    # Finally, we can undo the above by setting invert=True.
+    uvd.normalize_by_autos(invert=True)
+    assert np.all(np.abs(uvd.data_array[cross_mask]) > 1)
