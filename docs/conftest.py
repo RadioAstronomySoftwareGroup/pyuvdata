@@ -9,6 +9,9 @@ from pathlib import Path
 
 import matplotlib
 import pytest
+from sybil import Sybil
+from sybil.parsers.codeblock import PythonCodeBlockParser
+from sybil.parsers.rest import ClearNamespaceParser, DocTestParser
 
 matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
 
@@ -26,3 +29,14 @@ def setup_and_teardown_package(tmp_path_factory):
     finally:
         os.chdir(cwd)
         shutil.rmtree(tmp_path)
+
+
+pytest_collect_file = Sybil(
+    parsers=[
+        DocTestParser(),
+        PythonCodeBlockParser(future_imports=["print_function"]),
+        ClearNamespaceParser(),
+    ],
+    pattern="*.rst",
+    fixtures=["setup_and_teardown_package", "tmp_path_factory"],
+).pytest()
