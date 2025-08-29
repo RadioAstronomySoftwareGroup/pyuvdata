@@ -158,7 +158,6 @@ def uv_in_uvfits(paper_miriad, tmp_path):
     del uv_in, uv_out
 
 
-@pytest.mark.filterwarnings("ignore:Telescope ATCA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_write_read_atca(tmp_path):
     uv_in = UVData()
@@ -168,12 +167,9 @@ def test_read_write_read_atca(tmp_path):
     with check_warnings(
         UserWarning,
         [
-            (
-                "Altitude is not present in Miriad file, and "
-                "telescope ATCA is not in known_telescopes. "
-            ),
-            "Altitude is not present",
-            warn_dict["telescope_at_sealevel"],
+            "Altitude is not present in file and latitude and longitude values "
+            "do not match values for ATCA in known telescopes. Using values "
+            "from known telescopes.",
             warn_dict["uvw_mismatch"],
             warn_dict["unclear_projection"],
         ],
