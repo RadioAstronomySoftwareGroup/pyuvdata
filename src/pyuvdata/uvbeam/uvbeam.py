@@ -2003,15 +2003,7 @@ class UVBeam(UVBase):
                 "pixel_coordinate_system must be 'healpix' to use this interpolation "
                 "function"
             )
-
-        try:
-            from astropy_healpix import HEALPix
-        except ImportError as e:
-            raise ImportError(
-                "astropy_healpix is not installed but is "
-                "required for healpix functionality. "
-                "Install 'astropy-healpix' using conda or pip."
-            ) from e
+        HEALPix = utils.coordinates._get_hpix_obj()
 
         if not self.Npixels == 12 * self.nside**2:
             raise ValueError(
@@ -2332,14 +2324,7 @@ class UVBeam(UVBase):
                     "healpix_nside and healpix_inds can not be "
                     "set if az_array or za_array is set."
                 )
-            try:
-                from astropy_healpix import HEALPix
-            except ImportError as e:
-                raise ImportError(
-                    "astropy_healpix is not installed but is "
-                    "required for healpix functionality. "
-                    "Install 'astropy-healpix' using conda or pip."
-                ) from e
+            HEALPix = utils.coordinates._get_hpix_obj()
 
             hp_obj = HEALPix(nside=healpix_nside)
             if healpix_inds is None:
@@ -2554,14 +2539,7 @@ class UVBeam(UVBase):
             else:
                 return self.copy()
 
-        try:
-            from astropy_healpix import HEALPix
-        except ImportError as e:
-            raise ImportError(
-                "astropy_healpix is not installed but is "
-                "required for healpix functionality. "
-                "Install 'astropy-healpix' using conda or pip."
-            ) from e
+        HEALPix = utils.coordinates._get_hpix_obj()
 
         if nside is None:
             min_res = np.min(
@@ -4885,6 +4863,64 @@ class UVBeam(UVBase):
         beamfits_obj = self._convert_to_filetype("beamfits")
         beamfits_obj.write_beamfits(filename, **kwargs)
         del beamfits_obj
+
+    def plot(
+        self,
+        *,
+        freq_ind: int = 0,
+        complex_type: str = "real",
+        logcolor: bool | None = None,
+        plt_kwargs: dict | None = None,
+        norm_kwargs: dict | None = None,
+        max_zenith_deg: float = 90.0,
+        savefile: str | None = None,
+    ):
+        """
+        Make a pretty plot of the beams.
+
+        Parameters
+        ----------
+        freq : int
+            The frequency index to plot.
+        complex_type : str
+            What to plot for complex beams, options are: [real, imag, abs, phase].
+            Defaults to "real" for complex beams. Ignored for real beams
+            (i.e. power beams, same feed).
+        logcolor : bool, optional
+            Option to use log scaling for the color. Defaults to True for power
+            beams and False for E-field beams. Results in using
+            matplotlib.colors.LogNorm or matplotlib.colors.SymLogNorm if the data
+            have negative values.
+        plt_kwargs : dict, optional
+            Keywords to be passed into the matplotlib.pyplot.imshow call.
+        norm_kwargs : dict, optional
+            Keywords to be passed into the norm object, typically vmin/vmax, plus
+            linthresh for SymLogNorm.
+        max_zenith_deg : float
+            Maximum zenith angle to include in the plot in degrees. Default is
+            90 to go down to the horizon.
+        savefile : str
+            File to save the plot to.
+
+        """
+        from ..utils import plotting
+
+        if not isinstance(freq_ind, int):
+            raise TypeError(
+                "freq_ind must be an integer giving the index into the "
+                "freq_array to plot."
+            )
+
+        plotting.beam_plot(
+            beam_obj=self,
+            freq=freq_ind,
+            complex_type=complex_type,
+            logcolor=logcolor,
+            plt_kwargs=plt_kwargs,
+            norm_kwargs=norm_kwargs,
+            max_zenith_deg=max_zenith_deg,
+            savefile=savefile,
+        )
 
 
 def _uvbeam_constructor(loader, node):

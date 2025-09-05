@@ -169,7 +169,7 @@ Optional:
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
 * hdf5plugin >= 3.3.1 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
 * lunarsky >=0.2.5 (for working with simulated datasets for lunar telescopes)
-* matplotlib (for making plots in the tutorials)
+* matplotlib>=3.7 (for making plots)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * pooch >= 1.8 (for downloading test data for tutorials)
 * python-casacore >= 3.5.2 (for working with CASA measurement sets)
@@ -193,17 +193,19 @@ in pyuvdata. The options that can be passed in this way are:
 - ``healpix``
 - ``lunar``
 - ``novas``
+- ``plotting``
 - ``all``
 - ``tutorial``
 - ``test``
 - ``doc``
 - ``dev``
 
-The first set (``astroquery``, ``casa``, ``hdf5_compression``, ``healpix``, ``lunar``,
-and ``novas``) enable various specific functionality while ``all`` will install
-all of the above to enable all functionality. The last three (``test``, ``doc``
-and ``dev``) include everything installed with ``all`` plus packages for testing
-and building the docs which may be useful for developers of pyuvdata.
+The first set (``astroquery``, ``casa``, ``hdf5_compression``, ``healpix``,
+``lunar``, ``novas``, and ``plotting``) enable various specific functionality
+while ``all`` will install all of the above to enable all functionality. The last
+three (``test``, ``doc`` and ``dev``) include everything installed with ``all``
+plus packages for testing and building the docs which may be useful for
+developers of pyuvdata.
 
 ### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
@@ -241,7 +243,6 @@ you will need the following packages:
 * cython == 3.0
 * coverage
 * pre-commit
-* matplotlib
 * sphinx
 * sybil
 * pypandoc

@@ -638,3 +638,55 @@ def test_set_x_orientation_deprecation():
     beam2.set_feeds_from_x_orientation("east")
 
     assert beam1.get_x_orientation_from_feeds() == beam2.get_x_orientation_from_feeds()
+
+
+@pytest.mark.parametrize(
+    ("beam", "beam_type", "complex_type", "logcolor", "max_zenith_deg", "norm_kwargs"),
+    [
+        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None),
+        (
+            GaussianBeam(diameter=7, feed_array=["x"]),
+            "efield",
+            "abs",
+            False,
+            90.0,
+            None,
+        ),
+        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}),
+        (
+            GaussianBeam(diameter=7, include_cross_pols=False),
+            "power",
+            "real",
+            True,
+            90.0,
+            {},
+        ),
+        (
+            AiryBeam(diameter=7, feed_array=["x"]),
+            "power",
+            "real",
+            False,
+            90.0,
+            {"vmin": 0, "vmax": 1},
+        ),
+        (ShortDipoleBeam(), "efield", "real", None, 90.0, None),
+        (ShortDipoleBeam(), "power", "real", None, 90.0, None),
+        (UniformBeam(), "power", "real", None, 90.0, None),
+    ],
+)
+def test_plotting(
+    tmp_path, beam, beam_type, complex_type, logcolor, max_zenith_deg, norm_kwargs
+):
+    """Test plotting method."""
+    pytest.importorskip("matplotlib")
+
+    savefile = str(tmp_path / "test.png")
+    beam.plot(
+        beam_type=beam_type,
+        freq=100e6,
+        complex_type=complex_type,
+        logcolor=logcolor,
+        max_zenith_deg=max_zenith_deg,
+        norm_kwargs=norm_kwargs,
+        savefile=savefile,
+    )

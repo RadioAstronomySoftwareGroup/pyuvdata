@@ -331,3 +331,20 @@ def phased_array_beam_1freq(phased_array_beam_2freq):
 
     yield beam
     del beam
+
+
+@pytest.fixture(scope="module")
+def mwa_beam_1ppd_main():
+    beam = UVBeam()
+    beam.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1)
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def mwa_beam_1ppd(mwa_beam_1ppd_main):
+    beam = mwa_beam_1ppd_main.copy()
+
+    yield beam
+    del beam

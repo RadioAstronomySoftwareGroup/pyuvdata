@@ -60,8 +60,9 @@ hdf5_compression = ["hdf5plugin>=3.3.1"]
 healpix = ["astropy_healpix>=1.0.2"]
 lunar = ["lunarsky>=0.2.5"]
 novas = ["novas", "novas_de405"]
-all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas]"]
-tutorial = ["matplotlib", "pooch>=1.8"]
+plotting = ["matplotlib>=3.7"]
+all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas,plotting]"]
+tutorial = ["pyuvdata[plotting]", "pooch>=1.8"]
 test = [
     "coverage",
     "cython>=3.0",
@@ -73,7 +74,7 @@ test = [
     "pytest-cov",
     "sybil>=8.0",
 ]
-doc = ["matplotlib", "pypandoc", "sphinx"]
+doc = ["pyuvdata[tutorial]", "pypandoc", "sphinx"]
 dev = ["pyuvdata[all,test,doc]"]
 
 [project.urls]

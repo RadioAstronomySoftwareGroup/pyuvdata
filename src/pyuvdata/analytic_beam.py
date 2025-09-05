@@ -640,6 +640,63 @@ class AnalyticBeam:
         uvb.check()
         return uvb
 
+    def plot(
+        self,
+        *,
+        beam_type: str,
+        freq: float,
+        complex_type: str = "real",
+        logcolor: bool | None = None,
+        plt_kwargs: dict | None = None,
+        norm_kwargs: dict | None = None,
+        max_zenith_deg: float = 90.0,
+        savefile: str | None = None,
+    ):
+        """
+        Make a pretty plot of the beams.
+
+        This evaluates the beam on a grid in azimuth and zenith angle and plots
+        the result.
+
+        Parameters
+        ----------
+        freq : int
+            The frequency index to plot.
+        complex_type : str
+            What to plot for complex beams, options are: [real, imag, abs, phase].
+            Defaults to "real" for complex beams. Ignored for real beams
+            (i.e. power beams, same feed).
+        logcolor : bool, optional
+            Option to use log scaling for the color. Defaults to True for power
+            beams and False for E-field beams. Results in using
+            matplotlib.colors.LogNorm or matplotlib.colors.SymLogNorm if the data
+            have negative values.
+        plt_kwargs : dict, optional
+            Keywords to be passed into the matplotlib.pyplot.imshow call.
+        norm_kwargs : dict, optional
+            Keywords to be passed into the norm object, typically vmin/vmax, plus
+            linthresh for SymLogNorm.
+        max_zenith_deg : float
+            Maximum zenith angle to include in the plot in degrees. Default is
+            90 to go down to the horizon.
+        savefile : str
+            File to save the plot to.
+
+        """
+        from .utils import plotting
+
+        plotting.beam_plot(
+            beam_obj=self,
+            beam_type=beam_type,
+            freq=freq,
+            complex_type=complex_type,
+            logcolor=logcolor,
+            plt_kwargs=plt_kwargs,
+            norm_kwargs=norm_kwargs,
+            max_zenith_deg=max_zenith_deg,
+            savefile=savefile,
+        )
+
 
 def _analytic_beam_constructor(loader, node):
     """

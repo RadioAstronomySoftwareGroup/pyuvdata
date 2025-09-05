@@ -542,6 +542,18 @@ def ECEF_from_ENU(
     return xyz
 
 
+def _get_hpix_obj():
+    try:
+        from astropy_healpix import HEALPix
+    except ImportError as e:
+        raise ImportError(
+            "astropy_healpix is not installed but is "
+            "required for healpix functionality. "
+            "Install 'astropy-healpix' using conda or pip."
+        ) from e
+    return HEALPix
+
+
 def hpx_latlon_to_zenithangle_azimuth(hpx_lat, hpx_lon):
     """
     Convert from healpix lat/lon to UVBeam za/az convention.

@@ -163,6 +163,8 @@ can be found in :doc:`cst_settings_yaml`.
     )
 
     # For CST beams you can also use a yaml specification file.
+    # the first fetch is for the raw cst files to ensure we have those downloaded
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     cst_beam = UVBeam.from_file(cst_yml_file, beam_type="power")
 
@@ -182,12 +184,215 @@ write the data to.
     from pyuvdata import UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="power")
 
     # Write the data out to a uvfits file
     write_file = os.path.join(".", "tutorial.beamfits")
     beam.write_beamfits(write_file, clobber=True)
+
+
+UVBeam: Plotting
+----------------
+
+Plotting beams can be extremely helpful to reason about their behavior and
+whether they are implemented properly given the various conventions. To aid with
+this, a basic plotting method has been added to the UVBeam class.
+
+a) Plotting Zenith-pointed MWA power beams
+******************************************
+
+Same-polarization power beams are easiest to think about, partly because they
+are real valued and positive definite, so we start with them. Note that the E/W
+dipole has more sensitivity at the N/S horizon and vice-versa for the N/S dipole,
+as expected.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVBeam
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("mwa_full_EE")
+
+    mwa_beam = UVBeam.from_file(filename, pixels_per_deg=1)
+    mwa_power_beam = mwa_beam.efield_to_power(inplace=False, calc_cross_pols=False)
+    # plot the highest available frequency, set freq_ind=-1
+    mwa_power_beam.plot(
+        freq_ind=-1,
+        norm_kwargs={"vmin": 1e-4, "vmax": 1},
+        savefile="Images/mwa_zenith_power.png"
+    )
+
+.. image:: Images/mwa_zenith_power.png
+  :width: 600
+
+We can also include the cross-pol power beams in the plots, although these are a
+bit harder to reason about.
+
+.. code-block:: python
+
+    mwa_cross_power_beam = mwa_beam.efield_to_power(inplace=False)
+    mwa_cross_power_beam.plot(
+        freq_ind=-1,
+        norm_kwargs={"linthresh": 1e-4},
+        savefile="Images/mwa_zenith_cross_power.png"
+    )
+
+.. image:: Images/mwa_zenith_cross_power.png
+  :width: 600
+
+
+b) Plotting Off-Zenith pointed MWA power beams
+**********************************************
+
+MWA beams are actually phased arrays of dipoles, which can be pointed around the
+sky by delaying the dipoles in the tile by varying amounts. In the hardware, these
+delays are set as integers that specify the delay factors. The MWA beam in pyuvdata
+accepts a corresponding ``delay`` input point. For more details about the MWA
+beam see: https://github.com/MWATelescope/mwa_pb, which the pyuvdata implementation
+is based on. In this example, the delay input to MWA beams is set to create a
+gradient of delays across the array, pointing the beam to the east.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    import numpy as np
+
+    from pyuvdata import UVBeam
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("mwa_full_EE")
+
+    delays = np.empty((2, 16), dtype=int)
+    for pol in range(2):
+        delays[pol] = np.tile(np.arange(0,8,2), 4)
+
+    mwa_beam = UVBeam.from_file(filename, pixels_per_deg=1, delays=delays)
+    mwa_beam.efield_to_power(calc_cross_pols=False)
+    # plot the highest available frequency, set freq_ind=-1
+    mwa_beam.plot(
+        freq_ind=-1,
+        norm_kwargs={"vmin": 1e-4, "vmax": 1},
+        savefile="Images/mwa_off_zenith_power.png"
+    )
+
+.. image:: Images/mwa_off_zenith_power.png
+  :width: 600
+
+
+c) Plotting MWA E-Field Beams
+*****************************
+
+E-field beams are more complex because they represent the response from each
+feed to 2 (usually orthogonal) directions on the sky. Looking at them carefully
+though allows us to check that everything is set up properly.
+
+We use the following figure to illustrate the conventions. The two orthogonal
+polarization directions on the sky for an Az/ZA beam in pyuvdata are zenith angle,
+with is zero at zenith and decreasing towards the horizon and azimuth, which is
+zero at East and runs towards North, counter-clockwise as viewed from above. Note
+that this is consistent with the coordinate system of many EM beam simulators but
+different than the coordinate systems used in many radio astronomy contexts. The
+zenith angle polarization direction is shown in pink in the figure below and the
+azimuth angle polarization direction is shown in orange. We choose two locations,
+noted in green and blue, just off of zenith to the East and North to check the
+sign of the expected response for each feed. The expected signs are shown in the
+table below the figure.
+
+
+.. image:: Images/beam_coordinate_figure.png
+  :width: 400
+
+
+So the east dipole is expected to have a **positive** response to the
+zenith-angle aligned polarization just off of zenith in the East direction and a
+**negative** response to the azimuthal aligned polarization just of zenith in the
+North direction, which matches what we see in the following plots. Below we plot
+the real part for each feed and polarization orientation.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVBeam
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("mwa_full_EE")
+
+    mwa_beam = UVBeam.from_file(filename, pixels_per_deg=1, beam_type="efield")
+
+    # plot the highest available frequency, set freq_ind=-1
+    mwa_beam.plot(freq_ind=-1, savefile="Images/mwa_zenith_efield.png")
+
+.. image:: Images/mwa_zenith_efield.png
+  :width: 600
+
+We can also check that the zenith-angle aligned polarization response goes to
+zero faster near the horizon than the azimuthal aligned polarization response
+for both feeds by plotting the absolute value of the responses.
+
+.. code-block:: python
+
+    mwa_beam.plot(
+        freq_ind=-1,
+        complex_type="abs",
+        savefile="Images/mwa_zenith_efield_abs.png"
+    )
+
+.. image:: Images/mwa_zenith_efield_abs.png
+  :width: 600
+
+
+d) Plotting HERA E-Field Beams
+******************************
+
+HERA beams are much more complex, but similar checks can be done by looking at
+plots of their E-Field beams.
+
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVBeam
+    from pyuvdata.datasets import fetch_data
+
+    fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
+    filename = fetch_data("hera_fagnoni_dipole_yaml")
+    hera_beam = UVBeam.from_file(filename, beam_type="efield")
+    hera_beam.plot(savefile="Images/hera_efield.png")
+
+.. image:: Images/hera_efield.png
+  :width: 600
+
+It's a bit hard to see the structure in the inner part of the beam. We can zoom
+in using the ``max_zenith_deg`` keyword and we'll also use a symmetric log colorscale.
+
+.. code-block:: python
+
+    hera_beam.plot(
+        max_zenith_deg=45.,
+        logcolor=True,
+        norm_kwargs={"linthresh": 1e-4},
+        savefile="Images/hera_efield_zoom.png"
+    )
+
+.. image:: Images/hera_efield_zoom.png
+  :width: 600
+
+Finally we can examine the phase structure of the HERA beam:
+
+.. code-block:: python
+
+    hera_beam.plot(complex_type="phase", savefile="Images/hera_efield_phase.png")
+
+.. image:: Images/hera_efield_phase.png
+  :width: 600
+
 
 
 UVBeam: Selecting data
@@ -216,8 +421,10 @@ a) Selecting a range of Zenith Angles
     from pyuvdata import UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="power")
+
     # Make a new object with a reduced zenith angle range with the select method
     new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
@@ -261,6 +468,7 @@ of the feed (e.g. "nn" or "ee") can also be used if the feeds are oriented towar
     from pyuvdata import utils, UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     uvb = UVBeam.from_file(cst_yml_file, beam_type="efield")
 
@@ -398,59 +606,33 @@ extra interpolation errors.
 
 .. code-block:: python
 
-    from astropy_healpix import HEALPix
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import LogNorm
-    import numpy as np
     from pyuvdata import utils, UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="power")
 
     # Let's cut down to a small area near zenith so we can see the pixelization
-    za_max = np.deg2rad(20.0)
-    za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
-    beam.select(axis2_inds=za_inds_use)
+    beam.plot(max_zenith_deg=15, savefile="Images/hera_power_zoom.png")
 
-    # Optionally specify which interpolation function to use.
-    hpx_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
+    hpx_beam = beam.to_healpix(inplace=False)
+    hpx_beam.plot(max_zenith_deg=15, savefile="Images/hera_power_healpix_zoom.png")
 
-    # Now plot the pixels on an polar projection with zenith in the center
-    radial_ticks_deg = [5, 10, 20]
-
-    az_array, za_array = np.meshgrid(beam.axis1_array, beam.axis2_array)
-    az_za_radial_val = np.sin(za_array)
-    fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection="polar"), figsize=(15, 15))
-    ax1.grid(True)
-    img1 = ax1.scatter(az_array, az_za_radial_val, c=beam.data_array[0,0,0,:], cmap="plasma", norm=LogNorm())
-    cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
-    _ = ax1.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
-    _ = ax1.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
-    _ = ax1.set_title("Az/ZA Beam")
-
-    hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
-    hpx_lon, hpx_lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
-    za, az = utils.coordinates.hpx_latlon_to_zenithangle_azimuth(hpx_lat.rad, hpx_lon.rad)
-    hpx_radial_val = np.sin(za)
-
-    ax2.grid(True)
-    img2 = ax2.scatter(az, hpx_radial_val, c=hpx_beam.data_array[0,0,0,:], cmap="plasma", norm=LogNorm())
-    cbar=plt.colorbar(img2, ax=ax2, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
-
-    _ = ax2.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
-    _ = ax2.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
-    _ = ax2.set_title("Healpix Beam")
-
-.. skip: next
-
-    fig.tight_layout()
-    plt.show()
-    plt.savefig("Images/hera_orig_healpix.png", bbox_inches="tight", dpi=80)
-    plt.clf()
-
-.. image:: Images/hera_orig_healpix.png
+.. image:: Images/hera_power_zoom.png
   :width: 600
+
+.. image:: Images/hera_power_healpix_zoom.png
+  :width: 600
+
+Note that the HEALPix scheme does not have a pixel exactly at zenith, so using
+HEALPix for beams may lead to undesirable behavior at zenith -- interpolations
+of healpix beams near zenith may give noticably weird results. These are likely
+to be most problematic for E-field beams, which have a pole in the polarization
+vector coordinates at zenith and beams with maximum sensitivity at zenith
+because there is not point at the maximum response. However, the HEALPix scheme
+is ideal when calculating beam and beam-squared volumes because the pixels are
+equal area.
 
 
 UVBeam: Converting from E-Field beams to Power Beams
@@ -468,6 +650,7 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
     from pyuvdata import UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="efield")
     new_beam = beam.efield_to_power(inplace=False)
@@ -496,53 +679,15 @@ b) Generating pseudo Stokes ("pI", "pQ", "pU", "pV") beams
 
 .. code-block:: python
 
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import LogNorm
-    import numpy as np
     from pyuvdata import utils, UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="efield")
 
-    # this beam file is very large. Let's cut down the size to ease the computation
-    za_max = np.deg2rad(90.0)
-    za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
-    beam.select(axis2_inds=za_inds_use)
-
     pstokes_beam = beam.efield_to_pstokes(inplace=False)
-
-    # plotting pseudo-stokes
-    pol_array = pstokes_beam.polarization_array
-    pI_ind = np.where(np.isin(pol_array, utils.polstr2num("pI")))[0][0]
-    pQ_ind = np.where(np.isin(pol_array, utils.polstr2num("pQ")))[0][0]
-
-    # Now plot the pixels on an polar projection with zenith in the center
-    radial_ticks_deg = [10, 30, 50, 90]
-    az_array, za_array = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
-    az_za_radial_val = np.sin(za_array)
-    fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection="polar"), figsize=(15, 15))
-    ax1.grid(True)
-    img1 = ax1.scatter(az_array, az_za_radial_val, c=pstokes_beam.data_array[0,  pI_ind, 0], cmap="plasma", norm=LogNorm())
-    cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
-    _ = ax1.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
-    _ = ax1.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
-    _ = ax1.set_title("pI")
-
-    ax2.grid(True)
-    img2 = ax2.scatter(az_array, az_za_radial_val, c=pstokes_beam.data_array[0,  pQ_ind, 0], cmap="plasma", norm=LogNorm())
-    cbar=plt.colorbar(img2, ax=ax2, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
-    _ = ax2.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
-    _ = ax2.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
-    _ = ax2.set_title("pQ")
-
-    fig.tight_layout()
-
-.. skip: next
-
-    plt.show()
-    plt.savefig("Images/hera_pstokes.png", bbox_inches="tight")
-    plt.clf()
+    pstokes_beam.plot(savefile="Images/hera_pstokes.png")
 
 .. image:: Images/hera_pstokes.png
   :width: 600
@@ -568,6 +713,7 @@ a) Calculating pseudo Stokes ("pI", "pQ", "pU", "pV") beam area and beam squared
     from pyuvdata import UVBeam
     from pyuvdata.datasets import fetch_data
 
+    fetch_data(["hera_fagnoni_dipole_123", "hera_fagnoni_dipole_150"])
     cst_yml_file = fetch_data("hera_fagnoni_dipole_yaml")
     beam = UVBeam.from_file(cst_yml_file, beam_type="efield")
 
