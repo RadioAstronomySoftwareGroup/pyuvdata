@@ -10,7 +10,7 @@ dependencies:
   - docstring_parser>=0.15
   - h5py>=3.7
   - hdf5plugin>=3.3.1
-  - matplotlib
+  - matplotlib>=3.7
   - numba>=0.57.0
   - numpy>=1.23
   - pip

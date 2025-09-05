@@ -18,16 +18,14 @@ or :meth:`pyuvdata.analytic_beam.AnalyticBeam.power_eval` methods as appropriate
 Evaluating an Airy Beam power response
 **************************************
 
-This code evaluates and plots an Airy beam power response. Note that we exclude
-the cross polarizations, since this is an unpolarized beam, the cross polarizations
+This code evaluates an Airy beam power response. Note that we exclude the cross
+polarizations, since this is an unpolarized beam, the cross polarizations
 are identical to the auto polarization power beams. If the cross polarizations
 are included, the array returned from the ``power_eval`` method will be complex.
 
 .. code-block:: python
 
-    import matplotlib.pyplot as plt
     import numpy as np
-    from matplotlib.colors import LogNorm
 
     from pyuvdata import AiryBeam
 
@@ -35,14 +33,9 @@ are included, the array returned from the ``power_eval`` method will be complex.
     airy_beam = AiryBeam(diameter=14.5, include_cross_pols=False)
 
     # set up zenith angle, azimuth and frequency arrays to evaluate with
-    # make a regular grid in direction cosines for nice plots
-    n_vals = 100
-    zmax = np.radians(90)  # Degrees
-    axis_arr = np.arange(-n_vals/2., n_vals/2.) / float(n_vals/2.)
-    l_arr, m_arr = np.meshgrid(axis_arr, axis_arr)
-    radius = np.sqrt(l_arr**2 + m_arr**2)
-    za_array = radius * zmax
-    az_array = np.arctan2(m_arr, l_arr)
+    az_grid = np.deg2rad(np.arange(0, 360))
+    za_grid = np.deg2rad(np.arange(0, 91))
+    az_array, za_array = np.meshgrid(az_grid, za_grid)
 
     az_array = az_array.flatten()
     za_array = za_array.flatten()
@@ -50,59 +43,11 @@ are included, the array returned from the ``power_eval`` method will be complex.
     Nfreqs = 11
     freqs = np.linspace(100, 200, 11) * 1e6
 
-    # find the values above the horizon so we don't evaluate beyond the horizon
-    above_hor = np.nonzero(za_array <= np.pi / 2.)[0]
-
-    # set up an output array that matches the expected shape, except that it
-    # includes the points beyond the horizon, and fill it with infinity.
-    # Then we will set the points above the horizon to the output of power_eval.
-    beam_vals = np.full((1, airy_beam.Npols, Nfreqs, n_vals * n_vals), np.inf, dtype=float)
-
-    beam_vals[:, :, :, above_hor] = airy_beam.power_eval(
-        az_array=az_array[above_hor], za_array=za_array[above_hor], freq_array=freqs
+    beam_vals = airy_beam.power_eval(
+        az_array=az_array, za_array=za_array, freq_array=freqs
     )
-
-    beam_vals = np.reshape(beam_vals, (1, airy_beam.Npols, Nfreqs, n_vals, n_vals))
-
-    fig, ax = plt.subplots(1, 2)
-    bp_low = ax[0].imshow(
-      beam_vals[0,0,0],
-      norm=LogNorm(vmin = 1e-8, vmax =1),
-      extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-      origin="lower",
-    )
-    _ = ax[0].set_title(f"Airy beam {freqs[0]*1e-6} MHz")
-    _ = fig.colorbar(bp_low, ax=ax[0], fraction=0.046, pad=0.04, location="left")
-
-    bp_high = ax[1].imshow(
-      beam_vals[0,0,-1],
-      norm=LogNorm(vmin = 1e-8, vmax =1),
-      extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-      origin="lower",
-    )
-    _ = ax[1].set_title(f"Airy beam {freqs[-1]*1e-6} MHz")
-    _ = fig.colorbar(bp_high, ax=ax[1], fraction=0.046, pad=0.04, location="left")
-
-    for ind in range(2):
-        _ = ax[ind].set_xticks([0], labels=["North"])
-        _ = ax[ind].set_yticks([0], labels=["East"])
-        _ = ax[ind].yaxis.set_label_position("right")
-        _ = ax[ind].yaxis.tick_right()
-        _ = ax[ind].xaxis.set_label_position("top")
-        _ = ax[ind].xaxis.tick_top()
-
-    fig.tight_layout()
-
-.. skip: next
-
-    plt.show()
-
-    plt.savefig("Images/airy_beam.png", bbox_inches='tight')
-    plt.clf()
-
-.. image:: Images/airy_beam.png
-    :width: 600
-
+    assert beam_vals.shape == (1, 2, 11, 91 * 360)
+    assert beam_vals.dtype == np.float64
 
 Evaluating a Short Dipole Beam E-Field response
 ***********************************************
@@ -126,96 +71,114 @@ part, but in general E-Field beams can be complex, so a complex array is returne
     dipole_beam = ShortDipoleBeam()
 
     # set up zenith angle, azimuth and frequency arrays to evaluate with
-    # make a regular grid in direction cosines for nice plots
-    n_vals = 100
-    zmax = np.radians(90)  # Degrees
-    axis_arr = np.arange(-n_vals/2., n_vals/2.) / float(n_vals/2.)
-    l_arr, m_arr = np.meshgrid(axis_arr, axis_arr)
-    radius = np.sqrt(l_arr**2 + m_arr**2)
-    za_array = radius * zmax
-    az_array = np.arctan2(m_arr, l_arr)
+    az_grid = np.deg2rad(np.arange(0, 360))
+    za_grid = np.deg2rad(np.arange(0, 91))
+    az_array, za_array = np.meshgrid(az_grid, za_grid)
 
     az_array = az_array.flatten()
     za_array = za_array.flatten()
 
     Nfreqs = 11
-    freqs = np.linspace(100, 200, 11) * 1e8
+    freqs = np.linspace(100, 200, 11) * 1e6
 
-    # find the values above the horizon so we don't evaluate beyond the horizon
-    above_hor = np.nonzero(za_array <= np.pi / 2.)[0]
+    beam_vals = dipole_beam.efield_eval(
+        az_array=az_array, za_array=za_array, freq_array=freqs
+    )
+    assert beam_vals.shape == (2, 2, 11, 91 * 360)
+    assert beam_vals.dtype == np.complex128
 
-    # set up an output array that matches the expected shape except, that it
-    # includes the points beyond the horizon, and fill it with infinity.
-    # Then we will set the points above the horizon to the output of efield_eval.
-    beam_vals = np.full(
-        (dipole_beam.Naxes_vec, dipole_beam.Nfeeds, Nfreqs, n_vals * n_vals),
-        np.inf,
-        dtype=complex
+
+Plotting analytic beams
+-----------------------
+
+Plotting beams can be extremely helpful to reason about their behavior and
+whether they are implemented properly given the various conventions. To aid with
+this, a basic plotting method is available on AnalyticBeams.
+
+Plotting an Airy Beam power response
+************************************
+
+For unpolarized analytic beams, only a single feed is plotted (because all feeds
+are the same). Airy beams are frequency dependent, so we plot two frequencies to
+allow comparison.
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import AiryBeam
+
+    # Create an AiryBeam with a diameter of 14.5 meters with just one feed
+    airy_beam = AiryBeam(diameter=14.5, feed_array=["x"], include_cross_pols=False)
+
+    airy_beam.plot(
+        beam_type="power",
+        freq=100e6,
+        logcolor=True,
+        norm_kwargs={"vmin": 1e-9},
+        savefile="Images/airy_beam_100MHz.png",
+    )
+    airy_beam.plot(
+        beam_type="power",
+        freq=200e6,
+        logcolor=True,
+        norm_kwargs={"vmin": 1e-9},
+        savefile="Images/airy_beam_200MHz.png",
     )
 
-    beam_vals[:, :, :, above_hor] = dipole_beam.efield_eval(
-        az_array=az_array[above_hor], za_array=za_array[above_hor], freq_array=freqs
-    )
+.. image:: Images/airy_beam_100MHz.png
+    :width: 300
+.. image:: Images/airy_beam_200MHz.png
+    :width: 300
 
-    beam_vals = np.reshape(
-        beam_vals, (dipole_beam.Naxes_vec, dipole_beam.Nfeeds, Nfreqs, n_vals, n_vals)
-    )
 
-    fig, ax = plt.subplots(2, 2)
+Plotting a Short Dipole Beam E-Field response
+*********************************************
 
-    be00 = ax[0,0].imshow(
-        beam_vals[0,0,0].real,
-        extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-        origin="lower",
-    )
-    _ = ax[0,0].set_title("E/W dipole azimuth response")
-    _ = fig.colorbar(be00, ax=ax[0,0], location="left")
+Polarized E-field beams are more complex because they represent the response
+from each feed to the 2 orthogonal directions on the sky. Looking at them
+carefully though allows us to check that everything is set up properly.
 
-    be10 = ax[1,0].imshow(
-        beam_vals[1,0,0].real,
-        extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-        origin="lower",
-    )
-    _ = ax[1,0].set_title("E/W dipole zenith angle response")
-    _ = fig.colorbar(be00, ax=ax[1,0], location="left")
+We use the following figure to illustrate the conventions. The two orthogonal
+polarization directions on the sky for analytic beams in pyuvdata are zenith angle,
+with is zero at zenith and decreasing towards the horizon and azimuth, which is
+zero at East and runs towards North, counter-clockwise as viewed from above. Note
+that this is consistent with the coordinate system of many EM beam simulators but
+different than the coordinate systems used in many radio astronomy contexts. The
+zenith angle polarization direction is shown in pink in the figure below and the
+azimuth angle polarization direction is shown in orange. We choose two locations,
+noted in green and blue, just off of zenith to the East and North to check the
+sign of the expected response for each feed. The expected signs are shown in the
+table below the figure.
 
-    be01 = ax[0,1].imshow(
-        beam_vals[0,1,0].real,
-        extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-        origin="lower",
-    )
-    _ = ax[0,1].set_title("N/S dipole azimuth response")
-    _ = fig.colorbar(be00, ax=ax[0,1], location="left")
 
-    be11 = ax[1,1].imshow(
-        beam_vals[1,1,0].real,
-        extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
-        origin="lower",
-    )
-    _ = ax[1,1].set_title("N/S dipole zenith angle response")
-    _ = fig.colorbar(be00, ax=ax[1,1], location="left")
+.. image:: Images/beam_coordinate_figure.png
+  :width: 400
 
-    for ind in range(2):
-        for ind2 in range(2):
-            _ = ax[ind, ind2].set_xticks([0], labels=["North"])
-            _ = ax[ind, ind2].set_yticks([0], labels=["East"])
-            _ = ax[ind, ind2].yaxis.set_label_position("right")
-            _ = ax[ind, ind2].yaxis.tick_right()
-            _ = ax[ind, ind2].xaxis.set_label_position("top")
-            _ = ax[ind, ind2].xaxis.tick_top()
 
-    fig.tight_layout()
+So the east dipole is expected to have a **positive** response to the
+zenith-angle aligned polarization just off of zenith in the East direction and a
+**negative** response to the azimuthal aligned polarization just of zenith in the
+North direction, which matches what we see in the following plots. Below we plot
+the real part for each feed and polarization orientation.
 
-.. skip: next
+We can also check that the zenith-angle aligned polarization response goes to
+zero near the horizon for both feeds while the azimuthal aligned polarization
+response does not.
 
-    plt.show()
+.. clear-namespace
 
-    plt.savefig("Images/short_dipole_beam.png", bbox_inches='tight')
-    plt.clf()
+.. code-block:: python
+
+    from pyuvdata import ShortDipoleBeam
+
+    # Create an ShortDipoleBeam
+    dipole_beam = ShortDipoleBeam()
+
+    dipole_beam.plot(beam_type="efield", freq=100e6, savefile="Images/short_dipole_beam.png")
 
 .. image:: Images/short_dipole_beam.png
     :width: 600
-
 
 Defining new analytic beams
 ---------------------------

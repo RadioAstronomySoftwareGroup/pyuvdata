@@ -2,7 +2,8 @@ name: pyuvdata_min_deps_tests
 channels:
   - conda-forge
 dependencies:
-  - astropy>=6.0
+# use astropy-base rather than astropy to avoid optional dependencies like matplotlib
+  - astropy-base>=6.0
   - coverage
   - cython>=3.0
   - docstring_parser>=0.15

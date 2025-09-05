@@ -4,6 +4,7 @@
 """Tests for uvbeam object."""
 
 import copy
+import importlib.util
 import os
 import re
 import warnings
@@ -22,12 +23,11 @@ from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam import _uvbeam
 
-try:
+healpix_installed = False
+if importlib.util.find_spec("astropy_healpix") is not None:
     from astropy_healpix import HEALPix
 
     healpix_installed = True
-except ImportError:
-    healpix_installed = False
 
 
 @pytest.fixture(scope="function")
@@ -3447,3 +3447,126 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
         uvb._fix_feeds()
 
     assert uvb == uvb2
+
+
+@pytest.mark.parametrize(
+    (
+        "telescope",
+        "uvbfuncs",
+        "uvbfuncs_kwargs",
+        "complex_type",
+        "logcolor",
+        "max_zenith_deg",
+        "norm_kwargs",
+    ),
+    [
+        ("mwa", None, [{}], "real", None, 90.0, None),
+        ("hera", None, [{}], "real", True, 45.0, {"linthresh": 1e-4}),
+        ("mwa", None, [{}], "imag", False, 20.0, {}),
+        ("hera", None, [{}], "phase", False, 20.0, None),
+        ("mwa", ["peak_normalize"], [{}], "abs", True, 45.0, {"vmin": 1e-4, "vmax": 1}),
+        (
+            "hera",
+            ["peak_normalize"],
+            [{}],
+            "real",
+            False,
+            45.0,
+            {"vmin": -1, "vmax": 1},
+        ),
+        (
+            "mwa",
+            ["efield_to_power"],
+            [{"calc_cross_pols": False}],
+            "real",
+            True,
+            20.0,
+            {},
+        ),
+        ("hera", ["efield_to_power"], [{}], "real", True, 20.0, {}),
+        ("mwa", ["to_healpix"], [{}], "phase", False, 20.0, {}),
+        (
+            "hera",
+            ["efield_to_power", "to_healpix"],
+            [{"calc_cross_pols": False}, {}],
+            "real",
+            True,
+            20.0,
+            {},
+        ),
+        ("mwa", ["efield_to_pstokes"], [{}], "real", None, 20.0, {}),
+    ],
+)
+def test_plotting(
+    tmp_path,
+    cst_efield_1freq,
+    mwa_beam_1ppd,
+    telescope,
+    uvbfuncs,
+    uvbfuncs_kwargs,
+    complex_type,
+    logcolor,
+    max_zenith_deg,
+    norm_kwargs,
+):
+    """Test plotting method."""
+    pytest.importorskip("matplotlib")
+    if telescope == "hera":
+        beam = cst_efield_1freq
+    elif telescope == "mwa":
+        beam = mwa_beam_1ppd
+
+    if uvbfuncs is not None:
+        if "to_healpix" in uvbfuncs:
+            pytest.importorskip("astropy_healpix")
+        for func, kwargs in zip(uvbfuncs, uvbfuncs_kwargs, strict=True):
+            getattr(beam, func)(**kwargs)
+
+    savefile = str(tmp_path / "test.png")
+    beam.plot(
+        complex_type=complex_type,
+        logcolor=logcolor,
+        max_zenith_deg=max_zenith_deg,
+        norm_kwargs=norm_kwargs,
+        savefile=savefile,
+    )
+
+
+def test_plotting_errors(mwa_beam_1ppd):
+    beam = mwa_beam_1ppd
+
+    if importlib.util.find_spec("matplotlib") is None:
+        with pytest.raises(
+            ImportError,
+            match="matplotlib is not installed but is required for plotting "
+            "functionality. Install 'matplotlib' using conda or pip.",
+        ):
+            beam.plot()
+        pytest.importorskip("matplotlib")
+
+    if not healpix_installed:
+        beam.pixel_coordinate_system = "healpix"
+        with pytest.raises(
+            ImportError,
+            match="astropy_healpix is not installed but is "
+            "required for healpix functionality. "
+            "Install 'astropy-healpix' using conda or pip.",
+        ):
+            beam.plot()
+        pytest.importorskip("astropy_healpix")
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "complex_type must be one of ['real', 'imag', 'abs', 'phase'], "
+            "but it is foo."
+        ),
+    ):
+        beam.plot(complex_type="foo")
+
+    with pytest.raises(
+        TypeError,
+        match="freq_ind must be an integer giving the index into the freq_array "
+        "to plot.",
+    ):
+        beam.plot(freq_ind=5.5)
