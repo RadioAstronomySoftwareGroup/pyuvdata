@@ -63,14 +63,15 @@ novas = ["novas", "novas_de405"]
 all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas]"]
 tutorial = ["matplotlib", "pooch>=1.8"]
 test = [
+    "coverage",
+    "cython>=3.0",
     "pooch>=1.8",
+    "pre-commit",
     "pytest>=8.2.0",
     "pytest-xdist",
     "pytest-cases>=3.9.1",
     "pytest-cov",
-    "cython>=3.0",
-    "coverage",
-    "pre-commit",
+    "sybil>=8.0",
 ]
 doc = ["matplotlib", "pypandoc", "sphinx"]
 dev = ["pyuvdata[all,test,doc]"]
