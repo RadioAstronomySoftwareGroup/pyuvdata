@@ -243,6 +243,7 @@ you will need the following packages:
 * pre-commit
 * matplotlib
 * sphinx
+* sybil
 * pypandoc
 
 We manage our test data using pooch, which will download the file the first time
