@@ -3511,6 +3511,10 @@ def test_plotting(
 ):
     """Test plotting method."""
     pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
+
     if telescope == "hera":
         beam = cst_efield_1freq
     elif telescope == "mwa":

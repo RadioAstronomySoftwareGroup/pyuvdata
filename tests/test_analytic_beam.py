@@ -679,6 +679,9 @@ def test_plotting(
 ):
     """Test plotting method."""
     pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
 
     savefile = str(tmp_path / "test.png")
     beam.plot(
