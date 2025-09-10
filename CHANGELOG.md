@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added a `plot` method to UVBeam and to AnalyticBeam to make visualizing beams
+easier.
+
 ### Changed
 - Moved test data to a new repo (https://github.com/RadioAstronomySoftwareGroup/rasg-datasets/),
 use pooch to download and cache the test data in testing and in tutorials.
