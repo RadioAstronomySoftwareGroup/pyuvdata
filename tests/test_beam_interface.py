@@ -125,6 +125,7 @@ def test_beam_interface(
         to_uvbeam_kwargs = {"axis1_array": az_array, "axis2_array": za_array}
 
     include_cross_pols = kwargs.get("include_cross_pols", True)
+    to_uvbeam_kwargs["pixel_coordinate_system"] = coord_sys
 
     uvb = analytic.to_uvbeam(
         beam_type=init_beam_type, freq_array=freq_array, **to_uvbeam_kwargs

@@ -13,6 +13,10 @@ use pooch to download and cache the test data in testing and in tutorials.
 - Added pooch as a testing dependency, added a new optional dependency option
 called `tutorial` which currently adds pooch and matplotlib.
 
+### Fixed
+- A bug that caused an error when setting the pixel_coordinate_system in
+`UVBeam.new` and `AnalyticBeam.to_uvbeam`.
+
 ## [3.2.3] - 2025-07-21
 
 ### Added
