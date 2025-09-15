@@ -246,7 +246,7 @@ def new_uvbeam(
 
         if pixel_coordinate_system is not None:
             allowed_pcs = list(uvb.coordinate_system_dict.keys())
-            if uvb.pixel_coordinate_system not in allowed_pcs:
+            if pixel_coordinate_system not in allowed_pcs:
                 raise ValueError(
                     f"pixel_coordinate_system must be one of {allowed_pcs}"
                 )
