@@ -143,10 +143,8 @@ def read_metafits(
             obs_freq_center = meta_hdr["FREQCENT"] * 1e6
 
         # error if fringe stopping is turned on
-        if mwax and meta_hdr["DELAYMOD"] == 'FULLTRACK':
-            raise ValueError(
-                "Fringe stopped data is not supported"
-            )
+        if mwax and meta_hdr["DELAYMOD"] == "FULLTRACK":
+            raise ValueError("Fringe stopped data is not supported")
         else:
             pass
 
