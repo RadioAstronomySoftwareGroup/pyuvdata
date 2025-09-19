@@ -144,7 +144,12 @@ def read_metafits(
 
         # error if fringe stopping is turned on
         if mwax and meta_hdr["DELAYMOD"] == "FULLTRACK":
-            raise ValueError("Fringe stopped data is not supported")
+            raise NotImplementedError("This data has had fringe stopping applied. We do "
+            "not yet have support for fringe stopped data, partly because we have not seen "
+            "files like this yet. Please file an issue in our GitHub issue log so that we "
+            "can help: https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues. "
+            "Please include a link to the data you're trying to read in your issue."
+            )
         else:
             pass
 
