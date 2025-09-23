@@ -5502,61 +5502,85 @@ class UVData(UVBase):
         # Define parameters that must be the same to add objects
         compatibility_params = ["_vis_units"]
 
-        axes = ["Nblts", "Nfreqs", "Npols"]
-        # axis_key_params defines which parameters to use as the defining
-        # parameters along each axis. These are used to identify overlapping data.
-        axis_key_params = {
-            "Nblts": ["time_array", "baseline_array"],
-            "Nfreqs": ["freq_array", "flex_spw_id_array"],
-            "Npols": ["polarization_array"],
+        # setup a dict to carry all the axis-specific info we need throughout
+        # the add process:
+        #   - description is used in history string
+        #   - key_params defines which parameters to use as the defining
+        #     parameters along each axis. These are used to identify overlapping data.
+        #   - key_func specifies a function to form a combined string if there are
+        #     multiple key arrays (e.g. baseline-time, spw-freq)
+        #   - reorder gives method & parameters for reording along each axis
+        #   - order has info about how to sort each axis. Initialize to None
+        #     for axes that are not added along (so do not need sorting),
+        #     updated later.
+        # ---added later---
+        #   - check_params gives parameters that should be checked if adding
+        #     along other axes
+        #   - key_arrays gives the arrays to use for checking for overlap per axis
+        #   - overlap_inds has the outcomes of np.intersect1d on the key_arrays
+        #     between this and other. So it has the both/this/other inds
+        #     for any overlaps.
+        #   - other_inds_use has the indices in other that will be added to this
+        #   - combined_key_arrays has the final key arrays after adding.
+        #   - t2o has the mapping of where arrays on other get mapped into this
+        #     along each axis after padding
+
+        axis_info = {
+            "Nblts": {
+                "description": "baseline-time",
+                "key_params": ["time_array", "baseline_array"],
+                "key_func": "blt_str_arr",
+                "reorder": {"method": "reorder_blts", "parameter": "order"},
+                "order": None,
+            },
+            "Nfreqs": {
+                "description": "frequency",
+                "key_params": ["freq_array", "flex_spw_id_array"],
+                "key_func": "spw_freq_str_arr",
+                "reorder": {"method": "reorder_freqs", "parameter": "channel_order"},
+                "order": None,
+            },
+            "Npols": {
+                "description": "polarization",
+                "key_params": ["polarization_array"],
+                "reorder": {"method": "reorder_pols", "parameter": "order"},
+                "order": None,
+            },
         }
-        # specify a function to form a combined string if there are multiple
-        # key arrays (e.g. baseline-time, spw-freq)
-        axis_key_func = {"Nblts": "blt_str_arr", "Nfreqs": "spw_freq_str_arr"}
-        multi_axis_params = this._get_multi_axis_params()
-        # axis_parameters gives parameters whose form contains each axis
-        axis_parameters = {}
-        # axis_check_params gives parameters that should be checked if adding
-        # along other axes
-        axis_check_params = {}
-        # axis_key_arrays gives the arrays to use for checking for overlap per axis
-        axis_key_arrays = {}
-        # axis_overlap_inds has the outcomes of np.intersect1d on the
-        # axis_key_arrays per axis. So it has the both/this inds/other inds
-        # for any overlaps.
-        axis_overlap_inds = {}
-        for axis, overlap_params in axis_key_params.items():
-            axis_parameters[axis] = this._get_param_axis(axis)
-            axis_check_params[axis] = []
-            for param in axis_parameters[axis]:
-                # get parameters for compatibility checking. Exclude parameters
-                # that define overlap and multidimensional parameters which are
-                # handled separately later.
-                if (
-                    param not in multi_axis_params
-                    and param not in axis_key_params[axis]
-                ):
-                    axis_check_params[axis].append("_" + param)
+
+        for axis, info in axis_info.items():
+            # get parameters for compatibility checking. Exclude multidimensional
+            # parameters which are handled separately later.
+            params_this_axis = this._get_param_axis(axis, single_named_axis=True)
+            info["check_params"] = []
+            for param in params_this_axis:
+                # Also exclude parameters that define overlap
+                if param not in info["key_params"]:
+                    info["check_params"].append("_" + param)
 
             # build this/other arrays for checking for overlap.
-            if len(overlap_params) > 1:
-                axis_key_arrays[axis] = {
-                    "this": getattr(this, axis_key_func[axis])(),
-                    "other": getattr(other, axis_key_func[axis])(),
+            # key_arrays gives the arrays to use for checking for overlap per axis
+            if len(info["key_params"]) > 1:
+                info["key_arrays"] = {
+                    "this": getattr(this, info["key_func"])(),
+                    "other": getattr(other, info["key_func"])(),
                 }
             else:
-                axis_key_arrays[axis] = {
-                    "this": getattr(this, overlap_params[0]),
-                    "other": getattr(other, overlap_params[0]),
+                info["key_arrays"] = {
+                    "this": getattr(this, info["key_params"][0]),
+                    "other": getattr(other, info["key_params"][0]),
                 }
 
             # Check if we have overlapping data
             both_inds, this_inds, other_inds = np.intersect1d(
-                axis_key_arrays[axis]["this"],
-                axis_key_arrays[axis]["other"],
+                info["key_arrays"]["this"],
+                info["key_arrays"]["other"],
                 return_indices=True,
             )
-            axis_overlap_inds[axis] = {
+            # overlap_inds has the outcomes of np.intersect1d on the
+            # key_arrays per axis. So it has the both/this inds/other inds
+            # for any overlaps.
+            info["overlap_inds"] = {
                 "this": this_inds,
                 "other": other_inds,
                 "both": both_inds,
@@ -5565,11 +5589,12 @@ class UVData(UVBase):
         history_update_string = ""
 
         if np.all(
-            [len(axis_overlap_inds[axis]["both"]) > 0 for axis in axis_overlap_inds]
+            [len(axis_info[axis]["overlap_inds"]["both"]) > 0 for axis in axis_info]
         ):
             # We have overlaps, check that overlapping data is not valid
             this_test = []
             other_test = []
+            multi_axis_params = this._get_multi_axis_params()
             for param in multi_axis_params:
                 form = getattr(this, "_" + param).form
                 this_shape = getattr(this, param).shape
@@ -5583,12 +5608,12 @@ class UVData(UVBase):
                     expand_axes = [ax for ax in range(len(form)) if ax != ax_ind]
                     this_index_list.append(
                         np.expand_dims(
-                            axis_overlap_inds[axis]["this"], axis=expand_axes
+                            axis_info[axis]["overlap_inds"]["this"], axis=expand_axes
                         )
                     )
                     other_index_list.append(
                         np.expand_dims(
-                            axis_overlap_inds[axis]["other"], axis=expand_axes
+                            axis_info[axis]["overlap_inds"]["other"], axis=expand_axes
                         )
                     )
                 this_inds = np.ravel_multi_index(this_index_list, this_shape).flatten()
@@ -5622,41 +5647,35 @@ class UVData(UVBase):
                 )
 
         # Now actually find which axes are going to be added along
-        # other_inds_use have the indices in other that will be added to this
-        other_inds_use = {}
         additions = []
-        axis_descriptions = {
-            "Nblts": "baseline-time",
-            "Nfreqs": "frequency",
-            "Npols": "polarization",
-        }
         # find the indices in "other" but not in "this"
-        for axis in axes:
+        for axis, info in axis_info.items():
             temp = np.nonzero(
-                ~np.isin(axis_key_arrays[axis]["other"], axis_key_arrays[axis]["this"])
+                ~np.isin(info["key_arrays"]["other"], info["key_arrays"]["this"])
             )[0]
             if len(temp) > 0:
-                other_inds_use[axis] = temp
+                # other_inds_use has the indices in other that will be added to this
+                info["other_inds_use"] = temp
                 # add params associated with the other axes to compatibility_params
-                for axis2 in axes:
+                for axis2 in axis_info:
                     if axis2 != axis:
-                        compatibility_params.extend(axis_check_params[axis2])
-                additions.append(axis_descriptions[axis])
+                        compatibility_params.extend(axis_info[axis2]["check_params"])
+                additions.append(info["description"])
             else:
-                other_inds_use[axis] = []
+                info["other_inds_use"] = []
 
         # Actually check compatibility parameters
         for cp in compatibility_params:
             params_match = None
-            for axis, check_list in axis_check_params.items():
-                if cp in check_list:
+            for axis, info in axis_info.items():
+                if cp in info["check_params"]:
                     # only check that overlapping indices match
                     this_param = getattr(this, cp)
                     this_param_overlap = this_param.get_from_form(
-                        {axis: axis_overlap_inds[axis]["this"]}
+                        {axis: info["overlap_inds"]["this"]}
                     )
                     other_param_overlap = getattr(other, cp).get_from_form(
-                        {axis: axis_overlap_inds[axis]["other"]}
+                        {axis: info["overlap_inds"]["other"]}
                     )
                     params_match = np.allclose(
                         this_param_overlap,
@@ -5683,85 +5702,80 @@ class UVData(UVBase):
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
-        reorder_method = {
-            "Nblts": {"method": "reorder_blts", "parameter": "order"},
-            "Nfreqs": {"method": "reorder_freqs", "parameter": "channel_order"},
-            "Npols": {"method": "reorder_pols", "parameter": "order"},
-        }
-        for axis, ind_dict in axis_overlap_inds.items():
-            if len(ind_dict["this"]) != 0:
+        for axis, info in axis_info.items():
+            if len(info["overlap_inds"]["this"]) != 0:
                 # there is some overlap, so check sorting
-                this_argsort = np.argsort(ind_dict["this"])
-                other_argsort = np.argsort(ind_dict["other"])
+                this_argsort = np.argsort(info["overlap_inds"]["this"])
+                other_argsort = np.argsort(info["overlap_inds"]["other"])
 
                 if np.any(this_argsort != other_argsort):
                     temp_ind = np.arange(getattr(this, axis))
-                    temp_ind[ind_dict["this"][this_argsort]] = temp_ind[
-                        ind_dict["this"][other_argsort]
+                    temp_ind[info["overlap_inds"]["this"][this_argsort]] = temp_ind[
+                        info["overlap_inds"]["this"][other_argsort]
                     ]
-                    kwargs = {reorder_method[axis]["parameter"]: temp_ind}
+                    kwargs = {info["reorder"]["parameter"]: temp_ind}
 
-                    getattr(this, reorder_method[axis]["method"])(**kwargs)
+                    getattr(this, info["reorder"]["method"])(**kwargs)
 
         # checks are all done, start updating parameters
-        # combined_key_arrays has the final key arrays after adding.
-        combined_key_arrays = {}
-        # order_dict has info about how to sort each axis. Initialize to None
-        # for axes that are not added along (so do not need sorting)
-        order_dict = {"Nblts": None, "Nfreqs": None, "Npols": None}
-        for axis in axes:
-            if len(other_inds_use[axis]) > 0:
-                combined_key_arrays[axis] = np.concatenate(
+        for axis, info in axis_info.items():
+            if len(info["other_inds_use"]) > 0:
+                # combined_key_arrays has the final key arrays after adding.
+                info["combined_key_arrays"] = np.concatenate(
                     (
-                        axis_key_arrays[axis]["this"],
-                        axis_key_arrays[axis]["other"][other_inds_use[axis]],
+                        info["key_arrays"]["this"],
+                        info["key_arrays"]["other"][info["other_inds_use"]],
                     )
                 )
                 if axis == "Npols":
-                    order_dict[axis] = np.argsort(np.abs(combined_key_arrays[axis]))
+                    # order has info about how to sort each axis.
+                    info["order"] = np.argsort(np.abs(info["combined_key_arrays"]))
                 elif axis == "Nfreqs" and (
                     np.any(np.diff(this.freq_array) < 0)
                     or np.any(np.diff(other.freq_array) < 0)
                 ):
                     # deal with the possibility of spws with channels in
                     # descending order.
-                    order_dict[axis] = utils.frequency._add_freq_order(
+                    info["order"] = utils.frequency._add_freq_order(
                         np.concatenate(
                             (
                                 this.flex_spw_id_array,
-                                other.flex_spw_id_array[other_inds_use[axis]],
+                                other.flex_spw_id_array[info["other_inds_use"]],
                             )
                         ),
                         np.concatenate(
-                            (this.freq_array, other.freq_array[other_inds_use[axis]])
+                            (this.freq_array, other.freq_array[info["other_inds_use"]])
                         ),
                     )
                 else:
-                    order_dict[axis] = np.argsort(combined_key_arrays[axis])
+                    info["order"] = np.argsort(info["combined_key_arrays"])
 
                 # first handle parameters with a single named axis
                 this._axis_add_helper(
-                    other, axis, other_inds_use[axis], order_dict[axis]
+                    other, axis, info["other_inds_use"], info["order"]
                 )
 
                 # then pad out parameters with multiple axes
-                this._axis_pad_helper(axis, len(other_inds_use[axis]))
+                this._axis_pad_helper(axis, len(info["other_inds_use"]))
             else:
                 # no add along this axis, so it's the same as what's already on this
-                combined_key_arrays[axis] = axis_key_arrays[axis]["this"]
+                info["combined_key_arrays"] = info["key_arrays"]["this"]
 
         # Now fill in multidimensional parameters
-        # t2o_dict has the mapping of where arrays on other get mapped into
+        # t2o has the mapping of where arrays on other get mapped into
         # this after padding
-        t2o_dict = {}
-        for axis, inds_dict in axis_key_arrays.items():
-            t2o_dict[axis] = np.nonzero(
-                np.isin(combined_key_arrays[axis], inds_dict["other"])
+        for _, info in axis_info.items():
+            info["t2o"] = np.nonzero(
+                np.isin(info["combined_key_arrays"], info["key_arrays"]["other"])
             )[0]
 
-        this._fill_multi_helper(other, t2o_dict, order_dict)
+        this._fill_multi_helper(
+            other,
+            {axis: info["t2o"] for axis, info in axis_info.items()},
+            {axis: info["order"] for axis, info in axis_info.items()},
+        )
 
-        if len(other_inds_use["Nfreqs"]) > 0:
+        if len(axis_info["Nfreqs"]["other_inds_use"]) > 0:
             # We want to preserve per-spw information based on first appearance
             # in the concatenated array.
             unique_index = np.sort(
@@ -5815,7 +5829,7 @@ class UVData(UVBase):
                         )
 
         # Reset blt_order if blt axis was added to
-        if order_dict["Nblts"] is not None:
+        if axis_info["Nblts"]["order"] is not None:
             this.blt_order = ("time", "baseline")
 
         this.set_rectangularity(force=True)
