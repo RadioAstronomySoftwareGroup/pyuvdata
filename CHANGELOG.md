@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Compatiblity with numpy>=2.3
+
 ## [3.2.4] - 2025-09-15
 
 ### Added
