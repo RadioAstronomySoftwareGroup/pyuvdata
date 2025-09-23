@@ -95,9 +95,8 @@ jobs:
   - bash: |
       micromamba info
       # need to add gxx and gcc to build novas and cython
-      # numba should be removed after next pyuvdata release (>3.2.1)
       # note different spelling of yaml extension
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc numba -f ../$(NAME)/ci/${ENV_NAME}.yaml -yq
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../$(NAME)/ci/${ENV_NAME}.yaml -yq
     displayName: configure conda environment
 
   - bash: |
