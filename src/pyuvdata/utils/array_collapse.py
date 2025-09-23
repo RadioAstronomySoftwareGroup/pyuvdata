@@ -14,6 +14,8 @@ def mean_collapse(
     """
     Collapse by averaging data.
 
+    Bools are cast to integers prior to calculations.
+
     This is similar to np.average, except it handles infs (by giving them
     zero weight) and zero weight axes (by forcing result to be inf with zero
     output weight).
@@ -34,6 +36,8 @@ def mean_collapse(
 
     """
     arr = deepcopy(arr)  # avoid changing outside
+    if isinstance(arr.item(0), bool):
+        arr = arr.astype(int)
     if weights is None:
         weights = np.ones_like(arr)
     else:
@@ -64,6 +68,8 @@ def absmean_collapse(
     """
     Collapse by averaging absolute value of data.
 
+    Bools are cast to integers prior to calculations.
+
     Parameters
     ----------
     arr : array
@@ -79,6 +85,9 @@ def absmean_collapse(
         whether to return the sum of the squares of the weights. Default is False.
 
     """
+    arr = deepcopy(arr)  # avoid changing outside
+    if isinstance(arr.item(0), bool):
+        arr = arr.astype(int)
     return mean_collapse(
         np.abs(arr),
         weights=weights,
@@ -94,6 +103,8 @@ def quadmean_collapse(
     """
     Collapse by averaging in quadrature.
 
+    Bools are cast to integers prior to calculations.
+
     Parameters
     ----------
     arr : array
@@ -109,6 +120,9 @@ def quadmean_collapse(
         whether to return the sum of the squares of the weights. Default is False.
 
     """
+    arr = deepcopy(arr)  # avoid changing outside
+    if isinstance(arr.item(0), bool):
+        arr = arr.astype(int)
     out = mean_collapse(
         np.abs(arr) ** 2,
         weights=weights,

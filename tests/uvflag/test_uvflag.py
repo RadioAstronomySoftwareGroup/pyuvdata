@@ -2190,6 +2190,8 @@ def test_collapse_pol_flag():
     uvf2.polarization_array[0] = -4
     uvf.__add__(uvf2, inplace=True, axis="pol")  # Concatenate to form multi-pol object
     uvf2 = uvf.copy()
+    uvf3 = uvf.copy()
+    uvf4 = uvf.copy()
     uvf2.collapse_pol()
     assert len(uvf2.polarization_array) == 1
     assert uvf2.polarization_array[0] == np.str_(
@@ -2199,6 +2201,12 @@ def test_collapse_pol_flag():
     assert hasattr(uvf2, "metric_array")
     assert hasattr(uvf2, "flag_array")
     assert uvf2.flag_array is None
+
+    # all mean methods should be identical for flag inputs
+    uvf3.collapse_pol(method="mean")
+    assert uvf3 == uvf2
+    uvf4.collapse_pol(method="absmean")
+    assert uvf4 == uvf2
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
