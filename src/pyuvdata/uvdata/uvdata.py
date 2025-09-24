@@ -5991,9 +5991,20 @@ class UVData(UVBase):
             self and other are not compatible.
 
         """
-        allowed_axes = ["blt", "freq", "polarization"]
-        if axis not in allowed_axes:
-            raise ValueError("Axis must be one of: " + ", ".join(allowed_axes))
+        # setup a dict to carry all the axis-specific info we need throughout
+        # the fast concat process:
+        #   - description is used in history string
+        #   - shape: the shape name parameter (e.g. "Nblts", "Nfreqs", "Npols")
+        # ---added later----
+        #   - check_params gives parameters that should be checked if adding
+        #     along other axes
+        axis_info = {
+            "blt": {"description": "baseline-time", "shape": "Nblts"},
+            "freq": {"description": "frequency", "shape": "Nfreqs"},
+            "polarization": {"description": "polarization", "shape": "Npols"},
+        }
+        if axis not in axis_info:
+            raise ValueError("Axis must be one of: " + ", ".join(axis_info))
 
         if inplace:
             this = self
@@ -6043,28 +6054,23 @@ class UVData(UVBase):
 
         history_update_string = " Combined data along "
 
-        # identify params that are not explicitly included in overlap calc per axis
-        axis_shape = {"blt": "Nblts", "freq": "Nfreqs", "polarization": "Npols"}
-        axis_check_params = {}
-        axis_parameters = {}
-        for axis2, ax_shape in axis_shape.items():
-            axis_parameters[axis2] = this._get_param_axis(ax_shape)
-            axis_check_params[axis2] = []
-            for param in axis_parameters[axis2]:
-                if param not in this._data_params:
-                    axis_check_params[axis2].append("_" + param)
+        # figure out what parameters to check for compatibility -- only worry
+        # about single axis params
+        for _, info in axis_info.items():
+            params_this_axis = this._get_param_axis(
+                info["shape"], single_named_axis=True
+            )
+            info["check_params"] = []
+            for param in params_this_axis:
+                info["check_params"].append("_" + param)
 
-        for axis2 in axis_shape:
+        for axis2, info in axis_info.items():
             if axis2 != axis:
-                compatibility_params.extend(axis_check_params[axis2])
+                compatibility_params.extend(info["check_params"])
 
-        axis_descriptions = {
-            "blt": "baseline-time",
-            "freq": "frequency",
-            "polarization": "polarization",
-        }
-
-        history_update_string += f" {axis_descriptions[axis]} axis using pyuvdata."
+        history_update_string += (
+            f" {axis_info[axis]['description']} axis using pyuvdata."
+        )
 
         histories_match = []
         for obj in other:
@@ -6103,13 +6109,15 @@ class UVData(UVBase):
 
         this.telescope = tel_obj
 
+        # actually do the concat
+        this._axis_fast_concat_helper(other, axis_info[axis]["shape"])
+
         # update the relevant shape parameter
-        this._axis_fast_concat_helper(other, axis_shape[axis])
         new_shape = sum(
-            [getattr(this, axis_shape[axis])]
-            + [getattr(obj, axis_shape[axis]) for obj in other]
+            [getattr(this, axis_info[axis]["shape"])]
+            + [getattr(obj, axis_info[axis]["shape"]) for obj in other]
         )
-        setattr(this, axis_shape[axis], new_shape)
+        setattr(this, axis_info[axis]["shape"], new_shape)
 
         if axis == "freq":
             # We want to preserve per-spw information based on first appearance
