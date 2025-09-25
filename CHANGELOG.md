@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- A NotImplementedError to `mwa_corr_fits.py` that is thrown when trying to read 
+- A NotImplementedError to `mwa_corr_fits.py` that is thrown when trying to read
 fringe-stopped data.
 
 ### Fixed

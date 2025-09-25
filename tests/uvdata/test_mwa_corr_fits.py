@@ -1705,7 +1705,7 @@ def test_partial_read_errors(tmp_path):
 def test_fringe_stopping_error(tmp_path):
     test_metafits = str(tmp_path / "1131733552_fs.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
-        meta[0].header["DELAYMOD"] = 'FULLTRACK'
+        meta[0].header["DELAYMOD"] = "FULLTRACK"
         meta.writeto(test_metafits)
     with pytest.raises(
         NotImplementedError, match="This data has had fringe stopping applied. "
