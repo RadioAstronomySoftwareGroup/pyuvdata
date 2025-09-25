@@ -1700,3 +1700,14 @@ def test_partial_read_errors(tmp_path):
         ValueError, match="bls must be a list of 2-tuples giving antenna number pairs"
     ):
         uvd.read_mwa_corr_fits(files_use, bls=[(18, 31, "xx")])
+
+
+def test_fringe_stopping_error(tmp_path):
+    test_metafits = str(tmp_path / "1131733552_fs.metafits")
+    with fits.open(fetch_data("mwax_2021_metafits")) as meta:
+        meta[0].header["DELAYMOD"] = 'FULLTRACK'
+        meta.writeto(test_metafits)
+    with pytest.raises(
+        NotImplementedError, match="This data has had fringe stopping applied. "
+    ):
+        UVData.from_file([test_metafits, fetch_data("mwax_2021_raw_gpubox")])
