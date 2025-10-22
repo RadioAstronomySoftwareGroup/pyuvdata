@@ -1714,6 +1714,7 @@ def test_fringe_stopping_error(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_deripple_on_warns_and_passes(tmp_path):
     test_metafits = str(tmp_path / "1131733552_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
@@ -1727,6 +1728,7 @@ def test_deripple_on_warns_and_passes(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_deripple_off_does_nothing(tmp_path):
     test_metafits = str(tmp_path / "1131733552_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
