@@ -154,18 +154,6 @@ def read_metafits(
         else:
             pass
 
-        # deripple on = 1
-        deripple = meta_hdr["DERIPPLE"]
-
-        # turn off pfb correction if it was corrected in the correlator
-        if deripple == 1:
-            warnings.warn(
-                "No coarse band shape will be removed from this data "
-                "because DERIPPLE is on."
-            )
-        else:
-            pass
-
         # frequency averaging factor
         avg_factor = meta_hdr["NAV_FREQ"]
 
@@ -227,7 +215,6 @@ def read_metafits(
         "flagged_ant_inds": flagged_ant_inds,
         "int_time": int_time,
         "start_flag": start_flag,
-        "deripple": deripple,
         "obs_freq_center": obs_freq_center,
         "avg_factor": avg_factor,
         "coarse_chans": coarse_chans,
@@ -1321,7 +1308,6 @@ class MWACorrFITS(UVData):
         ant_2_inds,
         cb_array,
         dig_gains,
-        deripple,
         nsamples,
         num_fine_chans,
         correct_van_vleck,
@@ -1380,7 +1366,7 @@ class MWACorrFITS(UVData):
             cb_data /= dig_gains1
             cb_data /= dig_gains2
         # remove coarse band
-        if remove_coarse_band and deripple != 1:
+        if remove_coarse_band:
             if freq_inds_dict is not None:
                 cb_data /= cb_array[freq_inds_dict[cb_num]["coarse_inds"], np.newaxis]
             else:
@@ -1400,7 +1386,6 @@ class MWACorrFITS(UVData):
         ant_2_inds,
         avg_factor,
         dig_gains,
-        deripple,
         spw_inds,
         num_fine_chans,
         flagged_ant_inds,
@@ -1483,7 +1468,7 @@ class MWACorrFITS(UVData):
         else:
             dig_gains = None
         # get pfb response shape
-        if remove_coarse_band and deripple != 1:
+        if remove_coarse_band:
             self.history += " Divided out pfb coarse channel bandpass."
             cb_array = self._get_pfb_shape(avg_factor, mwax)
         else:
@@ -1497,7 +1482,6 @@ class MWACorrFITS(UVData):
                 ant_2_inds,
                 cb_array,
                 dig_gains,
-                deripple,
                 nsamples,
                 num_fine_chans,
                 correct_van_vleck,
@@ -1529,7 +1513,7 @@ class MWACorrFITS(UVData):
         keep_all_metadata=True,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
-        remove_coarse_band=True,
+        remove_coarse_band=None,
         correct_cable_len=True,
         correct_van_vleck=False,
         cheby_approx=True,
@@ -1760,6 +1744,29 @@ class MWACorrFITS(UVData):
             for key, value in ppd_extra_keywords.items():
                 if key not in self.extra_keywords:
                     self.extra_keywords[key] = value
+
+        if remove_coarse_band is None:
+            if (
+                "DERIPPLE" in self.extra_keywords
+                and self.extra_keywords["DERIPPLE"] == 1
+            ):
+                remove_coarse_band = False
+            else:
+                remove_coarse_band = True
+        else:
+            if (
+                remove_coarse_band is True
+                and "DERIPPLE" in self.extra_keywords
+                and self.extra_keywords["DERIPPLE"] == 1
+            ):
+                # turn off pfb correction if it was corrected in the correlator
+                warnings.warn(
+                    "No coarse band shape will be removed from this data "
+                    "because DERIPPLE is on."
+                )
+                remove_coarse_band = False
+            else:
+                pass
 
         # set parameters from other parameters
         self.telescope.Nants = len(self.telescope.antenna_numbers)
@@ -2166,7 +2173,6 @@ class MWACorrFITS(UVData):
                     ant_2_inds,
                     meta_dict["avg_factor"],
                     meta_dict["dig_gains"],
-                    meta_dict["deripple"],
                     orig_spw_inds,
                     num_fine_chans,
                     meta_dict["flagged_ant_inds"],
