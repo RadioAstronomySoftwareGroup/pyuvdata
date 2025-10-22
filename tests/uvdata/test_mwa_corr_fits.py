@@ -1711,3 +1711,26 @@ def test_fringe_stopping_error(tmp_path):
         NotImplementedError, match="This data has had fringe stopping applied. "
     ):
         UVData.from_file([test_metafits, fetch_data("mwax_2021_raw_gpubox")])
+
+
+def test_deripple_on_warns_and_passes(tmp_path):
+    test_metafits = str(tmp_path / "1131733552_dr.metafits")
+    with fits.open(fetch_data("mwax_2021_metafits")) as meta:
+        meta[0].header["DERIPPLE"] = 1
+        meta.writeto(test_metafits)
+    with pytest.warns(UserWarning, match="No coarse band shape will be removed"):
+        uvd = UVData.from_file(
+            [test_metafits, fetch_data("mwax_2021_raw_gpubox")], remove_coarse_band=True
+        )
+    assert "Divided out pfb coarse channel bandpass" not in uvd.history
+
+
+def test_deripple_off_does_nothing(tmp_path):
+    test_metafits = str(tmp_path / "1131733552_dr.metafits")
+    with fits.open(fetch_data("mwax_2021_metafits")) as meta:
+        meta[0].header["DERIPPLE"] = 0
+        meta.writeto(test_metafits)
+    uvd = UVData.from_file(
+        [test_metafits, fetch_data("mwax_2021_raw_gpubox")], remove_coarse_band=True
+    )
+    assert "Divided out pfb coarse channel bandpass" in uvd.history

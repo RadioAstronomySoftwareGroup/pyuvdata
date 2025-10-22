@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Changed
+- When reading MWA correlator fits files , if `remove_coarse_band=True` is set and
+DERIPPLE is on, a warning is raised, and no pfb shape is removed.
 
 ### Added
 - A NotImplementedError to `mwa_corr_fits.py` that is thrown when trying to read
