@@ -13,6 +13,23 @@ from .pol import polnum2str
 from .types import FloatArray
 
 
+def get_az_za_grid(max_zenith_deg: float = 90.0):
+    """
+    Get an azimuth, zenith angle grid.
+
+    Parameters
+    ----------
+    max_zenith_deg : float
+        Maximum zenith angle to include in the plot in degrees. Default is
+        90 to go down to the horizon.
+
+    """
+    az_grid = np.deg2rad(np.arange(0, 360))
+    za_grid = np.deg2rad(np.arange(0, 91)) * (max_zenith_deg / 90.0)
+
+    return az_grid, za_grid
+
+
 def plot_beam_arrays(
     beam_vals: FloatArray,
     az_array: FloatArray,
@@ -309,7 +326,7 @@ def beam_plot(
     feed_labels[np.isclose(beam_obj.feed_angle, 0)] = "N/S"
     feed_labels[np.isclose(beam_obj.feed_angle, np.pi / 2)] = "E/W"
 
-    if beam_type == "efield":
+    if beam_type != "power":
         nfeedpol = beam_obj.Nfeeds
         feedpol_label = feed_labels
         if issubclass(type(beam_obj), UnpolarizedAnalyticBeam):
@@ -376,8 +393,7 @@ def beam_plot(
             naxes_vec = 1
         reg_grid = True
 
-        az_grid = np.deg2rad(np.arange(0, 360))
-        za_grid = np.deg2rad(np.arange(0, 91)) * (max_zenith_deg / 90.0)
+        az_grid, za_grid = get_az_za_grid(max_zenith_deg=max_zenith_deg)
         az_array, za_array = np.meshgrid(az_grid, za_grid)
         bi = BeamInterface(beam_obj, beam_type=beam_type)
         beam_vals = bi.compute_response(
@@ -396,6 +412,10 @@ def beam_plot(
         beam_type_label = "power"
     elif beam_type == "efield":
         beam_type_label = "E-field"
+    elif beam_type == "feed_iresponse":
+        beam_type_label = "Feed I response"
+    elif beam_type == "feed_projection":
+        beam_type_label = "Feed projection"
 
     plot_beam_arrays(
         beam_vals,
