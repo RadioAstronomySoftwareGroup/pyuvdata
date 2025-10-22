@@ -137,9 +137,8 @@ def test_beam_interface(
             with pytest.raises(
                 ValueError,
                 match="Input beam is a power UVBeam but beam_type is specified as "
-                "'efield'. It's not possible to convert a power beam to an "
-                "efield beam, either provide an efield UVBeam or do not "
-                "specify `beam_type`.",
+                "efield. It's not possible to convert a power beam to efield, "
+                "either provide an efield UVBeam or do not specify `beam_type`.",
             ):
                 BeamInterface(uvb, final_beam_type)
             return
@@ -147,7 +146,7 @@ def test_beam_interface(
         warn_type = UserWarning
         msg = (
             "Input beam is an efield UVBeam but beam_type is specified as "
-            "'power'. Converting efield beam to power."
+            "power. Converting efield beam to power."
         )
     else:
         warn_type = None
