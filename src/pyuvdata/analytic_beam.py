@@ -510,6 +510,102 @@ class AnalyticBeam:
 
             return data_array
 
+    def feed_iresponse_eval(
+        self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
+    ) -> FloatArray:
+        """
+        Evaluate the feed I response at the given coordinates.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of complex
+            An array of beam values. The shape of the evaluated data will be:
+            (1, Nfeeds, freq_array.size, az_array.size)
+
+        """
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
+
+        za_grid, _ = np.meshgrid(za_array, freq_array)
+        az_grid, f_grid = np.meshgrid(az_array, freq_array)
+
+        if hasattr(self, "_feed_iresponse_eval"):
+            return self._feed_iresponse_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            ).astype(complex)
+        else:
+            efield_vals = self.efield_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            )
+
+            # set f to the magnitude of the I response, assume no time delays
+            data_array = np.sqrt(np.sum(np.abs(efield_vals) ** 2, axis=0))
+            data_array = data_array[np.newaxis]
+
+            return data_array
+
+    def feed_projection_eval(
+        self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
+    ) -> FloatArray:
+        """
+        Evaluate the feed projection at the given coordinates.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of complex
+            An array of beam values. The shape of the evaluated data will be:
+            (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
+
+        """
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
+
+        za_grid, _ = np.meshgrid(za_array, freq_array)
+        az_grid, f_grid = np.meshgrid(az_array, freq_array)
+
+        if hasattr(self, "_feed_projection_eval"):
+            return self._feed_projection_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            ).astype(complex)
+        else:
+            efield_vals = self.efield_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            )
+
+            # set f to the magnitude of the I response, assume no time delays
+            f_vals = self.feed_iresponse_eval()
+            data_array = self._get_empty_data_array(az_grid.shape)
+
+            for fn in np.arange(self.Nfeeds):
+                data_array[0, fn] = efield_vals[0, fn] / f_vals[0, fn]
+                data_array[1, fn] = efield_vals[1, fn] / f_vals[0, fn]
+
+            return data_array
+
     @combine_docstrings(UVBeam.new)
     def to_uvbeam(
         self,
