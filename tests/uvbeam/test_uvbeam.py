@@ -2554,10 +2554,17 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         if param == "beam_type":
             beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
         elif param == "Naxes_vec":
-            beam2_copy = beam2.copy()
+            beam1_copy = efield_beam.select(freq_chans=0, inplace=False)
+            beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
             beam2_copy.Naxes_vec = value
             beam2_copy.data_array = np.concatenate(
-                (beam2_copy.data_array, beam2_copy.data_array, beam2_copy.data_array)
+                (beam2_copy.data_array, (beam2_copy.data_array[0])[np.newaxis])
+            )
+            beam2_copy.basis_vector_array = np.concatenate(
+                (
+                    beam2_copy.basis_vector_array,
+                    (beam2_copy.basis_vector_array[0])[np.newaxis],
+                )
             )
         else:
             beam2_copy = beam2.copy()
