@@ -1713,6 +1713,7 @@ def test_fringe_stopping_error(tmp_path):
         UVData.from_file([test_metafits, fetch_data("mwax_2021_raw_gpubox")])
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_deripple_on_warns_and_passes(tmp_path):
     test_metafits = str(tmp_path / "1131733552_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
@@ -1725,6 +1726,7 @@ def test_deripple_on_warns_and_passes(tmp_path):
     assert "Divided out pfb coarse channel bandpass" not in uvd.history
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 def test_deripple_off_does_nothing(tmp_path):
     test_metafits = str(tmp_path / "1131733552_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
