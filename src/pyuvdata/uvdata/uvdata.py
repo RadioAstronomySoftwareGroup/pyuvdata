@@ -8025,6 +8025,7 @@ class UVData(UVBase):
         propagate_flags=False,
         respect_spws=True,
         keep_ragged=True,
+        copy=False,
     ):
         """
         Average in frequency.
@@ -8123,7 +8124,8 @@ class UVData(UVBase):
         if self.eq_coeffs is not None:
             final_eq_coeffs = np.zeros((self.telescope.Nants, final_nchan), dtype=float)
 
-        if not self.metadata_only:
+        metadata_only = self.metadata_only
+        if not metadata_only:
             final_shape_tuple = (self.Nblts, final_nchan, self.Npols)
             final_flag_array = np.full(final_shape_tuple, False, dtype=bool)
             final_data_array = np.zeros(final_shape_tuple, dtype=self.data_array.dtype)
@@ -8193,32 +8195,38 @@ class UVData(UVBase):
                         self.eq_coeffs[:, irregular_inds], axis=1
                     )
 
-            if not self.metadata_only:
+            if not metadata_only:
                 shape_tuple = (self.Nblts, n_final_chan_reg, n_chan_to_avg, self.Npols)
 
-                reg_mask = self.flag_array[:, regular_inds].reshape(shape_tuple)
+                reg_mask = self.flag_array[:, regular_inds]
                 if this_ragged:
                     irreg_mask = self.flag_array[:, irregular_inds]
 
                 if propagate_flags:
                     # if any contributors are flagged, the result should be flagged
-                    final_flag_array[:, this_final_reg_inds] = np.any(
-                        self.flag_array[:, regular_inds].reshape(shape_tuple), axis=2
-                    )
                     if this_ragged:
                         final_flag_array[:, final_spw_chans[spw][-1]] = np.any(
                             self.flag_array[:, irregular_inds], axis=1
                         )
+                    final_flag_array[:, this_final_reg_inds] = np.any(
+                        self.flag_array[:, regular_inds].reshape(
+                            shape_tuple, copy=copy
+                        ),
+                        axis=2,
+                    )
                 else:
                     # if all inputs are flagged, the flag array should be True,
                     # otherwise it should be False.
-                    final_flag_array[:, this_final_reg_inds] = np.all(
-                        self.flag_array[:, regular_inds].reshape(shape_tuple), axis=2
-                    )
                     if this_ragged:
                         final_flag_array[:, final_spw_chans[spw][-1]] = np.all(
                             self.flag_array[:, irregular_inds], axis=1
                         )
+                    final_flag_array[:, this_final_reg_inds] = np.all(
+                        self.flag_array[:, regular_inds].reshape(
+                            shape_tuple, copy=copy
+                        ),
+                        axis=2,
+                    )
 
                 # need to update mask if a downsampled visibility will be flagged
                 # so that we don't set it to zero
@@ -8226,6 +8234,7 @@ class UVData(UVBase):
                 # entirely flagged channels, you include the flagged channels in the
                 # result (so it's not zero) whereas you exclude flagged channels if
                 # there are any unflagged channels in the average.
+                reshaped_mask = reg_mask.reshape(shape_tuple)
                 for chan_ind in np.arange(n_final_chan_reg):
                     this_chan = final_spw_chans[spw][chan_ind]
                     if (final_flag_array[:, this_chan]).any():
@@ -8236,12 +8245,12 @@ class UVData(UVBase):
                         # May not happen due to propagate_flags keyword
                         # mask should be left alone otherwise
                         fully_flagged = np.all(
-                            reg_mask[ax0_inds, this_chan, :, ax2_inds], axis=1
+                            reshaped_mask[ax0_inds, this_chan, :, ax2_inds], axis=1
                         )
                         ff_inds = np.nonzero(fully_flagged)
-                        reg_mask[ax0_inds[ff_inds], this_chan, :, ax2_inds[ff_inds]] = (
-                            False
-                        )
+                        reshaped_mask[
+                            ax0_inds[ff_inds], this_chan, :, ax2_inds[ff_inds]
+                        ] = False
                 if this_ragged:
                     ax0_inds, ax2_inds = np.nonzero(
                         final_flag_array[:, final_spw_chans[spw][-1], :]
@@ -8254,7 +8263,7 @@ class UVData(UVBase):
                 # (based on the flag_array).
                 # This lets numpy handle the averaging with flags.
                 masked_reg_data = np.ma.masked_array(
-                    self.data_array[:, regular_inds].reshape(shape_tuple), mask=reg_mask
+                    self.data_array[:, regular_inds], mask=reg_mask
                 )
                 if this_ragged:
                     masked_irreg_data = np.ma.masked_array(
@@ -8268,22 +8277,22 @@ class UVData(UVBase):
                 else:
                     masked_nsample_dtype = nsample_dtype
                 # create a masked nsample array from the data_array and mask_array
-                masked_reg_nsample = np.ma.masked_array(
-                    self.nsample_array[:, regular_inds].reshape(shape_tuple),
-                    mask=reg_mask,
-                    dtype=masked_nsample_dtype,
-                )
                 if this_ragged:
                     masked_irreg_nsample = np.ma.masked_array(
                         self.nsample_array[:, irregular_inds],
                         mask=irreg_mask,
                         dtype=masked_nsample_dtype,
                     )
+                masked_reg_nsample = np.ma.masked_array(
+                    self.nsample_array[:, regular_inds],
+                    mask=reg_mask,
+                    dtype=masked_nsample_dtype,
+                )
 
                 if summing_correlator_mode:
                     # sum rather than average
                     final_data_array[:, this_final_reg_inds] = np.sum(
-                        masked_reg_data, axis=2
+                        masked_reg_data.reshape(shape_tuple), axis=2
                     ).data
                     if this_ragged:
                         final_data_array[:, final_spw_chans[spw][-1]] = np.sum(
@@ -8292,8 +8301,12 @@ class UVData(UVBase):
                 else:
                     # do a weighted average with the weights given by the nsample_array
                     final_data_array[:, this_final_reg_inds] = (
-                        np.sum(masked_reg_data * masked_reg_nsample, axis=2)
-                        / np.sum(masked_reg_nsample, axis=2)
+                        np.sum(
+                            masked_reg_data.reshape(shape_tuple)
+                            * masked_reg_nsample.reshape(shape_tuple),
+                            axis=2,
+                        )
+                        / np.sum(masked_reg_nsample.reshape(shape_tuple), axis=2)
                     ).data
                     if this_ragged:
                         final_data_array[:, final_spw_chans[spw][-1]] = (
@@ -8307,7 +8320,8 @@ class UVData(UVBase):
                 # averaged channels
                 # Need to take care to return precision back to original value.
                 final_nsample_array[:, this_final_reg_inds] = (
-                    np.sum(masked_reg_nsample, axis=2) / float(n_chan_to_avg)
+                    np.sum(masked_reg_nsample.reshape(shape_tuple), axis=2)
+                    / float(n_chan_to_avg)
                 ).data.astype(nsample_dtype)
                 if this_ragged:
                     final_nsample_array[:, final_spw_chans[spw][-1]] = (
@@ -8321,7 +8335,7 @@ class UVData(UVBase):
         if self.eq_coeffs is not None:
             self.eq_coeffs = final_eq_coeffs
 
-        if not self.metadata_only:
+        if not metadata_only:
             self.flag_array = final_flag_array
             self.data_array = final_data_array
             self.nsample_array = final_nsample_array
