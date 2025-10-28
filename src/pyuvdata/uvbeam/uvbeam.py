@@ -1487,8 +1487,11 @@ class UVBeam(UVBase):
                 flip_array[va_i, f_i, :, az_flip[0]] *= -1
                 # now switch back
                 flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
-                # check if zenith response is all negative now, if so make it positive
-                if np.max(flip_array[va_i, f_i, :, zenith_ind]) < 0:
+                # check if zenith response is mostly negative now, if so make it
+                # positive
+                # use mean instead of max because can occasionally get max
+                # values just above zero
+                if np.mean(flip_array[va_i, f_i, :, zenith_ind]) < 0:
                     flip_array[va_i, f_i] *= -1
 
         # to compute the time delay, first sum the flipped array across the vector
