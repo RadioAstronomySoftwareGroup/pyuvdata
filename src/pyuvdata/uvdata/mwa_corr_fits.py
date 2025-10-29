@@ -1753,20 +1753,20 @@ class MWACorrFITS(UVData):
                 remove_coarse_band = False
             else:
                 remove_coarse_band = True
+        elif (
+            remove_coarse_band is True
+            and "DERIPPLE" in self.extra_keywords
+            and self.extra_keywords["DERIPPLE"] == 1
+        ):
+            # turn off pfb correction if it was corrected in the correlator
+            warnings.warn(
+                "No coarse band shape will be removed from this data "
+                "because DERIPPLE is on.",
+                stacklevel=2,
+            )
+            remove_coarse_band = False
         else:
-            if (
-                remove_coarse_band is True
-                and "DERIPPLE" in self.extra_keywords
-                and self.extra_keywords["DERIPPLE"] == 1
-            ):
-                # turn off pfb correction if it was corrected in the correlator
-                warnings.warn(
-                    "No coarse band shape will be removed from this data "
-                    "because DERIPPLE is on."
-                )
-                remove_coarse_band = False
-            else:
-                pass
+            pass
 
         # set parameters from other parameters
         self.telescope.Nants = len(self.telescope.antenna_numbers)
