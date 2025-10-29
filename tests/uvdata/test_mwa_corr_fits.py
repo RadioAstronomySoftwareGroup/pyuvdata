@@ -1730,18 +1730,20 @@ def test_deripple_on_warns_and_passes(tmp_path):
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_deripple_remove_coarse_band_none(tmp_path):
-    test_metafits = str(tmp_path / "1131733552_dr.metafits")
+    test_metafits = str(tmp_path / "1131733551_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
         meta[0].header["DERIPPLE"] = 1
         meta.writeto(test_metafits)
-    uvd = UVData.from_file([test_metafits, fetch_data("mwax_2021_raw_gpubox")])
+    uvd = UVData.from_file(
+        [test_metafits, fetch_data("mwax_2021_raw_gpubox")], remove_coarse_band=None
+    )
     assert "Divided out pfb coarse channel bandpass" not in uvd.history
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_deripple_off_does_nothing(tmp_path):
-    test_metafits = str(tmp_path / "1131733552_dr.metafits")
+    test_metafits = str(tmp_path / "1131733550_dr.metafits")
     with fits.open(fetch_data("mwax_2021_metafits")) as meta:
         meta[0].header["DERIPPLE"] = 0
         meta.writeto(test_metafits)
