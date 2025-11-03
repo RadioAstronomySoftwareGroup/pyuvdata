@@ -2462,12 +2462,25 @@ class UVData(UVBase):
             # make a metadata only copy of this object to properly calculate uvws
             if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
                 max_diff = np.max(np.abs(temp_obj.uvw_array - self.uvw_array))
+                max_flip_diff = np.max(np.abs((-temp_obj.uvw_array) - self.uvw_array))
                 if allow_flip_conj and np.allclose(
                     -temp_obj.uvw_array, self.uvw_array, atol=1
                 ):
                     warnings.warn(
                         "UVW orientation appears to be flipped, attempting to "
                         "fix by changing conjugation of baselines."
+                    )
+                    self.uvw_array *= -1
+                    self.data_array = np.conj(self.data_array)
+                    logger.info("Flipped Array")
+                elif allow_flip_conj and max_flip_diff < max_diff:
+                    warnings.warn(
+                        "The uvw_array does not match the expected values given "
+                        "the antenna positions. The largest discrepancy initially "
+                        f"was {max_diff} meters. By flipping the conjugation, the "
+                        f"largest discrepancy dropped to {max_flip_diff} meters. "
+                        "The conjugation was applied to reduce the discrepancy, "
+                        "but it is larger than expected. Caution is encouraged."
                     )
                     self.uvw_array *= -1
                     self.data_array = np.conj(self.data_array)
