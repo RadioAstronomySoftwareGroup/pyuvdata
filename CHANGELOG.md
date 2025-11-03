@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Allow conjugation to be flipped when reading measurement sets if flipping
+reduces the uvw discrepancy from what is expected even if the resulting
+discrepancy is larger than 1 meter (with a suitable warning).
 - When reading MWAX correlator files , `remove_coarse_band` now defaults to
 `False` if DERIPPLE is on. Otherwise it defaults to `True`.
 - If the user has set `remove_coarse_band=True` when DERIPPLE is on, a warning is

@@ -1006,9 +1006,29 @@ def test_ms_bad_history(sma_mir, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_flip_conj(nrao_ms, tmp_path):
+@pytest.mark.parametrize(
+    ("add_error", "msg"),
+    [
+        (
+            False,
+            "UVW orientation appears to be flipped, attempting to fix by "
+            "changing conjugation of baselines.",
+        ),
+        (
+            True,
+            "The uvw_array does not match the expected values given the antenna "
+            "positions. The largest discrepancy initially was 2042.176844761807 "
+            "meters. By flipping the conjugation, the largest discrepancy dropped "
+            "to 1.1000000000000227 meters. The conjugation was applied to reduce "
+            "the discrepancy, but it is larger than expected. Caution is encouraged.",
+        ),
+    ],
+)
+def test_flip_conj(nrao_ms, tmp_path, add_error, msg):
     filename = os.path.join(tmp_path, "flip_conj.ms")
     nrao_ms.set_uvws_from_antenna_positions()
+    if add_error:
+        nrao_ms.uvw_array += 1.1
     nrao_ms.uvw_array *= -1
     nrao_ms.data_array = np.conj(nrao_ms.data_array)
 
@@ -1017,7 +1037,7 @@ def test_flip_conj(nrao_ms, tmp_path):
     ):
         nrao_ms.write_ms(filename, flip_conj=True, run_check=False, clobber=True)
 
-    with check_warnings(UserWarning, match=["UVW orientation appears to be flip"] * 2):
+    with check_warnings(UserWarning, match=[msg] * 2):
         uv = UVData.from_file(filename)
         nrao_ms.check(allow_flip_conj=True)
 
