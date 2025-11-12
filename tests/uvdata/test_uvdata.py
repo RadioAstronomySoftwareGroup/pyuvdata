@@ -12033,7 +12033,10 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         hera_uvh5.phase_center_catalog[0]["cat_epoch"] = 2000.0
         hera_uvh5._set_app_coords_helper()
         warn_type = UserWarning
-        msg = "The uvw_array does not match the expected values"
+        msg = (
+            "The uvw_array does not match the expected values given "
+            "the antenna positions. The largest discrepancy is "
+        )
     else:
         warn_type = None
         msg = None
