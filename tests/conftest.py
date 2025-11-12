@@ -57,6 +57,7 @@ def casa_uvfits_main():
     """Read in CASA tutorial uvfits file."""
     fname = fetch_data("vla_casa_tutorial_uvfits")
     uv_in = UVData()
+    # TODO: why are these uvws so far off? ~2000m!
     with check_warnings(
         UserWarning, "The uvw_array does not match the expected values"
     ):
