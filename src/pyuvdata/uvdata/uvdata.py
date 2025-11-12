@@ -2247,6 +2247,17 @@ class UVData(UVBase):
             # Finally, plug the modified values back into data_array
             self.data_array[auto_screen] = auto_data
 
+    def flip_conjugation(self):
+        """
+        Flip the conjugation of the visibilities (and multiply the UVWs by -1).
+
+        Useful in the event that the data come in with the opposite conjugation
+        convention from pyuvdata's convention.
+        """
+        self.uvw_array *= -1
+        self.data_array = np.conj(self.data_array)
+        logger.info("Flipped visibility conjugation")
+
     def check(
         self,
         *,
@@ -2470,35 +2481,30 @@ class UVData(UVBase):
                         "UVW orientation appears to be flipped, attempting to "
                         "fix by changing conjugation of baselines."
                     )
-                    self.uvw_array *= -1
-                    self.data_array = np.conj(self.data_array)
-                    logger.info("Flipped Array")
-                elif allow_flip_conj and max_flip_diff < max_diff:
-                    warnings.warn(
-                        "The uvw_array does not match the expected values given "
-                        "the antenna positions. The largest discrepancy initially "
-                        f"was {max_diff} meters. By flipping the conjugation, the "
-                        f"largest discrepancy dropped to {max_flip_diff} meters. "
-                        "The conjugation was applied to reduce the discrepancy, "
-                        "but it is larger than expected. Caution is encouraged."
-                    )
-                    self.uvw_array *= -1
-                    self.data_array = np.conj(self.data_array)
-                    logger.info("Flipped Array")
-                elif not strict_uvw_antpos_check:
-                    warnings.warn(
-                        "The uvw_array does not match the expected values given "
-                        "the antenna positions. The largest discrepancy is "
-                        f"{max_diff} meters. This is a fairly common situation "
-                        "but might indicate an error in the antenna positions, "
-                        "the uvws or the phasing."
-                    )
+                    self.flip_conjugation()
                 else:
-                    raise ValueError(
+                    msg = (
                         "The uvw_array does not match the expected values given "
                         "the antenna positions. The largest discrepancy is "
                         f"{max_diff} meters."
                     )
+                    flip_msg = ""
+                    if max_flip_diff < max_diff:
+                        flip_msg = (
+                            " It is possible that the conjugation convention does "
+                            "not match pyuvdata's convention. Flipping the "
+                            "conjugation with the `flip_conjugation` method would "
+                            f"result in a maximum uvw discrepancy of {max_flip_diff} "
+                            "meters."
+                        )
+                    if not strict_uvw_antpos_check:
+                        warnings.warn(
+                            msg + " This is a fairly common situation "
+                            "but might indicate an error in the antenna positions, "
+                            "the uvws or the phasing." + flip_msg
+                        )
+                    else:
+                        raise ValueError(msg + flip_msg)
 
             # check auto and cross-corrs have sensible uvws
             logger.debug("Checking autos...")

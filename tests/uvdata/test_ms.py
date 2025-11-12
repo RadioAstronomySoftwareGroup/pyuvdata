@@ -1017,10 +1017,12 @@ def test_ms_bad_history(sma_mir, tmp_path):
         (
             True,
             "The uvw_array does not match the expected values given the antenna "
-            "positions. The largest discrepancy initially was 2042.176844761807 "
-            "meters. By flipping the conjugation, the largest discrepancy dropped "
-            "to 1.1000000000000227 meters. The conjugation was applied to reduce "
-            "the discrepancy, but it is larger than expected. Caution is encouraged.",
+            "positions. The largest discrepancy is 2042.176844761807 meters. "
+            "This is a fairly common situation but might indicate an error in the "
+            "antenna positions, the uvws or the phasing. It is possible that the "
+            "conjugation convention does not match pyuvdata's convention. Flipping "
+            "the conjugation with the `flip_conjugation` method would result in "
+            "a maximum uvw discrepancy of 1.1000000000000227 meters.",
         ),
     ],
 )
