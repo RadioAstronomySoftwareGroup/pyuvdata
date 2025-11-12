@@ -1017,22 +1017,32 @@ def test_ms_bad_history(sma_mir, tmp_path):
         (
             True,
             "The uvw_array does not match the expected values given the antenna "
-            "positions. The largest discrepancy is 2042.176844761807 meters. "
+            "positions. The largest discrepancy is max_diff meters. "
             "This is a fairly common situation but might indicate an error in the "
             "antenna positions, the uvws or the phasing. It is possible that the "
             "conjugation convention does not match pyuvdata's convention. Flipping "
             "the conjugation with the `flip_conjugation` method would result in "
-            "a maximum uvw discrepancy of 1.1000000000000227 meters.",
+            "a maximum uvw discrepancy of max_flip_diff meters.",
         ),
     ],
 )
 def test_flip_conj(nrao_ms, tmp_path, add_error, msg):
     filename = os.path.join(tmp_path, "flip_conj.ms")
     nrao_ms.set_uvws_from_antenna_positions()
+
+    orig_uvws = nrao_ms.uvw_array.copy()
     if add_error:
         nrao_ms.uvw_array += 1.1
+        max_flip_diff = np.max(np.abs(nrao_ms.uvw_array - orig_uvws))
+
     nrao_ms.uvw_array *= -1
     nrao_ms.data_array = np.conj(nrao_ms.data_array)
+
+    max_diff = np.max(np.abs(nrao_ms.uvw_array - orig_uvws))
+
+    if add_error:
+        msg = msg.replace("max_diff", str(max_diff))
+        msg = msg.replace("max_flip_diff", str(max_flip_diff))
 
     with check_warnings(
         UserWarning, match="Writing in the MS file that the units of the data are unca"
