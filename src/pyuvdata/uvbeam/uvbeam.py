@@ -1479,20 +1479,26 @@ class UVBeam(UVBase):
         for va_i in range(beam_object.Naxes_vec):
             for f_i in range(beam_object.Nfeeds):
                 az_angles = np.angle(np.squeeze(flip_array[va_i, f_i, :, zenith_ind]))
+                az_angles = az_angles.reshape((beam_object.Nfreqs, beam_object.Naxes1))
                 az_angles[az_angles < 0] += 2 * np.pi
-                az_flip = abs(az_angles - np.unwrap(az_angles, period=np.pi)) > 1
+                az_angle_diff = abs(az_angles - np.unwrap(az_angles, period=np.pi))
+                az_flip = np.logical_and(az_angle_diff > 1, az_angle_diff < 4)
                 # az_flip is shape (Nfreqs, Naxis1), need to reorder to get
                 # those axes adjacent
                 flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
-                flip_array[va_i, f_i, :, az_flip[0]] *= -1
+                flip_array[va_i, f_i, az_flip] *= -1
                 # now switch back
                 flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
                 # check if zenith response is mostly negative now, if so make it
                 # positive
                 # use mean instead of max because can occasionally get max
                 # values just above zero
-                if np.mean(flip_array[va_i, f_i, :, zenith_ind]) < 0:
-                    flip_array[va_i, f_i] *= -1
+                # this is frequency dependent because the earlier flips are
+                # frequency dependent so keep the freq axis
+                mean_zen_val = np.mean(
+                    np.squeeze(flip_array[va_i, f_i, :, zenith_ind].real), axis=-1
+                )
+                flip_array[va_i, f_i, mean_zen_val < 0] *= -1
 
         # to compute the time delay, first sum the flipped array across the vector
         # direction axis -- this gives us what is common to each instrumental
