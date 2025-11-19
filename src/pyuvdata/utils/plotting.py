@@ -23,6 +23,7 @@ def plot_beam_arrays(
     beam_type_label: str = "",
     feedpol_label: list[str] | None = None,
     freq_label: float | None = None,
+    colormap: str | None = None,
     logcolor: bool | None = None,
     plt_kwargs: dict | None = None,
     norm_kwargs: dict | None = None,
@@ -60,6 +61,10 @@ def plot_beam_arrays(
     feedpol_label: list of str, optional
         Feed or polarization labels, used for plot labelling. If provided, must
         be the same length as the 1st (not 0th) dimension of beam_vals.
+    colormap : str, optional
+        Matplotlib colormap to use. Defaults to "twlight" if complex_type="phase"
+        and logcolor=False, otherwise it defaults to "viridis" for positive
+        definite quantities and "PRGn" for quantities that go positive and negative.
     logcolor : bool, optional
         Option to use log scaling for the color. Defaults to True for power
         beams and False for E-field beams. Results in using
@@ -116,6 +121,7 @@ def plot_beam_arrays(
         beam_vals = complex_func[complex_type](beam_vals)
         type_label = ", " + complex_type
     else:
+        complex_type = "real"
         type_label = ""
 
     if beam_vals.ndim == 4:
@@ -154,7 +160,10 @@ def plot_beam_arrays(
             )
 
     norm_use = None
-    colormap = "viridis"
+    if complex_type == "phase":
+        default_colormap = "twilight"
+    else:
+        default_colormap = "viridis"
     if norm_kwargs is None:
         norm_kwargs = {}
     if plt_kwargs is None:
@@ -172,7 +181,7 @@ def plot_beam_arrays(
                 if key not in norm_kwargs:
                     norm_kwargs[key] = value
             norm_use = SymLogNorm(**norm_kwargs)
-            colormap = "PRGn"
+            default_colormap = "PRGn"
         else:
             norm_use = LogNorm(**norm_kwargs)
     else:
@@ -180,15 +189,22 @@ def plot_beam_arrays(
             for key in ["vmax", "vmin"]:
                 if key in norm_kwargs:
                     plt_kwargs[key] = norm_kwargs[key]
-        if np.min(beam_vals) < 0:
-            colormap = "PRGn"
+        if complex_type == "phase":
+            default_norm_kwargs = {"vmax": np.pi, "vmin": -np.pi}
+        elif np.min(beam_vals) < 0:
+            default_colormap = "PRGn"
             default_norm_kwargs = {
                 "vmax": np.max(np.abs(beam_vals)),
                 "vmin": -1 * np.max(np.abs(beam_vals)),
             }
-            for key, value in default_norm_kwargs.items():
-                if key not in plt_kwargs:
-                    plt_kwargs[key] = value
+        else:
+            default_norm_kwargs = {"vmax": np.max(np.abs(beam_vals)), "vmin": 0}
+        for key, value in default_norm_kwargs.items():
+            if key not in plt_kwargs:
+                plt_kwargs[key] = value
+
+    if colormap is None:
+        colormap = default_colormap
 
     if naxes_vec == 2:
         vec_label = ["azimuth", "zenith angle"]
