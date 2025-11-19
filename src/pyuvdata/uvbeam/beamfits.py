@@ -312,10 +312,23 @@ class BeamFITS(UVBeam):
             self.model_name = primary_header.pop("MODEL", None)
             self.model_version = primary_header.pop("MODELVER", None)
             self.mount_type = primary_header.pop("MNTSTA", mount_type)
-            x_orientation = primary_header.pop("XORIENT", "east")
+            x_orientation = primary_header.pop("XORIENT", None)
             feedlist = primary_header.pop("FEEDLIST", None)
             if feedlist is not None:
-                self.feed_array = np.array(feedlist[1:-1].split(", "))
+                feedlist = [feed.lower() for feed in feedlist[1:-1].split(", ")]
+                if "e" in feedlist and "n" in feedlist:
+                    if x_orientation is None:
+                        if feedlist.index("e") < feedlist.index("n"):
+                            x_orientation = "east"
+                        else:
+                            x_orientation = "north"
+                    feed_map = utils.pol.x_orientation_pol_map(
+                        x_orientation=x_orientation
+                    )
+                    for key, value in feed_map.items():
+                        feedlist[feedlist.index(value)] = key
+                self.feed_array = np.array(feedlist)
+
                 self.Nfeeds = len(self.feed_array)
             feedang = primary_header.pop("FEEDANG", None)
             if feedang is not None:
