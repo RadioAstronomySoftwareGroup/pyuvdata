@@ -205,6 +205,49 @@ def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
     return
 
 
+@pytest.mark.parametrize(
+    ("feedlist", "feedang"),
+    [("[E, N]", [np.pi / 2, 0]), ("[E, N]", None), ("[N, E]", [0, np.pi / 2])],
+)
+def test_e_n_feeds(cst_efield_1freq_cut, feedlist, feedang, tmp_path):
+    # this test was inspired by an error reading in an old beamfits file that
+    # Ruby made for the LWA. It had a feed array of [E, N], which errored.
+    beam_in = cst_efield_1freq_cut
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    write_file2 = str(tmp_path / "outtest_beam2.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
+
+    # now change frequency units
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr["FEEDLIST"] = feedlist
+        if feedang is None:
+            del primary_hdr["FEEDANG"]
+        else:
+            primary_hdr["FEEDANG"] = (
+                "[" + ", ".join(str(item) for item in feedang) + "]"
+            )
+        hdunames = fits_utils._indexhdus(fname)
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
+        basisvec_hdu = fname[hdunames["BASISVEC"]]
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
+
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    beam_out.read_beamfits(write_file2)
+
+    if np.flip(beam_in.feed_angle).tolist() == feedang:
+        beam_in.feed_angle = np.flip(beam_in.feed_angle)
+
+    assert beam_in == beam_out
+
+
 def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     beam_in = cst_efield_1freq_cut_healpix.copy()
     beam_out = UVBeam()
