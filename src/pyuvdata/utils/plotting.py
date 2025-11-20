@@ -63,8 +63,8 @@ def plot_beam_arrays(
         be the same length as the 1st (not 0th) dimension of beam_vals.
     colormap : str, optional
         Matplotlib colormap to use. Defaults to "twlight" if complex_type="phase"
-        and logcolor=False, otherwise it defaults to "viridis" for positive
-        definite quantities and "PRGn" for quantities that go positive and negative.
+        and logcolor=False, otherwise it defaults to "viridis" if the data to be
+        plotted is positive definite (e.g. if complex_type="abs") and "PRGn" otherwise.
     logcolor : bool, optional
         Option to use log scaling for the color. Defaults to True for power
         beams and False for E-field beams. Results in using
@@ -278,6 +278,7 @@ def beam_plot(
     freq: int | float,
     beam_type: str | None = None,
     complex_type: str = "real",
+    colormap: str | None = None,
     logcolor: bool | None = None,
     plt_kwargs: dict | None = None,
     norm_kwargs: dict | None = None,
@@ -301,6 +302,10 @@ def beam_plot(
         What to plot for complex beams, options are: [real, imag, abs, phase].
         Defaults to "real" for complex beams. Ignored for real beams
         (i.e. power beams, same feed).
+    colormap : str, optional
+        Matplotlib colormap to use. Defaults to "twlight" if complex_type="phase"
+        and logcolor=False, otherwise it defaults to "viridis" if the data to be
+        plotted is positive definite (e.g. if complex_type="abs") and "PRGn" otherwise.
     logcolor : bool, optional
         Option to use log scaling for the color. Defaults to True for power
         beams and False for E-field beams. Results in using
@@ -422,6 +427,7 @@ def beam_plot(
         beam_type_label=beam_type_label,
         freq_label=freq_title,
         feedpol_label=feedpol_label,
+        colormap=colormap,
         logcolor=logcolor,
         plt_kwargs=plt_kwargs,
         norm_kwargs=norm_kwargs,
