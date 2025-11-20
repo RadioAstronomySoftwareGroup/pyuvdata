@@ -13,6 +13,23 @@ from .pol import polnum2str
 from .types import FloatArray
 
 
+def get_az_za_grid(max_zenith_deg: float = 90.0):
+    """
+    Get an azimuth, zenith angle grid.
+
+    Parameters
+    ----------
+    max_zenith_deg : float
+        Maximum zenith angle to include in the plot in degrees. Default is
+        90 to go down to the horizon.
+
+    """
+    az_grid = np.deg2rad(np.arange(0, 360))
+    za_grid = np.deg2rad(np.arange(0, 91)) * (max_zenith_deg / 90.0)
+
+    return az_grid, za_grid
+
+
 def plot_beam_arrays(
     beam_vals: FloatArray,
     az_array: FloatArray,
@@ -397,8 +414,7 @@ def beam_plot(
             naxes_vec = 1
         reg_grid = True
 
-        az_grid = np.deg2rad(np.arange(0, 360))
-        za_grid = np.deg2rad(np.arange(0, 91)) * (max_zenith_deg / 90.0)
+        az_grid, za_grid = get_az_za_grid(max_zenith_deg=max_zenith_deg)
         az_array, za_array = np.meshgrid(az_grid, za_grid)
         bi = BeamInterface(beam_obj, beam_type=beam_type)
         beam_vals = bi.compute_response(

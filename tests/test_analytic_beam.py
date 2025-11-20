@@ -12,6 +12,7 @@ from scipy.special import j1
 from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
 from pyuvdata.analytic_beam import AnalyticBeam, UnpolarizedAnalyticBeam
 from pyuvdata.testing import check_warnings
+from pyuvdata.utils.plotting import get_az_za_grid, plot_beam_arrays
 
 
 def test_airy_beam_values(az_za_deg_grid):
@@ -641,9 +642,17 @@ def test_set_x_orientation_deprecation():
 
 
 @pytest.mark.parametrize(
-    ("beam", "beam_type", "complex_type", "logcolor", "max_zenith_deg", "norm_kwargs"),
+    (
+        "beam",
+        "beam_type",
+        "complex_type",
+        "logcolor",
+        "max_zenith_deg",
+        "norm_kwargs",
+        "colormap",
+    ),
     [
-        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None),
+        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None, "inferno"),
         (
             GaussianBeam(diameter=7, feed_array=["x"]),
             "efield",
@@ -651,8 +660,9 @@ def test_set_x_orientation_deprecation():
             False,
             90.0,
             None,
+            None,
         ),
-        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}),
+        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}, None),
         (
             GaussianBeam(diameter=7, include_cross_pols=False),
             "power",
@@ -660,6 +670,7 @@ def test_set_x_orientation_deprecation():
             True,
             90.0,
             {},
+            None,
         ),
         (
             AiryBeam(diameter=7, feed_array=["x"]),
@@ -668,14 +679,22 @@ def test_set_x_orientation_deprecation():
             False,
             90.0,
             {"vmin": 0, "vmax": 1},
+            None,
         ),
-        (ShortDipoleBeam(), "efield", "real", None, 90.0, None),
-        (ShortDipoleBeam(), "power", "real", None, 90.0, None),
-        (UniformBeam(), "power", "real", None, 90.0, None),
+        (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None),
+        (ShortDipoleBeam(), "power", "real", None, 90.0, None, None),
+        (UniformBeam(), "power", "real", None, 90.0, None, None),
     ],
 )
 def test_plotting(
-    tmp_path, beam, beam_type, complex_type, logcolor, max_zenith_deg, norm_kwargs
+    tmp_path,
+    beam,
+    beam_type,
+    complex_type,
+    logcolor,
+    max_zenith_deg,
+    norm_kwargs,
+    colormap,
 ):
     """Test plotting method."""
     pytest.importorskip("matplotlib")
@@ -688,8 +707,40 @@ def test_plotting(
         beam_type=beam_type,
         freq=100e6,
         complex_type=complex_type,
+        colormap=colormap,
         logcolor=logcolor,
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
+        savefile=savefile,
+    )
+
+
+def test_plot_arrays(tmp_path):
+    dipole_beam = ShortDipoleBeam()
+
+    az_grid, za_grid = get_az_za_grid()
+    az_array, za_array = np.meshgrid(az_grid, za_grid)
+
+    beam_vals = dipole_beam.efield_eval(
+        az_array=az_array.flatten(),
+        za_array=za_array.flatten(),
+        freq_array=np.asarray(np.asarray([100e6])),
+    )
+    beam_vals = beam_vals.reshape(2, 2, za_grid.size, az_grid.size)
+
+    feed_labels = np.degrees(dipole_beam.feed_angle).astype(str)
+    feed_labels[np.isclose(dipole_beam.feed_angle, 0)] = "N/S"
+    feed_labels[np.isclose(dipole_beam.feed_angle, np.pi / 2)] = "E/W"
+
+    savefile = str(tmp_path / "test.png")
+
+    plot_beam_arrays(
+        beam_vals,
+        az_array,
+        za_array,
+        complex_type="real",
+        feedpol_label=feed_labels,
+        beam_type_label="E-field",
+        beam_name="short dipole",
         savefile=savefile,
     )
