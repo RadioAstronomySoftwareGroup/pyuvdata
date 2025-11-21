@@ -1031,7 +1031,7 @@ def get_feeds_from_x_orientation(
     if feeds is None and feed_array is None:
         warnings.warn(
             "Unknown polarization basis -- assuming linearly polarized (x/y) "
-            "feeds for Telescope.feed_array."
+            "feeds for feed_array."
         )
         feeds = ["x", "y"]
 

@@ -36,7 +36,16 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 def hera_beam_casa():
     beam_in = UVBeam()
     casa_file = fetch_data("hera_casa_beam")
-    beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "This beamfits file has no information about the orientation of "
+            "the feeds. Defaulting an East x_orientation.",
+            "Unknown polarization basis -- assuming linearly polarized (x/y) "
+            "feeds for feed_array.",
+        ],
+    ):
+        beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
 
     # fill in missing parameters
     beam_in.data_normalization = "peak"
@@ -44,7 +53,6 @@ def hera_beam_casa():
     beam_in.feed_version = "v0"
     beam_in.model_name = "casa_airy"
     beam_in.model_version = "v0"
-    beam_in.mount_type = "fixed"
 
     # this file is actually in an orthoslant projection RA/DEC at zenith at a
     # particular time.
