@@ -36,7 +36,16 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 def hera_beam_casa():
     beam_in = UVBeam()
     casa_file = fetch_data("hera_casa_beam")
-    beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "This beamfits file has no information about the orientation of "
+            "the feeds. Defaulting an East x_orientation.",
+            "Unknown polarization basis -- assuming linearly polarized (x/y) "
+            "feeds for feed_array.",
+        ],
+    ):
+        beam_in.read_beamfits(casa_file, mount_type="fixed", run_check=False)
 
     # fill in missing parameters
     beam_in.data_normalization = "peak"
@@ -44,7 +53,6 @@ def hera_beam_casa():
     beam_in.feed_version = "v0"
     beam_in.model_name = "casa_airy"
     beam_in.model_version = "v0"
-    beam_in.mount_type = "fixed"
 
     # this file is actually in an orthoslant projection RA/DEC at zenith at a
     # particular time.
@@ -203,6 +211,49 @@ def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
     assert beam_in == beam_out
 
     return
+
+
+@pytest.mark.parametrize(
+    ("feedlist", "feedang"),
+    [("[E, N]", [np.pi / 2, 0]), ("[E, N]", None), ("[N, E]", [0, np.pi / 2])],
+)
+def test_e_n_feeds(cst_efield_1freq_cut, feedlist, feedang, tmp_path):
+    # this test was inspired by an error reading in an old beamfits file that
+    # Ruby made for the LWA. It had a feed array of [E, N], which errored.
+    beam_in = cst_efield_1freq_cut
+    beam_out = UVBeam()
+
+    write_file = str(tmp_path / "outtest_beam.fits")
+    write_file2 = str(tmp_path / "outtest_beam2.fits")
+    beam_in.write_beamfits(write_file, clobber=True)
+
+    # now change frequency units
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        primary_hdr["FEEDLIST"] = feedlist
+        if feedang is None:
+            del primary_hdr["FEEDANG"]
+        else:
+            primary_hdr["FEEDANG"] = (
+                "[" + ", ".join(str(item) for item in feedang) + "]"
+            )
+        hdunames = fits_utils._indexhdus(fname)
+        bandpass_hdu = fname[hdunames["BANDPARM"]]
+        basisvec_hdu = fname[hdunames["BASISVEC"]]
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, basisvec_hdu, bandpass_hdu])
+
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    beam_out.read_beamfits(write_file2)
+
+    if np.flip(beam_in.feed_angle).tolist() == feedang:
+        beam_in.feed_angle = np.flip(beam_in.feed_angle)
+
+    assert beam_in == beam_out
 
 
 def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):

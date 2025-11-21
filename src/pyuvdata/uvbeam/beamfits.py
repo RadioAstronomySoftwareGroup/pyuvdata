@@ -312,16 +312,25 @@ class BeamFITS(UVBeam):
             self.model_name = primary_header.pop("MODEL", None)
             self.model_version = primary_header.pop("MODELVER", None)
             self.mount_type = primary_header.pop("MNTSTA", mount_type)
-            x_orientation = primary_header.pop("XORIENT", "east")
+            x_orientation = primary_header.pop("XORIENT", None)
             feedlist = primary_header.pop("FEEDLIST", None)
             if feedlist is not None:
-                self.feed_array = np.array(feedlist[1:-1].split(", "))
+                feedlist = [feed.lower() for feed in feedlist[1:-1].split(", ")]
+                if "e" in feedlist and "n" in feedlist:
+                    if x_orientation is None:
+                        if feedlist.index("e") < feedlist.index("n"):
+                            x_orientation = "east"
+                        else:
+                            x_orientation = "north"
+                    feed_map = utils.pol.x_orientation_pol_map(
+                        x_orientation=x_orientation
+                    )
+                    for key, value in feed_map.items():
+                        feedlist[feedlist.index(value)] = key
+                self.feed_array = np.array(feedlist)
+
                 self.Nfeeds = len(self.feed_array)
             feedang = primary_header.pop("FEEDANG", None)
-            if feedang is not None:
-                self.feed_angle = np.array(
-                    [float(item) for item in feedang[1:-1].split(", ")]
-                )
 
             self.history = str(primary_header.get("HISTORY", ""))
             if not utils.history._check_history_version(
@@ -488,8 +497,20 @@ class BeamFITS(UVBeam):
                 # no bandpass information, set it to an array of ones
                 self.bandpass_array = np.ones(self.Nfreqs)
 
-        # Handle x-orientation keyword here
-        if self.feed_angle is None or self.feed_array is None:
+        # Handle missing feed orientation info here
+        if feedang is not None:
+            self.feed_angle = np.array(
+                [float(item) for item in feedang[1:-1].split(", ")]
+            )
+        else:
+            if x_orientation is None:
+                # no feed angles and no x_orientation info.
+                # Default to east x_orientation
+                warnings.warn(
+                    "This beamfits file has no information about the orientation "
+                    "of the feeds. Defaulting an East x_orientation."
+                )
+                x_orientation = "east"
             self.set_feeds_from_x_orientation(x_orientation)
 
         if run_check:

@@ -645,7 +645,7 @@ class UVBeam(UVBase):
             warnings.warn(
                 "Feed information now required for power beams, will default to "
                 "linear feeds with x-orientation aligned to the east (populated based "
-                "on what is preesnt in UVBeam.polarization_array). This will become an "
+                "on what is present in UVBeam.polarization_array). This will become an "
                 "error in version 3.4.",
                 DeprecationWarning,
             )

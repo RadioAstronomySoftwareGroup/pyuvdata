@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
 ### Changed
 - When reading MWAX correlator files , `remove_coarse_band` now defaults to
 `False` if DERIPPLE is on. Otherwise it defaults to `True`.
@@ -13,6 +14,8 @@ raised, and no pfb shape is removed.
 fringe-stopped data.
 
 ### Fixed
+- A backwards compatibiilty issue with feed arrays in old beamfits files which
+could specify feeds as "e" or "n".
 - Compatiblity with numpy>=2.3
 
 ## [3.2.4] - 2025-09-15
