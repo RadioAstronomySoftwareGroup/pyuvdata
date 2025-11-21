@@ -716,6 +716,11 @@ def test_plotting(
 
 
 def test_plot_arrays(tmp_path):
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
+
     dipole_beam = ShortDipoleBeam()
 
     az_grid, za_grid = get_az_za_grid()
