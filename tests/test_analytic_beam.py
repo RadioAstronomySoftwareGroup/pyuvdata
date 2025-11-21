@@ -12,7 +12,6 @@ from scipy.special import j1
 from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
 from pyuvdata.analytic_beam import AnalyticBeam, UnpolarizedAnalyticBeam
 from pyuvdata.testing import check_warnings
-from pyuvdata.utils.plotting import get_az_za_grid, plot_beam_arrays
 
 
 def test_airy_beam_values(az_za_deg_grid):
@@ -711,41 +710,5 @@ def test_plotting(
         logcolor=logcolor,
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
-        savefile=savefile,
-    )
-
-
-def test_plot_arrays(tmp_path):
-    pytest.importorskip("matplotlib")
-    import matplotlib
-
-    matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
-
-    dipole_beam = ShortDipoleBeam()
-
-    az_grid, za_grid = get_az_za_grid()
-    az_array, za_array = np.meshgrid(az_grid, za_grid)
-
-    beam_vals = dipole_beam.efield_eval(
-        az_array=az_array.flatten(),
-        za_array=za_array.flatten(),
-        freq_array=np.asarray(np.asarray([100e6])),
-    )
-    beam_vals = beam_vals.reshape(2, 2, za_grid.size, az_grid.size)
-
-    feed_labels = np.degrees(dipole_beam.feed_angle).astype(str)
-    feed_labels[np.isclose(dipole_beam.feed_angle, 0)] = "N/S"
-    feed_labels[np.isclose(dipole_beam.feed_angle, np.pi / 2)] = "E/W"
-
-    savefile = str(tmp_path / "test.png")
-
-    plot_beam_arrays(
-        beam_vals,
-        az_array,
-        za_array,
-        complex_type="real",
-        feedpol_label=feed_labels,
-        beam_type_label="E-field",
-        beam_name="short dipole",
         savefile=savefile,
     )
