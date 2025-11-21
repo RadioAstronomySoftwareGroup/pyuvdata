@@ -2,6 +2,7 @@
 # Licensed under the 2-clause BSD License
 
 import re
+from dataclasses import dataclass
 
 import numpy as np
 import pytest
@@ -12,6 +13,7 @@ from scipy.special import j1
 from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
 from pyuvdata.analytic_beam import AnalyticBeam, UnpolarizedAnalyticBeam
 from pyuvdata.testing import check_warnings
+from pyuvdata.utils.types import FloatArray
 
 
 def test_airy_beam_values(az_za_deg_grid):
@@ -190,29 +192,136 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     efield_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
 
-    expected_data = np.zeros((2, 2, n_freqs, nsrcs), dtype=float)
+    expected_efield = np.zeros((2, 2, n_freqs, nsrcs), dtype=float)
 
-    expected_data[0, 0] = -np.sin(az_vals)
-    expected_data[0, 1] = np.cos(az_vals)
-    expected_data[1, 0] = np.cos(za_vals) * np.cos(az_vals)
-    expected_data[1, 1] = np.cos(za_vals) * np.sin(az_vals)
+    expected_efield[0, 0] = -np.sin(az_vals)
+    expected_efield[0, 1] = np.cos(az_vals)
+    expected_efield[1, 0] = np.cos(za_vals) * np.cos(az_vals)
+    expected_efield[1, 1] = np.cos(za_vals) * np.sin(az_vals)
 
-    np.testing.assert_allclose(efield_vals, expected_data, atol=1e-15, rtol=0)
+    np.testing.assert_allclose(efield_vals, expected_efield, atol=1e-15, rtol=0)
 
     power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
-    expected_data = np.zeros((1, 4, n_freqs, nsrcs), dtype=float)
+    expected_power = np.zeros((1, 4, n_freqs, nsrcs), dtype=float)
 
-    expected_data[0, 0] = 1 - np.sin(za_vals) ** 2 * np.cos(az_vals) ** 2
-    expected_data[0, 1] = 1 - np.sin(za_vals) ** 2 * np.sin(az_vals) ** 2
-    expected_data[0, 2] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
-    expected_data[0, 3] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
+    expected_power[0, 0] = 1 - np.sin(za_vals) ** 2 * np.cos(az_vals) ** 2
+    expected_power[0, 1] = 1 - np.sin(za_vals) ** 2 * np.sin(az_vals) ** 2
+    expected_power[0, 2] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
+    expected_power[0, 3] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
 
-    np.testing.assert_allclose(power_vals, expected_data, atol=1e-15, rtol=0)
+    np.testing.assert_allclose(power_vals, expected_power, atol=1e-15, rtol=0)
 
     assert (
         beam.__repr__() == "ShortDipoleBeam(feed_array=array(['x', 'y'], dtype='<U1'), "
         "feed_angle=array([1.57079633, 0.        ]), mount_type='fixed')"
     )
+
+    iresponse_vals = beam.feed_iresponse_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    expected_iresponse = np.zeros((1, 2, n_freqs, nsrcs), dtype=float)
+
+    expected_iresponse[0, 0] = np.sqrt(
+        np.sum(np.abs(expected_efield[:, 0]) ** 2, axis=0)
+    )
+    expected_iresponse[0, 1] = np.sqrt(
+        np.sum(np.abs(expected_efield[:, 1]) ** 2, axis=0)
+    )
+
+    np.testing.assert_allclose(iresponse_vals, expected_iresponse, atol=1e-15, rtol=0)
+
+    projection_vals = beam.feed_projection_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    expected_projval = np.zeros((2, 2, n_freqs, nsrcs), dtype=float)
+
+    expected_projval[0, 0] = -np.sin(az_vals) / expected_iresponse[0, 0]
+    expected_projval[0, 1] = np.cos(az_vals) / expected_iresponse[0, 1]
+    expected_projval[1, 0] = (
+        np.cos(za_vals) * np.cos(az_vals) / expected_iresponse[0, 0]
+    )
+    expected_projval[1, 1] = (
+        np.cos(za_vals) * np.sin(az_vals) / expected_iresponse[0, 1]
+    )
+
+    np.testing.assert_allclose(projection_vals, expected_projval, atol=1e-14, rtol=0)
+
+
+def test_defined_decomp_methods(az_za_deg_grid):
+    @dataclass(kw_only=True)
+    class CosEfield(UnpolarizedAnalyticBeam):
+        """A test class to test handling for defined decomposition eval methods."""
+
+        width: float
+
+        def _efield_eval(
+            self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
+        ) -> FloatArray:
+            """Evaluate the efield at the given coordinates."""
+            data_array = self._get_empty_data_array(az_grid.shape)
+
+            for feed_i in np.arange(self.Nfeeds):
+                # For power beams the first axis is shallow
+                data_array[0, feed_i, :, :] = np.cos(self.width * za_grid) / np.sqrt(2)
+                data_array[1, feed_i, :, :] = np.cos(self.width * za_grid) / np.sqrt(2)
+
+            return data_array
+
+        def _feed_iresponse_eval(
+            self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
+        ) -> FloatArray:
+            data_array = self._get_empty_data_array(
+                az_grid.shape, beam_type="feed_iresponse"
+            )
+
+            # set f to the magnitude of the I response, assume no time delays
+            for feed_i in range(self.Nfeeds):
+                data_array[0, feed_i] = np.abs(np.cos(self.width * za_grid))
+
+            return data_array
+
+        def _feed_projection_eval(
+            self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
+        ) -> FloatArray:
+            data_array = self._get_empty_data_array(
+                az_grid.shape, beam_type="feed_projection"
+            )
+
+            data_array.fill(1 / np.sqrt(2))
+            # find where it goes negative
+            wh_neg = np.nonzero(np.cos(self.width * za_grid) < 0)
+            for bv_i in range(self.Naxes_vec):
+                for feed_i in range(self.Nfeeds):
+                    data_array[bv_i, feed_i, *wh_neg] *= -1
+
+            return data_array
+
+    az_vals, za_vals, freqs = az_za_deg_grid
+
+    this_cosbeam = CosEfield(width=3.0)
+    this_iresponse = this_cosbeam.feed_iresponse_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    from pyuvdata.data.test_analytic_beam import CosEfieldTest
+
+    test_cosbeam = CosEfieldTest(width=3.0)
+    test_iresponse = test_cosbeam.feed_iresponse_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    np.testing.assert_allclose(this_iresponse, test_iresponse, atol=1e-14, rtol=0)
+
+    this_feed_proj = this_cosbeam.feed_projection_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+    test_feed_proj = test_cosbeam.feed_projection_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    np.testing.assert_allclose(this_feed_proj, test_feed_proj, atol=1e-14, rtol=0)
 
 
 def test_shortdipole_feed_error():
