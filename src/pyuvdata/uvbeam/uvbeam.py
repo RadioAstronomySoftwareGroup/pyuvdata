@@ -4869,6 +4869,7 @@ class UVBeam(UVBase):
         *,
         freq_ind: int = 0,
         complex_type: str = "real",
+        colormap: str | None = None,
         logcolor: bool | None = None,
         plt_kwargs: dict | None = None,
         norm_kwargs: dict | None = None,
@@ -4886,6 +4887,11 @@ class UVBeam(UVBase):
             What to plot for complex beams, options are: [real, imag, abs, phase].
             Defaults to "real" for complex beams. Ignored for real beams
             (i.e. power beams, same feed).
+        colormap : str, optional
+            Matplotlib colormap to use. Defaults to "twlight" if complex_type="phase"
+            and logcolor=False, otherwise it defaults to "viridis" if the data to be
+            plotted is positive definite (e.g. if complex_type="abs") and "PRGn"
+            otherwise.
         logcolor : bool, optional
             Option to use log scaling for the color. Defaults to True for power
             beams and False for E-field beams. Results in using
@@ -4919,6 +4925,7 @@ class UVBeam(UVBase):
             plt_kwargs=plt_kwargs,
             norm_kwargs=norm_kwargs,
             max_zenith_deg=max_zenith_deg,
+            colormap=colormap,
             savefile=savefile,
         )
 
