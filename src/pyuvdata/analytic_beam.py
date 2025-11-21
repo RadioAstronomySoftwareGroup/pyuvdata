@@ -391,15 +391,17 @@ class AnalyticBeam:
         self, grid_shape: tuple[int, int], beam_type: str = "efield"
     ) -> FloatArray:
         """Get the empty data to fill in the eval methods."""
-        if beam_type == "efield":
+        if beam_type in ["efield", "feed_projection"]:
             return np.zeros(
                 (self.Naxes_vec, self.Nfeeds, *grid_shape), dtype=np.complex128
             )
-        else:
+        elif beam_type == "power":
             return np.zeros(
                 (1, self.Npols, *grid_shape),
                 dtype=np.complex128 if self.Npols > self.Nfeeds else np.float64,
             )
+        elif beam_type == "feed_iresponse":
+            return np.zeros((1, self.Nfeeds, *grid_shape), dtype=np.complex128)
 
     def efield_eval(
         self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
@@ -546,7 +548,7 @@ class AnalyticBeam:
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             ).astype(complex)
         else:
-            efield_vals = self.efield_eval(
+            efield_vals = self._efield_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             )
 
@@ -592,12 +594,14 @@ class AnalyticBeam:
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             ).astype(complex)
         else:
-            efield_vals = self.efield_eval(
+            efield_vals = self._efield_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             )
 
             # set f to the magnitude of the I response, assume no time delays
-            f_vals = self.feed_iresponse_eval()
+            f_vals = self.feed_iresponse_eval(
+                az_array=az_array, za_array=za_array, freq_array=freq_array
+            )
             data_array = self._get_empty_data_array(az_grid.shape)
 
             for fn in np.arange(self.Nfeeds):
