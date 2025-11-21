@@ -3023,6 +3023,7 @@ def test_generic_read_cst():
 
 
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
+@pytest.mark.filterwarnings("ignore:This beamfits file has no information about")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.parametrize(
     "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
@@ -3147,6 +3148,7 @@ def test_generic_read_all_bad_files(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
+@pytest.mark.filterwarnings("ignore:This beamfits file has no information about")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.parametrize(
     "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
@@ -3184,6 +3186,7 @@ def test_from_file(dname):
 
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis")
+@pytest.mark.filterwarnings("ignore:This beamfits file has no information about")
 @pytest.mark.parametrize(
     ["dname", "path_var", "relative_path", "file_list"],
     [
