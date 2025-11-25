@@ -641,9 +641,17 @@ def test_set_x_orientation_deprecation():
 
 
 @pytest.mark.parametrize(
-    ("beam", "beam_type", "complex_type", "logcolor", "max_zenith_deg", "norm_kwargs"),
+    (
+        "beam",
+        "beam_type",
+        "complex_type",
+        "logcolor",
+        "max_zenith_deg",
+        "norm_kwargs",
+        "colormap",
+    ),
     [
-        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None),
+        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None, "inferno"),
         (
             GaussianBeam(diameter=7, feed_array=["x"]),
             "efield",
@@ -651,8 +659,9 @@ def test_set_x_orientation_deprecation():
             False,
             90.0,
             None,
+            None,
         ),
-        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}),
+        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}, None),
         (
             GaussianBeam(diameter=7, include_cross_pols=False),
             "power",
@@ -660,6 +669,7 @@ def test_set_x_orientation_deprecation():
             True,
             90.0,
             {},
+            None,
         ),
         (
             AiryBeam(diameter=7, feed_array=["x"]),
@@ -668,14 +678,22 @@ def test_set_x_orientation_deprecation():
             False,
             90.0,
             {"vmin": 0, "vmax": 1},
+            None,
         ),
-        (ShortDipoleBeam(), "efield", "real", None, 90.0, None),
-        (ShortDipoleBeam(), "power", "real", None, 90.0, None),
-        (UniformBeam(), "power", "real", None, 90.0, None),
+        (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None),
+        (ShortDipoleBeam(), "power", "real", None, 90.0, None, None),
+        (UniformBeam(), "power", "real", None, 90.0, None, None),
     ],
 )
 def test_plotting(
-    tmp_path, beam, beam_type, complex_type, logcolor, max_zenith_deg, norm_kwargs
+    tmp_path,
+    beam,
+    beam_type,
+    complex_type,
+    logcolor,
+    max_zenith_deg,
+    norm_kwargs,
+    colormap,
 ):
     """Test plotting method."""
     pytest.importorskip("matplotlib")
@@ -688,6 +706,7 @@ def test_plotting(
         beam_type=beam_type,
         freq=100e6,
         complex_type=complex_type,
+        colormap=colormap,
         logcolor=logcolor,
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
