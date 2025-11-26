@@ -38,7 +38,7 @@ class BeamInterface:
         Beam object to use for computations. If a BeamInterface is passed, a new
         view of the same object is created.
     beam_type : str
-        The beam type, either "efield" or "power".
+        The beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne).
         Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
@@ -98,7 +98,8 @@ class BeamInterface:
                     f"Input beam is a {self.beam.beam_type} UVBeam but beam_type "
                     f"is specified as {self.beam_type}. It's not possible to "
                     f"convert a {self.beam.beam_type} beam to {self.beam_type}, "
-                    "either provide an efield UVBeam or do not specify `beam_type`."
+                    f"either provide a UVBeam with a compatible type or do not "
+                    "specify `beam_type`."
                 )
         elif self.beam_type is None:
             self.beam_type = "efield"
@@ -327,13 +328,10 @@ class BeamInterface:
                 az_array_use = copy.copy(az_array)
                 za_array_use = copy.copy(za_array)
 
-            if self.beam_type == "efield":
-                interp_data = self.beam.efield_eval(
-                    az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
-                )
-            else:
-                interp_data = self.beam.power_eval(
-                    az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
-                )
+            eval_function = f"{self.beam_type}_eval"
+
+            interp_data = getattr(self.beam, eval_function)(
+                az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
+            )
 
         return interp_data

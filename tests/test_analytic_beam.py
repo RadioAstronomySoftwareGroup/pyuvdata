@@ -276,9 +276,8 @@ def test_defined_decomp_methods(az_za_deg_grid):
                 az_grid.shape, beam_type="feed_iresponse"
             )
 
-            # set f to the magnitude of the I response, assume no time delays
             for feed_i in range(self.Nfeeds):
-                data_array[0, feed_i] = np.abs(np.cos(self.width * za_grid))
+                data_array[0, feed_i] = np.cos(self.width * za_grid)
 
             return data_array
 
@@ -290,11 +289,6 @@ def test_defined_decomp_methods(az_za_deg_grid):
             )
 
             data_array.fill(1 / np.sqrt(2))
-            # find where it goes negative
-            wh_neg = np.nonzero(np.cos(self.width * za_grid) < 0)
-            for bv_i in range(self.Naxes_vec):
-                for feed_i in range(self.Nfeeds):
-                    data_array[bv_i, feed_i, *wh_neg] *= -1
 
             return data_array
 
@@ -569,7 +563,13 @@ def test_beam_equality(beam1, beam2, equal):
 def test_to_uvbeam_errors():
     beam = GaussianBeam(sigma=0.02)
 
-    with pytest.raises(ValueError, match="Beam type must be 'efield' or 'power'"):
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Beam type must be one of ['efield', 'power', 'feed_iresponse', "
+            "'feed_projection']"
+        ),
+    ):
         beam.to_uvbeam(
             freq_array=np.linspace(100, 200, 5),
             beam_type="foo",
@@ -790,6 +790,8 @@ def test_set_x_orientation_deprecation():
             None,
         ),
         (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None),
+        (ShortDipoleBeam(), "feed_iresponse", "phase", None, 90.0, None, None),
+        (ShortDipoleBeam(), "feed_projection", "real", None, 90.0, None, None),
         (ShortDipoleBeam(), "power", "real", None, 90.0, None, None),
         (UniformBeam(), "power", "real", None, 90.0, None, None),
     ],
