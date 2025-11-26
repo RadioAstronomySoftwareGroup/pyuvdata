@@ -196,19 +196,54 @@ def test_mwa_pointing(delay_set, az_val, za_range):
     assert np.rad2deg(za_array[max_nn_loc]) < za_range[1]
 
 
-def test_mwa_fhd_decompose(mwa_beam_1ppd):
+@pytest.mark.parametrize(
+    ["approach", "inplace"],
+    [
+        ("decompose", None),
+        ("separate", True),
+        ("separate", False),
+        ("joint", True),
+        ("joint", False),
+    ],
+)
+def test_mwa_fhd_decompose(mwa_beam_1ppd, approach, inplace):
     mwa_beam = mwa_beam_1ppd
     # select to above the horizon
     mwa_beam.select(axis2_inds=np.nonzero(mwa_beam.axis2_array <= np.pi / 2))
 
     small_za_ind = np.nonzero(np.isclose(mwa_beam.axis2_array, 2.0 * np.pi / 180))
 
-    firesp, fproj = mwa_beam.decompose_feed_iresponse_projection()
+    if approach == "decompose":
+        firesp, fproj = mwa_beam.decompose_feed_iresponse_projection()
+    elif approach == "joint":
+        rets = mwa_beam.efield_to_feed_projection(
+            return_feed_iresponse=True, inplace=inplace
+        )
+        if inplace:
+            firesp = rets
+            fproj = mwa_beam
+        else:
+            firesp = rets[1]
+            fproj = rets[0]
+    else:
+        mwa_beam2 = mwa_beam.copy()
+        ret0 = mwa_beam.efield_to_feed_iresponse(inplace=inplace)
+        ret1 = mwa_beam2.efield_to_feed_projection(
+            return_feed_iresponse=False, inplace=inplace
+        )
+        if inplace:
+            firesp = mwa_beam
+            fproj = mwa_beam2
+        else:
+            firesp = ret0
+            fproj = ret1
 
+    # feed I response should have a real component that is positive near zenith
     assert np.all(firesp.data_array[0, :, :, small_za_ind].real > 0)
 
     az_array, za_array = np.meshgrid(mwa_beam.axis1_array, mwa_beam.axis2_array)
 
+    # MWA fproj is pretty similar to dipole_fproj up to mutual coupling effects
     dipole_beam = ShortDipoleBeam()
 
     dipole_fproj = dipole_beam.feed_projection_eval(
@@ -218,7 +253,6 @@ def test_mwa_fhd_decompose(mwa_beam_1ppd):
     )
     dipole_fproj = dipole_fproj.reshape(2, 2, mwa_beam.Naxes2, mwa_beam.Naxes1)
 
-    # MWA fproj is pretty similar to dipole_fproj up to mutual coupling effects
     # they are very similar near zenith
     fproj_diff = fproj.data_array[:, :, 0] - dipole_fproj
 
