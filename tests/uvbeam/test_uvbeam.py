@@ -2554,10 +2554,17 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         if param == "beam_type":
             beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
         elif param == "Naxes_vec":
-            beam2_copy = beam2.copy()
+            beam1_copy = efield_beam.select(freq_chans=0, inplace=False)
+            beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
             beam2_copy.Naxes_vec = value
             beam2_copy.data_array = np.concatenate(
-                (beam2_copy.data_array, beam2_copy.data_array, beam2_copy.data_array)
+                (beam2_copy.data_array, (beam2_copy.data_array[0])[np.newaxis])
+            )
+            beam2_copy.basis_vector_array = np.concatenate(
+                (
+                    beam2_copy.basis_vector_array,
+                    (beam2_copy.basis_vector_array[0])[np.newaxis],
+                )
             )
         else:
             beam2_copy = beam2.copy()
@@ -3458,13 +3465,23 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
         "logcolor",
         "max_zenith_deg",
         "norm_kwargs",
+        "colormap",
     ),
     [
-        ("mwa", None, [{}], "real", None, 90.0, None),
-        ("hera", None, [{}], "real", True, 45.0, {"linthresh": 1e-4}),
-        ("mwa", None, [{}], "imag", False, 20.0, {}),
-        ("hera", None, [{}], "phase", False, 20.0, None),
-        ("mwa", ["peak_normalize"], [{}], "abs", True, 45.0, {"vmin": 1e-4, "vmax": 1}),
+        ("mwa", None, [{}], "real", None, 90.0, None, "inferno"),
+        ("hera", None, [{}], "real", True, 45.0, {"linthresh": 1e-4}, None),
+        ("mwa", None, [{}], "imag", False, 20.0, {}, None),
+        ("hera", None, [{}], "phase", False, 20.0, None, None),
+        (
+            "mwa",
+            ["peak_normalize"],
+            [{}],
+            "abs",
+            True,
+            45.0,
+            {"vmin": 1e-4, "vmax": 1},
+            None,
+        ),
         (
             "hera",
             ["peak_normalize"],
@@ -3473,6 +3490,7 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             False,
             45.0,
             {"vmin": -1, "vmax": 1},
+            None,
         ),
         (
             "mwa",
@@ -3482,9 +3500,10 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             True,
             20.0,
             {},
+            None,
         ),
-        ("hera", ["efield_to_power"], [{}], "real", True, 20.0, {}),
-        ("mwa", ["to_healpix"], [{}], "phase", False, 20.0, {}),
+        ("hera", ["efield_to_power"], [{}], "real", True, 20.0, {}, None),
+        ("mwa", ["to_healpix"], [{}], "phase", False, 20.0, {}, None),
         (
             "hera",
             ["efield_to_power", "to_healpix"],
@@ -3493,8 +3512,9 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             True,
             20.0,
             {},
+            None,
         ),
-        ("mwa", ["efield_to_pstokes"], [{}], "real", None, 20.0, {}),
+        ("mwa", ["efield_to_pstokes"], [{}], "real", None, 20.0, {}, None),
     ],
 )
 def test_plotting(
@@ -3508,8 +3528,9 @@ def test_plotting(
     logcolor,
     max_zenith_deg,
     norm_kwargs,
+    colormap,
 ):
-    """Test plotting method."""
+    """Test plotting method. This is just a smoke test to make sure it doesn't error."""
     pytest.importorskip("matplotlib")
     import matplotlib
 
@@ -3529,6 +3550,7 @@ def test_plotting(
     savefile = str(tmp_path / "test.png")
     beam.plot(
         complex_type=complex_type,
+        colormap=colormap,
         logcolor=logcolor,
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
@@ -3574,3 +3596,14 @@ def test_plotting_errors(mwa_beam_1ppd):
         "to plot.",
     ):
         beam.plot(freq_ind=5.5)
+
+
+@pytest.mark.parametrize(
+    "method", ["decompose_feed_iresponse_projection", "efield_to_feed_iresponse"]
+)
+def test_decompose_errors(cst_power_1freq, cst_efield_2freq_cut_healpix, method):
+    with pytest.raises(ValueError, match="beam_type must be efield."):
+        getattr(cst_power_1freq, method)()
+
+    with pytest.raises(ValueError, match="pixel_coordinate_system must be az_za."):
+        getattr(cst_efield_2freq_cut_healpix, method)()
