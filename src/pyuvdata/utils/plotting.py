@@ -410,7 +410,7 @@ def beam_plot(
         freq_title = freq
 
         naxes_vec = beam_obj.Naxes_vec
-        if beam_type == "power":
+        if beam_type in ["power", "feed_iresponse"]:
             naxes_vec = 1
         reg_grid = True
 
