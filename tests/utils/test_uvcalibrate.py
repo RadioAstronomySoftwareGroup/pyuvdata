@@ -871,6 +871,8 @@ def test_uvdata_pol_array_in_stokes(uvcalibrate_data):
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis for solutions")
 @pytest.mark.filterwarnings("ignore: Unknown x_orientation basis for solutions")
 def test_uvcalibrate_wideband_gains_errs():
+    pytest.importorskip("casacore")
+
     uvd = UVData.from_file(fetch_data("sma_mir"))
     uvc = UVCal.from_file(fetch_data("sma_pha_gcal"))
 
@@ -889,6 +891,8 @@ def test_uvcalibrate_wideband_gains_errs():
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis for solutions")
 @pytest.mark.filterwarnings("ignore: Unknown x_orientation basis for solutions")
 def test_uvcalibrate_wideband_gains():
+    pytest.importorskip("casacore")
+
     uvd = UVData.from_file(fetch_data("sma_mir"))
     uvc = UVCal.from_file(fetch_data("sma_pha_gcal"))
 
