@@ -12,6 +12,7 @@ message to inform users when a conjugation flip might be needed.
 raised, and no pfb shape is removed.
 
 ### Added
+- Support for wide-band `UVCal` gain objects with `uvcalibrate`.
 - A colormap option to the UVBeam and AnalyticBeam `plot` methods, along with
 better default colormaps for phase.
 - A NotImplementedError to `mwa_corr_fits.py` that is thrown when trying to read
