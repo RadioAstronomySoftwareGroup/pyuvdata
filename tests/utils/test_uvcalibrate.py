@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from pyuvdata import UVCal, utils
+from pyuvdata import UVCal, UVData, utils
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.utils import uvcalibrate
@@ -698,35 +698,6 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
         uvcalibrate(uvd, uvc, inplace=False)
 
 
-def test_uvcalibrate_wideband_gain(uvcalibrate_data):
-    uvd, uvc = uvcalibrate_data
-
-    uvc.flex_spw_id_array = None
-    uvc._set_wide_band()
-    uvc.spw_array = np.array([1, 2, 3])
-    uvc.Nspws = 3
-    uvc.gain_array = uvc.gain_array[:, 0:3, :, :]
-    uvc.flag_array = uvc.flag_array[:, 0:3, :, :]
-    uvc.quality_array = uvc.quality_array[:, 0:3, :, :]
-    uvc.total_quality_array = uvc.total_quality_array[0:3, :, :]
-
-    uvc.freq_range = np.zeros((uvc.Nspws, 2), dtype=uvc.freq_array.dtype)
-    uvc.freq_range[0, :] = uvc.freq_array[[0, 2]]
-    uvc.freq_range[1, :] = uvc.freq_array[[2, 4]]
-    uvc.freq_range[2, :] = uvc.freq_array[[4, 6]]
-
-    uvc.channel_width = None
-    uvc.freq_array = None
-    uvc.Nfreqs = 1
-
-    uvc.check()
-    with pytest.raises(
-        ValueError,
-        match="uvcalibrate currently does not support wide-band calibrations",
-    ):
-        uvcalibrate(uvd, uvc, inplace=False)
-
-
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
@@ -892,3 +863,64 @@ def test_uvdata_pol_array_in_stokes(uvcalibrate_data):
         ),
     ):
         uvcalibrate(uvd, uvc)
+
+
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value in known")
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis for solutions")
+@pytest.mark.filterwarnings("ignore: Unknown x_orientation basis for solutions")
+def test_uvcalibrate_wideband_gains_errs():
+    uvd = UVData.from_file(fetch_data("sma_mir"))
+    uvc = UVCal.from_file(fetch_data("sma_pha_gcal"))
+
+    # Condition the UVCal object so as to avoid additional warnings
+    uvc.gain_scale = "Jy"
+    uvc.pol_convention = "avg"
+    uvc.time_array[:] = uvd.time_array[0]
+
+    with pytest.raises(ValueError, match="SPWs between UVData and UVCal overlap"):
+        uvcalibrate(uvd, uvc)
+
+
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value in known")
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis for solutions")
+@pytest.mark.filterwarnings("ignore: Unknown x_orientation basis for solutions")
+def test_uvcalibrate_wideband_gains():
+    uvd = UVData.from_file(fetch_data("sma_mir"))
+    uvc = UVCal.from_file(fetch_data("sma_pha_gcal"))
+
+    # Condition the UVCal object so as to avoid additional warnings
+    uvc.gain_scale = "Jy"
+    uvc.pol_convention = "avg"
+
+    # Set up gains so that the values change based on SPW number
+    uvc.gain_array[:, :, 0, :] = uvc.spw_array[None, :, None]
+
+    # Flag every other window to test flagging cascading
+    uvc.flag_array[:, ::2, 0, :] = True
+
+    # Get one timestamp to align
+    uvd.time_array[:] = uvc.time_array[0]
+
+    # Make it easier to compare things by setting everything to one
+    uvd.data_array[:] = 1.0
+
+    uvc.spw_array = np.array([-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])
+    uvc.freq_range[2:-2, 0] = np.min(uvd.freq_array.reshape(8, -1), axis=1)
+    uvc.freq_range[2:-2, 1] = np.max(uvd.freq_array.reshape(8, -1), axis=1)
+
+    new_uvd = uvcalibrate(uvdata=uvd, uvcal=uvc, inplace=False)
+
+    # Make sure no flagged solns got applied
+    assert np.all(new_uvd.data_array.reshape(8, 16384, 2)[::2] == 1)
+    # Confirm all the bad things are flagged
+    assert np.all(new_uvd.flag_array.reshape(8, 16384, 2)[::2])
+
+    # Calculate the expected data based on spw number
+    exp_data = np.repeat((uvd.spw_array**2)[:, None], 16384 * 2).reshape(1, -1, 2)
+
+    # Check that either things agree with expectations or that data are flagged
+    assert np.all((exp_data == new_uvd.data_array) | new_uvd.flag_array)
