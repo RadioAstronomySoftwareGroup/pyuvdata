@@ -879,10 +879,21 @@ def test_uvcalibrate_wideband_gains_errs():
     # Condition the UVCal object so as to avoid additional warnings
     uvc.gain_scale = "Jy"
     uvc.pol_convention = "avg"
-    uvc.time_array[:] = uvd.time_array[0]
+    uvc.time_array[0] = uvd.time_array[0]
 
-    with pytest.raises(ValueError, match="SPWs between UVData and UVCal overlap"):
+    with pytest.raises(ValueError, match="SPW -4 exists on UVData but not on UVCal"):
         uvcalibrate(uvd, uvc)
+
+    # Now modify the SPW array and check that freq misalignment throws an error
+    uvc.spw_array = np.array([-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])
+    with pytest.raises(
+        ValueError,
+        match="SPW -4 exists on UVData and UVCal, but the channel frequencies",
+    ):
+        uvcalibrate(uvd, uvc)
+
+    # Now check that now error gets thrown when the freq range check is turned off
+    uvcalibrate(uvd, uvc, freq_range_check=False)
 
 
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")

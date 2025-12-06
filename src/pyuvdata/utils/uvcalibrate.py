@@ -149,6 +149,7 @@ def uvcalibrate(
     undo: bool = False,
     time_check: bool = True,
     ant_check: bool = True,
+    freq_range_check: bool = True,
     uvc_pol_convention: Literal["sum", "avg"] | None = None,
     uvd_pol_convention: Literal["sum", "avg"] | None = None,
 ):
@@ -191,6 +192,10 @@ def uvcalibrate(
         object have calibration solutions in the UVCal object. If this option is
         set to False, uvcalibrate will proceed without erroring and data for
         antennas without calibrations will be flagged.
+    freq_range_check : bool
+        Option to check that frequency ranges on the UVCal object matches the channel
+        frequencies given in the UVData object for a given spectral window. Only
+        applicable for wide-band UVCal objects, defaul is True.
     uvc_pol_convention : str, {"sum", "avg"}, optional
         The convention for how instrumental polarizations (e.g. XX and YY) are assumed
         to have been converted to Stokes parameters in ``uvcal``. Options are 'sum' and
@@ -401,17 +406,20 @@ def uvcalibrate(
 
     uvcal_chans_to_keep = None if uvcal.wide_band else []
     uvcal_spws_to_keep = [] if uvcal.wide_band else None
-    for idx, spw in enumerate(uvcal.spw_array):
-        if spw in uvdata.spw_array:
+    for spw in uvdata.spw_array:
+        try:
+            uvcal_spw_idx = np.where(uvcal.spw_array == spw)[0][0]
             if uvcal.wide_band:
-                freq_array_spw = uvdata.freq_array[uvdata.flex_spw_id_array == spw]
-                min_freq = min(uvcal.freq_range[idx])
-                max_freq = max(uvcal.freq_range[idx])
-                if all((freq_array_spw < min_freq) | (freq_array_spw > max_freq)):
-                    raise ValueError(
-                        "SPWs between UVData and UVCal overlap, but the frequencies of "
-                        "channels are inconsistent with frequency ranges."
-                    )
+                if freq_range_check:
+                    freq_array_spw = uvdata.freq_array[uvdata.flex_spw_id_array == spw]
+                    min_freq = min(uvcal.freq_range[uvcal_spw_idx])
+                    max_freq = max(uvcal.freq_range[uvcal_spw_idx])
+                    if any((freq_array_spw < min_freq) | (freq_array_spw > max_freq)):
+                        raise ValueError(
+                            f"SPW {spw} exists on UVData and UVCal, but the channel "
+                            "frequencies are inconsistent with frequency ranges. "
+                            "To continue with calibration, set freq_range_check=False."
+                        )
                 uvcal_spws_to_keep.append(spw)
             else:
                 uvcal_chans = np.where(uvcal.flex_spw_id_array == spw)[0]
@@ -431,6 +439,8 @@ def uvcalibrate(
                         raise ValueError(
                             f"Frequency {indv_freq} exists on UVData but not on UVCal."
                         )
+        except IndexError as err:
+            raise ValueError(f"SPW {spw} exists on UVData but not on UVCal.") from err
 
     if np.array_equal(uvcal_chans_to_keep, np.arange(uvcal.Nfreqs)):
         uvcal_chans_to_keep = None
