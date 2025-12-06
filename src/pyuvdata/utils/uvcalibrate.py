@@ -61,8 +61,13 @@ def _get_pol_conventions(
                 f"different values: {uvd_pol_convention} and {uvdata.pol_convention}."
             )
     else:
-        if uvdata.pol_convention is not None:
-            raise ValueError("You are trying to calibrate already-calibrated data.")
+        if uvdata.pol_convention is not None and (
+            uvc_pol_convention != uvdata.pol_convention
+        ):
+            raise ValueError(
+                "UVData already has a pol_convention applied that does not match UVCal "
+                f"convention: {uvdata.pol_convention} and {uvc_pol_convention}."
+            )
         if uvd_pol_convention is None:
             uvd_pol_convention = uvc_pol_convention
 

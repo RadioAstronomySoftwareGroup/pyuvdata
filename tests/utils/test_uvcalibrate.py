@@ -97,14 +97,14 @@ class TestGetPolConventions:
 
     def test_calibrate_already_calibrated(self):
         with pytest.raises(
-            ValueError, match="You are trying to calibrate already-calibrated data"
+            ValueError, match="UVData already has a pol_convention applied"
         ):
             _get_pol_conventions(
-                uvdata=SimpleNamespace(pol_convention="avg"),
+                uvdata=SimpleNamespace(pol_convention="sum"),
                 uvcal=SimpleNamespace(pol_convention="avg"),
                 undo=False,
                 uvc_pol_convention="avg",
-                uvd_pol_convention="avg",
+                uvd_pol_convention="sum",
             )
 
     @pytest.mark.parametrize("which", ["uvc", "uvd"])
