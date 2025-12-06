@@ -149,6 +149,7 @@ def uvcalibrate(
     undo: bool = False,
     time_check: bool = True,
     ant_check: bool = True,
+    freq_range_check: bool = True,
     uvc_pol_convention: Literal["sum", "avg"] | None = None,
     uvd_pol_convention: Literal["sum", "avg"] | None = None,
 ):
@@ -191,6 +192,10 @@ def uvcalibrate(
         object have calibration solutions in the UVCal object. If this option is
         set to False, uvcalibrate will proceed without erroring and data for
         antennas without calibrations will be flagged.
+    freq_range_check : bool
+        Option to check that frequency ranges on the UVCal object matches the channel
+        frequencies given in the UVData object for a given spectral window. Only
+        applicable for wide-band UVCal objects, defaul is True.
     uvc_pol_convention : str, {"sum", "avg"}, optional
         The convention for how instrumental polarizations (e.g. XX and YY) are assumed
         to have been converted to Stokes parameters in ``uvcal``. Options are 'sum' and
@@ -210,10 +215,6 @@ def uvcalibrate(
         Returns if not inplace
 
     """
-    if uvcal.cal_type == "gain" and uvcal.wide_band:
-        raise ValueError(
-            "uvcalibrate currently does not support wide-band calibrations"
-        )
     if uvcal.cal_type == "delay" and uvcal.Nspws > 1:
         # To fix this, need to make UVCal.convert_to_gain support multiple spws
         raise ValueError(
@@ -319,7 +320,7 @@ def uvcalibrate(
                     )
 
     uvdata_times, uvd_time_ri = np.unique(uvdata.time_array, return_inverse=True)
-    downselect_cal_times = False
+    uvcal_times_to_keep = None
     # time_range supercedes time_array.
     if uvcal.time_range is not None:
         if np.min(uvdata_times) < np.min(uvcal.time_range[:, 0]) or np.max(
@@ -402,43 +403,49 @@ def uvcalibrate(
                         raise ValueError(
                             f"Time {this_time} exists on UVData but not on UVCal."
                         )
-                if len(uvcal_times_to_keep) < uvcal.Ntimes:
-                    downselect_cal_times = True
 
-    downselect_cal_freq = False
-    if uvcal.freq_array is not None:
-        uvdata_freq_arr_use = uvdata.freq_array
-        uvcal_freq_arr_use = uvcal.freq_array
+    uvcal_chans_to_keep = None if uvcal.wide_band else []
+    uvcal_spws_to_keep = [] if uvcal.wide_band else None
+    for spw in uvdata.spw_array:
         try:
-            freq_arr_match = np.allclose(
-                np.sort(uvcal_freq_arr_use),
-                np.sort(uvdata_freq_arr_use),
-                atol=uvdata._freq_array.tols[1],
-                rtol=uvdata._freq_array.tols[0],
-            )
-        except ValueError:
-            freq_arr_match = False
-
-        if freq_arr_match is False:
-            # check more carefully
-            uvcal_freqs_to_keep = []
-            for this_freq in uvdata_freq_arr_use:
-                wh_freq_match = np.nonzero(
-                    np.isclose(
-                        uvcal.freq_array - this_freq,
-                        0,
+            uvcal_spw_idx = np.where(uvcal.spw_array == spw)[0][0]
+            if uvcal.wide_band:
+                if freq_range_check:
+                    freq_array_spw = uvdata.freq_array[uvdata.flex_spw_id_array == spw]
+                    min_freq = min(uvcal.freq_range[uvcal_spw_idx])
+                    max_freq = max(uvcal.freq_range[uvcal_spw_idx])
+                    if any((freq_array_spw < min_freq) | (freq_array_spw > max_freq)):
+                        raise ValueError(
+                            f"SPW {spw} exists on UVData and UVCal, but the channel "
+                            "frequencies are inconsistent with frequency ranges. "
+                            "To continue with calibration, set freq_range_check=False."
+                        )
+                uvcal_spws_to_keep.append(spw)
+            else:
+                uvcal_chans = np.where(uvcal.flex_spw_id_array == spw)[0]
+                uvdata_chans = np.where(uvdata.flex_spw_id_array == spw)[0]
+                uvcal_freqs = uvcal.freq_array[uvcal_chans]
+                uvdata_freqs = uvdata.freq_array[uvdata_chans]
+                for indv_freq in uvdata_freqs:
+                    freq_match = np.isclose(
+                        uvcal_freqs,
+                        indv_freq,
                         atol=uvdata._freq_array.tols[1],
                         rtol=uvdata._freq_array.tols[0],
                     )
-                )
-                if wh_freq_match[0].size > 0:
-                    uvcal_freqs_to_keep.append(uvcal.freq_array[wh_freq_match][0])
-                else:
-                    raise ValueError(
-                        f"Frequency {this_freq} exists on UVData but not on UVCal."
-                    )
-            if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
-                downselect_cal_freq = True
+                    if any(freq_match):
+                        uvcal_chans_to_keep.append(uvcal_chans[freq_match][0])
+                    else:
+                        raise ValueError(
+                            f"Frequency {indv_freq} exists on UVData but not on UVCal."
+                        )
+        except IndexError as err:
+            raise ValueError(f"SPW {spw} exists on UVData but not on UVCal.") from err
+
+    if np.array_equal(uvcal_chans_to_keep, np.arange(uvcal.Nfreqs)):
+        uvcal_chans_to_keep = None
+    if np.array_equal(uvcal_spws_to_keep, uvcal.spw_array):
+        uvcal_spws_to_keep = None
 
     # check if x_orientation-equivalent in uvdata isn't set (it's required for uvcal)
     uvd_x = uvdata.telescope.get_x_orientation_from_feeds()
@@ -468,20 +475,19 @@ def uvcalibrate(
             )
 
     # downselect UVCal times, frequencies
-    if downselect_cal_freq or downselect_cal_times:
-        if not downselect_cal_times:
-            uvcal_times_to_keep = None
-        elif not downselect_cal_freq:
-            uvcal_freqs_to_keep = None
-
+    new_uvcal = not (
+        uvcal_times_to_keep is None
+        and uvcal_chans_to_keep is None
+        and uvcal_spws_to_keep is None
+    )
+    uvcal_use = uvcal
+    if new_uvcal:
         uvcal_use = uvcal.select(
-            times=uvcal_times_to_keep, frequencies=uvcal_freqs_to_keep, inplace=False
+            times=uvcal_times_to_keep,
+            freq_chans=uvcal_chans_to_keep,
+            spws=uvcal_spws_to_keep,
+            inplace=False,
         )
-
-        new_uvcal = True
-    else:
-        uvcal_use = uvcal
-        new_uvcal = False
 
     # input checks
     if uvcal_use.cal_type == "delay":
@@ -525,6 +531,7 @@ def uvcalibrate(
                 strict=False,
             )
         )
+        uvc_spw_map = {spw: idx for idx, spw in enumerate(uvcal_use.spw_array)}
 
         # iterate over keys
         for key in uvdata.get_antpairpols():
@@ -573,20 +580,29 @@ def uvcalibrate(
                 gain = gain[trange_ind_arr[blt_inds], :]
                 flag = flag[trange_ind_arr[blt_inds], :]
 
+            # Use a slice operator to expand out the flags and gains with a wide_band
+            # calibration solution, otherwise use the Ellipsis to select the whole
+            # array when using a channel-based soln.
+            gain_slice = ...
+            if uvcal_use.wide_band:
+                gain_slice = np.s_[
+                    :, [uvc_spw_map[spw] for spw in uvdata.flex_spw_id_array]
+                ]
+
             # propagate flags
             if prop_flags:
                 mask = np.isclose(gain, 0.0) | flag
                 gain[mask] = 1.0
-                uvdata.flag_array[blt_inds, :, pol_ind] += mask
+                uvdata.flag_array[blt_inds, :, pol_ind] |= mask[gain_slice]
 
             # apply to data
             mult_gains = uvcal_use.gain_convention == "multiply"
             if undo:
                 mult_gains = not mult_gains
             if mult_gains:
-                uvdata.data_array[blt_inds, :, pol_ind] *= gain
+                uvdata.data_array[blt_inds, :, pol_ind] *= gain[gain_slice]
             else:
-                uvdata.data_array[blt_inds, :, pol_ind] /= gain
+                uvdata.data_array[blt_inds, :, pol_ind] /= gain[gain_slice]
 
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
