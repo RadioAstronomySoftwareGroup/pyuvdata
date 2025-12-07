@@ -21,6 +21,8 @@ from .mir_parser import MirParser
 
 __all__ = ["Mir", "generate_sma_antpos_dict"]
 
+MAX_SMA_ANTENNA_NUMBER = 10
+
 
 def generate_sma_antpos_dict(filepath):
     """
@@ -70,6 +72,102 @@ def generate_sma_antpos_dict(filepath):
     return {item["antenna"]: item["xyz_pos"] for item in mir_antpos}
 
 
+def calc_delta_uvw_from_offset_illum(
+    *,
+    illum_dict,
+    ant_1_array,
+    ant_2_array,
+    app_ra,
+    app_dec,
+    frame_pa,
+    lst_array,
+    telescope_lat,
+):
+    """
+    Calculate uvw offsets from illumination pattern offsets.
+
+    Parameters
+    ----------
+    illum_dict : dict
+        Dictionary which defines the illumination offset constants for each antenna.
+        Keys are matched to antenna numbers, values are themselves dicts containing
+        four key/value pairs - "x0" (constant horizontal offset on the primary/after the
+        Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset before the
+        Nasmyth), "y1" (vertical offset before the Nasmyth). Values are in units of
+        meters, as realized on the primary.
+    ant_1_array : ndarray of int
+        Number of the first antenna in a given baseline pair. Shape (Nblts,).
+    ant_2_array : ndarray of int
+        Number of the second antenna in a given baseline pair. Shape (Nblts,).
+    app_ra : ndarray of float
+        Apparent right ascension for each baseline record. Shape (Nblts,), units of
+        radians.
+    app_dec : ndarray of float
+        Apparent declination for each baseline record. Shape (Nblts,), units of radians.
+    frame_pa : ndarray of float
+        Frame position angle for each baseline record. Shape (Nblts,), units of radians.
+    lst_array : ndarray of float
+        LST value for each baseline-time record. Shape (Nblts,), units of radians.
+    telescope_lat : float
+        Telescope latitude. Units of radians.
+
+    """
+    import erfa
+
+    fix_x = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
+    fix_y = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
+    rot_x = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
+    rot_y = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
+
+    if np.any(ant_1_array < 0) or np.any(ant_1_array > MAX_SMA_ANTENNA_NUMBER):
+        raise ValueError(
+            f"Values in ant_1_array out of range [0, {MAX_SMA_ANTENNA_NUMBER}])."
+        )
+    if np.any(ant_2_array < 0) or np.any(ant_2_array > MAX_SMA_ANTENNA_NUMBER):
+        raise ValueError(
+            f"Values in ant_2_array out of range [0, {MAX_SMA_ANTENNA_NUMBER}])."
+        )
+
+    try:
+        for ant, indv_dict in illum_dict.items():
+            fix_x[ant] = indv_dict["x0"]
+            fix_y[ant] = indv_dict["y0"]
+            rot_x[ant] = indv_dict["x1"]
+            rot_y[ant] = indv_dict["y1"]
+    except KeyError as err:
+        raise KeyError("Invalid keys in illum_dict.") from err
+
+    # Add the things we need to rotate first
+    uvw_offsets = np.zeros((len(ant_1_array), 3, 1))
+    uvw_offsets[:, 0] = rot_x[ant_1_array] - rot_x[ant_2_array]
+    uvw_offsets[:, 1] = rot_y[ant_1_array] - rot_y[ant_2_array]
+
+    # Calculate the elevation angle, then start some rotations!
+    _, el_arr = erfa.hd2ae(lst_array - app_ra, app_dec, telescope_lat)
+    uvw_offsets = utils.phasing._rotate_one_axis(
+        uvw_offsets[:, :, np.newaxis], rot_amount=el_arr, rot_axis=2
+    )
+
+    # Add the static offsets - everything is now oriented in the frame of the antenna
+    # Note we need the extra axis here since nvec=1 for _rotate_one_axis
+    uvw_offsets[:, 0, 0] += fix_x[ant_1_array] - fix_x[ant_2_array]
+    uvw_offsets[:, 1, 0] += fix_y[ant_1_array] - fix_y[ant_2_array]
+
+    # Calculate the position angle, accounting for the frame PA as well
+    pa_array = frame_pa + utils.phasing.calc_parallactic_angle(
+        app_ra=app_ra, app_dec=app_dec, lst_array=lst_array, telescope_lat=telescope_lat
+    )
+
+    # Rotate by the PA so that we get the UVWs in the right orientation
+    uvw_offsets = utils.phasing._rotate_one_axis(
+        uvw_offsets, rot_amount=pa_array, rot_axis=2
+    )
+
+    # This should be ready to straight-up add, striping out the extra axis that
+    # the _rotate functions add (since nvec=1)
+    return np.squeeze(uvw_offsets, axis=-1)
+
+
 class Mir(UVData):
     """
     A class for Mir file objects.
@@ -98,6 +196,7 @@ class Mir(UVData):
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
+        illum_dict=None,
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
@@ -181,6 +280,7 @@ class Mir(UVData):
             apply_flags=apply_flags,
             apply_tsys=apply_tsys,
             apply_dedoppler=apply_dedoppler,
+            illum_dict=illum_dict,
             metadata_only=metadata_only,
         )
 
@@ -285,6 +385,7 @@ class Mir(UVData):
         apply_flags=True,
         apply_dedoppler=False,
         metadata_only=False,
+        illum_dict=None,
     ):
         """
         Convert a MirParser object into a UVData object.
@@ -299,6 +400,28 @@ class Mir(UVData):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
+        metadata_only : bool
+            Read in only the metadata, ignore visibility data. Default is False.
+        illum_dict : dict
+            Dictionary which defines the illumination offset constants for each antenna.
+            Keys are matched to antenna numbers, values are themselves dicts containing
+            four key/value pairs - "x0" (constant horizontal offset on the primary/after
+            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
+            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
+            in units of meters, as realized on the primary.
         """
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
@@ -745,7 +868,7 @@ class Mir(UVData):
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
         # standard a2-a1 that uvdata expects
-        self.uvw_array = (-1.0) * uvw_array
+        self.uvw_array = -uvw_array
 
         self.vis_units = "Jy"
         self.pol_convention = "avg"
@@ -990,6 +1113,18 @@ class Mir(UVData):
 
                 # Plug in the new cat_id into the phase_center_id_array
                 self.phase_center_id_array[inhid_mask] = cat_id
+
+        if illum_dict is not None:
+            self.uvw_array += calc_delta_uvw_from_offset_illum(
+                illum_dict=illum_dict,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                app_ra=self.phase_center_app_ra,
+                app_dec=self.phase_center_app_dec,
+                frame_pa=self.phase_center_frame_pa,
+                lst_array=self.lst_array,
+                telescope_lat=self.telescope.location.lat.rad,
+            )
 
     def write_mir(self, filename):
         """
