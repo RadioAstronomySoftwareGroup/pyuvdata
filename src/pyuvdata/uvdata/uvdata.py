@@ -8775,6 +8775,13 @@ class UVData(UVBase):
             If set to True, data will be corrected for any doppler-tracking performed
             during observations, and brought into the topocentric rest frame (default
             for UVData objects). Default is False.
+        illum_dict : dict
+            Dictionary which defines the illumination offset constants for each antenna.
+            Keys are matched to antenna numbers, values are themselves dicts containing
+            four key/value pairs - "x0" (constant horizontal offset on the primary/after
+            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
+            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
+            in units of meters, as realized on the primary.
         pseudo_cont : boolean
             Read in only pseudo-continuum values. Default is false.
         rechunk : int
@@ -9678,6 +9685,7 @@ class UVData(UVBase):
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
+        illum_dict=None,
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
@@ -10087,6 +10095,13 @@ class UVData(UVBase):
             If set to True, data will be corrected for any doppler-tracking performed
             during observations, and brought into the topocentric rest frame (default
             for UVData objects). Default is False.
+        illum_dict : dict
+            Dictionary which defines the illumination offset constants for each antenna.
+            Keys are matched to antenna numbers, values are themselves dicts containing
+            four key/value pairs - "x0" (constant horizontal offset on the primary/after
+            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
+            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
+            in units of meters, as realized on the primary.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
@@ -10364,6 +10379,7 @@ class UVData(UVBase):
                         apply_tsys=apply_tsys,
                         apply_flags=apply_flags,
                         apply_dedoppler=apply_dedoppler,
+                        illum_dict=illum_dict,
                         pseudo_cont=pseudo_cont,
                         rechunk=rechunk,
                         compass_soln=compass_soln,
@@ -10502,6 +10518,7 @@ class UVData(UVBase):
                             apply_tsys=apply_tsys,
                             apply_flags=apply_flags,
                             apply_dedoppler=apply_dedoppler,
+                            illum_dict=illum_dict,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
                             compass_soln=compass_soln,
@@ -10804,6 +10821,7 @@ class UVData(UVBase):
                     apply_dedoppler=apply_dedoppler,
                     apply_tsys=apply_tsys,
                     apply_flags=apply_flags,
+                    illum_dict=illum_dict,
                     pseudo_cont=pseudo_cont,
                     rechunk=rechunk,
                     compass_soln=compass_soln,
