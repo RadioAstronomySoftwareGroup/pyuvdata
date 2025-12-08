@@ -200,7 +200,7 @@ def uvcalibrate(
     freq_range_check : bool
         Option to check that frequency ranges on the UVCal object matches the channel
         frequencies given in the UVData object for a given spectral window. Only
-        applicable for wide-band UVCal objects, defaul is True.
+        applicable for wide-band UVCal objects, default is True.
     uvc_pol_convention : str, {"sum", "avg"}, optional
         The convention for how instrumental polarizations (e.g. XX and YY) are assumed
         to have been converted to Stokes parameters in ``uvcal``. Options are 'sum' and
