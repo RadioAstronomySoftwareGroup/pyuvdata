@@ -19,7 +19,7 @@ jobs:
       matrix:
         buildplat:
           - [ubuntu-latest, manylinux, x86_64]
-          - [macos-13, macosx, x86_64]
+          - [macos-15-intel, macosx, x86_64]
           - [macos-latest, macosx, arm64]
           - [windows-latest, win, AMD64]
         python: ["cp311", "cp312", "cp313"]
@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23
+        uses: pypa/cibuildwheel@v3.3
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
