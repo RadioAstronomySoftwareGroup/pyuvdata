@@ -5727,8 +5727,9 @@ class UVData(UVBase):
                         info["key_arrays"]["other"][info["other_inds_use"]],
                     )
                 )
+                # Figure out order -- how to sort each axis.
                 if axis == "Npols":
-                    # order has info about how to sort each axis.
+                    # weird handling for pol integers
                     info["order"] = np.argsort(np.abs(info["combined_key_arrays"]))
                 elif axis == "Nfreqs" and (
                     np.any(np.diff(this.freq_array) < 0)
