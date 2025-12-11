@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.5] - 2025-12-11
+
 ### Changed
 - Added a `UVData.flip_conjugation` method and more detail to the uvw check warning
 message to inform users when a conjugation flip might be needed.
