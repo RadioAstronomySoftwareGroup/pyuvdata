@@ -496,6 +496,7 @@ class Mir(UVData):
 
         # Map MIR pol code to pyuvdata/AIPS polarization number and feeds
         pol_code_dict = {}
+        convert_code_map = {"aa": "hh", "ab": "hv", "ba": "vh", "bb": "vv"}
         feed_code_dict = {}
         icode_dict = mir_data.codes_data["pol"]
         for code in mir_data.codes_data.get_codes("pol", return_dict=False):
@@ -503,10 +504,11 @@ class Mir(UVData):
             # or CASA, although they are rarely used, so we can skip over translating
             # them in the try/except loop here (if present in the data, it will throw
             # an error further downstream).
+            std_code = convert_code_map.get(code.lower(), code.lower())
             with contextlib.suppress(KeyError):
-                pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[code.lower()]
+                pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[std_code]
                 feed_code_dict[icode_dict[code]] = utils.pol.POL_TO_FEED_DICT[
-                    utils.POL_NUM2STR_DICT[utils.POL_STR2NUM_DICT[code.lower()]]
+                    utils.POL_NUM2STR_DICT[utils.POL_STR2NUM_DICT[std_code]]
                 ]
         if pol_split_tuning and allow_flex_pol:
             # If we have a split tuning that, that means we can take advantage of
