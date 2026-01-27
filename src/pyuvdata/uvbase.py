@@ -755,9 +755,14 @@ class UVBase:
         """
         return copy.deepcopy(self)
 
-    def _get_param_axis(self, axis_name: str, single_named_axis: bool = False):
+    def _get_uvparam_axis(self, axis_name: str, single_named_axis: bool = False):
         """
-        Get a mapping of parameters that have a given axis to the axis number.
+        Get a mapping of properties that have a given axis to the axis number.
+
+        This uses the forms of the UVParameter attributes on this object to identify
+        properties derived from UVParameters that have one or more axes associated
+        with the axis_name. Any properties with an associated axis appear as keys
+        in the output dict, with the values giving the associated axis numbers.
 
         Parameters
         ----------
@@ -770,8 +775,27 @@ class UVBase:
         -------
         dict
             The keys are UVParameter names that have an axis with axis_name
-            (axis_name appears in their form). The values are a list of the axis
+            (axis_name appears in their form). The values are an array of the axis
             indices where axis_name appears in their form.
+
+        Examples
+        --------
+        >>> from pyuvdata import UVData
+        >>> from pyuvdata.datasets import fetch_data
+        >>> filename = fetch_data("vla_casa_tutorial_uvfits")
+        >>> uvd = UVData.from_file(filename)
+        >>> uvd._get_uvparam_axis("Nfreqs")
+        {'channel_width': array([0]),
+         'data_array': array([1]),
+         'flag_array': array([1]),
+         'flex_spw_id_array': array([0]),
+         'freq_array': array([0]),
+         'nsample_array': array([1])}
+
+        >>> uvd._get_uvparam_axis("Nfreqs", single_named_axis=True)
+        {'channel_width': array([0]),
+         'flex_spw_id_array': array([0]),
+         'freq_array': array([0])}
 
         """
         ret_dict = {}
@@ -871,7 +895,7 @@ class UVBase:
         self,
         other,
         axis_name: str,
-        other_inds: IntArray,
+        other_inds: IntArray | None = None,
         final_order: IntArray | None = None,
     ):
         """
@@ -883,13 +907,14 @@ class UVBase:
             The UVBase object to be added.
         axis_name : str
             The axis name (e.g. "Nblts", "Npols").
-        other_inds : np.ndarray of int
-            Indices into the other object along this axis to include.
-        final_order : np.ndarray of int
+        other_inds : np.ndarray of int, optional
+            Indices into the other object along this axis to include. If None,
+            include all indices.
+        final_order : np.ndarray of int, optional
             Final ordering array giving the sort order after concatenation.
 
         """
-        update_params = self._get_param_axis(axis_name, single_named_axis=True)
+        update_params = self._get_uvparam_axis(axis_name, single_named_axis=True)
         other_form_dict = {axis_name: other_inds}
         for param, axis_list in update_params.items():
             axis = axis_list[0]
@@ -917,7 +942,7 @@ class UVBase:
             The extra length to be padded on for this axis.
 
         """
-        update_params = self._get_param_axis(axis_name)
+        update_params = self._get_uvparam_axis(axis_name)
         multi_axis_params = self._get_multi_axis_params()
         for param, axis_list in update_params.items():
             if param not in multi_axis_params:
@@ -987,7 +1012,7 @@ class UVBase:
         axis_name : str
             The axis name (e.g. "Nblts", "Npols").
         """
-        update_params = self._get_param_axis(axis_name)
+        update_params = self._get_uvparam_axis(axis_name)
         for param, axis_list in update_params.items():
             axis = axis_list[0]
             setattr(
