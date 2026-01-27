@@ -5366,19 +5366,19 @@ class UVData(UVBase):
 
     def blt_str_arr(self) -> StrArray:
         """Create a string array with baseline and time info for matching purposes."""
-        return utils.tools.flt_ind_str_arr(
+        return utils.tools.float_int_to_str_array(
             fltarr=self.time_array,
             intarr=self.baseline_array,
-            flt_tols=self._time_array.tols,
+            flt_tol=self._time_array.tols[1] * 0.1,
             flt_first=True,
         )
 
     def spw_freq_str_arr(self) -> StrArray:
         """Create a string array with spw and freq info for matching purposes."""
-        return utils.tools.flt_ind_str_arr(
+        return utils.tools.float_int_to_str_array(
             fltarr=self.freq_array,
             intarr=self.flex_spw_id_array,
-            flt_tols=self._freq_array.tols,
+            flt_tol=self._freq_array.tols[1] * 0.1,
             flt_first=False,
         )
 
@@ -5551,7 +5551,7 @@ class UVData(UVBase):
         for axis, info in axis_info.items():
             # get parameters for compatibility checking. Exclude multidimensional
             # parameters which are handled separately later.
-            params_this_axis = this._get_param_axis(axis, single_named_axis=True)
+            params_this_axis = this._get_uvparam_axis(axis, single_named_axis=True)
             info["check_params"] = []
             for param in params_this_axis:
                 # Also exclude parameters that define overlap
@@ -6058,7 +6058,7 @@ class UVData(UVBase):
         # figure out what parameters to check for compatibility -- only worry
         # about single axis params
         for _, info in axis_info.items():
-            params_this_axis = this._get_param_axis(
+            params_this_axis = this._get_uvparam_axis(
                 info["shape"], single_named_axis=True
             )
             info["check_params"] = []
