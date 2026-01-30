@@ -62,17 +62,32 @@ def gaussian_uv(gaussian, az_za_coords) -> UVBeam:
         [ShortDipoleBeam, {}],
     ],
 )
-@pytest.mark.parametrize("init_beam_type", ["efield", "power"])
-@pytest.mark.parametrize("final_beam_type", ["efield", "power"])
-@pytest.mark.parametrize("coord_sys", ["az_za", "healpix"])
+@pytest.mark.parametrize(
+    ["init_beam_type", "final_beam_type", "coord_sys"],
+    [
+        ("efield", "efield", "az_za"),
+        ("efield", "efield", "healpix"),
+        ("efield", "power", "az_za"),
+        ("efield", "power", "healpix"),
+        ("power", "power", "az_za"),
+        ("power", "power", "healpix"),
+        ("power", "efield", "az_za"),
+        ("power", "feed_iresponse", "az_za"),
+        ("feed_projection", "power", "az_za"),
+        ("efield", "feed_iresponse", "az_za"),
+        ("feed_iresponse", "feed_iresponse", "az_za"),
+        ("efield", "feed_projection", "az_za"),
+        ("feed_projection", "feed_projection", "az_za"),
+    ],
+)
 def test_beam_interface(
     beam_obj,
     kwargs,
     init_beam_type,
     final_beam_type,
-    az_za_coords,
-    xy_grid_coarse,
     coord_sys,
+    az_za_coords_fine,
+    xy_grid_coarse,
 ):
     analytic = beam_obj(**kwargs)
 
@@ -121,7 +136,7 @@ def test_beam_interface(
         az_array = az_array[::10]
         za_array = za_array[::10]
     else:
-        az_array, za_array = az_za_coords
+        az_array, za_array = az_za_coords_fine
         to_uvbeam_kwargs = {"axis1_array": az_array, "axis2_array": za_array}
 
     include_cross_pols = kwargs.get("include_cross_pols", True)
@@ -133,21 +148,21 @@ def test_beam_interface(
     bi_analytic = BeamInterface(analytic, final_beam_type)
 
     if final_beam_type != init_beam_type:
-        if final_beam_type == "efield":
+        if init_beam_type != "efield":
             with pytest.raises(
                 ValueError,
-                match="Input beam is a power UVBeam but beam_type is specified as "
-                "'efield'. It's not possible to convert a power beam to an "
-                "efield beam, either provide an efield UVBeam or do not "
-                "specify `beam_type`.",
+                match=f"Input beam is a {init_beam_type} UVBeam but beam_type "
+                f"is specified as {final_beam_type}. It's not possible to convert a "
+                f"{init_beam_type} beam to {final_beam_type}, either provide a "
+                "UVBeam with a compatible type or do not specify `beam_type`",
             ):
                 BeamInterface(uvb, final_beam_type)
             return
 
         warn_type = UserWarning
         msg = (
-            "Input beam is an efield UVBeam but beam_type is specified as "
-            "'power'. Converting efield beam to power."
+            f"Input beam is an {init_beam_type} UVBeam but beam_type is specified "
+            f"as {final_beam_type}. Converting efield beam to {final_beam_type}."
         )
     else:
         warn_type = None
