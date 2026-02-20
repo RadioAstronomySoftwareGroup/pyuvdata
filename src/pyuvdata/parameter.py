@@ -1183,7 +1183,7 @@ class LocationParameter(UVParameter):
         """Detect if this location is on the moon."""
         # figure out if this is on the moon. Doing it this way limits
         # attempted imports of lunarsky
-        if isinstance(self.value, EarthLocation):
+        if self.value is None or isinstance(self.value, EarthLocation):
             return False
         else:
             try:
