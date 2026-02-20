@@ -274,15 +274,34 @@ class UVFITS(UVData):
             with fits.open(filename, memmap=False) as hdu_list:
                 vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
                 if vis_hdu.header["NAXIS"] == 7:
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
-                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                    self.data_array = vis_hdu.data.data[:, 0, 0]
+                    if (
+                        self.Nspws != self.data_array.shape[1]
+                        or len(self.data_array.shape) != 5
+                    ):  # pragma: no cover
                         raise RuntimeError(bad_data_shape_msg)
 
+                    # Reshape the data array to combine the spw & freq axes
+                    self.data_array = np.reshape(
+                        self.data_array,
+                        (self.Nblts, self.Nfreqs, self.Npols, self.data_array.shape[4]),
+                    )
+
                 else:
-                    # in many uvfits files the spw axis is left out,
-                    # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
-                    raw_data_array = raw_data_array[:, np.newaxis, :, :]
+                    self.data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
+
+                    if len(self.data_array.shape) != 4:  # pragma: no cover
+                        raise RuntimeError(bad_data_shape_msg)
+
+            self.flag_array = self.data_array[:, :, :, 2] <= 0
+            self.nsample_array = np.abs(self.data_array[:, :, :, 2])
+
+            # FITS uvw direction convention is opposite ours and Miriad's.
+            # So conjugate the visibilities and flip the uvws:
+            self.data_array = (
+                self.data_array[:, :, :, 0] - 1j * self.data_array[:, :, :, 1]
+            )
+
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
@@ -350,24 +369,26 @@ class UVFITS(UVData):
                     if freq_frac < 1:
                         raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
-        if len(raw_data_array.shape) != 5:  # pragma: no cover
-            raise RuntimeError(bad_data_shape_msg)
+            if len(raw_data_array.shape) != 5:  # pragma: no cover
+                raise RuntimeError(bad_data_shape_msg)
 
-        # Reshape the data array to be the right size if we are working w/ multiple
-        # spectral windows
-        raw_data_array = np.reshape(
-            raw_data_array,
-            (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
-        )
+            # Reshape the data array to be the right size if we are working w/ multiple
+            # spectral windows
+            raw_data_array = np.reshape(
+                raw_data_array,
+                (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
+            )
 
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # So conjugate the visibilities and flip the uvws:
-        self.data_array = raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
-        self.flag_array = raw_data_array[:, :, :, 2] <= 0
-        self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
+            # FITS uvw direction convention is opposite ours and Miriad's.
+            # So conjugate the visibilities and flip the uvws:
+            self.data_array = (
+                raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
+            )
+            self.flag_array = raw_data_array[:, :, :, 2] <= 0
+            self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
 
-        del raw_data_array
-        gc.collect()
+            del raw_data_array
+            gc.collect()
 
         if fix_old_proj:
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
