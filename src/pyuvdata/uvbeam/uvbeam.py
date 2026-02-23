@@ -1426,7 +1426,7 @@ class UVBeam(UVBase):
                 if imag_lut is None:
                     return lambda freqs: real_lut(freqs)
                 else:
-                    return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
+                    return lambda freqs: real_lut(freqs) + 1j * imag_lut(freqs)
 
             interp_arrays = []
             for data, ax in zip(

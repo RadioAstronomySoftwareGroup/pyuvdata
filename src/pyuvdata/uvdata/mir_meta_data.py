@@ -1002,8 +1002,8 @@ class MirMetaData:
             "le": np.less_equal,
             "gt": np.greater,
             "ge": np.greater_equal,
-            "between": lambda val, lims: ((val >= lims[0]) & (val <= lims[1])),
-            "outside": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
+            "between": lambda val, lims: (val >= lims[0]) & (val <= lims[1]),
+            "outside": lambda val, lims: (val < lims[0]) | (val > lims[1]),
         }
 
         if isinstance(select_val, list | set | tuple | str | np.ndarray | np.str_):
