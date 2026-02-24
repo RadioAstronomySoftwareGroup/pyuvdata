@@ -4,6 +4,7 @@
 """Class for reading and writing uvfits files."""
 
 import copy
+import gc
 import os
 import warnings
 
@@ -197,7 +198,7 @@ class UVFITS(UVData):
 
     def _get_data(
         self,
-        vis_hdu,
+        filename,
         *,
         antenna_nums,
         antenna_names,
@@ -269,17 +270,38 @@ class UVFITS(UVData):
         )
 
         if min_frac == 1:
-            # no select, read in all the data
-            if vis_hdu.header["NAXIS"] == 7:
-                raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :, :]
-                if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                    raise RuntimeError(bad_data_shape_msg)
+            # no select, read in all the data. Don't need memmap
+            with fits.open(filename, memmap=False) as hdu_list:
+                vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+                if vis_hdu.header["NAXIS"] == 7:
+                    self.data_array = vis_hdu.data.data[:, 0, 0]
+                    if (
+                        self.Nspws != self.data_array.shape[1]
+                        or len(self.data_array.shape) != 5
+                    ):  # pragma: no cover
+                        raise RuntimeError(bad_data_shape_msg)
 
-            else:
-                # in many uvfits files the spw axis is left out,
-                # here we put it back in so the dimensionality stays the same
-                raw_data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
-                raw_data_array = raw_data_array[:, np.newaxis, :, :]
+                    # Reshape the data array to combine the spw & freq axes
+                    self.data_array = np.reshape(
+                        self.data_array,
+                        (self.Nblts, self.Nfreqs, self.Npols, self.data_array.shape[4]),
+                    )
+
+                else:
+                    self.data_array = vis_hdu.data.data[:, 0, 0, :, :, :]
+
+                    if len(self.data_array.shape) != 4:  # pragma: no cover
+                        raise RuntimeError(bad_data_shape_msg)
+
+            self.flag_array = self.data_array[:, :, :, 2] <= 0
+            self.nsample_array = np.abs(self.data_array[:, :, :, 2])
+
+            # FITS uvw direction convention is opposite ours and Miriad's.
+            # So conjugate the visibilities and flip the uvws:
+            self.data_array = (
+                self.data_array[:, :, :, 0] - 1j * self.data_array[:, :, :, 1]
+            )
+
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
@@ -293,72 +315,80 @@ class UVFITS(UVData):
             )
 
             # just read in the right portions of the data and flag arrays
-            if blt_frac == min_frac:
-                if vis_hdu.header["NAXIS"] == 7:
-                    raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(bad_data_shape_msg)
+            # need memmap for this, accept the memory hit
+            with fits.open(filename, memmap=False) as hdu_list:
+                vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
+                if blt_frac == min_frac:
+                    if vis_hdu.header["NAXIS"] == 7:
+                        raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
+                        if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                            raise RuntimeError(bad_data_shape_msg)
+                    else:
+                        # in many uvfits files the spw axis is left out,
+                        # here we put it back in so the dimensionality stays the same
+                        raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :]
+                        raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+                    if freq_frac < 1:
+                        raw_data_array = raw_data_array[:, :, freq_inds, :, :]
+                    if pol_frac < 1:
+                        raw_data_array = raw_data_array[:, :, :, pol_inds, :]
+                elif freq_frac == min_frac:
+                    if vis_hdu.header["NAXIS"] == 7:
+                        raw_data_array = vis_hdu.data.data[:, :, :, :, freq_inds, :, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
+                        if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                            raise RuntimeError(bad_data_shape_msg)
+                    else:
+                        # in many uvfits files the spw axis is left out,
+                        # here we put it back in so the dimensionality stays the same
+                        raw_data_array = vis_hdu.data.data[:, :, :, freq_inds, :, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :]
+                        raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+
+                    if blt_frac < 1:
+                        raw_data_array = raw_data_array[blt_inds, :, :, :, :]
+                    if pol_frac < 1:
+                        raw_data_array = raw_data_array[:, :, :, pol_inds, :]
                 else:
-                    # in many uvfits files the spw axis is left out,
-                    # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[blt_inds, :, :, :, :, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
-                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
-                if freq_frac < 1:
-                    raw_data_array = raw_data_array[:, :, freq_inds, :, :]
-                if pol_frac < 1:
-                    raw_data_array = raw_data_array[:, :, :, pol_inds, :]
-            elif freq_frac == min_frac:
-                if vis_hdu.header["NAXIS"] == 7:
-                    raw_data_array = vis_hdu.data.data[:, :, :, :, freq_inds, :, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(bad_data_shape_msg)
-                else:
-                    # in many uvfits files the spw axis is left out,
-                    # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[:, :, :, freq_inds, :, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
-                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+                    if vis_hdu.header["NAXIS"] == 7:
+                        raw_data_array = vis_hdu.data.data[:, :, :, :, :, pol_inds, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
+                        if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
+                            raise RuntimeError(bad_data_shape_msg)
+                    else:
+                        # in many uvfits files the spw axis is left out,
+                        # here we put it back in so the dimensionality stays the same
+                        raw_data_array = vis_hdu.data.data[:, :, :, :, pol_inds, :]
+                        raw_data_array = raw_data_array[:, 0, 0, :, :, :]
+                        raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
 
-                if blt_frac < 1:
-                    raw_data_array = raw_data_array[blt_inds, :, :, :, :]
-                if pol_frac < 1:
-                    raw_data_array = raw_data_array[:, :, :, pol_inds, :]
-            else:
-                if vis_hdu.header["NAXIS"] == 7:
-                    raw_data_array = vis_hdu.data.data[:, :, :, :, :, pol_inds, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :, :]
-                    if self.Nspws != raw_data_array.shape[1]:  # pragma: no cover
-                        raise RuntimeError(bad_data_shape_msg)
-                else:
-                    # in many uvfits files the spw axis is left out,
-                    # here we put it back in so the dimensionality stays the same
-                    raw_data_array = vis_hdu.data.data[:, :, :, :, pol_inds, :]
-                    raw_data_array = raw_data_array[:, 0, 0, :, :, :]
-                    raw_data_array = raw_data_array[:, np.newaxis, :, :, :]
+                    if blt_frac < 1:
+                        raw_data_array = raw_data_array[blt_inds, :, :, :, :]
+                    if freq_frac < 1:
+                        raw_data_array = raw_data_array[:, :, freq_inds, :, :]
 
-                if blt_frac < 1:
-                    raw_data_array = raw_data_array[blt_inds, :, :, :, :]
-                if freq_frac < 1:
-                    raw_data_array = raw_data_array[:, :, freq_inds, :, :]
+            if len(raw_data_array.shape) != 5:  # pragma: no cover
+                raise RuntimeError(bad_data_shape_msg)
 
-        if len(raw_data_array.shape) != 5:  # pragma: no cover
-            raise RuntimeError(bad_data_shape_msg)
+            # Reshape the data array to be the right size if we are working w/ multiple
+            # spectral windows
+            raw_data_array = np.reshape(
+                raw_data_array,
+                (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
+            )
 
-        # Reshape the data array to be the right size if we are working w/ multiple
-        # spectral windows
-        raw_data_array = np.reshape(
-            raw_data_array,
-            (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
-        )
+            # FITS uvw direction convention is opposite ours and Miriad's.
+            # So conjugate the visibilities and flip the uvws:
+            self.data_array = (
+                raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
+            )
+            self.flag_array = raw_data_array[:, :, :, 2] <= 0
+            self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
 
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # So conjugate the visibilities and flip the uvws:
-        self.data_array = raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
-        self.flag_array = raw_data_array[:, :, :, 2] <= 0
-        self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
+            del raw_data_array
+            gc.collect()
 
         if fix_old_proj:
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
@@ -403,7 +433,9 @@ class UVFITS(UVData):
         self.filename = [basename]
         self._filename.form = (1,)
 
-        with fits.open(filename, memmap=True) as hdu_list:
+        # memmap=True uses a lot of memory that doesn't get deallocated quickly
+        # not needed for reading the headers, which is what we're doing here
+        with fits.open(filename, memmap=False) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
             hdunames = fits_utils._indexhdus(hdu_list)  # find the rest of the tables
@@ -825,29 +857,29 @@ class UVFITS(UVData):
                     rot_axis=0,
                 )[:, :, 0]
 
-            if read_data:
-                # Now read in the data
-                self._get_data(
-                    vis_hdu,
-                    antenna_nums=antenna_nums,
-                    antenna_names=antenna_names,
-                    ant_str=ant_str,
-                    bls=bls,
-                    frequencies=frequencies,
-                    freq_chans=freq_chans,
-                    spws=spws,
-                    times=times,
-                    time_range=time_range,
-                    lsts=lsts,
-                    lst_range=lst_range,
-                    polarizations=polarizations,
-                    blt_inds=blt_inds,
-                    phase_center_ids=phase_center_ids,
-                    catalog_names=catalog_names,
-                    keep_all_metadata=keep_all_metadata,
-                    fix_old_proj=fix_old_proj,
-                    fix_use_ant_pos=fix_use_ant_pos,
-                )
+        if read_data:
+            # Now read in the data
+            self._get_data(
+                filename,
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                spws=spws,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
+                keep_all_metadata=keep_all_metadata,
+                fix_old_proj=fix_old_proj,
+                fix_use_ant_pos=fix_use_ant_pos,
+            )
 
         # check if object has all required UVParameters set
         if run_check:
