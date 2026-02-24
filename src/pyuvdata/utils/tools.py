@@ -9,6 +9,8 @@ from collections.abc import Iterable, Iterable as IterableType
 
 import numpy as np
 
+from .types import FloatArray, IntArray, StrArray
+
 
 def _get_iterable(x):
     """Return iterable version of input."""
@@ -687,3 +689,55 @@ def _ntimes_to_nblts(uvd):
         inds.append(np.where(unique_t == i)[0][0])
 
     return np.asarray(inds)
+
+
+def float_int_to_str_array(
+    *,
+    fltarr: FloatArray,
+    intarr: IntArray,
+    flt_tol: tuple[float, float],
+    flt_first: bool = True,
+) -> StrArray:
+    """
+    Create a string array built from float and integer arrays for matching.
+
+    Parameters
+    ----------
+    fltarr : np.ndarray of float
+        float array to be used in output string array
+    intarr : np.ndarray of int
+        integer array to be used in output string array
+    flt_tol : 2-tuple of float
+        Absolute tolerance to use in formatting the floats as strings. Note that
+        this is converted to a decimal place for print formatting, so the precision
+        might be slightly higher.
+    flt_first : bool
+        Whether to put the float first in the out put string or not (if False
+        the int comes first.)
+
+    Returns
+    -------
+    np.ndarray of str
+        String array that combines the float and integer values, useful for matching.
+
+    Examples
+    --------
+    >>> float_int_to_str_array(fltarr=[np.pi, np.pi/2], intarr=[1, 2], flt_tol=.01)
+    array(['3.14_00000001', '1.57_00000002'], dtype='<U13')
+
+    >>> float_int_to_str_array(
+    ...     fltarr=[np.pi, np.pi/2], intarr=[1, 2], flt_tol=.001, flt_first=False
+    ... )
+    array(['00000001_3.142', '00000002_1.571'], dtype='<U14')
+
+    """
+    prec_flt = -1 * np.floor(np.log10(flt_tol)).astype(int)
+    prec_int = 8
+    flt_str_list = ["{1:.{0}f}".format(prec_flt, flt) for flt in fltarr]
+    int_str_list = [str(intv).zfill(prec_int) for intv in intarr]
+    list_of_lists = []
+    if flt_first:
+        list_of_lists = [flt_str_list, int_str_list]
+    else:
+        list_of_lists = [int_str_list, flt_str_list]
+    return np.array(["_".join(zpval) for zpval in zip(*list_of_lists, strict=True)])
