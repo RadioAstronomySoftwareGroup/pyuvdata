@@ -48,7 +48,7 @@ def read_metafits(
     telescope_info_only=False,
 ):
     # get information from metafits file
-    with fits.open(file, memmap=True) as meta:
+    with fits.open(file, memmap=False) as meta:
         meta_hdr = meta[0].header
 
         telescope_name = meta_hdr.pop("TELESCOP")
@@ -734,6 +734,7 @@ class MWACorrFITS(UVData):
         # map file number to frequency index
         freq_ind = coarse_ind * num_fine_chans
 
+        need_memmap = False
         if freq_inds is not None:
             # check that we want to read this file
             this_file_f_inds = np.arange(num_fine_chans) + freq_ind
@@ -767,11 +768,17 @@ class MWACorrFITS(UVData):
             * (len(self.telescope.antenna_numbers) + 1)
             / 2.0
         )
+        if self.Nbls != n_orig_bls:
+            need_memmap = True
         bl_frac = self.Nbls / n_orig_bls
 
         n_orig_pols = 4
+        if self.Npols != n_orig_pols:
+            need_memmap = True
         pol_frac = self.Npols / n_orig_pols
 
+        if n_freq_read != num_fine_chans:
+            need_memmap = True
         freq_frac = n_freq_read / num_fine_chans
 
         blpol_frac = bl_frac * pol_frac
@@ -801,7 +808,7 @@ class MWACorrFITS(UVData):
                 axis=1,
             ).flatten()
 
-        with fits.open(filename, mode="denywrite") as hdu_list:
+        with fits.open(filename, mode="denywrite", memmap=need_memmap) as hdu_list:
             # if mwax, data is in every other hdu
             if mwax:
                 hdu_list = hdu_list[1::2]
@@ -927,7 +934,7 @@ class MWACorrFITS(UVData):
         flag_num = int(filename.split("_")[-1][0:2])
         # map file number to frequency index
         freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
-        with fits.open(filename, mode="denywrite") as aoflags:
+        with fits.open(filename, mode="denywrite", memmap=False) as aoflags:
             flags = aoflags[1].data.field("FLAGS")
         # some flag files are longer than data; crop the end
         flags = flags[: self.Nblts, :]
@@ -1582,7 +1589,7 @@ class MWACorrFITS(UVData):
                     raise ValueError("multiple metafits files in filelist")
                 metafits_file = filename
             elif filename.lower().endswith(".fits"):
-                with fits.open(filename, memmap=True) as hdu_list:
+                with fits.open(filename, memmap=False) as hdu_list:
                     hdunames = fits_utils._indexhdus(hdu_list)
                     if "PPDS" in hdunames:
                         ppds_file = filename
