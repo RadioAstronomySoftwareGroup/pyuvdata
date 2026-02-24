@@ -388,18 +388,24 @@ class AnalyticBeam:
             raise ValueError("az_array and za_array must have the same shape.")
 
     def _get_empty_data_array(
-        self, grid_shape: tuple[int, int], beam_type: str = "efield"
+        self,
+        grid_shape: tuple[int, int],
+        beam_type: Literal[
+            "efield", "power", "feed_iresponse", "feed_projection"
+        ] = "efield",
     ) -> FloatArray:
         """Get the empty data to fill in the eval methods."""
-        if beam_type == "efield":
+        if beam_type in ["efield", "feed_projection"]:
             return np.zeros(
                 (self.Naxes_vec, self.Nfeeds, *grid_shape), dtype=np.complex128
             )
-        else:
+        elif beam_type == "power":
             return np.zeros(
                 (1, self.Npols, *grid_shape),
                 dtype=np.complex128 if self.Npols > self.Nfeeds else np.float64,
             )
+        elif beam_type == "feed_iresponse":
+            return np.zeros((1, self.Nfeeds, *grid_shape), dtype=np.complex128)
 
     def efield_eval(
         self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
@@ -445,9 +451,9 @@ class AnalyticBeam:
 
             data_array = self._get_empty_data_array(az_grid.shape)
 
-            for fn in np.arange(self.Nfeeds):
-                data_array[0, fn, :, :] = np.sqrt(power_vals[fn] / 2.0)
-                data_array[1, fn, :, :] = np.sqrt(power_vals[fn] / 2.0)
+            for feed_i in np.arange(self.Nfeeds):
+                data_array[0, feed_i, :, :] = np.sqrt(power_vals[feed_i] / 2.0)
+                data_array[1, feed_i, :, :] = np.sqrt(power_vals[feed_i] / 2.0)
 
             return data_array
 
@@ -510,11 +516,123 @@ class AnalyticBeam:
 
             return data_array
 
+    def feed_iresponse_eval(
+        self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
+    ) -> FloatArray:
+        """
+        Evaluate the feed I response at the given coordinates.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of complex
+            An array of beam values. The shape of the evaluated data will be:
+            (1, Nfeeds, freq_array.size, az_array.size)
+
+        """
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
+
+        if hasattr(self, "_feed_iresponse_eval"):
+            za_grid, _ = np.meshgrid(za_array, freq_array)
+            az_grid, f_grid = np.meshgrid(az_array, freq_array)
+
+            return self._feed_iresponse_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            ).astype(complex)
+        else:
+            efield_vals = self.efield_eval(
+                za_array=za_array, az_array=az_array, freq_array=freq_array
+            )
+
+            unpolarized = True
+            for feed_i in np.arange(self.Nfeeds):
+                if not np.allclose(efield_vals[0, feed_i], efield_vals[1, feed_i]):
+                    unpolarized = False
+
+            if unpolarized:
+                # for unpolarized beams, where the response to all vector direction
+                # is identical, f is the sum over that direction divided by sqrt(2)
+                # this works better than what is below because it handles negatives
+                # in e.g. AiryBeams
+                data_array = np.sum(efield_vals, axis=0) / np.sqrt(2)
+            else:
+                # if polarized default f to the magnitude, assume zero time delay
+                data_array = np.sqrt(np.sum(np.abs(efield_vals) ** 2, axis=0))
+            data_array = data_array[np.newaxis]
+
+            return data_array.astype(complex)
+
+    def feed_projection_eval(
+        self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
+    ) -> FloatArray:
+        """
+        Evaluate the feed projection at the given coordinates.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of complex
+            An array of beam values. The shape of the evaluated data will be:
+            (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
+
+        """
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
+
+        za_grid, _ = np.meshgrid(za_array, freq_array)
+        az_grid, f_grid = np.meshgrid(az_array, freq_array)
+
+        if hasattr(self, "_feed_projection_eval"):
+            return self._feed_projection_eval(
+                az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
+            ).astype(complex)
+        else:
+            efield_vals = self.efield_eval(
+                az_array=az_array, za_array=za_array, freq_array=freq_array
+            )
+
+            # set f to the magnitude of the I response, assume no time delays
+            f_vals = self.feed_iresponse_eval(
+                az_array=az_array, za_array=za_array, freq_array=freq_array
+            )
+            data_array = self._get_empty_data_array(az_grid.shape)
+
+            for fn in np.arange(self.Nfeeds):
+                data_array[0, fn] = efield_vals[0, fn] / f_vals[0, fn]
+                data_array[1, fn] = efield_vals[1, fn] / f_vals[0, fn]
+
+            return data_array
+
     @combine_docstrings(UVBeam.new)
     def to_uvbeam(
         self,
         freq_array: FloatArray,
-        beam_type: Literal["efield", "power"] = "efield",
+        beam_type: Literal[
+            "efield", "power", "feed_iresponse", "feed_projection"
+        ] = "efield",
         pixel_coordinate_system: (
             Literal["az_za", "orthoslant_zenith", "healpix"] | None
         ) = None,
@@ -535,7 +653,7 @@ class AnalyticBeam:
         freq_array : ndarray of float
             Array of frequencies in Hz to evaluate the beam at.
         beam_type : str
-            Beam type, either "efield" or "power".
+            Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
         pixel_coordinate_system : str
             Pixel coordinate system, options are "az_za", "orthoslant_zenith" and
             "healpix". Forced to be "healpix" if ``nside`` is given and by
@@ -558,13 +676,14 @@ class AnalyticBeam:
             Healpix ordering parameter, defaults to "ring" if nside is provided.
 
         """
-        if beam_type not in ["efield", "power"]:
-            raise ValueError("Beam type must be 'efield' or 'power'")
+        allowed_beam_types = ["efield", "power", "feed_iresponse", "feed_projection"]
+        if beam_type not in allowed_beam_types:
+            raise ValueError(f"Beam type must be one of {allowed_beam_types}")
 
-        if beam_type == "efield":
-            polarization_array = None
-        else:
+        if beam_type == "power":
             polarization_array = self.polarization_array
+        else:
+            polarization_array = None
 
         mount_type = self.mount_type if hasattr(self, "mount_type") else None
 
@@ -584,6 +703,7 @@ class AnalyticBeam:
 
         uvb = UVBeam.new(
             telescope_name="Analytic Beam",
+            beam_type=beam_type,
             data_normalization="physical",
             feed_name=self.__repr__(),
             feed_version="1.0",
@@ -623,10 +743,7 @@ class AnalyticBeam:
             az_array = az_array.flatten()
             za_array = za_array.flatten()
 
-        if beam_type == "efield":
-            eval_function = "efield_eval"
-        else:
-            eval_function = "power_eval"
+        eval_function = f"{beam_type}_eval"
 
         data_array = getattr(self, eval_function)(
             az_array=az_array, za_array=za_array, freq_array=freq_array
@@ -643,7 +760,9 @@ class AnalyticBeam:
     def plot(
         self,
         *,
-        beam_type: str,
+        beam_type: Literal[
+            "efield", "power", "feed_iresponse", "feed_projection"
+        ] = "efield",
         freq: float,
         complex_type: str = "real",
         colormap: str | None = None,
@@ -661,6 +780,8 @@ class AnalyticBeam:
 
         Parameters
         ----------
+        beam_type : str
+            Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
         freq : int
             The frequency index to plot.
         complex_type : str
@@ -1232,10 +1353,13 @@ class ShortDipoleBeam(AnalyticBeam):
 
         # The first dimension is for [azimuth, zenith angle] in that order
         # the second dimension is for feed [e, n] in that order
-        data_array[0, self.east_ind] = -np.sin(az_grid)
-        data_array[0, self.north_ind] = np.cos(az_grid)
-        data_array[1, self.east_ind] = np.cos(za_grid) * np.cos(az_grid)
-        data_array[1, self.north_ind] = np.cos(za_grid) * np.sin(az_grid)
+        cos_za = np.cos(za_grid)
+        sin_az = np.sin(az_grid)
+        cos_az = np.cos(az_grid)
+        data_array[0, self.east_ind] = -sin_az
+        data_array[0, self.north_ind] = cos_az
+        data_array[1, self.east_ind] = cos_za * cos_az
+        data_array[1, self.north_ind] = cos_za * sin_az
 
         return data_array
 
@@ -1247,12 +1371,13 @@ class ShortDipoleBeam(AnalyticBeam):
 
         # these are just the sum in quadrature of the efield components.
         # some trig work is done to reduce the number of cos/sin evaluations
-        data_array[0, 0] = 1 - (np.sin(za_grid) * np.cos(az_grid)) ** 2
-        data_array[0, 1] = 1 - (np.sin(za_grid) * np.sin(az_grid)) ** 2
+        sin_za = np.sin(za_grid)
+        data_array[0, 0] = 1 - (sin_za * np.cos(az_grid)) ** 2
+        data_array[0, 1] = 1 - (sin_za * np.sin(az_grid)) ** 2
 
         if self.Npols > self.Nfeeds:
             # cross pols are included
-            data_array[0, 2] = -(np.sin(za_grid) ** 2) * np.sin(2.0 * az_grid) / 2.0
+            data_array[0, 2] = -(sin_za**2) * np.sin(2.0 * az_grid) / 2.0
             data_array[0, 3] = data_array[0, 2]
 
         return data_array

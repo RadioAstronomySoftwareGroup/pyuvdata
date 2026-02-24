@@ -24,6 +24,7 @@ def new_uvbeam(
     feed_version: str = "0.0",
     model_name: str = "default",
     model_version: str = "0.0",
+    beam_type: Literal["efield", "power", "feed_iresponse", "feed_projection"] = None,
     feed_array: StrArray | None = None,
     feed_angle: FloatArray | None = None,
     mount_type: str | None = "fixed",
@@ -78,6 +79,9 @@ def new_uvbeam(
         Name of the beam model.
     model_version: str
         Version of the beam model.
+    beam_type : str
+        Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
+        Defaults to "power" if polarization_array is provided and "efield" otherwise.
     feed_array : ndarray of str
         Array of feed orientations. Options are: n/e or x/y or r/l.
     feed_angle : ndarray of float
@@ -177,11 +181,13 @@ def new_uvbeam(
 
     uvb = UVBeam()
 
-    if polarization_array is None:
-        uvb.beam_type = "efield"
-        uvb._set_efield()
-    else:
-        uvb.beam_type = "power"
+    if beam_type is None:
+        if polarization_array is None:
+            beam_type = "efield"
+        else:
+            beam_type = "power"
+
+    if beam_type == "power":
         polarization_array = np.asarray(polarization_array)
         if polarization_array.dtype.kind != "i":
             polarization_array = np.asarray(utils.polstr2num(polarization_array))
@@ -189,6 +195,9 @@ def new_uvbeam(
 
         uvb.Npols = uvb.polarization_array.size
         uvb._set_power()
+    else:
+        set_function = f"_set_{beam_type}"
+        getattr(uvb, set_function)()
 
     if feed_array is not None:
         uvb.feed_array = np.asarray(feed_array)
@@ -259,7 +268,7 @@ def new_uvbeam(
             "Either nside or both axis1_array and axis2_array must be provided."
         )
 
-    if uvb.beam_type == "power":
+    if uvb.beam_type in ["power", "feed_iresponse"]:
         uvb.Naxes_vec = 1
 
     uvb._set_cs_params()
@@ -296,7 +305,7 @@ def new_uvbeam(
                 f"expected shape {bv_shape}."
             )
         uvb.basis_vector_array = basis_vector_array
-    elif uvb.beam_type == "efield":
+    elif uvb.beam_type in ["efield", "feed_projection"]:
         if uvb.pixel_coordinate_system == "healpix":
             basis_vector_array = np.zeros(
                 (uvb.Naxes_vec, uvb.Ncomponents_vec, uvb.Npixels), dtype=float
@@ -384,15 +393,15 @@ def new_uvbeam(
         uvb._set_simple()
 
     # Set data parameters
-    if uvb.beam_type == "efield":
-        data_type = complex
-        polax = uvb.Nfeeds
-    else:
+    if uvb.beam_type == "power":
         data_type = float
         for pol in uvb.polarization_array:
             if pol in [-3, -4, -7, -8]:
                 data_type = complex
         polax = uvb.Npols
+    else:
+        data_type = complex
+        polax = uvb.Nfeeds
 
     if uvb.pixel_coordinate_system == "healpix":
         pixax = (uvb.Npixels,)

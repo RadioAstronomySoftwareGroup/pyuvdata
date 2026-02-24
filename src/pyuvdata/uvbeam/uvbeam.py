@@ -230,18 +230,17 @@ class UVBeam(UVBase):
             description=desc,
             form="str",
             expected_type=str,
-            acceptable_vals=["efield", "power"],
+            acceptable_vals=["efield", "power", "feed_iresponse", "feed_projection"],
         )
 
         desc = (
             "Beam basis vector components, essentially the mapping between the "
             "directions that the electrical field values are recorded in to the "
             "directions aligned with the pixel coordinate system (or azimuth/zenith "
-            "angle for HEALPix beams)."
-            'Not required if beam_type is "power". The shape depends on the '
-            'pixel_coordinate_system, if it is "healpix", the shape is: '
-            "(Naxes_vec, Ncomponents_vec, Npixels), otherwise it is "
-            "(Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
+            "angle for HEALPix beams). Not required if Naxes_vec is 1 (typically "
+            "true of power beams). The shape depends on the pixel_coordinate_system,"
+            "if it is 'healpix', the shape is: (Naxes_vec, Ncomponents_vec, Npixels), "
+            "otherwise it is (Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
         )
         self._basis_vector_array = uvp.UVParameter(
             "basis_vector_array",
@@ -818,12 +817,18 @@ class UVBeam(UVBase):
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
-    def _set_power(self):
+    def _set_power(self, keep_basis_vector=False):
         """Set beam_type to 'power' and adjust required parameters."""
         self.beam_type = "power"
-        self._Naxes_vec.acceptable_vals = [1, 2, 3]
-        self._basis_vector_array.required = False
-        self._Ncomponents_vec.required = False
+        if keep_basis_vector:
+            self._Naxes_vec.acceptable_vals = [2, 3]
+            self._basis_vector_array.required = True
+            self._Ncomponents_vec.required = True
+        else:
+            # this is the typical case
+            self._Naxes_vec.acceptable_vals = [1]
+            self._basis_vector_array.required = False
+            self._Ncomponents_vec.required = False
         self._Npols.required = True
         self._polarization_array.required = True
 
@@ -833,6 +838,28 @@ class UVBeam(UVBase):
             if pol in [-3, -4, -7, -8]:
                 self._data_array.expected_type = uvp._get_generic_type(complex)
 
+        # call set_cs_params to fix data_array form
+        self._set_cs_params()
+
+    def _set_feed_iresponse(self):
+        self.beam_type = "feed_iresponse"
+        self._Naxes_vec.acceptable_vals = [1]
+        self._basis_vector_array.required = False
+        self._Ncomponents_vec.required = False
+        self._Npols.required = False
+        self._polarization_array.required = False
+        self._data_array.expected_type = uvp._get_generic_type(complex)
+        # call set_cs_params to fix data_array form
+        self._set_cs_params()
+
+    def _set_feed_projection(self):
+        self.beam_type = "feed_projection"
+        self._Naxes_vec.acceptable_vals = [2, 3]
+        self._Ncomponents_vec.required = True
+        self._basis_vector_array.required = True
+        self._Npols.required = False
+        self._polarization_array.required = False
+        self._data_array.expected_type = uvp._get_generic_type(complex)
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
@@ -971,7 +998,11 @@ class UVBeam(UVBase):
         if self.beam_type == "efield":
             self._set_efield()
         elif self.beam_type == "power":
-            self._set_power()
+            if self.Naxes_vec > 1:
+                keep_basis_vector = True
+            else:
+                keep_basis_vector = False
+            self._set_power(keep_basis_vector=keep_basis_vector)
 
         if self.antenna_type == "simple":
             self._set_simple()
@@ -1059,6 +1090,12 @@ class UVBeam(UVBase):
         check_extra : bool
             Option to check optional parameters as well as required ones.
 
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the power beam object. If inplace is
+            True, returns None.
+
         """
         # Do a quick compatibility check w/ the old feed types.
         self._fix_feeds()
@@ -1096,7 +1133,7 @@ class UVBeam(UVBase):
             beam_object.Naxes_vec = 1
 
         # adjust requirements, fix data_array form
-        beam_object._set_power()
+        beam_object._set_power(keep_basis_vector=keep_basis_vector)
         power_data = np.zeros(
             beam_object._data_array.expected_shape(beam_object), dtype=np.complex128
         )
@@ -1280,6 +1317,12 @@ class UVBeam(UVBase):
         check_extra : bool
             Option to check optional parameters as well as required ones.
 
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the pstokes beam object. If inplace is
+            True, returns None.
+
         """
         # Do a quick compatibility check w/ the old feed types.
         self._fix_feeds()
@@ -1348,7 +1391,7 @@ class UVBeam(UVBase):
             ]
         )
         beam_object.Naxes_vec = 1
-        beam_object._set_power()
+        beam_object._set_power(keep_basis_vector=False)
 
         history_update_string = (
             " Converted from efield to pseudo-stokes power using pyuvdata."
@@ -1364,6 +1407,256 @@ class UVBeam(UVBase):
             )
         if not inplace:
             return beam_object
+
+    def efield_to_feed_iresponse(
+        self,
+        *,
+        inplace=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Convert E-field beam feed I response.
+
+        The feed I response is the the complex response of each instrumental
+        feed to unpolarized emission (so it only has an feed index, no vector
+        component axis). The phase is related to time delays which can vary
+        spatially but do not differ between incident polarizations (so are
+        unpolarized).
+
+        Parameters
+        ----------
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the feed I response beam object. If
+            inplace is True, returns None.
+
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = self.copy()
+
+        if beam_object.beam_type != "efield":
+            raise ValueError("beam_type must be efield.")
+
+        if beam_object.pixel_coordinate_system != "az_za":
+            raise ValueError("pixel_coordinate_system must be az_za.")
+
+        beam_object._set_feed_iresponse()
+        # feed I response (also called F) is composed of two parts: the magnitude
+        # part and the complex phase part which is from time delays.
+        # The magnitude is the sqrt of the sum of the squares of the response to
+        # the two vector orientations (azimuthally aligned & zenith angle aligned)
+        f_mag = np.sqrt(np.sum(np.abs(beam_object.data_array) ** 2, axis=0))
+
+        # to calculate the complex delay part we first need to account for phase
+        # jumps that are just due to the coordinate system. Because vector fields
+        # in a sphere have poles in any coordinate system, this flip has to be
+        # accounted for in any coordinate system.
+
+        # we can use the set of points at zenith (with different azimuth values)
+        # to identify where these phase flips happen.
+        zenith_ind = np.nonzero(
+            beam_object.axis2_array == beam_object.axis2_array.min()
+        )
+
+        flip_array = np.copy(beam_object.data_array)
+        for va_i in range(beam_object.Naxes_vec):
+            for f_i in range(beam_object.Nfeeds):
+                az_angles = np.angle(np.squeeze(flip_array[va_i, f_i, :, zenith_ind]))
+                az_angles = az_angles.reshape((beam_object.Nfreqs, beam_object.Naxes1))
+                az_angles[az_angles < 0] += 2 * np.pi
+                az_angle_diff = abs(az_angles - np.unwrap(az_angles, period=np.pi))
+                az_flip = np.logical_and(az_angle_diff > 1, az_angle_diff < 4)
+                # az_flip is shape (Nfreqs, Naxis1), need to reorder to get
+                # those axes adjacent
+                flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
+                flip_array[va_i, f_i, az_flip] *= -1
+                # now switch back
+                flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
+                # check if zenith response is mostly negative now, if so make it
+                # positive
+                # use mean instead of max because can occasionally get max
+                # values just above zero
+                # this is frequency dependent because the earlier flips are
+                # frequency dependent so keep the freq axis
+                mean_zen_val = np.mean(
+                    np.squeeze(flip_array[va_i, f_i, :, zenith_ind].real), axis=-1
+                )
+                flip_array[va_i, f_i, mean_zen_val < 0] *= -1
+
+        # to compute the time delay, first sum the flipped array across the vector
+        # direction axis -- this gives us what is common to each instrumental
+        # pol across incident polarizations. Then normalize by the abs to remove
+        # the magnitude which we have accounted for in f_mag.
+        f_delay = np.sum(flip_array, axis=0)
+        f_delay = f_delay / np.abs(f_delay)
+
+        beam_object.data_array = f_mag * f_delay
+        beam_object.data_array = beam_object.data_array[np.newaxis]
+
+        beam_object.Naxes_vec = 1
+        history_update_string = (
+            " Converted from efield to feed I response using pyuvdata."
+        )
+        beam_object.history = beam_object.history + history_update_string
+        beam_object.basis_vector_array = None
+        beam_object.Ncomponents_vec = None
+
+        if run_check:
+            beam_object.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+        if not inplace:
+            return beam_object
+
+    def efield_to_feed_projection(
+        self,
+        *,
+        inplace=True,
+        return_feed_iresponse=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Convert E-field beam feed projection.
+
+        The feed projection is the projection from celestial polarization
+        vector components (orthogonal on the sky) to instrumental feed vector
+        components (often non-orthogonal on the sky). This is similar to a
+        rotation matrix in that it just converts between coordinate systems
+        (the magnitude of the response is removed), but is not unitary because
+        the projection of the feeds are not orthogonal in all directions on the sky.
+
+        Parameters
+        ----------
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        return_feed_iresponse : bool
+            Option to return the feed I response, which is necessarily calculated.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the feed I response beam object. If
+            inplace is True, returns None.
+
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = self.copy()
+
+        if beam_object.beam_type != "efield":
+            raise ValueError("beam_type must be efield.")
+
+        if beam_object.pixel_coordinate_system != "az_za":
+            raise ValueError("pixel_coordinate_system must be az_za.")
+
+        # first get the feed I response, then divide it out to get the feed
+        # projection
+        feed_resp = beam_object.efield_to_feed_iresponse(
+            inplace=False,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+
+        beam_object._set_feed_projection()
+
+        for va_i in range(beam_object.Naxes_vec):
+            for f_i in range(beam_object.Nfeeds):
+                beam_object.data_array[va_i, f_i] /= feed_resp.data_array[0, f_i]
+
+        history_update_string = (
+            " Converted from efield to feed projection using pyuvdata."
+        )
+        beam_object.history = beam_object.history + history_update_string
+
+        if run_check:
+            beam_object.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        if return_feed_iresponse:
+            if inplace:
+                return feed_resp
+            else:
+                return beam_object, feed_resp
+        elif not inplace:
+            return beam_object
+
+    def decompose_feed_iresponse_projection(
+        self, run_check=True, check_extra=True, run_check_acceptability=True
+    ):
+        """
+        Decompose an E-field beam into I response and feed projection objects.
+
+        The feed I response is the the complex response of each instrumental
+        feed to unpolarized emission (so it only has an feed index, no vector
+        component axis). The phase is related to time delays which can vary
+        spatially but do not differ between incident polarizations (so are
+        unpolarized).
+
+        The feed projection is the projection from celestial polarization
+        vector components (orthogonal on the sky) to instrumental feed vector
+        components (often non-orthogonal on the sky). This is similar to a
+        rotation matrix in that it just converts between coordinate systems
+        (the magnitude of the response is removed), but is not unitary because
+        the projection of the feeds are not orthogonal in all directions on the sky.
+
+        Parameters
+        ----------
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam
+            feed_iresponse object.
+        UVBeam
+            feed_projection object.
+
+        """
+        fproj, firesp = self.efield_to_feed_projection(
+            inplace=False,
+            return_feed_iresponse=True,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+        return firesp, fproj
 
     def _interp_freq(self, freq_array, *, kind="linear", tol=1.0):
         """
