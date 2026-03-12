@@ -1505,7 +1505,9 @@ class UVBeam(UVBase):
         # pol across incident polarizations. Then normalize by the abs to remove
         # the magnitude which we have accounted for in f_mag.
         f_delay = np.sum(flip_array, axis=0)
-        f_delay = f_delay / np.abs(f_delay)
+        # take care not to divide by zero (generates NaNs)
+        wh_nonzero = np.nonzero(np.abs(f_delay) > 0)
+        f_delay[wh_nonzero] = f_delay[wh_nonzero] / np.abs(f_delay[wh_nonzero])
 
         beam_object.data_array = f_mag * f_delay
         beam_object.data_array = beam_object.data_array[np.newaxis]
@@ -1591,7 +1593,11 @@ class UVBeam(UVBase):
 
         for va_i in range(beam_object.Naxes_vec):
             for f_i in range(beam_object.Nfeeds):
-                beam_object.data_array[va_i, f_i] /= feed_resp.data_array[0, f_i]
+                # take care not to divide by zero (generates NaNs)
+                wh_nonzero = np.nonzero(np.abs(feed_resp.data_array[0, f_i]) > 0)
+                beam_object.data_array[va_i, f_i, *wh_nonzero] /= feed_resp.data_array[
+                    0, f_i, *wh_nonzero
+                ]
 
         history_update_string = (
             " Converted from efield to feed projection using pyuvdata."
