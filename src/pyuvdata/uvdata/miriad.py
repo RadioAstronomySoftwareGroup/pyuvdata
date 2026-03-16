@@ -424,11 +424,11 @@ class Miriad(UVData):
             # use the non-zero ones to evaluate position information
             antpos_length = np.sqrt(np.sum(np.abs(antpos) ** 2, axis=1))
             good_antpos = np.where(antpos_length > 0)[0]
-            mean_antpos_length = np.mean(antpos_length[good_antpos])
-            if mean_antpos_length > 6.35e6 and mean_antpos_length < 6.39e6:
-                absolute_positions = True
-            else:
-                absolute_positions = False
+            absolute_positions = False
+            if any(good_antpos):
+                mean_antpos_length = np.mean(antpos_length[good_antpos])
+                if mean_antpos_length > 6.35e6 and mean_antpos_length < 6.39e6:
+                    absolute_positions = True
 
             # Miriad stores antpos values in a rotated ECEF coordinate system
             # where the x-axis goes through the local meridan. Need to convert
