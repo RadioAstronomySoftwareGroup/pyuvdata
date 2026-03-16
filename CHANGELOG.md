@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Support for MWA Average Embedded Element beams in UVBeam.
 
+### Fixed
+- A bug where `UVData.scan_number_array` was not properly updated when objects
+were added or concatenated. The fix for was a major refactoring that should prevent
+similar bugs in the future by using UVParameter forms to detect which attributes
+to update on UVData objects.
+
 ## [3.2.6] - 2025-03-13
 
 ### Added
