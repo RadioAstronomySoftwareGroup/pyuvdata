@@ -289,7 +289,9 @@ class MS(UVData):
         # TODO: If/when UVData objects can store visibility noise estimates, update
         # the code below to capture those.
         ms.putcol("WEIGHT", temp_weights)
-        ms.putcol("SIGMA", np.power(temp_weights, -0.5, where=temp_weights != 0))
+        ms.putcol(
+            "SIGMA", np.power(temp_weights, -0.5, where=(temp_weights != 0), out=None)
+        )
 
         ms.putcol("ANTENNA1", ant_1_array)
         ms.putcol("ANTENNA2", ant_2_array)

@@ -50,7 +50,7 @@ def mean_collapse(
         weights_square_out = np.sum(weights_square, axis=axis)
     out = np.sum(weights * arr, axis=axis)
     where = weight_out > 1e-10
-    out = np.true_divide(out, weight_out, where=where)
+    out = np.true_divide(out, weight_out, where=where, out=None)
     out = np.where(where, out, np.inf)
     if return_weights and return_weights_square:
         return out, weight_out, weights_square_out
