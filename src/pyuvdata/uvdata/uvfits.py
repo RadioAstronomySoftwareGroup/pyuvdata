@@ -674,7 +674,7 @@ class UVFITS(UVData):
                 # the array center, but in a rotated ECEF frame so that the x-axis
                 # goes through the local meridian.
                 rot_ecef_positions = ant_hdu.data.field("STABXYZ")
-                _, longitude, altitude = utils.LatLonAlt_from_XYZ(
+                _, longitude, _ = utils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
                     frame=telescope_frame,
                     ellipsoid=ellipsoid,
