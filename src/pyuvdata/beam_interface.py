@@ -38,7 +38,7 @@ class BeamInterface:
         Beam object to use for computations. If a BeamInterface is passed, a new
         view of the same object is created.
     beam_type : str
-        The beam type, either "efield" or "power".
+        The beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne).
         Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
@@ -48,7 +48,9 @@ class BeamInterface:
     """
 
     beam: AnalyticBeam | UVBeam
-    beam_type: Literal["efield", "power"] | None = None
+    beam_type: (
+        Literal["efield", "power", "feed_iresponse", "feed_projection"] | None
+    ) = None
     include_cross_pols: InitVar[bool] = True
 
     def __post_init__(self, include_cross_pols: bool):
@@ -77,17 +79,26 @@ class BeamInterface:
         if isinstance(self.beam, UVBeam):
             if self.beam_type is None or self.beam_type == self.beam.beam_type:
                 self.beam_type = self.beam.beam_type
-            elif self.beam_type == "power":
+            elif self.beam.beam_type == "efield":
+                conv_func = {
+                    "power": "efield_to_power",
+                    "feed_iresponse": "efield_to_feed_iresponse",
+                    "feed_projection": "efield_to_feed_projection",
+                }
                 warnings.warn(
                     "Input beam is an efield UVBeam but beam_type is specified as "
-                    "'power'. Converting efield beam to power."
+                    f"{self.beam_type}. Converting efield beam to {self.beam_type}."
                 )
-                self.beam.efield_to_power(calc_cross_pols=include_cross_pols)
+                kwargs = {}
+                if self.beam_type == "power":
+                    kwargs["calc_cross_pols"] = include_cross_pols
+                getattr(self.beam, conv_func[self.beam_type])(**kwargs)
             else:
                 raise ValueError(
-                    "Input beam is a power UVBeam but beam_type is specified as "
-                    "'efield'. It's not possible to convert a power beam to an "
-                    "efield beam, either provide an efield UVBeam or do not "
+                    f"Input beam is a {self.beam.beam_type} UVBeam but beam_type "
+                    f"is specified as {self.beam_type}. It's not possible to "
+                    f"convert a {self.beam.beam_type} beam to {self.beam_type}, "
+                    f"either provide a UVBeam with a compatible type or do not "
                     "specify `beam_type`."
                 )
         elif self.beam_type is None:
@@ -317,13 +328,10 @@ class BeamInterface:
                 az_array_use = copy.copy(az_array)
                 za_array_use = copy.copy(za_array)
 
-            if self.beam_type == "efield":
-                interp_data = self.beam.efield_eval(
-                    az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
-                )
-            else:
-                interp_data = self.beam.power_eval(
-                    az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
-                )
+            eval_function = f"{self.beam_type}_eval"
+
+            interp_data = getattr(self.beam, eval_function)(
+                az_array=az_array_use, za_array=za_array_use, freq_array=freq_array
+            )
 
         return interp_data
