@@ -398,3 +398,41 @@ def test_ms_dterm_warning(sma_pcal, tmp_path):
         match="CASA MSCal tables store cross-handed Jones terms as leakages ",
     ):
         sma_pcal.write_ms_cal(testfile, clobber=True)
+
+
+def test_ms_close_spaced_times(tmp_path):
+
+    uvobj = UVCal()
+    testfile = fetch_data("sma_pha_gcal")
+    with check_warnings(UserWarning, match=sma_warnings):
+        uvobj.read(testfile)
+
+    use_times = np.array(
+        [
+            np.float64(5274914431.899564),
+            np.float64(5274914431.880366),
+            np.float64(5274914431.878805),
+            np.float64(5274914431.883291),
+            np.float64(5274914431.885088),
+            np.float64(5274914431.883654),
+            np.float64(5274914431.882857),
+            np.float64(5274914431.880334),
+            np.float64(5274914431.880322),
+            np.float64(5274914431.883885),
+            np.float64(5274914431.8886795),
+            np.float64(5274914431.876619),
+            np.float64(5274914431.883705),
+            np.float64(5274914431.886172),
+            np.float64(5274914431.880832),
+            np.float64(5274914431.881411),
+        ]
+    )
+    use_times = (use_times / 86400.0) + 2400000.5  # Convert to jd
+    uvobj.time_array[: len(use_times)] = use_times
+    uvobj.set_lsts_from_time_array()
+    uvobj.select(times=use_times, inplace=True)
+
+    testfile_newtimes = os.path.join(tmp_path, "close_spaced_times.ms")
+    uvobj.write_ms_cal(testfile_newtimes, clobber=True)
+    uvobj_new = UVCal()
+    uvobj_new.read(testfile_newtimes)
