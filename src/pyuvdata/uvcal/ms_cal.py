@@ -281,7 +281,9 @@ class MSCal(UVCal):
                 )
                 if any(close_check):
                     # Fill in the first closest entry matched
-                    time_dict[time] = np.where(close_check)[0][0]
+                    time_dict[time] = time_dict[
+                        list(time_dict)[np.where(close_check)[0][0]]
+                    ]
                 else:
                     # Otherwise, plug in a new entry
                     time_dict[time] = time_count
