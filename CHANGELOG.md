@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Added improved handling of a few warning messages from h5py and numpy.
 
+### Fixed
+- Significant reduction in memory when reading UVFITS files, particularly when
+reading the entire file (no selection on read).
+
 ## [3.2.5] - 2025-12-11
 
 ### Changed
