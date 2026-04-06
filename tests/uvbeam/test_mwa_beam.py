@@ -1,5 +1,6 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+import copy
 
 import numpy as np
 import pytest
@@ -10,27 +11,52 @@ from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 
 
-def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
-    """Basic read/write test."""
-    beam1 = mwa_beam_1ppd
-    beam2 = UVBeam()
+@pytest.fixture()
+def mwabeam_kwargs(mwa_aee_files):
+    return {"fee": {"pixels_per_deg": 1}, "aee": {"zfile": mwa_aee_files["zfile"]}}
 
-    beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1)
-    assert beam1.filename == ["mwa_full_EE_test.h5"]
+
+@pytest.fixture()
+def uvbeam_kwargs(mwabeam_kwargs):
+    uvbeam_kwargs = copy.deepcopy(mwabeam_kwargs)
+    uvbeam_kwargs["aee"]["mwa_zfile"] = uvbeam_kwargs["aee"].pop("zfile")
+    return uvbeam_kwargs
+
+
+@pytest.fixture()
+def beam_filenames(mwa_aee_files):
+    return {"fee": fetch_data("mwa_full_EE"), "aee": mwa_aee_files["jfile"]}
+
+
+@pytest.mark.parametrize("model", ["fee", "aee"])
+def test_read_write_mwa(beam_filenames, mwabeam_kwargs, model, tmp_path):
+    """Basic read/write test."""
+
+    filename = beam_filenames[model]
+    kwargs = mwabeam_kwargs[model]
+
+    beam1 = UVBeam()
+    beam2 = UVBeam()
+    beam1.read_mwa_beam(filename, **kwargs)
+
+    if model == "fee":
+        assert beam1.filename == ["mwa_full_EE_test.h5"]
+        assert beam1.data_array.shape == (2, 2, 3, 91, 360)
+        # this is entirely empirical, just to prevent unexpected changes.
+        # The actual values have been validated through external tests against
+        # the mwa_pb repo.
+        assert np.isclose(
+            np.max(np.abs(beam1.data_array)),
+            0.6823676193472403,
+            rtol=beam1._data_array.tols[0],
+            atol=beam1._data_array.tols[1],
+        )
+    else:
+        assert beam1.filename == ["JMatrix_3freq.fits", "ZMatrix_3freq.fits"]
+        assert beam1.data_array.shape == (2, 2, 3, 31, 121)
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "efield"
-    assert beam1.data_array.shape == (2, 2, 3, 91, 360)
-
-    # this is entirely empirical, just to prevent unexpected changes.
-    # The actual values have been validated through external tests against
-    # the mwa_pb repo.
-    assert np.isclose(
-        np.max(np.abs(beam1.data_array)),
-        0.6823676193472403,
-        rtol=beam1._data_array.tols[0],
-        atol=beam1._data_array.tols[1],
-    )
 
     assert "x" in beam1.feed_array
     assert "y" in beam1.feed_array
@@ -45,8 +71,17 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:There are some terminated dipoles")
-def test_mwa_orientation(mwa_beam_1ppd):
-    power_beam = mwa_beam_1ppd.efield_to_power(inplace=False)
+@pytest.mark.parametrize("model", ["fee", "aee"])
+def test_mwa_orientation(mwa_fee_1ppd, mwa_aee, beam_filenames, uvbeam_kwargs, model):
+    if model == "fee":
+        ebeam = mwa_fee_1ppd
+        near_hor_za = 80
+        near_zen_za = 2
+    else:
+        ebeam = mwa_aee
+        near_hor_za = 81
+        near_zen_za = 3
+    power_beam = ebeam.efield_to_power(inplace=False)
 
     za_val = np.nonzero(np.isclose(power_beam.axis2_array, 15.0 * np.pi / 180))
 
@@ -58,13 +93,13 @@ def test_mwa_orientation(mwa_beam_1ppd):
         == utils.polstr2num(
             "ee", x_orientation=power_beam.get_x_orientation_from_feeds()
         )
-    )
+    )[0]
     north_ind = np.nonzero(
         power_beam.polarization_array
         == utils.polstr2num(
             "nn", x_orientation=power_beam.get_x_orientation_from_feeds()
         )
-    )
+    )[0]
 
     # check that the e/w dipole is more sensitive n/s
     assert (
@@ -85,11 +120,13 @@ def test_mwa_orientation(mwa_beam_1ppd):
     # single dipole
     delays = np.full((2, 16), 32, dtype=int)
     delays[:, 5] = 0
-    efield_beam = UVBeam.from_file(
-        fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays
-    )
 
-    za_val = np.nonzero(np.isclose(efield_beam.axis2_array, 80.0 * np.pi / 180))
+    filename = beam_filenames[model]
+    kwargs = uvbeam_kwargs[model]
+    kwargs["delays"] = delays
+    efield_beam = UVBeam.from_file(filename, **kwargs)
+
+    za_val = np.nonzero(np.isclose(efield_beam.axis2_array, near_hor_za * np.pi / 180))
 
     max_az_response = np.max(np.abs(efield_beam.data_array[0, east_ind, 0, za_val, :]))
     max_za_response = np.max(np.abs(efield_beam.data_array[1, east_ind, 0, za_val, :]))
@@ -99,9 +136,10 @@ def test_mwa_orientation(mwa_beam_1ppd):
     max_za_response = np.max(np.abs(efield_beam.data_array[1, north_ind, 0, za_val, :]))
     assert max_az_response > max_za_response
 
+    # go back to zenith pointed full tile beam
     # check the sign of the responses are as expected close to zenith
-    efield_beam = mwa_beam_1ppd
-    za_val = np.nonzero(np.isclose(power_beam.axis2_array, 2.0 * np.pi / 180))
+    efield_beam = ebeam
+    za_val = np.nonzero(np.isclose(power_beam.axis2_array, near_zen_za * np.pi / 180))
 
     # first check zenith angle aligned response
     assert efield_beam.data_array[1, east_ind, 0, za_val, east_az] > 0
@@ -127,7 +165,10 @@ def test_mwa_orientation(mwa_beam_1ppd):
         ),
     ],
 )
-def test_mwa_pointing(delay_set, az_val, za_range):
+@pytest.mark.parametrize("model", ["fee", "aee"])
+def test_mwa_pointing(
+    delay_set, az_val, za_range, beam_filenames, uvbeam_kwargs, model
+):
     # Test that pointing the beam moves the peak in the right direction.
 
     delays = np.empty((2, 16), dtype=int)
@@ -135,9 +176,10 @@ def test_mwa_pointing(delay_set, az_val, za_range):
     for pol in range(2):
         delays[pol] = delay_set
 
-    mwa_beam = UVBeam.from_file(
-        fetch_data("mwa_full_EE"), pixels_per_deg=1, beam_type="efield", delays=delays
-    )
+    filename = beam_filenames[model]
+    kwargs = uvbeam_kwargs[model]
+    kwargs["delays"] = delays
+    mwa_beam = UVBeam.from_file(filename, **kwargs)
     mwa_beam.efield_to_power(calc_cross_pols=False)
 
     # set up zenith angle, azimuth and frequency arrays to evaluate with
@@ -189,8 +231,8 @@ def test_mwa_pointing(delay_set, az_val, za_range):
     assert np.rad2deg(za_array[max_nn_loc]) < za_range[1]
 
 
-def test_freq_range(mwa_beam_1ppd):
-    beam1 = mwa_beam_1ppd
+def test_freq_range(mwa_fee_1ppd):
+    beam1 = mwa_fee_1ppd
     beam2 = UVBeam()
 
     # include all

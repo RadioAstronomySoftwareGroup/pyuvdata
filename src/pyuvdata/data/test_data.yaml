@@ -43,6 +43,8 @@ mwa_cotter_phase_test2: visibility_data/MWA/1133866760_rephase.uvfits
 mwa_fhd: visibility_data/MWA/fhd_vis_data.tar.gz
 mwa_fhd_cal: calibration_solutions/MWA/fhd_cal_data.tar.gz
 mwa_full_EE: primary_beams/MWA/mwa_full_EE_test.h5
+mwa_jmatrix: primary_beams/MWA/JMatrix_3freq.fits
+mwa_zmatrix: primary_beams/MWA/ZMatrix_3freq.fits
 mwax_2021_metafits: visibility_data/MWA/mwa_corr_fits_testfiles/1320409688.metafits
 mwax_2021_raw_gpubox: visibility_data/MWA/mwa_corr_fits_testfiles/1320409688_20211108122750_mini_ch137_000.fits
 ovro_lwa: visibility_data/LWA/2018-03-21-01_26_33_0004384620257280_000000_downselected.ms.tar.gz
