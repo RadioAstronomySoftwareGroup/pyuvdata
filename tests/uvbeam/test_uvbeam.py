@@ -3026,17 +3026,22 @@ def test_generic_read_cst():
 @pytest.mark.filterwarnings("ignore:This beamfits file has no information about")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.parametrize(
-    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
+    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "mwa_AEE", "hera_casa_beam"]
 )
-def test_generic_read(dname):
+def test_generic_read(mwa_aee_files, dname):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
     # going to check in a second anyway, no need to double check.
-    filename = fetch_data(dname)
+    if dname == "mwa_AEE":
+        filename = mwa_aee_files["jfile"]
+        zfile = mwa_aee_files["zfile"]
+    else:
+        filename = fetch_data(dname)
+        zfile = None
     if "yaml" in dname:
         # make sure the datafiles are cached
         fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
-    uvb.read(filename, mount_type="fixed", run_check=False)
+    uvb.read(filename, mount_type="fixed", mwa_zfile=zfile, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if dname == "hera_casa_beam":
@@ -3151,18 +3156,25 @@ def test_generic_read_all_bad_files(tmp_path):
 @pytest.mark.filterwarnings("ignore:This beamfits file has no information about")
 @pytest.mark.filterwarnings("ignore:The mount_type keyword is set")
 @pytest.mark.parametrize(
-    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "hera_casa_beam"]
+    "dname", ["hera_fagnoni_dipole_yaml", "mwa_full_EE", "mwa_AEE", "hera_casa_beam"]
 )
-def test_from_file(dname):
+def test_from_file(mwa_aee_files, dname):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()
     # don't run checks because of casa_beamfits, we'll do that later
-    filename = fetch_data(dname)
+    if dname == "mwa_AEE":
+        filename = mwa_aee_files["jfile"]
+        zfile = mwa_aee_files["zfile"]
+    else:
+        filename = fetch_data(dname)
+        zfile = None
     if "yaml" in dname:
         # make sure the datafiles are cached
         fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
-    uvb2 = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
-    uvb.read(filename, mount_type="fixed", run_check=False)
+    uvb2 = UVBeam.from_file(
+        filename, mount_type="fixed", mwa_zfile=zfile, run_check=False
+    )
+    uvb.read(filename, mount_type="fixed", mwa_zfile=zfile, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if dname == "hera_casa_beam":
@@ -3192,11 +3204,19 @@ def test_from_file(dname):
     [
         ["hera_fagnoni_dipole_yaml", True, False, True],
         ["mwa_full_EE", True, True, False],
+        ["mwa_AEE", True, True, False],
         ["hera_casa_beam", False, False, True],
     ],
 )
-def test_yaml_constructor(dname, path_var, relative_path, file_list, tmp_path):
-    filename = fetch_data(dname)
+def test_yaml_constructor(
+    mwa_aee_files, dname, path_var, relative_path, file_list, tmp_path
+):
+    if dname == "mwa_AEE":
+        filename = mwa_aee_files["jfile"]
+        zfile = mwa_aee_files["zfile"]
+    else:
+        filename = fetch_data(dname)
+        zfile = None
     if "yaml" in dname:
         # make sure the datafiles are cached
         fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
@@ -3223,11 +3243,17 @@ def test_yaml_constructor(dname, path_var, relative_path, file_list, tmp_path):
                 run_check: False
                 freq_range: [110.0e+6, 190.0e+6]
             """
+    if zfile is not None:
+        input_yaml += f"""
+                mwa_zfile: {zfile}
+        """
 
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
 
     # don't run checks because of casa_beamfits, we'll do that later
-    uvb = UVBeam.from_file(filename, mount_type="fixed", run_check=False)
+    uvb = UVBeam.from_file(
+        filename, mount_type="fixed", mwa_zfile=zfile, run_check=False
+    )
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if dname == "hera_casa_beam":
@@ -3276,15 +3302,22 @@ def test_yaml_constructor(dname, path_var, relative_path, file_list, tmp_path):
             output_yaml = yaml.safe_dump({"beam": uvb})
 
 
-def test_yaml_constructor_for_cached_file():
+@pytest.mark.parametrize("model", ["fee", "aee"])
+def test_yaml_constructor_for_cached_file(mwa_aee_files, model):
     """test that the yaml constructor uses pyuvsim astropy cache as a fallback"""
-    # url / key to access the cached file
-    dummy_url = "file://mwa_beam_file.h5"
+    if model == "fee":
+        filename = fetch_data("mwa_full_EE")
+        # url / key to access the cached file
+        dummy_url = "file://mwa_beam_file.h5"
+    else:
+        filename = mwa_aee_files["jfile"]
+        zfile = mwa_aee_files["zfile"]
+        # url / key to access the cached file
+        dummy_url = "file://JMatrix.fits"
+        dummy_url_zfile = "file://ZMatrix.fits"
 
     # load mwa uvbeam file from the data path to the astropy cache for pyuvsim
-    import_file_to_cache(
-        dummy_url, fetch_data("mwa_full_EE"), remove_original=False, pkgname="pyuvsim"
-    )
+    import_file_to_cache(dummy_url, filename, remove_original=False, pkgname="pyuvsim")
 
     # check that file has been imported to cache
     assert is_url_in_cache(dummy_url, pkgname="pyuvsim")
@@ -3292,19 +3325,40 @@ def test_yaml_constructor_for_cached_file():
     # get full filepath for comparison
     filepath = cache_contents("pyuvsim")[dummy_url]
 
+    if model == "aee":
+        import_file_to_cache(
+            dummy_url_zfile, zfile, remove_original=False, pkgname="pyuvsim"
+        )
+        assert is_url_in_cache(dummy_url_zfile, pkgname="pyuvsim")
+        zfilepath = cache_contents("pyuvsim")[dummy_url_zfile]
+    else:
+        zfilepath = None
+
     # create yaml to safeload
-    input_yaml = f"""
-        beam: !UVBeam
-            filename: {dummy_url}
-            file_type: mwa_beam
-    """
+    if model == "fee":
+        input_yaml = f"""
+            beam: !UVBeam
+                filename: {dummy_url}
+                file_type: mwa_beam
+                mwa_model_type: {model}
+        """
+    else:
+        input_yaml = f"""
+            beam: !UVBeam
+                filename: {dummy_url}
+                file_type: mwa_beam
+                mwa_model_type: {model}
+                mwa_zfile: {dummy_url_zfile}
+        """
 
     # compare loading uvbeam directly from cache and using safe_load to confirm
     # uvbeam loads properly
     # safe_load the beam
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
     # load the beam with from_file
-    beam_from_file = UVBeam.from_file(filepath, file_type="mwa_beam")
+    beam_from_file = UVBeam.from_file(
+        filepath, file_type="mwa_beam", mwa_model_type=model, mwa_zfile=zfilepath
+    )
 
     assert beam_from_yaml == beam_from_file
 
@@ -3516,7 +3570,7 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
 def test_plotting(
     tmp_path,
     cst_efield_1freq,
-    mwa_beam_1ppd,
+    mwa_fee_1ppd,
     telescope,
     uvbfuncs,
     uvbfuncs_kwargs,
@@ -3535,7 +3589,7 @@ def test_plotting(
     if telescope == "hera":
         beam = cst_efield_1freq
     elif telescope == "mwa":
-        beam = mwa_beam_1ppd
+        beam = mwa_fee_1ppd
 
     if uvbfuncs is not None:
         if "to_healpix" in uvbfuncs:
@@ -3554,8 +3608,8 @@ def test_plotting(
     )
 
 
-def test_plotting_errors(mwa_beam_1ppd):
-    beam = mwa_beam_1ppd
+def test_plotting_errors(mwa_fee_1ppd):
+    beam = mwa_fee_1ppd
 
     if importlib.util.find_spec("matplotlib") is None:
         with pytest.raises(
