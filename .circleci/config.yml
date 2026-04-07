@@ -143,8 +143,12 @@ workflows:
           python_version: "3.13"
           env_name: "pyuvdata_tests"
       - pyuvdata:
+          name: pyuvdata_3.14
+          python_version: "3.14"
+          env_name: "pyuvdata_tests"
+      - pyuvdata:
           name: pyuvdata_min_deps
-          python_version: "3.13"
+          python_version: "3.14"
           env_name: "pyuvdata_min_deps_tests"
       - pyuvdata:
           name: pyuvdata_min_versions
