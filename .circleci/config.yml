@@ -25,19 +25,24 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
-          name: Install Micromamba
-          command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
+          name: Install Conda from Miniforge
+          command: |
+            wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+            bash Miniforge3.sh -b -p "${HOME}/conda"
+            # source "${HOME}/conda/etc/profile.d/conda.sh"
+            ${HOME}/conda/bin/conda init
       - run:
           name: configure conda environment
           command: |
-            micromamba info
             # need these to add gxx and gcc to build novas and cython
-            micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ci/${ENV_NAME}.yml -yq
+            conda create --name=${ENV_NAME} python=$PYTHON gxx gcc -yq
+            conda env update --name=${ENV_NAME} -f ci/${ENV_NAME}.yml
       - run:
-          name: Verify Mamba Config
+          name: Verify Conda Config
           command: |
             source ./ci/_activate_current_env.sh
-            micromamba list -n ${ENV_NAME}
+            conda info
+            conda list -n ${ENV_NAME}
             # check that the python version matches the desired one; exit immediately if not
             PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
             if [[ $PYVER != $PYTHON ]]; then
@@ -83,19 +88,24 @@ jobs:
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
       - run:
-          name: Install Micromamba
-          command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
+          name: Install Conda from Miniforge
+          command: |
+            wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+            bash Miniforge3.sh -b -p "${HOME}/conda"
+            # source "${HOME}/conda/etc/profile.d/conda.sh"
+            ${HOME}/conda/bin/conda init
       - run:
           name: configure conda environment
           command: |
-            micromamba info
             # need these to add gxx and gcc to build novas and cython
-            micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ci/${ENV_NAME}.yml -yq
+            conda create --name=${ENV_NAME} python=$PYTHON gxx gcc -yq
+            conda env update --name=${ENV_NAME} -f ci/${ENV_NAME}.yml
       - run:
-          name: Verify Mamba Config
+          name: Verify Conda Config
           command: |
             source ./ci/_activate_current_env.sh
-            micromamba list -n ${ENV_NAME}
+            conda info
+            conda list -n ${ENV_NAME}
             # check that the python version matches the desired one; exit immediately if not
             PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
             if [[ $PYVER != $PYTHON ]]; then
