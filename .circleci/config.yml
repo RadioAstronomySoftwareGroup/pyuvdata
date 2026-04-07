@@ -29,7 +29,6 @@ jobs:
           command: |
             wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
             bash Miniforge3.sh -b -p "${HOME}/conda"
-            # source "${HOME}/conda/etc/profile.d/conda.sh"
             ${HOME}/conda/bin/conda init
       - run:
           name: configure conda environment
@@ -40,9 +39,9 @@ jobs:
       - run:
           name: Verify Conda Config
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             conda info
-            conda list -n ${ENV_NAME}
+            conda list
             # check that the python version matches the desired one; exit immediately if not
             PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
             if [[ $PYVER != $PYTHON ]]; then
@@ -51,12 +50,12 @@ jobs:
       - run:
           name: install
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install --no-deps .
       - run:
           name: run pyuvdata tests
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             mkdir test-reports
             python -m pytest -n auto --dist=loadfile --cov=pyuvdata --cov-config=".coveragerc" --cov-report xml:"./coverage.xml" --junitxml="test-reports/xunit.xml"
       - save_cache:
@@ -102,9 +101,9 @@ jobs:
       - run:
           name: Verify Conda Config
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             conda info
-            conda list -n ${ENV_NAME}
+            conda list
             # check that the python version matches the desired one; exit immediately if not
             PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
             if [[ $PYVER != $PYTHON ]]; then
@@ -113,12 +112,12 @@ jobs:
       - run:
           name: install
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             pip install --no-deps -e .
       - run:
           name: run tutorial tests
           command: |
-            source ./ci/_activate_current_env.sh
+            conda activate ${ENV_NAME}
             cd docs
             python -m pytest -n auto --doctest-glob="*.rst" -W "error::DeprecationWarning"
             cd ..
