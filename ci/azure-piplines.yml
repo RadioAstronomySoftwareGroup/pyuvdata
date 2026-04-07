@@ -89,40 +89,48 @@ jobs:
       cd s
     displayName: clone $(NAME)
 
-  - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
-    displayName: Install Micromamba
+  - bash: |
+        wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+        bash Miniforge3.sh -b -p "${HOME}/conda"
+    displayName: Install Conda from Miniforge
 
   - bash: |
-      micromamba info
-      # need to add gxx and gcc to build novas and cython
-      # note different spelling of yaml extension
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../$(NAME)/ci/${ENV_NAME}.yaml -yq
+      # point to this conda install, not the default conda on Azure pipelines hosts
+      # need these to add gxx and gcc to build novas and cython
+      source "${HOME}/conda/etc/profile.d/conda.sh"
+      conda create --name=${ENV_NAME} python=$PYTHON gxx gcc -yq
+      conda env update --name=${ENV_NAME} -f ../$(NAME)/ci/${ENV_NAME}.yaml
     displayName: configure conda environment
 
   - bash: |
-      source ./ci/_activate_current_env.sh
-      micromamba list -n ${ENV_NAME}
+      source "${HOME}/conda/etc/profile.d/conda.sh"
+      conda activate ${ENV_NAME}
+      conda info
+      conda list
       # check that the python version matches the desired one; exit immediately if not
       PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
       if [[ $PYVER != $PYTHON ]]; then
         exit 1;
       fi
-    displayName: Verify Mamba Config
+    displayName: Verify Conda Config
 
   # install this version of pyuvdata
   - bash: |
-      source ./ci/_activate_current_env.sh
+      source "${HOME}/conda/etc/profile.d/conda.sh"
+      conda activate ${ENV_NAME}
       pip install --no-deps .
     displayName: install pyuvdata
 
   - bash: |
-      source ./ci/_activate_current_env.sh
+      source "${HOME}/conda/etc/profile.d/conda.sh"
+      conda activate ${ENV_NAME}
       cd ../$(NAME)
       pip install --no-deps .
     displayName: install $(NAME)
 
   - bash: |
-      source ./ci/_activate_current_env.sh
+      source "${HOME}/conda/etc/profile.d/conda.sh"
+      conda activate ${ENV_NAME}
       cd ../$(NAME)
       pytest ${PYTEST_ARGS}
     displayName: run $(NAME) tests
