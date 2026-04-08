@@ -24,6 +24,7 @@ jobs:
           - [windows-latest, win, AMD64]
         python: ["cp311", "cp312", "cp313", "cp314"]
         exclude:
+          # exclude intel macs on python 3.14 because there's no compatible numba wheel
           - buildplat: [macos-15-intel, macosx, x86_64]
             python: "cp314"
     steps:

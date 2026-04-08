@@ -34,6 +34,7 @@ dependencies = [
     "astropy>=6.0",
     "docstring-parser>=0.15",
     "h5py>=3.7",
+    # numba above 0.63 has no wheels for intel macs but is required for python 3.14
     "numba>=0.57.0,<0.63; python_version < '3.14'",
     "numpy>=1.23",
     "pyerfa>=2.0.1.1",
