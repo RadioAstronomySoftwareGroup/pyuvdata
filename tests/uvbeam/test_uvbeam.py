@@ -3205,6 +3205,7 @@ def test_from_file(mwa_aee_files, dname):
         ["hera_fagnoni_dipole_yaml", True, False, True],
         ["mwa_full_EE", True, True, False],
         ["mwa_AEE", True, True, False],
+        ["mwa_AEE", False, False, False],
         ["hera_casa_beam", False, False, True],
     ],
 )
@@ -3214,9 +3215,11 @@ def test_yaml_constructor(
     if dname == "mwa_AEE":
         filename = mwa_aee_files["jfile"]
         zfile = mwa_aee_files["zfile"]
+        include_cross_feed_coupling = path_var
     else:
         filename = fetch_data(dname)
         zfile = None
+        include_cross_feed_coupling = True
     if "yaml" in dname:
         # make sure the datafiles are cached
         fetch_data(["hera_fagnoni_dipole_150", "hera_fagnoni_dipole_123"])
@@ -3244,15 +3247,24 @@ def test_yaml_constructor(
                 freq_range: [110.0e+6, 190.0e+6]
             """
     if zfile is not None:
+        if path_var:
+            dirname, zfile_use = os.path.split(zfile)
+        else:
+            zfile_use = zfile
         input_yaml += f"""
-                mwa_zfile: {zfile}
+                mwa_zfile: {zfile_use}
+                mwa_include_cross_feed_coupling: {include_cross_feed_coupling}
         """
 
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
 
     # don't run checks because of casa_beamfits, we'll do that later
     uvb = UVBeam.from_file(
-        filename, mount_type="fixed", mwa_zfile=zfile, run_check=False
+        filename,
+        mount_type="fixed",
+        mwa_zfile=zfile,
+        mwa_include_cross_feed_coupling=include_cross_feed_coupling,
+        run_check=False,
     )
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
@@ -3363,26 +3375,49 @@ def test_yaml_constructor_for_cached_file(mwa_aee_files, model):
     assert beam_from_yaml == beam_from_file
 
 
-def test_yaml_constructor_errors():
-    fname_use = fetch_data("hera_fagnoni_dipole_yaml")
-    dirname, basename = os.path.split(fname_use)
+def test_yaml_constructor_errors(mwa_aee_files):
+    hera_fname_use = fetch_data("hera_fagnoni_dipole_yaml")
+    hera_dirname, hera_basename = os.path.split(hera_fname_use)
+
+    mwaj_fname_use = mwa_aee_files["jfile"]
+    mwaj_dirname, mwaj_basename = os.path.split(mwaj_fname_use)
+    mwaz_fname_use = mwa_aee_files["zfile"]
+    mwaz_dirname, mwaz_basename = os.path.split(mwaz_fname_use)
 
     input_yaml = f"""
         beam: !UVBeam
-            filename: [{basename}, foo.yaml]
-            path_variable: {dirname}
+            filename: [{hera_basename}, foo.yaml]
+            path_variable: {hera_dirname}
             run_check: False
         """
 
     with pytest.raises(
         FileNotFoundError,
-        match=re.escape(f"File(s) {[os.path.join(dirname, 'foo.yaml')]} do not exist."),
+        match=re.escape(
+            f"File(s) {[os.path.join(hera_dirname, 'foo.yaml')]} do not exist."
+        ),
     ):
         yaml.safe_load(input_yaml)["beam"]
 
     input_yaml = f"""
         beam: !UVBeam
-            filename: {basename}
+            filename: [{mwaj_basename}]
+            path_variable: {mwaj_dirname}
+            mwa_zfile: {"foo.fits"}
+            run_check: False
+        """
+
+    with pytest.raises(
+        FileNotFoundError,
+        match=re.escape(
+            f"File(s) {[os.path.join(mwaj_dirname, 'foo.fits')]} do not exist."
+        ),
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {hera_basename}
             path_variable: DATA_PATH
             run_check: False
         """
@@ -3393,34 +3428,62 @@ def test_yaml_constructor_errors():
             "If 'path_variable' is specified, it should either be the directory "
             "a file is in or take the form of a module.variable_name where the "
             "variable name can be imported from the module. The path_variable is "
-            f"DATA_PATH. Files {[os.path.join('DATA_PATH', basename)]} do not exist "
-            "and the path_variable does not have the form of a module.variable_name."
+            f"DATA_PATH. Files {[os.path.join('DATA_PATH', hera_basename)]} do "
+            "not exist and the path_variable does not have the form of a "
+            "module.variable_name."
         ),
     ):
         yaml.safe_load(input_yaml)["beam"]
 
     input_yaml = f"""
-    beam: !UVBeam
-        filename: {basename}
-        path_variable: pyuvdata.data.DATA_PATH
-        run_check: False
-    """
+        beam: !UVBeam
+            filename: {hera_basename}
+            path_variable: pyuvdata.data.DATA_PATH
+            run_check: False
+        """
+    bad_fname1 = [os.path.join("pyuvdata.data.DATA_PATH", hera_basename)]
+    bad_fname2 = [os.path.join(DATA_PATH, hera_basename)]
     with pytest.raises(
         FileNotFoundError,
         match=re.escape(
             "If 'path_variable' is specified, it should either be the directory "
             "a file is in or take the form of a module.variable_name where the "
             "variable name can be imported from the module. The path_variable is "
-            "pyuvdata.data.DATA_PATH. Files "
-            f"{[os.path.join('pyuvdata.data.DATA_PATH', basename)]} do not exist "
-            f"and file(s) {[os.path.join(DATA_PATH, 'NicCSTbeams.yaml')]} do not exist."
+            f"pyuvdata.data.DATA_PATH. Files {bad_fname1} do not exist and "
+            f"file(s) {bad_fname2} do not exist."
         ),
     ):
         yaml.safe_load(input_yaml)["beam"]
 
     input_yaml = f"""
     beam: !UVBeam
-        filename: {basename}
+        filename: {mwaj_basename}
+        mwa_zfile: {mwaz_basename}
+        path_variable: pyuvdata.data.DATA_PATH
+        run_check: False
+    """
+    bad_fnames1 = [
+        os.path.join("pyuvdata.data.DATA_PATH", file)
+        for file in [mwaj_basename, mwaz_basename]
+    ]
+    bad_fnames2 = [
+        os.path.join(DATA_PATH, file) for file in [mwaj_basename, mwaz_basename]
+    ]
+    with pytest.raises(
+        FileNotFoundError,
+        match=re.escape(
+            "If 'path_variable' is specified, it should either be the directory "
+            "a file is in or take the form of a module.variable_name where the "
+            "variable name can be imported from the module. The path_variable is "
+            f"pyuvdata.data.DATA_PATH. Files {bad_fnames1} do not exist and "
+            f"file(s) {bad_fnames2} do not exist."
+        ),
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = f"""
+    beam: !UVBeam
+        filename: {hera_basename}
         path_variable: foo.DATA_PATH
         run_check: False
     """
@@ -3431,7 +3494,7 @@ def test_yaml_constructor_errors():
             "a file is in or take the form of a module.variable_name where the "
             "variable name can be imported from the module. The path_variable is "
             "foo.DATA_PATH. Files "
-            f"{[os.path.join('foo.DATA_PATH', basename)]} do not exist "
+            f"{[os.path.join('foo.DATA_PATH', hera_basename)]} do not exist "
             f"and the module foo is not importable."
         ),
     ):
@@ -3450,7 +3513,7 @@ def test_yaml_constructor_errors():
 
     input_yaml = f"""
         beam: !UVBeam
-            filename: {fetch_data("hera_fagnoni_dipole_yaml")}
+            filename: {hera_fname_use}
             mount_type: fixed
             run_check: False
             freq_range: [120.0e+6]
