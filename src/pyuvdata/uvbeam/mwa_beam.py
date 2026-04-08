@@ -556,11 +556,6 @@ class MWABeam(UVBeam):
 
         freqs_hz, feed_names, dipole_names, max_length = self._read_metadata(h5filepath)
 
-        if [str(feed.lower()) for feed in feed_names] != ["x", "y"]:
-            raise ValueError(
-                f"Did not find expected feed names in FEE file {h5filepath}"
-            )
-
         freqs_inds_use = _get_freq_inds_use(freqs_hz, freq_range=freq_range)
         freqs_use = freqs_hz[freqs_inds_use]
 
@@ -633,15 +628,18 @@ class MWABeam(UVBeam):
 
         theta = np.unique(raw_theta)
         phi = np.unique(raw_phi)
+
         n_theta = theta.size
         n_phi = phi.size
-        theta_grid = raw_theta.reshape(n_phi, n_theta).T
-        phi_grid = raw_phi.reshape(n_phi, n_theta).T
+        if not n_theta * n_phi == raw_theta.size:
+            raise ValueError("Data does not appear to be on a grid")
 
-        if not np.allclose(theta, theta_grid[:, 0]):
-            raise ValueError("reshaping theta did not work as expected")
-        if not np.allclose(phi, phi_grid[0, :]):
-            raise ValueError("reshaping phi did not work as expected")
+        phi_grid, theta_grid = np.meshgrid(phi, theta)
+
+        if not np.allclose(raw_theta.reshape(n_phi, n_theta).T, theta_grid):
+            raise ValueError("thetas do not appear to be on expected grid")
+        if not np.allclose(raw_phi.reshape(n_phi, n_theta).T, phi_grid):
+            raise ValueError("phis do not appear to be on expected grid")
 
         # convert theta, phi to radians, rename
         az_grid = np.deg2rad(phi_grid)
@@ -666,9 +664,9 @@ class MWABeam(UVBeam):
                 data = jfile[f_ind].data
 
                 if not np.allclose(raw_theta, data[:, 0]):
-                    raise ValueError("Inconsistent theta values across frequecies")
+                    raise ValueError("Inconsistent theta values across frequencies")
                 if not np.allclose(raw_phi, data[:, 1]):
-                    raise ValueError("Inconsistent theta values across frequecies")
+                    raise ValueError("Inconsistent phi values across frequencies")
 
                 aee_jones[1, 0, fi_arr] = (
                     (data[:, 2] + 1j * data[:, 3]).reshape(n_phi, n_theta).T
@@ -734,11 +732,16 @@ class MWABeam(UVBeam):
             # ordering in Z matrix is 0-15:Y, 16-31:X
             if not len(zf) == freqs_hz.size:
                 raise ValueError(
-                    "Zmatrix file does not have as the same number of frequencies"
+                    "Zmatrix file does not have as the same number of frequencies "
                     "as Jmatrix file."
                 )
             for fi_arr, f_ind in enumerate(freqs_inds_use):
-                if not np.isclose(zf[f_ind].header["freq"], freqs_hz[f_ind]):
+                if not np.isclose(
+                    zf[f_ind].header["freq"],
+                    freqs_hz[f_ind],
+                    rtol=self._freq_array.tols[0],
+                    atol=self._freq_array.tols[1],
+                ):
                     raise ValueError(
                         f"Zmatrix {f_ind}th freq does not match Jmatrix file."
                     )
