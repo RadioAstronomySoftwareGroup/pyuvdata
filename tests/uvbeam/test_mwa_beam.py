@@ -1,9 +1,11 @@
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 import copy
+import re
 
 import numpy as np
 import pytest
+from astropy.io import fits
 
 from pyuvdata import UVBeam, utils
 from pyuvdata.datasets import fetch_data
@@ -13,19 +15,34 @@ from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
 
 @pytest.fixture()
 def mwabeam_kwargs(mwa_aee_files):
-    return {"fee": {"pixels_per_deg": 1}, "aee": {"zfile": mwa_aee_files["zfile"]}}
+    return {
+        "fee": {"pixels_per_deg": 1},
+        "aee": {"zfile": mwa_aee_files["zfile"]},
+        "aee_noxy": {
+            "zfile": mwa_aee_files["zfile"],
+            "include_cross_feed_coupling": False,
+        },
+    }
 
 
 @pytest.fixture()
 def uvbeam_kwargs(mwabeam_kwargs):
     uvbeam_kwargs = copy.deepcopy(mwabeam_kwargs)
     uvbeam_kwargs["aee"]["mwa_zfile"] = uvbeam_kwargs["aee"].pop("zfile")
+    uvbeam_kwargs["aee_noxy"]["mwa_zfile"] = uvbeam_kwargs["aee_noxy"].pop("zfile")
+    uvbeam_kwargs["aee_noxy"]["mwa_include_cross_feed_coupling"] = uvbeam_kwargs[
+        "aee_noxy"
+    ].pop("include_cross_feed_coupling")
     return uvbeam_kwargs
 
 
 @pytest.fixture()
 def beam_filenames(mwa_aee_files):
-    return {"fee": fetch_data("mwa_full_EE"), "aee": mwa_aee_files["jfile"]}
+    return {
+        "fee": fetch_data("mwa_full_EE"),
+        "aee": mwa_aee_files["jfile"],
+        "aee_noxy": mwa_aee_files["jfile"],
+    }
 
 
 @pytest.mark.parametrize("model", ["fee", "aee"])
@@ -71,14 +88,19 @@ def test_read_write_mwa(beam_filenames, mwabeam_kwargs, model, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:There are some terminated dipoles")
-@pytest.mark.parametrize("model", ["fee", "aee"])
-def test_mwa_orientation(mwa_fee_1ppd, mwa_aee, beam_filenames, uvbeam_kwargs, model):
+@pytest.mark.parametrize("model", ["fee", "aee", "aee_noxy"])
+def test_mwa_orientation(
+    mwa_fee_1ppd, mwa_aee, mwa_aee_noxy, beam_filenames, uvbeam_kwargs, model
+):
     if model == "fee":
         ebeam = mwa_fee_1ppd
         near_hor_za = 80
         near_zen_za = 2
     else:
-        ebeam = mwa_aee
+        if model == "aee":
+            ebeam = mwa_aee
+        else:
+            ebeam = mwa_aee_noxy
         near_hor_za = 81
         near_zen_za = 3
     power_beam = ebeam.efield_to_power(inplace=False)
@@ -165,7 +187,7 @@ def test_mwa_orientation(mwa_fee_1ppd, mwa_aee, beam_filenames, uvbeam_kwargs, m
         ),
     ],
 )
-@pytest.mark.parametrize("model", ["fee", "aee"])
+@pytest.mark.parametrize("model", ["fee", "aee", "aee_noxy"])
 def test_mwa_pointing(
     delay_set, az_val, za_range, beam_filenames, uvbeam_kwargs, model
 ):
@@ -231,23 +253,31 @@ def test_mwa_pointing(
     assert np.rad2deg(za_array[max_nn_loc]) < za_range[1]
 
 
-def test_freq_range(mwa_fee_1ppd):
-    beam1 = mwa_fee_1ppd
+@pytest.mark.parametrize("model", ["fee", "aee"])
+def test_freq_range(mwa_fee_1ppd, mwa_aee, model, beam_filenames, mwabeam_kwargs):
+    if model == "fee":
+        beam1 = mwa_fee_1ppd
+    else:
+        beam1 = mwa_aee
+
+    filename = beam_filenames[model]
+    kwargs = mwabeam_kwargs[model]
+
     beam2 = UVBeam()
 
     # include all
-    beam2.read_mwa_beam(
-        fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 200e6]
-    )
+    beam2.read_mwa_beam(filename, **kwargs, freq_range=[100e6, 200e6])
     assert beam1 == beam2
 
-    beam2.read_mwa_beam(
-        fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 150e6]
-    )
+    beam2.read_mwa_beam(filename, **kwargs, freq_range=[100e6, 170e6])
     beam1.select(freq_chans=[0, 1])
     assert beam1.history != beam2.history
     beam1.history = beam2.history
     assert beam1 == beam2
+
+
+def test_freq_range_errors():
+    beam1 = UVBeam()
 
     with check_warnings(UserWarning, match="Only one available frequency"):
         beam1.read_mwa_beam(
@@ -255,12 +285,12 @@ def test_freq_range(mwa_fee_1ppd):
         )
 
     with pytest.raises(ValueError, match="No frequencies available in freq_range"):
-        beam2.read_mwa_beam(
+        beam1.read_mwa_beam(
             fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6, 110e6]
         )
 
     with pytest.raises(ValueError, match="freq_range must have 2 elements."):
-        beam2.read_mwa_beam(
+        beam1.read_mwa_beam(
             fetch_data("mwa_full_EE"), pixels_per_deg=1, freq_range=[100e6]
         )
 
@@ -287,31 +317,27 @@ def test_bad_amps():
     beam1 = UVBeam()
 
     amps = np.ones([2, 8])
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="amplitudes must be shape"):
         beam1.read_mwa_beam(
             fetch_data("mwa_full_EE"), pixels_per_deg=1, amplitudes=amps
         )
-    assert str(cm.value).startswith("amplitudes must be shape")
 
 
 def test_bad_delays():
     beam1 = UVBeam()
 
     delays = np.zeros([2, 8], dtype="int")
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="delays must be shape"):
         beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith("delays must be shape")
 
     delays = np.zeros((2, 16), dtype="int")
     delays = delays + 64
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="There are delays greater than 32"):
         beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith("There are delays greater than 32")
 
     delays = np.zeros((2, 16), dtype="float")
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Delays must be integers."):
         beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
-    assert str(cm.value).startswith("Delays must be integers.")
 
 
 def test_dead_dipoles():
@@ -343,3 +369,97 @@ def test_dead_dipoles():
         + beam1.pyuvdata_version_str
     )
     assert utils.history._check_histories(history_str, beam1.history)
+
+
+@pytest.mark.parametrize(
+    ("change", "errmsg"),
+    [
+        (
+            "diff_exten",
+            "model_type could not be determined for MWA beam file, use "
+            "the model_type keyword to specify the type (one of 'fee' "
+            "or 'aee'). Filename is",
+        ),
+        ("no_grid", "Data does not appear to be on a grid"),
+        ("bad_th_reshape", "thetas do not appear to be on expected grid"),
+        ("bad_ph_reshape", "phis do not appear to be on expected grid"),
+        ("diff_th", "Inconsistent theta values across frequencies"),
+        ("diff_ph", "Inconsistent phi values across frequencies"),
+    ],
+)
+def test_aee_jfile_errors(tmp_path, mwa_aee_files, change, errmsg):
+
+    if change == "diff_exten":
+        testfile = str(tmp_path / "test_aee_j.foo")
+    else:
+        testfile = str(tmp_path / "test_aee_j.fits")
+
+    with fits.open(mwa_aee_files["jfile"]) as jfile:
+        first_hdu = jfile[0]
+        data = first_hdu.data
+        if change == "no_grid":
+            # change the first theta value slightly
+            data[0, 0] += 0.1
+        elif change == "bad_th_reshape":
+            # set the first theta to 2nd theta
+            data[0, 0] = data[1, 0]
+        elif change == "bad_ph_reshape":
+            # set the first phi to 2nd phi
+            data[0, 1] = data[100, 1]
+        elif change == "diff_th":
+            # set the first phi to 2nd phi
+            data[:, 0] += 1
+        elif change == "diff_ph":
+            # set the first phi to 2nd phi
+            data[:, 1] += 1
+
+        first_hdu.data = data
+        hdulist = [first_hdu]
+        for nhdu in range(1, len(jfile)):
+            hdulist.append(jfile[nhdu])
+
+        hdulist = fits.HDUList(hdulist)
+
+        hdulist.writeto(testfile, overwrite=True)
+        hdulist.close()
+
+    with pytest.raises(ValueError, match=re.escape(errmsg)):
+        UVBeam.from_file(
+            testfile, mwa_zfile=mwa_aee_files["zfile"], file_type="mwa_beam"
+        )
+
+
+@pytest.mark.parametrize(
+    ("change", "errmsg"),
+    [
+        (
+            "diff_nf",
+            "Zmatrix file does not have as the same number of frequencies as "
+            "Jmatrix file.",
+        ),
+        ("diff_f", "Zmatrix 0th freq does not match Jmatrix file."),
+    ],
+)
+def test_aee_zfile_errors(tmp_path, mwa_aee_files, change, errmsg):
+
+    testfile = str(tmp_path / "test_aee_z.fits")
+
+    with fits.open(mwa_aee_files["zfile"]) as zfile:
+        first_hdu = zfile[0]
+        n_freqs = len(zfile)
+        if change == "diff_nf":
+            n_freqs = n_freqs - 1
+        elif change == "diff_f":
+            first_hdu.header["freq"] += 2
+
+        hdulist = [first_hdu]
+        for nhdu in range(1, n_freqs):
+            hdulist.append(zfile[nhdu])
+
+        hdulist = fits.HDUList(hdulist)
+
+        hdulist.writeto(testfile, overwrite=True)
+        hdulist.close()
+
+    with pytest.raises(ValueError, match=errmsg):
+        UVBeam.from_file(mwa_aee_files["jfile"], mwa_zfile=testfile)

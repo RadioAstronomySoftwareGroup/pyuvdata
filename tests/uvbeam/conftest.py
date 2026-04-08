@@ -372,3 +372,22 @@ def mwa_aee(mwa_aee_main):
 
     yield beam
     del beam
+
+
+@pytest.fixture(scope="module")
+def mwa_aee_noxy_main(mwa_aee_files):
+    beam = UVBeam()
+    filename = mwa_aee_files["jfile"]
+    zfile = mwa_aee_files["zfile"]
+    beam.read_mwa_beam(filename, zfile=zfile, include_cross_feed_coupling=False)
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def mwa_aee_noxy(mwa_aee_noxy_main):
+    beam = mwa_aee_noxy_main.copy()
+
+    yield beam
+    del beam
