@@ -28,16 +28,12 @@ jobs:
 
       - name: Install
         run: |
-          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[dev]
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[test]
           pip install pytest-xdist
 
       - name: Environment Info
         run: |
           pip list
-          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-          if [[ $PYVER != ${{ env.PYTHON }} ]]; then
-            exit 1;
-          fi
 
       - name: Run Tests
         run: |
