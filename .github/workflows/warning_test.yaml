@@ -26,6 +26,7 @@ jobs:
             pip-options: "dev"
             coverage: true
           # currently (April 2026), python-casacore does not build properly from pypi on python 3.14
+          # also, cython's coverage plugin causes errors when building from pypi on python 3.14
           - python-version: 3.14
             pip-options: "test"
             coverage: false
