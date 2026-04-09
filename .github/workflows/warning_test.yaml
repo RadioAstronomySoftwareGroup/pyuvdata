@@ -22,9 +22,11 @@ jobs:
         include:
           - python-version: 3.13
             pip-options: "dev"
+            pytest-options: "--cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml"
           # currently (April 2026), python-casacore does not build properly from pypi on python 3.14
           - python-version: 3.14
             pip-options: "test"
+            pytest-options: ""
     steps:
       - uses: actions/checkout@main
         with:
@@ -46,7 +48,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -W error -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
+          pytest -W error -n auto ${{ matrix.pytest-options }}
 
       - uses: codecov/codecov-action@v5
         if: success()
