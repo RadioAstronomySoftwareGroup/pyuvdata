@@ -16,6 +16,15 @@ jobs:
   warning_test:
     name: Warning Test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: 3.13
+            pip-options: "dev"
+          # currently (April 2026), python-casacore does not build properly from pypi on python 3.14
+          - python-version: 3.14
+            pip-options: "test"
     steps:
       - uses: actions/checkout@main
         with:
@@ -24,20 +33,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: pyproject.toml
+          python-version: ${{ matrix.python-version }}
 
       - name: Install
         run: |
-          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[dev]
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[${{ matrix.pip-options }}]
           pip install pytest-xdist
 
       - name: Environment Info
         run: |
           pip list
-          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-          if [[ $PYVER != ${{ env.PYTHON }} ]]; then
-            exit 1;
-          fi
 
       - name: Run Tests
         run: |
