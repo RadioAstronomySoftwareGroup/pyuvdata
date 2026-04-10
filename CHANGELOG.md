@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for MWA Average Embedded Element beams in UVBeam.
+
 ## [3.2.6] - 2025-03-13
 
 ### Added
