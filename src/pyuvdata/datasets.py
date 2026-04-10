@@ -12,7 +12,7 @@ from pooch import Untar
 from pyuvdata.data import DATA_PATH
 
 # set the data version. This should be updated when the test data are changed.
-data_version = "v0.0.4"
+data_version = "v0.0.5"
 
 pup = pooch.create(
     # Use the default cache folder for the operating system

@@ -69,9 +69,7 @@ UVBeam: Instantiating a UVBeam object from a file (i.e. reading data)
 
 Use the :meth:`pyuvdata.UVBeam.from_file` to instantiate a UVBeam object from
 data in a file (alternatively you can create an object with no inputs and then
-call the :meth:`pyuvdata.UVBeam.read` method). Most file types require a single
-file or folder to instantiate an object, FHD and raw MWA correlator data sets
-require the user to specify multiple files for each dataset.
+call the :meth:`pyuvdata.UVBeam.read` method).
 
 ``pyuvdata`` can also be used to create a UVBeam object from arrays in memory
 (see :ref:`new_uvbeam`) and to read in multiple datasets (files) into a single
@@ -82,18 +80,29 @@ a) Instantiate an object from a single file or folder
 *****************************************************
 BeamFITS and MWA beams are stored in a single file.
 
-To get all the frequencies available for the MWA full embedded element beam
-you need to download the output simulation file via
-`wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
-For this tutorial we use the file saved in the test data which only
-contains a few frequencies.
+To get all the frequencies available for the MWA beams you need to download the
+output simulation file(s) for the model you want:
+
+- for the full embedded element (FEE) beam use:
+  ``wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5``
+- for the average embedded element (AEE) beam use:
+  ``wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Jmatrix.fits``
+  and
+  ``wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Zmatrix.fits``
+
+For this tutorial we use the files saved in the test data which only
+contain a few frequencies.
 
 For MWA beams, which are composed of phased arrays of dipoles, you can specify
 delay and amplitude arrays to generate beams pointed any where or with varying
 gains per dipole. Set a delay to 32 to get a beam where that dipole is turned
-off (or set the amplitude to zero). The native format of the beam is spherical
-harmonic modes, so there is also an option `pixels_per_deg` to set the output
-beam resolution (default is 5 pixels per degree).
+off (or set the amplitude to zero).
+
+Depending on the beam version you want, you also need to specify some other paramers:
+
+- For the AEE beam you need to pass the Z matrix file to the ``mwa_zfile`` parameter.
+- The native format of the FEE beam is spherical harmonic modes, so there is also
+  a ``pixels_per_deg`` parameter to set the output beam resolution (default is 5 pixels per degree).
 
 .. clear-namespace
 
@@ -103,16 +112,20 @@ beam resolution (default is 5 pixels per degree).
     from pyuvdata import UVBeam
     from pyuvdata.datasets import fetch_data
 
-    filename = fetch_data("mwa_full_EE")
+    fee_filename = fetch_data("mwa_full_EE")
+    aee_filename = fetch_data("mwa_jmatrix")
+    aee_z_filename = fetch_data("mwa_zmatrix")
     # for a zenith pointed beam let the delays default to all zeros
-    beam = UVBeam.from_file(filename)
+    fee_beam = UVBeam.from_file(fee_filename)
+    aee_beam = UVBeam.from_file(aee_filename, mwa_zfile=aee_z_filename)
 
     # to point the beam off zenith apply a delay slope across the tile
     # use the same pointing for both pols.
     delays = np.empty((2, 16), dtype=int)
     for pol in range(2):
         delays[pol] = np.tile(np.arange(0, 8, 2), 4)
-    beam = UVBeam.from_file(filename, pixels_per_deg=1, delays=delays)
+    fee_beam = UVBeam.from_file(fee_filename, pixels_per_deg=1, delays=delays)
+    aee_beam = UVBeam.from_file(aee_filename, mwa_zfile=aee_z_filename, delays=delays)
 
 
 a) Instantiate an object from CST or FEKO beam files

@@ -334,7 +334,7 @@ def phased_array_beam_1freq(phased_array_beam_2freq):
 
 
 @pytest.fixture(scope="module")
-def mwa_beam_1ppd_main():
+def mwa_fee_1ppd_main():
     beam = UVBeam()
     beam.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1)
 
@@ -343,8 +343,51 @@ def mwa_beam_1ppd_main():
 
 
 @pytest.fixture(scope="function")
-def mwa_beam_1ppd(mwa_beam_1ppd_main):
-    beam = mwa_beam_1ppd_main.copy()
+def mwa_fee_1ppd(mwa_fee_1ppd_main):
+    beam = mwa_fee_1ppd_main.copy()
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="module")
+def mwa_aee_files():
+    return {"jfile": fetch_data("mwa_jmatrix"), "zfile": fetch_data("mwa_zmatrix")}
+
+
+@pytest.fixture(scope="module")
+def mwa_aee_main(mwa_aee_files):
+    beam = UVBeam()
+    filename = mwa_aee_files["jfile"]
+    zfile = mwa_aee_files["zfile"]
+    beam.read_mwa_beam(filename, zfile=zfile)
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def mwa_aee(mwa_aee_main):
+    beam = mwa_aee_main.copy()
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="module")
+def mwa_aee_noxy_main(mwa_aee_files):
+    beam = UVBeam()
+    filename = mwa_aee_files["jfile"]
+    zfile = mwa_aee_files["zfile"]
+    beam.read_mwa_beam(filename, zfile=zfile, include_cross_feed_coupling=False)
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def mwa_aee_noxy(mwa_aee_noxy_main):
+    beam = mwa_aee_noxy_main.copy()
 
     yield beam
     del beam

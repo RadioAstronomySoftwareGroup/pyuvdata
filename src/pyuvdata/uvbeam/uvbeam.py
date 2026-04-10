@@ -4226,9 +4226,27 @@ class UVBeam(UVBase):
         self._convert_from_filetype(feko_beam_obj)
         del feko_beam_obj
 
-    def read_mwa_beam(self, h5filepath, **kwargs):
+    def read_mwa_beam(self, filename, **kwargs):
         """
-        Read in the full embedded element MWA beam.
+        Read in either the full or averaged embedded element MWA beam.
+
+        This is based on https://github.com/MWATelescope/mwa_pb/ and offers support
+        for either the Full Embedded Element (FEE) model or the Average Embedded
+        Element (AEE) model. The FEE model is the most current model and is generally
+        considered to be the best match to the instrument beam, but we provide the
+        older AEE model for comparison as well.
+
+        For the FEE model, pass the h5 file containing the MWA full embedded
+        element spherical harmonic modes. Download via
+        `wget http://ws.mwatelescope.org/static/mwa_full_embedded_element_pattern.h5`
+
+        For the AEE model, you need both the JMatrix.fits file and the ZMatrix.fits
+        files. Download via
+        `wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Jmatrix.fits`
+        and
+        `wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Zmatrix.fits`
+        Pass the JMatrix.fits file to the filename parameter and the ZMatrix.fits
+        file to the zfile parameter.
 
         Note that the azimuth convention in for the UVBeam object is different than the
         azimuth convention in the mwa_pb repo. In that repo, the azimuth convention is
@@ -4238,11 +4256,16 @@ class UVBeam(UVBase):
 
         Parameters
         ----------
-        h5filepath : str
-            path to input h5 file containing the MWA full embedded element spherical
-            harmonic modes. Download via
-            `wget http://ws.mwatelescope.org/static/mwa_full_embedded_element_pattern.h5`
-            (This reader is based on https://github.com/MWATelescope/mwa_pb).
+        filename : str
+            Path to the beam file containing the jones matrix information, either
+            the mwa_full_embedded_element_pattern.h5 for the FEE model or the
+            JMatrix.fits for the AEE model.
+        model_type : str
+            Model type to use, one of 'fee' or 'aee'. Will be inferred from
+            filename if not set and if possible.
+        zfile : str
+            Path to the file containing the antenna coupling matrix (ZMatrix.fits),
+            only used for the AEE model.
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
@@ -4250,10 +4273,16 @@ class UVBeam(UVBase):
             (i.e. relatable to physical units).
             Should be shape (n_pols, n_dipoles).
         pixels_per_deg : float
-            Number of theta/phi pixels per degree. Sets the resolution of the beam.
+            Number of theta/phi pixels per degree. Sets the resolution of the beam,
+            only used for the FEE model.
         freq_range : array_like of float
             Range of frequencies to include in Hz, defaults to all available
             frequencies. Must be length 2.
+        include_cross_feed_coupling : bool
+            Option to include the couplings between the different feed directions
+            (i.e. couplings between x and y feeds). Including these couplings
+            is more correct, but the option is supplied to enable matching with
+            some codes that exclude these couplings. Default is True.
         run_check : bool
             Option to check for the existence and proper shapes of
             required parameters after reading in the file.
@@ -4273,7 +4302,7 @@ class UVBeam(UVBase):
         from . import mwa_beam
 
         mwabeam_obj = mwa_beam.MWABeam()
-        mwabeam_obj.read_mwa_beam(h5filepath, **kwargs)
+        mwabeam_obj.read_mwa_beam(filename, **kwargs)
         self._convert_from_filetype(mwabeam_obj)
         del mwabeam_obj
 
@@ -4314,9 +4343,12 @@ class UVBeam(UVBase):
         extra_keywords=None,
         frequency_select=None,
         # mwa parameters
+        mwa_model_type=None,
+        mwa_zfile=None,
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
+        mwa_include_cross_feed_coupling=True,
     ):
         """
         Read a generic file into a UVBeam object.
@@ -4537,6 +4569,12 @@ class UVBeam(UVBase):
 
         MWA
         ---
+        mwa_model_type : str
+            Model type to use, one of 'fee' or 'aee'. Will be inferred from
+            filename if not set and if possible.
+        mwa_zfile : str
+            Path to the file containing the antenna coupling matrix (ZMatrix.fits),
+            only used for the AEE model.
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
             Only applies to mwa_beam type files.
@@ -4551,6 +4589,11 @@ class UVBeam(UVBase):
         freq_range : array_like of float
             Range of frequencies to include in Hz, defaults to all available
             frequencies. Must be length 2.
+        mwa_include_cross_feed_coupling : bool
+            Option to include the couplings between the different feed directions
+            (i.e. couplings between x and y feeds). Including these couplings
+            is more correct, but the option is supplied to enable matching with
+            some codes that exclude these couplings. Default is True.
 
         Raises
         ------
@@ -4571,9 +4614,19 @@ class UVBeam(UVBase):
             basename, extension = os.path.splitext(test_file)
             extension = extension.lower()
             if extension == ".fits" or extension == ".beamfits":
-                file_type = "beamfits"
+                from astropy.io import fits
+
+                with fits.open(test_file) as fname:
+                    if "CTYPE1" in fname[0].header:
+                        file_type = "beamfits"
+                    elif "FREQ" in fname[0].header:
+                        file_type = "mwa_beam"
+                        if mwa_model_type is None:
+                            mwa_model_type = "aee"
             elif extension == ".hdf5" or extension == ".h5":
                 file_type = "mwa_beam"
+                if mwa_model_type is None:
+                    mwa_model_type = "fee"
             elif extension == ".txt" or extension == ".yaml":
                 file_type = "cst"
             elif extension == ".ffe":
@@ -4780,10 +4833,13 @@ class UVBeam(UVBase):
                 if file_type == "mwa_beam":
                     self.read_mwa_beam(
                         filename,
+                        model_type=mwa_model_type,
+                        zfile=mwa_zfile,
                         delays=delays,
                         amplitudes=amplitudes,
                         pixels_per_deg=pixels_per_deg,
                         freq_range=freq_range,
+                        include_cross_feed_coupling=mwa_include_cross_feed_coupling,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
@@ -4964,22 +5020,40 @@ def _uvbeam_constructor(loader, node):
     if isinstance(values["filename"], str):
         files_use = [values["filename"]]
 
+    zfiles_use = None
+    if "mwa_zfile" in values:
+        zfiles_use = values["mwa_zfile"]
+        if isinstance(values["mwa_zfile"], str):
+            zfiles_use = [values["mwa_zfile"]]
+
     if "path_variable" in values:
         path_var = values.pop("path_variable")
         # first check to see if this is a file on disk
         test_files = [os.path.join(path_var, file) for file in files_use]
-        files_exist = np.asarray([os.path.exists(file) for file in test_files])
+        if "mwa_zfile" in values:
+            test_zfiles = [os.path.join(path_var, file) for file in zfiles_use]
+        else:
+            test_zfiles = []
+        files_exist = np.asarray(
+            [os.path.exists(file) for file in (test_files + test_zfiles)]
+        )
         if np.any(files_exist):
             files_use = test_files
+            zfiles_use = test_zfiles
             if not np.all(files_exist):
-                missing_files = (np.asarray(test_files))[np.nonzero(~files_exist)]
-                raise FileNotFoundError(f"File(s) {missing_files} do not exist.")
+                missing_files = (np.asarray(test_files + test_zfiles))[
+                    np.nonzero(~files_exist)
+                ]
+                raise FileNotFoundError(
+                    f"File(s) {missing_files.tolist()} do not exist."
+                )
         else:
             bad_pathvar_message = (
                 "If 'path_variable' is specified, it should either be the "
                 "directory a file is in or take the form of a module.variable_name "
                 "where the variable name can be imported from the module. "
-                f"The path_variable is {path_var}. Files {test_files} do not exist "
+                f"The path_variable is {path_var}. Files {test_files + test_zfiles} "
+                "do not exist "
             )
             path_parts = (path_var).split(".")
             var_name = path_parts[-1]
@@ -4999,11 +5073,21 @@ def _uvbeam_constructor(loader, node):
                     ) from ie
             path_var = getattr(module, var_name)
             files_use = [os.path.join(path_var, file) for file in files_use]
-            files_exist = np.asarray([os.path.exists(file) for file in files_use])
+            if "mwa_zfile" in values:
+                zfiles_use = [os.path.join(path_var, file) for file in zfiles_use]
+            else:
+                zfiles_use = []
+
+            files_exist = np.asarray(
+                [os.path.exists(file) for file in (files_use + zfiles_use)]
+            )
             if not np.all(files_exist):
-                missing_files = (np.asarray(files_use))[np.nonzero(~files_exist)]
+                missing_files = (np.asarray(files_use + zfiles_use))[
+                    np.nonzero(~files_exist)
+                ]
                 raise FileNotFoundError(
-                    bad_pathvar_message + f"and file(s) {missing_files} do not exist."
+                    bad_pathvar_message + f"and file(s) {missing_files.tolist()} "
+                    "do not exist."
                 )
 
     for i, file in enumerate(files_use):
@@ -5015,6 +5099,16 @@ def _uvbeam_constructor(loader, node):
     if len(files_use) == 1:
         files_use = files_use[0]
     values["filename"] = files_use
+
+    if "mwa_zfile" in values:
+        for i, file in enumerate(zfiles_use):
+            # if file does not exist, check pyuvsim cache defined from astropy
+            # prescription treat file as download url to check astropy cache for file
+            if not os.path.exists(file) and is_url_in_cache(file, pkgname="pyuvsim"):
+                zfiles_use[i] = cache_contents("pyuvsim")[file]
+        if len(zfiles_use) == 1:
+            zfiles_use = zfiles_use[0]
+        values["mwa_zfile"] = zfiles_use
 
     beam = UVBeam.from_file(**values)
 
