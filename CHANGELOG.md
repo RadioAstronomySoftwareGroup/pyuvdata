@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for MWA Average Embedded Element beams in UVBeam.
+
 ### Changed
 - Added improved handling of a few warning messages from h5py and numpy.
 
