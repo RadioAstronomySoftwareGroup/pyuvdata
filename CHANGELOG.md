@@ -3,10 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.6] - 2025-03-13
+
+### Added
+- Support for python 3.14.
+
 ### Changed
 - Added improved handling of a few warning messages from h5py and numpy.
 
 ### Fixed
+- A bug with reading ms caltables with multiple closely-spaced times.
 - Significant reduction in memory when reading UVFITS files, particularly when
 reading the entire file (no selection on read).
 
