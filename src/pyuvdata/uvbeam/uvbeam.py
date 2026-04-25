@@ -3577,7 +3577,7 @@ class UVBeam(UVBase):
             required parameters after reading in the file.
         check_extra : bool
             Option to check optional parameters as well as required ones.
-        run_check_acceptabilit : bool
+        run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after reading in the file.
         check_auto_power : bool

@@ -86,9 +86,9 @@ output simulation file(s) for the model you want:
 - for the full embedded element (FEE) beam use:
   ``wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5``
 - for the average embedded element (AEE) beam use:
-  ``wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Jmatrix.fits``
+  ``wget https://raw.githubusercontent.com/MWATelescope/mwa_pb/master/mwa_pb/data/Jmatrix.fits``
   and
-  ``wget https://github.com/MWATelescope/mwa_pb/blob/master/mwa_pb/data/Zmatrix.fits``
+  ``wget https://raw.githubusercontent.com/MWATelescope/mwa_pb/master/mwa_pb/data/ZMatrix.fits``
 
 For this tutorial we use the files saved in the test data which only
 contain a few frequencies.
