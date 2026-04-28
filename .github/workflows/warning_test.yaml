@@ -12,6 +12,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   warning_test:
     name: Warning Test
@@ -31,12 +33,13 @@ jobs:
             pip-options: "test"
             coverage: false
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -51,9 +54,9 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -W error -n auto ${{ env.PYTEST_OPTIONS }}
+          pytest -W error -n auto ${PYTEST_OPTIONS}
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         if: success()
         with:
           token: ${{secrets.CODECOV_TOKEN}} #required
