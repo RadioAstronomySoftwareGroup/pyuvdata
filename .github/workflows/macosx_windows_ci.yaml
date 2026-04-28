@@ -12,6 +12,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   tests:
     name: Run Tests
@@ -33,12 +35,13 @@ jobs:
           - env_name: pyuvdata_tests_mac_arm
             os: macos-latest
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Miniforge
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           miniforge-version: latest
           python-version: ${{ matrix.python-version }}
@@ -64,7 +67,7 @@ jobs:
         run: |
           python -m pytest -n auto --dist=loadfile --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         if: success()
         with:
           token: ${{secrets.CODECOV_TOKEN}} #required
