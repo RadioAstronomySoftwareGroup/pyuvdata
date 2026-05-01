@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from pyuvdata import UVBeam, utils
+from pyuvdata import ShortDipoleBeam, UVBeam, utils
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
@@ -105,10 +105,12 @@ def test_mwa_orientation(
         near_zen_za = 3
     power_beam = ebeam.efield_to_power(inplace=False)
 
-    za_val = np.nonzero(np.isclose(power_beam.axis2_array, 15.0 * np.pi / 180))
+    small_za_ind = np.nonzero(
+        np.isclose(power_beam.axis2_array, near_zen_za * np.pi / 180)
+    )
 
-    east_az = np.nonzero(np.isclose(power_beam.axis1_array, 0))
-    north_az = np.nonzero(np.isclose(power_beam.axis1_array, np.pi / 2))
+    east_az_ind = np.nonzero(np.isclose(power_beam.axis1_array, 0))
+    north_az_ind = np.nonzero(np.isclose(power_beam.axis1_array, np.pi / 2))
 
     east_ind = np.nonzero(
         power_beam.polarization_array
@@ -125,14 +127,14 @@ def test_mwa_orientation(
 
     # check that the e/w dipole is more sensitive n/s
     assert (
-        power_beam.data_array[0, east_ind, 0, za_val, east_az]
-        < power_beam.data_array[0, east_ind, 0, za_val, north_az]
+        power_beam.data_array[0, east_ind, 0, small_za_ind, east_az_ind]
+        < power_beam.data_array[0, east_ind, 0, small_za_ind, north_az_ind]
     )
 
     # check that the n/s dipole is more sensitive e/w
     assert (
-        power_beam.data_array[0, north_ind, 0, za_val, north_az]
-        < power_beam.data_array[0, north_ind, 0, za_val, east_az]
+        power_beam.data_array[0, north_ind, 0, small_za_ind, north_az_ind]
+        < power_beam.data_array[0, north_ind, 0, small_za_ind, east_az_ind]
     )
 
     # check that for a single dipole (all others turned off) there is higher
@@ -148,28 +150,40 @@ def test_mwa_orientation(
     kwargs["delays"] = delays
     efield_beam = UVBeam.from_file(filename, **kwargs)
 
-    za_val = np.nonzero(np.isclose(efield_beam.axis2_array, near_hor_za * np.pi / 180))
+    large_za_val = np.nonzero(
+        np.isclose(efield_beam.axis2_array, near_hor_za * np.pi / 180)
+    )
 
-    max_az_response = np.max(np.abs(efield_beam.data_array[0, east_ind, 0, za_val, :]))
-    max_za_response = np.max(np.abs(efield_beam.data_array[1, east_ind, 0, za_val, :]))
+    max_az_response = np.max(
+        np.abs(efield_beam.data_array[0, east_ind, 0, large_za_val, :])
+    )
+    max_za_response = np.max(
+        np.abs(efield_beam.data_array[1, east_ind, 0, large_za_val, :])
+    )
     assert max_az_response > max_za_response
 
-    max_az_response = np.max(np.abs(efield_beam.data_array[0, north_ind, 0, za_val, :]))
-    max_za_response = np.max(np.abs(efield_beam.data_array[1, north_ind, 0, za_val, :]))
+    max_az_response = np.max(
+        np.abs(efield_beam.data_array[0, north_ind, 0, large_za_val, :])
+    )
+    max_za_response = np.max(
+        np.abs(efield_beam.data_array[1, north_ind, 0, large_za_val, :])
+    )
     assert max_az_response > max_za_response
 
     # go back to zenith pointed full tile beam
     # check the sign of the responses are as expected close to zenith
     efield_beam = ebeam
-    za_val = np.nonzero(np.isclose(power_beam.axis2_array, near_zen_za * np.pi / 180))
+    small_za_ind = np.nonzero(
+        np.isclose(power_beam.axis2_array, near_zen_za * np.pi / 180)
+    )
 
     # first check zenith angle aligned response
-    assert efield_beam.data_array[1, east_ind, 0, za_val, east_az] > 0
-    assert efield_beam.data_array[1, north_ind, 0, za_val, north_az] > 0
+    assert efield_beam.data_array[1, east_ind, 0, small_za_ind, east_az_ind] > 0
+    assert efield_beam.data_array[1, north_ind, 0, small_za_ind, north_az_ind] > 0
 
     # then check azimuthal aligned response
-    assert efield_beam.data_array[0, north_ind, 0, za_val, east_az] > 0
-    assert efield_beam.data_array[0, east_ind, 0, za_val, north_az] < 0
+    assert efield_beam.data_array[0, north_ind, 0, small_za_ind, east_az_ind] > 0
+    assert efield_beam.data_array[0, east_ind, 0, small_za_ind, north_az_ind] < 0
 
 
 @pytest.mark.parametrize(
@@ -251,6 +265,83 @@ def test_mwa_pointing(
     assert np.rad2deg(za_array[max_ee_loc]) < za_range[1]
     assert np.rad2deg(za_array[max_nn_loc]) > za_range[0]
     assert np.rad2deg(za_array[max_nn_loc]) < za_range[1]
+
+
+@pytest.mark.parametrize(
+    ["model", "approach", "inplace"],
+    [
+        ("fee", "decompose", None),
+        ("fee", "separate", True),
+        ("aee", "separate", False),
+        ("fee", "joint", True),
+        ("aee_noxy", "joint", False),
+    ],
+)
+def test_mwa_fhd_decompose(
+    mwa_fee_1ppd, mwa_aee, mwa_aee_noxy, model, approach, inplace
+):
+
+    if model == "fee":
+        mwa_beam = mwa_fee_1ppd
+    elif model == "aee":
+        mwa_beam = mwa_aee
+    else:
+        mwa_beam = mwa_aee_noxy
+
+    # select to above the horizon
+    mwa_beam.select(axis2_inds=np.nonzero(mwa_beam.axis2_array <= np.pi / 2))
+
+    small_za_ind = np.nonzero(np.isclose(mwa_beam.axis2_array, 2.0 * np.pi / 180))
+
+    if approach == "decompose":
+        firesp, fproj = mwa_beam.decompose_feed_iresponse_projection()
+    elif approach == "joint":
+        rets = mwa_beam.efield_to_feed_projection(
+            return_feed_iresponse=True, inplace=inplace
+        )
+        if inplace:
+            firesp = rets
+            fproj = mwa_beam
+        else:
+            firesp = rets[1]
+            fproj = rets[0]
+    else:
+        mwa_beam2 = mwa_beam.copy()
+        ret0 = mwa_beam.efield_to_feed_iresponse(inplace=inplace)
+        ret1 = mwa_beam2.efield_to_feed_projection(
+            return_feed_iresponse=False, inplace=inplace
+        )
+        if inplace:
+            firesp = mwa_beam
+            fproj = mwa_beam2
+        else:
+            firesp = ret0
+            fproj = ret1
+
+    # feed I response should have a real component that is positive near zenith
+    assert np.all(firesp.data_array[0, :, :, small_za_ind].real > 0)
+
+    az_array, za_array = np.meshgrid(mwa_beam.axis1_array, mwa_beam.axis2_array)
+
+    # MWA fproj is pretty similar to dipole_fproj up to mutual coupling effects
+    dipole_beam = ShortDipoleBeam()
+
+    dipole_fproj = dipole_beam.feed_projection_eval(
+        az_array=az_array.flatten(),
+        za_array=za_array.flatten(),
+        freq_array=np.asarray(np.asarray([mwa_beam.freq_array[-1]])),
+    )
+    dipole_fproj = dipole_fproj.reshape(2, 2, mwa_beam.Naxes2, mwa_beam.Naxes1)
+
+    # they are very similar near zenith
+    fproj_diff = fproj.data_array[:, :, 0] - dipole_fproj
+
+    np.testing.assert_allclose(
+        fproj_diff[:, :, small_za_ind].real, 0, rtol=0, atol=2e-4
+    )
+    np.testing.assert_allclose(
+        fproj_diff[:, :, small_za_ind].imag, 0, rtol=0, atol=2e-4
+    )
 
 
 @pytest.mark.parametrize("model", ["fee", "aee"])
