@@ -71,8 +71,9 @@ require the user to specify multiple files for each dataset.
 
 .. note::
     Reading or writing CASA Measurement sets requires python-casacore to be
-    installed (see the readme for details). Reading or writing Miriad files is not
-    supported on Windows.
+    installed (see the readme for details). Note that the python-casacore and
+    casatools/casatasks packages are incompatible -- importing them both causes
+    segfaults. Reading or writing Miriad files is not supported on Windows.
 
 a) Instantiate an object from a single file or folder
 *****************************************************
