@@ -646,6 +646,7 @@ class AnalyticBeam:
         beam_type: str,
         freq: float,
         complex_type: str = "real",
+        beam_name: str | None = None,
         colormap: str | None = None,
         logcolor: bool | None = None,
         plt_kwargs: dict | None = None,
@@ -667,6 +668,8 @@ class AnalyticBeam:
             What to plot for complex beams, options are: [real, imag, abs, phase].
             Defaults to "real" for complex beams. Ignored for real beams
             (i.e. power beams, same feed).
+        beam_name : str
+            Beam name, used in the plot titles. Defaults to the class name.
         colormap : str, optional
             Matplotlib colormap to use. Defaults to "twlight" if complex_type="phase"
             and logcolor=False, otherwise it defaults to "viridis" if the data to be
@@ -696,6 +699,7 @@ class AnalyticBeam:
             beam_type=beam_type,
             freq=freq,
             complex_type=complex_type,
+            beam_name=beam_name,
             colormap=colormap,
             logcolor=logcolor,
             plt_kwargs=plt_kwargs,
