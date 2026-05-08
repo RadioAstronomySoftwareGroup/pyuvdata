@@ -5588,6 +5588,7 @@ def test_redundancy_contract_expand(
     # and restored to its original form.
 
     uv0 = pyuvsim_redundant
+    uv0._set_scan_numbers()
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
@@ -5913,6 +5914,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
     method, casa_uvfits, grid_alg
 ):
     uv0 = casa_uvfits
+    uv0._set_scan_numbers()
 
     # check that Nblts != Nbls * Ntimes
     assert uv0.Nblts != uv0.Nbls * uv0.Ntimes

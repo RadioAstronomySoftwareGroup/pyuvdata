@@ -8645,13 +8645,7 @@ class UVData(UVBase):
             warnings.warn("Missing some redundant groups. Filling in available data.")
 
         # blt_map is an index array mapping compressed blti indices to uncompressed
-        self.data_array = self.data_array[blt_map, ...]
-        self.nsample_array = self.nsample_array[blt_map, ...]
-        self.flag_array = self.flag_array[blt_map, ...]
-        self.time_array = self.time_array[blt_map]
-        self.lst_array = self.lst_array[blt_map]
-        self.integration_time = self.integration_time[blt_map]
-        self.uvw_array = self.uvw_array[blt_map, ...]
+        self._select_along_param_axis({"Nblts": blt_map})
 
         self.baseline_array = full_baselines
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(
@@ -8660,11 +8654,6 @@ class UVData(UVBase):
         self.Nants_data = self._calc_nants_data()
         self.Nbls = np.unique(self.baseline_array).size
         self.Nblts = Nblts_full
-
-        self.phase_center_app_ra = self.phase_center_app_ra[blt_map]
-        self.phase_center_app_dec = self.phase_center_app_dec[blt_map]
-        self.phase_center_frame_pa = self.phase_center_frame_pa[blt_map]
-        self.phase_center_id_array = self.phase_center_id_array[blt_map]
 
         self.reorder_blts(order=blt_order, minor_order=blt_minor_order)
 
