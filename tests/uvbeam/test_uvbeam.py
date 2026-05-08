@@ -3579,12 +3579,13 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
         "max_zenith_deg",
         "norm_kwargs",
         "colormap",
+        "beam_name",
     ),
     [
-        ("mwa", None, [{}], "real", None, 90.0, None, "inferno"),
-        ("hera", None, [{}], "real", True, 45.0, {"linthresh": 1e-4}, None),
-        ("mwa", None, [{}], "imag", False, 20.0, {}, None),
-        ("hera", None, [{}], "phase", False, 20.0, None, None),
+        ("mwa", None, [{}], "real", None, 90.0, None, "inferno", None),
+        ("hera", None, [{}], "real", True, 45.0, {"linthresh": 1e-4}, None, None),
+        ("mwa", None, [{}], "imag", False, 20.0, {}, None, "MWA FEE"),
+        ("hera", None, [{}], "phase", False, 20.0, None, None, "HERA Dipole"),
         (
             "mwa",
             ["peak_normalize"],
@@ -3594,6 +3595,7 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             45.0,
             {"vmin": 1e-4, "vmax": 1},
             None,
+            "MWA FEE",
         ),
         (
             "hera",
@@ -3604,6 +3606,7 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             45.0,
             {"vmin": -1, "vmax": 1},
             None,
+            "HERA Dipole",
         ),
         (
             "mwa",
@@ -3614,9 +3617,10 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             20.0,
             {},
             None,
+            "MWA FEE",
         ),
-        ("hera", ["efield_to_power"], [{}], "real", True, 20.0, {}, None),
-        ("mwa", ["to_healpix"], [{}], "phase", False, 20.0, {}, None),
+        ("hera", ["efield_to_power"], [{}], "real", True, 20.0, {}, None, None),
+        ("mwa", ["to_healpix"], [{}], "phase", False, 20.0, {}, None, "MWA FEE"),
         (
             "hera",
             ["efield_to_power", "to_healpix"],
@@ -3626,8 +3630,9 @@ def test_fix_feeds_dep_warnings(cst_power_2freq_cut, mod_params, warn_msg):
             20.0,
             {},
             None,
+            "HERA Dipole",
         ),
-        ("mwa", ["efield_to_pstokes"], [{}], "real", None, 20.0, {}, None),
+        ("mwa", ["efield_to_pstokes"], [{}], "real", None, 20.0, {}, None, "MWA FEE"),
     ],
 )
 def test_plotting(
@@ -3642,6 +3647,7 @@ def test_plotting(
     max_zenith_deg,
     norm_kwargs,
     colormap,
+    beam_name,
 ):
     """Test plotting method. This is just a smoke test to make sure it doesn't error."""
     pytest.importorskip("matplotlib")
@@ -3668,6 +3674,7 @@ def test_plotting(
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
         savefile=savefile,
+        beam_name=beam_name,
     )
 
 

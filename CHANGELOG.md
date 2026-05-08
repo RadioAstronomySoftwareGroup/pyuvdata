@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added more options for controlling labels on beam plots.
 - Support for MWA Average Embedded Element beams in UVBeam.
 
 ### Fixed

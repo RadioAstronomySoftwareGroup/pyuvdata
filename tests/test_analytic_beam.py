@@ -649,9 +649,10 @@ def test_set_x_orientation_deprecation():
         "max_zenith_deg",
         "norm_kwargs",
         "colormap",
+        "beam_name",
     ),
     [
-        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None, "inferno"),
+        (AiryBeam(diameter=7), "efield", "real", False, 90.0, None, "inferno", None),
         (
             GaussianBeam(diameter=7, feed_array=["x"]),
             "efield",
@@ -660,8 +661,9 @@ def test_set_x_orientation_deprecation():
             90.0,
             None,
             None,
+            "Gaussian 7m dish",
         ),
-        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}, None),
+        (AiryBeam(diameter=7), "power", "real", True, 90.0, {"vmin": 1e-9}, None, None),
         (
             GaussianBeam(diameter=7, include_cross_pols=False),
             "power",
@@ -670,6 +672,7 @@ def test_set_x_orientation_deprecation():
             90.0,
             {},
             None,
+            "7m Airy",
         ),
         (
             AiryBeam(diameter=7, feed_array=["x"]),
@@ -679,10 +682,11 @@ def test_set_x_orientation_deprecation():
             90.0,
             {"vmin": 0, "vmax": 1},
             None,
+            "7m Airy",
         ),
-        (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None),
-        (ShortDipoleBeam(), "power", "real", None, 90.0, None, None),
-        (UniformBeam(), "power", "real", None, 90.0, None, None),
+        (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None, None),
+        (ShortDipoleBeam(), "power", "real", None, 90.0, None, None, "Short Dipole"),
+        (UniformBeam(), "power", "real", None, 90.0, None, None, None),
     ],
 )
 def test_plotting(
@@ -694,6 +698,7 @@ def test_plotting(
     max_zenith_deg,
     norm_kwargs,
     colormap,
+    beam_name,
 ):
     """Test plotting method."""
     pytest.importorskip("matplotlib")
@@ -711,4 +716,5 @@ def test_plotting(
         max_zenith_deg=max_zenith_deg,
         norm_kwargs=norm_kwargs,
         savefile=savefile,
+        beam_name=beam_name,
     )

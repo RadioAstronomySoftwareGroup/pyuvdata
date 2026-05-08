@@ -293,6 +293,7 @@ def beam_plot(
     *,
     beam_obj: UVBeam | AnalyticBeam,
     freq: int | float,
+    beam_name: str | None = None,
     beam_type: str | None = None,
     complex_type: str = "real",
     colormap: str | None = None,
@@ -312,6 +313,9 @@ def beam_plot(
     freq : int or float
         Either the index into the freq_array for UVBeam objects (int) or the
         frequency to evaluate the beam at in Hz (float) for AnalyticBeam objects.
+    beam_name : str
+        Beam name, used in the plot titles. Defaults to telescope name for UVBeam
+        and class name for AnalyticBeam.
     beam_type : str
         Required for analytic beams to specify the beam type to plot. Ignored for
         UVBeams.
@@ -429,6 +433,9 @@ def beam_plot(
                 feedpol_label = [""]
         beam_vals = beam_vals.reshape(naxes_vec, nfeedpol, za_grid.size, az_grid.size)
 
+    if beam_name is None:
+        beam_name = name
+
     if beam_type == "power":
         beam_type_label = "power"
     elif beam_type == "efield":
@@ -439,7 +446,7 @@ def beam_plot(
         az_array,
         za_array,
         complex_type=complex_type,
-        beam_name=name,
+        beam_name=beam_name,
         beam_type_label=beam_type_label,
         freq_label=freq_title,
         feedpol_label=feedpol_label,
