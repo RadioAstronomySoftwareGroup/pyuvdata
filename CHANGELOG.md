@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - A bug where `UVData.scan_number_array` was not properly updated when objects
+were resampled in time.
+- A bug where `UVData.scan_number_array` was not properly updated when objects
 were added or concatenated. The fix involved a major refactoring that should prevent
 similar bugs in the future by using UVParameter forms to detect which attributes
 to update on UVData objects.
