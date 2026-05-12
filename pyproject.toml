@@ -1,9 +1,11 @@
 [build-system]
-requires = ["setuptools>=65",
-            "wheel",
-            "setuptools_scm>=8.1",
-            "numpy",
-            "cython>=3.0"]
+requires = [
+    "setuptools>=65",
+    "wheel",
+    "setuptools_scm>=8.1",
+    "numpy",
+    "cython>=3.0"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -30,6 +32,8 @@ maintainers = [
 description = "A pythonic interface for radio astronomy interferometry data"
 readme = "README.md"
 dynamic = ["version"]
+license = "BSD-2-Clause"
+license-files = ["LICEN[CS]E*"]
 dependencies = [
     "astropy>=6.0",
     "docstring-parser>=0.15",
@@ -46,12 +50,12 @@ dependencies = [
 requires-python = ">=3.11"
 keywords = ["radio astronomy", "interferometry"]
 classifiers = [
-    "License :: OSI Approved :: BSD License",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 
@@ -64,11 +68,12 @@ lunar = ["lunarsky>=0.2.5"]
 novas = ["novas", "novas_de405"]
 plotting = ["matplotlib>=3.7"]
 all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas,plotting]"]
-tutorial = ["pyuvdata[plotting]", "pooch>=1.8"]
+datasets = ["pooch>=1.8"]
+tutorial = ["pyuvdata[plotting]", "pyuvdata[datasets]"]
 test = [
+    "pyuvdata[datasets]",
     "coverage",
     "cython>=3.0",
-    "pooch>=1.8",
     "pre-commit",
     "pytest>=8.2.0",
     "pytest-xdist",
