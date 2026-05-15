@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Require lunarsky>1.0 to drop spiceypy requirement
+
 ### Added
 - Added more options for controlling labels on beam plots.
 - Support for MWA Average Embedded Element beams in UVBeam.
@@ -18,6 +21,9 @@ were resampled in time.
 were added or concatenated. The fix involved a major refactoring that should prevent
 similar bugs in the future by using UVParameter forms to detect which attributes
 to update on UVData objects.
+
+### Removed
+- Spiceypy error catching in tests
 
 ## [3.2.6] - 2025-03-13
 
