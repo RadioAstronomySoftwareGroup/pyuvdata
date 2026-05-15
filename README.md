@@ -168,7 +168,7 @@ Optional:
 * astropy-healpix >= 1.0.2 (for working with beams in HEALPix formats)
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
 * hdf5plugin >= 3.3.1 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
-* lunarsky >=0.2.5 (for working with simulated datasets for lunar telescopes)
+* lunarsky >=1.0 (for working with simulated datasets for lunar telescopes)
 * matplotlib>=3.7 (for making plots)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * pooch >= 1.8 (for downloading test data for tutorials)
