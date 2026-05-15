@@ -29,6 +29,6 @@ dependencies:
   - sphinx
   - sybil>=8.0
   - pip:
-      - lunarsky>=0.2.5
+      - lunarsky>=1.0
       - novas
       - novas_de405
