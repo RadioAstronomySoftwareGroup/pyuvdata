@@ -1003,9 +1003,6 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-        spicey_err = SpiceUNKNOWNFRAME
 
         enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
@@ -1031,7 +1028,6 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
             location=uv_in.telescope.location,
         )
     else:
-        spicey_err = None
         zenith_coord = SkyCoord(
             alt=Angle(90 * units.deg),
             az=Angle(0 * units.deg),
@@ -1041,10 +1037,7 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
         )
     zen_icrs = zenith_coord.transform_to("icrs")
 
-    try:
-        uv_in.phase_to_time(uv_in.time_array[0])
-    except spicey_err:
-        pytest.skip(reason="Flaky CSPICE issue")
+    uv_in.phase_to_time(uv_in.time_array[0])
 
     assert np.isclose(
         uv_in.phase_center_catalog[1]["cat_lat"],

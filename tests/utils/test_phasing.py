@@ -1065,19 +1065,14 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
         return
 
     if telescope_frame == "mcmf":
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-        try:
-            check_ra, check_dec = phs_utils.transform_app_to_icrs(
-                time_array=astrometry_args["time_array"],
-                app_ra=app_ra,
-                app_dec=app_dec,
-                telescope_loc=telescope_loc,
-                astrometry_library=out_lib,
-                **kwargs,
-            )
-        except SpiceUNKNOWNFRAME as err:
-            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+        check_ra, check_dec = phs_utils.transform_app_to_icrs(
+            time_array=astrometry_args["time_array"],
+            app_ra=app_ra,
+            app_dec=app_dec,
+            telescope_loc=telescope_loc,
+            astrometry_library=out_lib,
+            **kwargs,
+        )
     else:
         check_ra, check_dec = phs_utils.transform_app_to_icrs(
             time_array=astrometry_args["time_array"],
@@ -1336,32 +1331,27 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
     else:
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
-    try:
-        check_ra, check_dec = phs_utils.calc_app_coords(
-            lon_coord=(
-                astrometry_args["fk5_ra"]
-                if (frame == "fk5")
-                else astrometry_args["icrs_ra"]
-            ),
-            lat_coord=(
-                astrometry_args["fk5_dec"]
-                if (frame == "fk5")
-                else astrometry_args["icrs_dec"]
-            ),
-            coord_type="sidereal",
-            telescope_loc=telescope_loc,
-            telescope_frame=telescope_frame,
-            ellipsoid=selenoid,
-            time_array=astrometry_args["time_array"],
-            coord_frame=frame,
-            coord_epoch=astrometry_args["epoch"],
-        )
-    except SpiceUNKNOWNFRAME as err:
-        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    check_ra, check_dec = phs_utils.calc_app_coords(
+        lon_coord=(
+            astrometry_args["fk5_ra"]
+            if (frame == "fk5")
+            else astrometry_args["icrs_ra"]
+        ),
+        lat_coord=(
+            astrometry_args["fk5_dec"]
+            if (frame == "fk5")
+            else astrometry_args["icrs_dec"]
+        ),
+        coord_type="sidereal",
+        telescope_loc=telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=selenoid,
+        time_array=astrometry_args["time_array"],
+        coord_frame=frame,
+        coord_epoch=astrometry_args["epoch"],
+    )
 
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
@@ -1385,12 +1375,8 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
     # paths through the ephem.
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
-        err_type = None
     else:
         telescope_loc = astrometry_args["moon_telescope_loc"]
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-        err_type = SpiceUNKNOWNFRAME
 
     if frame == "fk5":
         ephem_ra = astrometry_args["fk5_ra"]
@@ -1401,21 +1387,18 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
 
     ephem_times = np.array([astrometry_args["time_array"][0]])
 
-    try:
-        check_ra, check_dec = phs_utils.calc_app_coords(
-            lon_coord=ephem_ra,
-            lat_coord=ephem_dec,
-            coord_times=ephem_times,
-            coord_type="ephem",
-            telescope_loc=telescope_loc,
-            telescope_frame=telescope_frame,
-            ellipsoid=selenoid,
-            time_array=astrometry_args["time_array"],
-            coord_epoch=astrometry_args["epoch"],
-            coord_frame=frame,
-        )
-    except err_type as err:
-        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    check_ra, check_dec = phs_utils.calc_app_coords(
+        lon_coord=ephem_ra,
+        lat_coord=ephem_dec,
+        coord_times=ephem_times,
+        coord_type="ephem",
+        telescope_loc=telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=selenoid,
+        time_array=astrometry_args["time_array"],
+        coord_epoch=astrometry_args["epoch"],
+        coord_frame=frame,
+    )
 
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
@@ -1513,21 +1496,16 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
     )
 
     if telescope_frame == "mcmf":
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-        try:
-            check_ra, check_dec = phs_utils.calc_sidereal_coords(
-                time_array=astrometry_args["time_array"],
-                app_ra=app_ra,
-                app_dec=app_dec,
-                telescope_loc=telescope_loc,
-                coord_frame="fk5",
-                telescope_frame=telescope_frame,
-                ellipsoid=selenoid,
-                coord_epoch=2000.0,
-            )
-        except SpiceUNKNOWNFRAME as err:
-            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+        check_ra, check_dec = phs_utils.calc_sidereal_coords(
+            time_array=astrometry_args["time_array"],
+            app_ra=app_ra,
+            app_dec=app_dec,
+            telescope_loc=telescope_loc,
+            coord_frame="fk5",
+            telescope_frame=telescope_frame,
+            ellipsoid=selenoid,
+            coord_epoch=2000.0,
+        )
     else:
         check_ra, check_dec = phs_utils.calc_sidereal_coords(
             time_array=astrometry_args["time_array"],
@@ -1558,20 +1536,15 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
         )
 
         if telescope_frame == "mcmf":
-            from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-            try:
-                check_ra, check_dec = phs_utils.calc_sidereal_coords(
-                    time_array=astrometry_args["time_array"],
-                    app_ra=app_ra,
-                    app_dec=app_dec,
-                    telescope_loc=telescope_loc,
-                    coord_frame="fk5",
-                    telescope_frame=telescope_frame,
-                    coord_epoch=2000.0,
-                )
-            except SpiceUNKNOWNFRAME as err:
-                pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+            check_ra, check_dec = phs_utils.calc_sidereal_coords(
+                time_array=astrometry_args["time_array"],
+                app_ra=app_ra,
+                app_dec=app_dec,
+                telescope_loc=telescope_loc,
+                coord_frame="fk5",
+                telescope_frame=telescope_frame,
+                coord_epoch=2000.0,
+            )
         else:
             check_ra, check_dec = phs_utils.calc_sidereal_coords(
                 time_array=astrometry_args["time_array"],
@@ -1607,21 +1580,16 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame, selenoid):
     )
 
     if telescope_frame == "mcmf":
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
-
-        try:
-            check_ra, check_dec = phs_utils.calc_sidereal_coords(
-                time_array=astrometry_args["time_array"],
-                app_ra=app_ra,
-                app_dec=app_dec,
-                telescope_loc=telescope_loc,
-                coord_frame="fk4",
-                telescope_frame=telescope_frame,
-                ellipsoid=selenoid,
-                coord_epoch=1950.0,
-            )
-        except SpiceUNKNOWNFRAME as err:
-            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+        check_ra, check_dec = phs_utils.calc_sidereal_coords(
+            time_array=astrometry_args["time_array"],
+            app_ra=app_ra,
+            app_dec=app_dec,
+            telescope_loc=telescope_loc,
+            coord_frame="fk4",
+            telescope_frame=telescope_frame,
+            ellipsoid=selenoid,
+            coord_epoch=1950.0,
+        )
 
     else:
         check_ra, check_dec = phs_utils.calc_sidereal_coords(
@@ -1785,25 +1753,18 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame, seleno
     """
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
-        err_type = None
     else:
         telescope_loc = astrometry_args["moon_telescope_loc"]
-        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
-        err_type = SpiceUNKNOWNFRAME
-
-    try:
-        check_ra, check_dec = phs_utils.transform_icrs_to_app(
-            time_array=Time(astrometry_args["time_array"], format="jd"),
-            ra=astrometry_args["icrs_ra"],
-            dec=astrometry_args["icrs_dec"],
-            telescope_loc=telescope_loc,
-            telescope_frame=telescope_frame,
-            ellipsoid=selenoid,
-            epoch=Time(astrometry_args["epoch"], format="jyear"),
-        )
-    except err_type as err:
-        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    check_ra, check_dec = phs_utils.transform_icrs_to_app(
+        time_array=Time(astrometry_args["time_array"], format="jd"),
+        ra=astrometry_args["icrs_ra"],
+        dec=astrometry_args["icrs_dec"],
+        telescope_loc=telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=selenoid,
+        epoch=Time(astrometry_args["epoch"], format="jyear"),
+    )
 
     if telescope_frame == "itrs":
         app_ra = astrometry_args["app_ra"]
@@ -2068,21 +2029,17 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
 def test_uvw_track_generator_moon(selenoid):
     pytest.importorskip("lunarsky")
     # Note this isn't a particularly deep test, but it at least exercises the code.
-    from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
-    try:
-        gen_results = utils.uvw_track_generator(
-            lon_coord=0.0,
-            lat_coord=0.0,
-            coord_frame="icrs",
-            telescope_loc=(0, 0, 0),
-            time_array=2456789.0,
-            antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-            telescope_frame="mcmf",
-            ellipsoid=selenoid,
-        )
-    except SpiceUNKNOWNFRAME as err:
-        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    gen_results = utils.uvw_track_generator(
+        lon_coord=0.0,
+        lat_coord=0.0,
+        coord_frame="icrs",
+        telescope_loc=(0, 0, 0),
+        time_array=2456789.0,
+        antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+        telescope_frame="mcmf",
+        ellipsoid=selenoid,
+    )
 
     # Check that the total lengths all match 1
     np.testing.assert_allclose(
@@ -2091,18 +2048,15 @@ def test_uvw_track_generator_moon(selenoid):
 
     if selenoid == "SPHERE":
         # check defaults
-        try:
-            gen_results = utils.uvw_track_generator(
-                lon_coord=0.0,
-                lat_coord=0.0,
-                coord_frame="icrs",
-                telescope_loc=(0, 0, 0),
-                time_array=2456789.0,
-                antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-                telescope_frame="mcmf",
-            )
-        except SpiceUNKNOWNFRAME as err:
-            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+        gen_results = utils.uvw_track_generator(
+            lon_coord=0.0,
+            lat_coord=0.0,
+            coord_frame="icrs",
+            telescope_loc=(0, 0, 0),
+            time_array=2456789.0,
+            antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+            telescope_frame="mcmf",
+        )
 
         # Check that the total lengths all match 1
         np.testing.assert_allclose(
