@@ -20,7 +20,7 @@ from astropy.coordinates import Angle, EarthLocation, Latitude, Longitude, SkyCo
 from astropy.time import Time
 from astropy.utils import iers
 
-from pyuvdata import UVCal, UVData, utils
+from pyuvdata import UVCal, UVData, parameter as uvp, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
@@ -5588,6 +5588,7 @@ def test_redundancy_contract_expand(
     # and restored to its original form.
 
     uv0 = pyuvsim_redundant
+    uv0._set_scan_numbers()
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
@@ -5913,6 +5914,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
     method, casa_uvfits, grid_alg
 ):
     uv0 = casa_uvfits
+    uv0._set_scan_numbers()
 
     # check that Nblts != Nbls * Ntimes
     assert uv0.Nblts != uv0.Nbls * uv0.Ntimes
@@ -6372,6 +6374,9 @@ def test_upsample_in_time(hera_uvh5):
     """Test the upsample_in_time method"""
     uv_object = hera_uvh5
 
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     init_phase_dict = uv_object.phase_center_catalog[0]
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
@@ -6428,6 +6433,10 @@ def test_upsample_in_time(hera_uvh5):
 def test_upsample_in_time_with_flags(hera_uvh5):
     """Test the upsample_in_time method with flags"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -6475,6 +6484,10 @@ def test_upsample_in_time_with_flags(hera_uvh5):
 def test_upsample_in_time_noninteger_resampling(hera_uvh5):
     """Test the upsample_in_time method with a non-integer resampling factor"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -6542,7 +6555,20 @@ def test_upsample_in_time_errors(hera_uvh5):
         uv_object.upsample_in_time(max_integration_time)
     assert uv_object == uv_object2
 
-    return
+    uv_object2 = uv_object.copy()
+    uv_object2._foo = uvp.UVParameter(
+        "foo", description="bar", form=("Nblts",), expected_type=int, required=False
+    )
+    uv_object2._foo.value = np.arange(uv_object2.Nblts)
+
+    with pytest.raises(
+        RuntimeError,
+        match="Something went wrong in UVData.upsample_in_time. Please file "
+        "an issue in our GitHub issue log so that we can help",
+    ):
+        uv_object2.upsample_in_time(
+            max_int_time=np.min(uv_object2.integration_time) / 2.0
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
@@ -6706,6 +6732,10 @@ def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5):
 def test_partial_upsample_in_time(hera_uvh5):
     """Test the upsample_in_time method with non-uniform upsampling"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
@@ -6887,6 +6917,9 @@ def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
 def test_downsample_in_time(hera_uvh5):
     """Test the downsample_in_time method"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
@@ -7074,6 +7107,10 @@ def test_downsample_in_time_totally_flagged(hera_uvh5):
 def test_downsample_in_time_uneven_samples(hera_uvh5):
     """Test the downsample_in_time method with uneven downsampling"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts("baseline", minor_order="time")
@@ -7497,6 +7534,10 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
 def test_partial_downsample_in_time(hera_uvh5):
     """Test the downsample_in_time method without uniform downsampling"""
     uv_object = hera_uvh5
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # change a whole baseline's integration time
@@ -7777,26 +7818,79 @@ def test_downsample_in_time_nsample_precision(hera_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_downsample_in_time_errors(hera_uvh5):
-    """Test various errors and warnings are raised"""
+@pytest.mark.parametrize(
+    ("kwargs", "err_msg"),
+    [
+        ({}, "Either min_int_time or n_times_to_avg must be set."),
+        (
+            {"min_int_time": 20.0, "n_times_to_avg": 2},
+            "Only one of min_int_time or n_times_to_avg can be set.",
+        ),
+        ({"min_int_time": 2000.0}, "Increasing the integration time by more than"),
+        ({"n_times_to_avg": 2.5}, "n_times_to_avg must be an integer."),
+    ],
+)
+def test_downsample_in_time_input_errors(hera_uvh5, kwargs, err_msg):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
     uv_object.reorder_blts("baseline", minor_order="time")
 
     # raise an error if set neither min_int_time and n_times_to_avg
-    with pytest.raises(
-        ValueError, match="Either min_int_time or n_times_to_avg must be set."
-    ):
-        uv_object.downsample_in_time()
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.downsample_in_time(**kwargs)
 
-    # raise an error if set both min_int_time and n_times_to_avg
-    with pytest.raises(
-        ValueError, match="Only one of min_int_time or n_times_to_avg can be set."
-    ):
-        uv_object.downsample_in_time(
-            min_int_time=2 * np.amin(uv_object.integration_time), n_times_to_avg=2
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    ("param", "err_msg"),
+    [
+        (
+            "phase_center",
+            "Multiple phase centers included in a downsampling window. Use "
+            "`phase` to phase to a single phase center or decrease the `min_int_time` "
+            "or `n_times_to_avg` parameter to avoid multiple phase centers being "
+            "included in a downsampling window.",
+        ),
+        (
+            "scan_number_array",
+            "Multiple scan numbers included in a downsampling "
+            "window. Adjust scan numbers manually if desired "
+            "or decrease the `min_int_time` or `n_times_to_avg` "
+            "parameter to avoid multiple scan numbers being "
+            "included in a downsampling window.",
+        ),
+    ],
+)
+def test_downsample_in_time_changing_val_errors(hera_uvh5, param, err_msg):
+    uv_object = hera_uvh5
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts("baseline", minor_order="time")
+
+    uv_object.reorder_blts("time")
+    mask = np.full(uv_object.Nblts, False)
+    mask[: uv_object.Nblts // 3] = True
+
+    if param == "phase_center":
+        uv_object.phase(
+            ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="foo"
         )
+    elif param == "scan_number_array":
+        uv_object._set_scan_numbers()
+        uv_object.scan_number_array[mask] = 2
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.downsample_in_time(n_times_to_avg=2)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_errors(hera_uvh5):
+    """Test errors are raised"""
+    uv_object = hera_uvh5
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts("baseline", minor_order="time")
+
     # raise an error if only one time
     uv_object2 = uv_object.copy()
     uv_object2.select(times=uv_object2.time_array[0])
@@ -7805,29 +7899,27 @@ def test_downsample_in_time_errors(hera_uvh5):
     ):
         uv_object2.downsample_in_time(n_times_to_avg=2)
 
-    # raise an error for a too-large integration time
-    max_integration_time = 1e3 * np.amax(uv_object.integration_time)
-    with pytest.raises(
-        ValueError, match="Increasing the integration time by more than"
-    ):
-        uv_object.downsample_in_time(min_int_time=max_integration_time)
-
-    # raise an error if phase centers change within an downsampling window
     uv_object2 = uv_object.copy()
-    uv_object2.reorder_blts("time")
-    mask = np.full(uv_object2.Nblts, False)
-    mask[: uv_object2.Nblts // 3] = True
-    uv_object2.phase(ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="foo")
+    uv_object2._foo = uvp.UVParameter(
+        "foo", description="bar", form=("Nblts",), expected_type=int, required=False
+    )
+    uv_object2._foo.value = np.arange(uv_object2.Nblts)
+
     with pytest.raises(
-        ValueError,
-        match=(
-            "Multiple phase centers included in a downsampling window. Use `phase` to"
-            " phase to a single phase center or decrease the `min_int_time` or"
-            " `n_times_to_avg` parameter to avoid multiple phase centers being included"
-            " in a downsampling window."
-        ),
+        RuntimeError,
+        match="Something went wrong in UVData.downsample_in_time. Please file "
+        "an issue in our GitHub issue log so that we can help",
     ):
         uv_object2.downsample_in_time(n_times_to_avg=2)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_downsample_in_time_warnings(hera_uvh5):
+    """Test various warnings are raised"""
+    uv_object = hera_uvh5
+    uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
+    # reorder to make sure we get the right value later
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
@@ -7839,10 +7931,6 @@ def test_downsample_in_time_errors(hera_uvh5):
 
     assert uv_object == uv_object2
     del uv_object2
-
-    # raise an error if n_times_to_avg is not an integer
-    with pytest.raises(ValueError, match="n_times_to_avg must be an integer."):
-        uv_object.downsample_in_time(n_times_to_avg=2.5)
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -8168,6 +8256,9 @@ def test_upsample_downsample_in_time(hera_uvh5):
     """Test round trip works"""
     uv_object = hera_uvh5
 
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
+
     # Using astropy here (and elsewhere) to match previously calculated values
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
@@ -8345,6 +8436,9 @@ def test_resample_in_time(bda_test_file, driftscan, partial_phase):
     # that causes our gap test to issue a warning, but the variations are small
     # We aren't worried about them, so we filter those warnings
     uv_object = bda_test_file
+
+    # set scan numbers so we can check that they are handled properly
+    uv_object._set_scan_numbers()
 
     if driftscan:
         uv_object.phase(

@@ -6963,47 +6963,62 @@ class UVData(UVBase):
         if not inplace:
             return uv_obj
 
+    def _setup_time_resample_update_dict(self):
+        """
+        Set up a dict to carry update arrays for resampling in time.
+
+        This function is called by both upsample_in_time and downsample_in_time.
+        """
+        # Use _get_uvparam_axis to make sure all relevant parameters are included.
+        update_params = self._get_uvparam_axis("Nblts")
+        derived_params = [
+            "ant_1_array",
+            "ant_2_array",
+            "lst_array",
+            "uvw_array",
+            "phase_center_app_dec",
+            "phase_center_app_ra",
+            "phase_center_frame_pa",
+        ]
+        update_params = set(update_params).difference(derived_params)
+        update_dict = {}
+        for param in update_params:
+            update_dict[param] = None
+
+        return update_dict
+
     def _harmonize_resample_arrays(
-        self,
-        *,
-        inds_to_keep,
-        temp_baseline,
-        temp_id_array,
-        temp_time,
-        temp_int_time,
-        temp_data,
-        temp_flag,
-        temp_nsample,
-        astrometry_library=None,
+        self, *, inds_to_keep, update_dict, astrometry_library=None
     ):
         """
         Make a self-consistent object after up/downsampling.
 
         This function is called by both upsample_in_time and downsample_in_time.
-        See those functions for more information about arguments.
+
+        Parameters
+        ----------
+        inds_to_keep : array-like of int
+            Indices along the blt axis to keep in the object.
+        update_dict : dict
+            Dictionary with new arrays to be added into the object after removing
+            unneeded indices. Keys are UVParameters names, values are arrays
+            to concatenate with the remaining arrays. Only fundamental arrays
+            are updated using this, derived arrays are updated from these
+            fundamental arrays.
+        astrometry_library : str
+            Library to use for calculating the LSTs after resampling. Allowed options
+            are 'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location is a MoonLocation object, in which case the
+            default is astropy.
+
         """
-        self.baseline_array = self.baseline_array[inds_to_keep]
-        self.time_array = self.time_array[inds_to_keep]
-        self.integration_time = self.integration_time[inds_to_keep]
-        self.phase_center_id_array = self.phase_center_id_array[inds_to_keep]
+        # remove indices that are no longer needed.
+        self._select_along_param_axis({"Nblts": inds_to_keep})
 
-        self.baseline_array = np.concatenate((self.baseline_array, temp_baseline))
-        self.time_array = np.concatenate((self.time_array, temp_time))
-        self.integration_time = np.concatenate((self.integration_time, temp_int_time))
-        self.phase_center_id_array = np.concatenate(
-            (self.phase_center_id_array, temp_id_array)
-        )
-        if not self.metadata_only:
-            self.data_array = self.data_array[inds_to_keep]
-            self.flag_array = self.flag_array[inds_to_keep]
-            self.nsample_array = self.nsample_array[inds_to_keep]
-
-            # concatenate temp array with existing arrays
-            self.data_array = np.concatenate((self.data_array, temp_data), axis=0)
-            self.flag_array = np.concatenate((self.flag_array, temp_flag), axis=0)
-            self.nsample_array = np.concatenate(
-                (self.nsample_array, temp_nsample), axis=0
-            )
+        # add in updated values for arrays
+        for param, value in update_dict.items():
+            setattr(self, param, np.concatenate((getattr(self, param), value), axis=0))
 
         # set antenna arrays from baseline_array
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(
@@ -7146,8 +7161,11 @@ class UVData(UVBase):
 
         temp_Nblts = np.sum(n_new_samples)
 
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.uint64)
-        temp_id_array = np.zeros((temp_Nblts,), dtype=int)
+        # set up a dict for temporary arrays.
+        update_dict = self._setup_time_resample_update_dict()
+
+        update_dict["baseline_array"] = np.zeros((temp_Nblts,), dtype=np.uint64)
+        update_dict["phase_center_id_array"] = np.zeros((temp_Nblts,), dtype=int)
         if initial_nphase_ids > 1 and initial_driftscan:
             temp_initial_ids = np.zeros((temp_Nblts,), dtype=int)
         else:
@@ -7156,23 +7174,29 @@ class UVData(UVBase):
             temp_unprojected_blts = np.zeros((temp_Nblts,), dtype=bool)
         else:
             temp_unprojected_blts = None
-        temp_time = np.zeros((temp_Nblts,))
-        temp_int_time = np.zeros((temp_Nblts,))
-        if self.metadata_only:
-            temp_data = None
-            temp_flag = None
-            temp_nsample = None
-        else:
+        update_dict["time_array"] = np.zeros((temp_Nblts,))
+        update_dict["integration_time"] = np.zeros((temp_Nblts,))
+
+        if self.scan_number_array is not None:
+            update_dict["scan_number_array"] = np.zeros((temp_Nblts,), dtype=int)
+
+        if not self.metadata_only:
+            data_like_params = ["data_array", "flag_array", "nsample_array"]
             new_data_shape = (temp_Nblts, self.Nfreqs, self.Npols)
-            temp_data = np.zeros(new_data_shape, dtype=self.data_array.dtype)
-            temp_flag = np.zeros(new_data_shape, dtype=self.flag_array.dtype)
-            temp_nsample = np.zeros(new_data_shape, dtype=self.nsample_array.dtype)
+            for param in data_like_params:
+                update_dict[param] = np.zeros(
+                    new_data_shape, dtype=getattr(self, param).dtype
+                )
 
         i0 = 0
         for i, ind in enumerate(inds_to_upsample[0]):
             i1 = i0 + n_new_samples[i]
-            temp_baseline[i0:i1] = self.baseline_array[ind]
-            temp_id_array[i0:i1] = self.phase_center_id_array[ind]
+            update_dict["baseline_array"][i0:i1] = self.baseline_array[ind]
+            update_dict["phase_center_id_array"][i0:i1] = self.phase_center_id_array[
+                ind
+            ]
+            if self.scan_number_array is not None:
+                update_dict["scan_number_array"][i0:i1] = self.scan_number_array[ind]
             if initial_nphase_ids > 1:
                 if initial_driftscan:
                     temp_initial_ids[i0:i1] = initial_ids[ind]
@@ -7180,12 +7204,10 @@ class UVData(UVBase):
                     temp_unprojected_blts[i0:i1] = unprojected_blts[ind]
 
             if not self.metadata_only:
+                for param in data_like_params:
+                    update_dict[param][i0:i1] = getattr(self, param)[ind]
                 if summing_correlator_mode:
-                    temp_data[i0:i1] = self.data_array[ind] / n_new_samples[i]
-                else:
-                    temp_data[i0:i1] = self.data_array[ind]
-                temp_flag[i0:i1] = self.flag_array[ind]
-                temp_nsample[i0:i1] = self.nsample_array[ind]
+                    update_dict["data_array"][i0:i1] /= n_new_samples[i]
 
             # compute the new times of the upsampled array
             t0 = self.time_array[ind]
@@ -7196,32 +7218,37 @@ class UVData(UVBase):
             offset = 0.5 + 0.5 * (n_new_samples[i] % 2)
             n2 = n_new_samples[i] // 2
 
-            # Figure out the new center for sample ii taking offset into
-            # account. Because `t0` is the central time for the original time
-            # sample, `nt` will range from negative to positive so that
-            # `temp_time` will result in the central time for the new samples.
+            # Figure out the new center for sample ii taking offset into account.
+            # Because `t0` is the central time for the original time sample, `nt`
+            # will range from negative to positive so that `update_dict["time_array"]`
+            # will result in the central time for the new samples.
             # `idx2` tells us how to far to shift and in what direction for each
             # new sample.
             for ii, idx in enumerate(range(i0, i1)):
                 idx2 = ii + offset + n2 - n_new_samples[i]
                 nt = ((t0 * units.day) + (dt * idx2 * units.s)).to_value(units.day)
-                temp_time[idx] = nt
+                update_dict["time_array"][idx] = nt
 
-            temp_int_time[i0:i1] = dt
+            update_dict["integration_time"][i0:i1] = dt
 
             i0 = i1
 
         # harmonize temporary arrays with existing ones
-        inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
+        inds_to_keep = np.nonzero(self.integration_time <= max_int_time)[0]
+
+        # check that all needed parameters have update arrays
+        for key, value in update_dict.items():
+            if value is None:
+                raise RuntimeError(
+                    "Something went wrong in UVData.upsample_in_time. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    f" Developer info: missing update array: {key}"
+                )
+
         self._harmonize_resample_arrays(
             inds_to_keep=inds_to_keep,
-            temp_baseline=temp_baseline,
-            temp_id_array=temp_id_array,
-            temp_time=temp_time,
-            temp_int_time=temp_int_time,
-            temp_data=temp_data,
-            temp_flag=temp_flag,
-            temp_nsample=temp_nsample,
+            update_dict=update_dict,
             astrometry_library=astrometry_library,
         )
 
@@ -7510,11 +7537,16 @@ class UVData(UVBase):
                 phase_time = Time(self.time_array[0], format="jd")
                 self.phase_to_time(phase_time)
 
-        # make temporary arrays
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.uint64)
-        temp_id_array = np.zeros((temp_Nblts,), dtype=int)
-        temp_time = np.zeros((temp_Nblts,))
-        temp_int_time = np.zeros((temp_Nblts,))
+        # set up a dict for temporary arrays.
+        update_dict = self._setup_time_resample_update_dict()
+
+        update_dict["baseline_array"] = np.zeros((temp_Nblts,), dtype=np.uint64)
+        update_dict["phase_center_id_array"] = np.zeros((temp_Nblts,), dtype=int)
+        update_dict["time_array"] = np.zeros((temp_Nblts,))
+        update_dict["integration_time"] = np.zeros((temp_Nblts,))
+        if self.scan_number_array is not None:
+            update_dict["scan_number_array"] = np.zeros((temp_Nblts,), dtype=int)
+
         if initial_nphase_ids > 1 and initial_driftscan:
             temp_initial_ids = np.zeros((temp_Nblts,), dtype=int)
         else:
@@ -7523,15 +7555,12 @@ class UVData(UVBase):
             temp_unprojected_blts = np.zeros((temp_Nblts,), dtype=bool)
         else:
             temp_unprojected_blts = None
-        if self.metadata_only:
-            temp_data = None
-            temp_flag = None
-            temp_nsample = None
-        else:
+        if not self.metadata_only:
             new_data_shape = (temp_Nblts, self.Nfreqs, self.Npols)
-            temp_data = np.zeros(new_data_shape, dtype=self.data_array.dtype)
-            temp_flag = np.zeros(new_data_shape, dtype=self.flag_array.dtype)
-            temp_nsample = np.zeros(new_data_shape, dtype=self.nsample_array.dtype)
+            for param in ["data_array", "flag_array", "nsample_array"]:
+                update_dict[param] = np.zeros(
+                    new_data_shape, dtype=getattr(self, param).dtype
+                )
 
         temp_idx = 0
         for bl in bls_to_downsample:
@@ -7560,7 +7589,7 @@ class UVData(UVBase):
                         # don't do anything -- implicitly drop these integrations
                         continue
                     # sum together that number of samples
-                    temp_baseline[temp_idx] = bl
+                    update_dict["baseline_array"][temp_idx] = bl
                     # this might be wrong if some of the constituent times are
                     # *totally* flagged
                     averaging_idx = bl_inds[summing_idx : summing_idx + n_sum]
@@ -7576,9 +7605,9 @@ class UVData(UVBase):
                                 "parameter to avoid multiple phase centers being "
                                 "included in a downsampling window."
                             )
-                    temp_id_array[temp_idx] = self.phase_center_id_array[
-                        averaging_idx[0]
-                    ]
+                    update_dict["phase_center_id_array"][temp_idx] = (
+                        self.phase_center_id_array[averaging_idx[0]]
+                    )
                     if initial_nphase_ids > 1:
                         if initial_unprojected:
                             unique_unprojected = np.unique(
@@ -7588,27 +7617,47 @@ class UVData(UVBase):
                         if initial_driftscan:
                             unique_initial_ids = np.unique(initial_ids[averaging_idx])
                             temp_initial_ids[temp_idx] = unique_initial_ids[0]
+
+                    # handle scan numbers
+                    if self.scan_number_array is not None:
+                        unique_scan_numbers = np.unique(
+                            self.scan_number_array[averaging_idx]
+                        )
+                        if unique_scan_numbers.size > 1:
+                            raise ValueError(
+                                "Multiple scan numbers included in a downsampling "
+                                "window. Adjust scan numbers manually if desired "
+                                "or decrease the `min_int_time` or `n_times_to_avg` "
+                                "parameter to avoid multiple scan numbers being "
+                                "included in a downsampling window."
+                            )
+                        update_dict["scan_number_array"][temp_idx] = (
+                            self.scan_number_array[averaging_idx[0]]
+                        )
+
                     # take potential non-uniformity of integration_time into account
-                    temp_time[temp_idx] = np.sum(
+                    update_dict["time_array"][temp_idx] = np.sum(
                         self.time_array[averaging_idx]
                         * self.integration_time[averaging_idx]
                     ) / np.sum(self.integration_time[averaging_idx])
-                    temp_int_time[temp_idx] = running_int_time
+                    update_dict["integration_time"][temp_idx] = running_int_time
                     if not self.metadata_only:
                         # if all inputs are flagged, the flag array should be True,
                         # otherwise it should be False.
                         # The sum below will be zero if it's all flagged and
                         # greater than zero otherwise
                         # Then we use a test against 0 to turn it into a Boolean
-                        temp_flag[temp_idx] = (
+                        update_dict["flag_array"][temp_idx] = (
                             np.sum(~self.flag_array[averaging_idx], axis=0) == 0
                         )
 
                         mask = self.flag_array[averaging_idx]
                         # need to update mask if a downsampled visibility will
                         # be flagged so that we don't set it to zero
-                        if (temp_flag[temp_idx]).any():
-                            ax1_inds, ax2_inds = np.nonzero(temp_flag[temp_idx])
+                        if (update_dict["flag_array"][temp_idx]).any():
+                            ax1_inds, ax2_inds = np.nonzero(
+                                update_dict["flag_array"][temp_idx]
+                            )
                             mask[:, ax1_inds, ax2_inds] = False
 
                         masked_data = np.ma.masked_array(
@@ -7641,20 +7690,22 @@ class UVData(UVBase):
                             mask=mask,
                         )
                         if summing_correlator_mode:
-                            temp_data[temp_idx] = np.sum(masked_data, axis=0)
+                            update_dict["data_array"][temp_idx] = np.sum(
+                                masked_data, axis=0
+                            )
                         else:
                             # take potential non-uniformity of integration_time
                             # and nsamples into account
                             weights = masked_nsample * masked_int_time
                             weighted_data = masked_data * weights
-                            temp_data[temp_idx] = np.sum(
+                            update_dict["data_array"][temp_idx] = np.sum(
                                 weighted_data, axis=0
                             ) / np.sum(weights, axis=0)
 
                         # output of masked array calculation should be coerced
-                        # to the datatype of temp_nsample (which has the same
-                        # precision as the original nsample_array)
-                        temp_nsample[temp_idx] = np.sum(
+                        # to the datatype of update_dict["nsample_array"]
+                        # (which has the same precision as the original nsample_array)
+                        update_dict["nsample_array"][temp_idx] = np.sum(
                             masked_nsample * masked_int_time, axis=0
                         ) / np.sum(self.integration_time[averaging_idx])
                     # increment counters and reset values
@@ -7683,6 +7734,16 @@ class UVData(UVBase):
         else:
             inds_to_keep = np.array([], dtype=bool)
 
+        # check that all needed parameters have update arrays
+        for key, value in update_dict.items():
+            if value is None:
+                raise RuntimeError(
+                    "Something went wrong in UVData.downsample_in_time. Please "
+                    "file an issue in our GitHub issue log so that we can help: "
+                    "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues."
+                    f" Developer info: missing update array: {key}"
+                )
+
         # we don't know the order now (because we just messed with it), and in harmonize
         # it sets rectangularity, which gets the wrong behavior if blt_order is wrong.
         # So we set it to None, so that it doesn't say the wrong thing (we reorder
@@ -7690,13 +7751,7 @@ class UVData(UVBase):
         self.blt_order = None
         self._harmonize_resample_arrays(
             inds_to_keep=inds_to_keep,
-            temp_baseline=temp_baseline,
-            temp_id_array=temp_id_array,
-            temp_time=temp_time,
-            temp_int_time=temp_int_time,
-            temp_data=temp_data,
-            temp_flag=temp_flag,
-            temp_nsample=temp_nsample,
+            update_dict=update_dict,
             astrometry_library=astrometry_library,
         )
         if phased:
@@ -8590,13 +8645,7 @@ class UVData(UVBase):
             warnings.warn("Missing some redundant groups. Filling in available data.")
 
         # blt_map is an index array mapping compressed blti indices to uncompressed
-        self.data_array = self.data_array[blt_map, ...]
-        self.nsample_array = self.nsample_array[blt_map, ...]
-        self.flag_array = self.flag_array[blt_map, ...]
-        self.time_array = self.time_array[blt_map]
-        self.lst_array = self.lst_array[blt_map]
-        self.integration_time = self.integration_time[blt_map]
-        self.uvw_array = self.uvw_array[blt_map, ...]
+        self._select_along_param_axis({"Nblts": blt_map})
 
         self.baseline_array = full_baselines
         self.ant_1_array, self.ant_2_array = self.baseline_to_antnums(
@@ -8605,11 +8654,6 @@ class UVData(UVBase):
         self.Nants_data = self._calc_nants_data()
         self.Nbls = np.unique(self.baseline_array).size
         self.Nblts = Nblts_full
-
-        self.phase_center_app_ra = self.phase_center_app_ra[blt_map]
-        self.phase_center_app_dec = self.phase_center_app_dec[blt_map]
-        self.phase_center_frame_pa = self.phase_center_frame_pa[blt_map]
-        self.phase_center_id_array = self.phase_center_id_array[blt_map]
 
         self.reorder_blts(order=blt_order, minor_order=blt_minor_order)
 
