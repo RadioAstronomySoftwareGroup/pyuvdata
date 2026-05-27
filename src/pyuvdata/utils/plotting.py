@@ -414,7 +414,7 @@ def beam_plot(
         freq_title = freq
 
         naxes_vec = beam_obj.Naxes_vec
-        if beam_type in ["power", "feed_iresponse"]:
+        if beam_type in ["power", "feed_aligned_response"]:
             naxes_vec = 1
         reg_grid = True
 
@@ -440,9 +440,9 @@ def beam_plot(
         beam_type_label = "power"
     elif beam_type == "efield":
         beam_type_label = "E-field"
-    elif beam_type == "feed_iresponse":
+    elif beam_type == "feed_aligned_response":
         beam_type_label = "Feed I response"
-    elif beam_type == "feed_projection":
+    elif beam_type == "feed_aligned_projection":
         beam_type_label = "Feed projection"
 
     plot_beam_arrays(
