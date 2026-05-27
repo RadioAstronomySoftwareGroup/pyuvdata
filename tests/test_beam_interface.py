@@ -72,12 +72,12 @@ def gaussian_uv(gaussian, az_za_coords) -> UVBeam:
         ("power", "power", "az_za"),
         ("power", "power", "healpix"),
         ("power", "efield", "az_za"),
-        ("power", "feed_iresponse", "az_za"),
-        ("feed_projection", "power", "az_za"),
-        ("efield", "feed_iresponse", "az_za"),
-        ("feed_iresponse", "feed_iresponse", "az_za"),
-        ("efield", "feed_projection", "az_za"),
-        ("feed_projection", "feed_projection", "az_za"),
+        ("power", "feed_aligned_response", "az_za"),
+        ("feed_aligned_projection", "power", "az_za"),
+        ("efield", "feed_aligned_response", "az_za"),
+        ("feed_aligned_response", "feed_aligned_response", "az_za"),
+        ("efield", "feed_aligned_projection", "az_za"),
+        ("feed_aligned_projection", "feed_aligned_projection", "az_za"),
     ],
 )
 def test_beam_interface(

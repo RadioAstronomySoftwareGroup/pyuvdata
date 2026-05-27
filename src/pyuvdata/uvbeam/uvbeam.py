@@ -230,7 +230,12 @@ class UVBeam(UVBase):
             description=desc,
             form="str",
             expected_type=str,
-            acceptable_vals=["efield", "power", "feed_iresponse", "feed_projection"],
+            acceptable_vals=[
+                "efield",
+                "power",
+                "feed_aligned_response",
+                "feed_aligned_projection",
+            ],
         )
 
         desc = (
@@ -841,8 +846,8 @@ class UVBeam(UVBase):
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
-    def _set_feed_iresponse(self):
-        self.beam_type = "feed_iresponse"
+    def _set_feed_aligned_response(self):
+        self.beam_type = "feed_aligned_response"
         self._Naxes_vec.acceptable_vals = [1]
         self._basis_vector_array.required = False
         self._Ncomponents_vec.required = False
@@ -852,8 +857,8 @@ class UVBeam(UVBase):
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
-    def _set_feed_projection(self):
-        self.beam_type = "feed_projection"
+    def _set_feed_aligned_projection(self):
+        self.beam_type = "feed_aligned_projection"
         self._Naxes_vec.acceptable_vals = [2, 3]
         self._Ncomponents_vec.required = True
         self._basis_vector_array.required = True
@@ -1408,7 +1413,7 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def efield_to_feed_iresponse(
+    def efield_to_feed_aligned_response(
         self,
         *,
         inplace=True,
@@ -1417,13 +1422,19 @@ class UVBeam(UVBase):
         run_check_acceptability=True,
     ):
         """
-        Convert E-field beam feed I response.
+        Convert E-field beam to feed aligned response.
 
-        The feed I response is the the complex response of each instrumental
-        feed to unpolarized emission (so it only has an feed index, no vector
-        component axis). The phase is related to time delays which can vary
-        spatially but do not differ between incident polarizations (so are
-        unpolarized).
+        The feed aligned response is the complex response of each instrumental
+        feed to electric fields aligned with it -- i.e. after projecting electric
+        fields to directions aligned with the feeds (these directions are
+        non-orthogonal in many directions on the sky even though the feeds are
+        generally physically orthogonal). Since the projection has already happened,
+        the feed aligned response only has a feed index, no vector component axis.
+        Non-zero phase is caused by time delays which can vary spatially but do
+        not depend on incident polarization.
+
+        Unpolarized light is equally spread among all polarization orientations,
+        so the feed aligned response can be used as the response to unpolarized light.
 
         Parameters
         ----------
@@ -1442,8 +1453,8 @@ class UVBeam(UVBase):
         Returns
         -------
         UVBeam or None
-            If inplace is False, returns the feed I response beam object. If
-            inplace is True, returns None.
+            If inplace is False, returns the feed aligned response beam object.
+            If inplace is True, returns None.
 
         """
         if inplace:
@@ -1457,9 +1468,9 @@ class UVBeam(UVBase):
         if beam_object.pixel_coordinate_system != "az_za":
             raise ValueError("pixel_coordinate_system must be az_za.")
 
-        beam_object._set_feed_iresponse()
-        # feed I response (also called F) is composed of two parts: the magnitude
-        # part and the complex phase part which is from time delays.
+        beam_object._set_feed_aligned_response()
+        # feed aligned response (also called F) is composed of two parts:
+        # the magnitude part and the complex phase part which is from time delays.
         # The magnitude is the sqrt of the sum of the squares of the response to
         # the two vector orientations (azimuthally aligned & zenith angle aligned)
         f_mag = np.sqrt(np.sum(np.abs(beam_object.data_array) ** 2, axis=0))
@@ -1514,7 +1525,7 @@ class UVBeam(UVBase):
 
         beam_object.Naxes_vec = 1
         history_update_string = (
-            " Converted from efield to feed I response using pyuvdata."
+            " Converted from efield to feed aligned response using pyuvdata."
         )
         beam_object.history = beam_object.history + history_update_string
         beam_object.basis_vector_array = None
@@ -1527,19 +1538,19 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def efield_to_feed_projection(
+    def efield_to_feed_aligned_projection(
         self,
         *,
         inplace=True,
-        return_feed_iresponse=False,
+        return_feed_aligned_response=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
     ):
         """
-        Convert E-field beam feed projection.
+        Convert E-field beam to feed aligned projection.
 
-        The feed projection is the projection from celestial polarization
+        The feed aligned projection is the projection from celestial polarization
         vector components (orthogonal on the sky) to instrumental feed vector
         components (often non-orthogonal on the sky). This is similar to a
         rotation matrix in that it just converts between coordinate systems
@@ -1551,8 +1562,8 @@ class UVBeam(UVBase):
         inplace : bool
             Option to apply conversion directly on self or to return a new
             UVBeam object.
-        return_feed_iresponse : bool
-            Option to return the feed I response, which is necessarily calculated.
+        return_feed_aligned_response : bool
+            Option to return the feed aligned response, which is necessarily calculated.
         run_check : bool
             Option to check for the existence and proper shapes of the required
             parameters after converting to power.
@@ -1564,9 +1575,14 @@ class UVBeam(UVBase):
 
         Returns
         -------
-        UVBeam or None
-            If inplace is False, returns the feed I response beam object. If
-            inplace is True, returns None.
+        UVBeam or tuple of UVBeam or None
+            If inplace is False and return_feed_aligned_response is True: returns
+            both the feed aligned projection and feed aligned response beam objects.
+            If inplace is False and return_feed_aligned_response is False: returns
+            the feed aligned projection beam object.
+            If inplace is True and return_feed_aligned_response is True: returns
+            the feed aligned response beam object.
+            If inplace is True and return_feed_aligned_response is False: returns None.
 
         """
         if inplace:
@@ -1580,16 +1596,16 @@ class UVBeam(UVBase):
         if beam_object.pixel_coordinate_system != "az_za":
             raise ValueError("pixel_coordinate_system must be az_za.")
 
-        # first get the feed I response, then divide it out to get the feed
+        # first get the feed aligned response, then divide it out to get the feed
         # projection
-        feed_resp = beam_object.efield_to_feed_iresponse(
+        feed_resp = beam_object.efield_to_feed_aligned_response(
             inplace=False,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
         )
 
-        beam_object._set_feed_projection()
+        beam_object._set_feed_aligned_projection()
 
         for va_i in range(beam_object.Naxes_vec):
             for f_i in range(beam_object.Nfeeds):
@@ -1600,7 +1616,7 @@ class UVBeam(UVBase):
                 ]
 
         history_update_string = (
-            " Converted from efield to feed projection using pyuvdata."
+            " Converted from efield to feed aligned projection using pyuvdata."
         )
         beam_object.history = beam_object.history + history_update_string
 
@@ -1609,7 +1625,7 @@ class UVBeam(UVBase):
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
-        if return_feed_iresponse:
+        if return_feed_aligned_response:
             if inplace:
                 return feed_resp
             else:
@@ -1617,19 +1633,28 @@ class UVBeam(UVBase):
         elif not inplace:
             return beam_object
 
-    def decompose_feed_iresponse_projection(
+    def decompose_feed_aligned_terms(
         self, run_check=True, check_extra=True, run_check_acceptability=True
     ):
         """
-        Decompose an E-field beam into I response and feed projection objects.
+        Decompose an E-field beam into feed aligned component objects.
 
-        The feed I response is the the complex response of each instrumental
-        feed to unpolarized emission (so it only has an feed index, no vector
-        component axis). The phase is related to time delays which can vary
-        spatially but do not differ between incident polarizations (so are
-        unpolarized).
+        Decompose the E-field beam into two objects, one with the feed aligned
+        response and one with the feed aligned projection.
 
-        The feed projection is the projection from celestial polarization
+        The feed aligned response is the complex response of each instrumental
+        feed to electric fields aligned with it -- i.e. after projecting electric
+        fields to directions aligned with the feeds (these directions are
+        non-orthogonal in many directions on the sky even though the feeds are
+        generally physically orthogonal). Since the projection has already happened,
+        the feed aligned response only has a feed index, no vector component axis.
+        Non-zero phase is caused by time delays which can vary spatially but do
+        not depend on incident polarization.
+
+        Unpolarized light is equally spread among all polarization orientations,
+        so the feed aligned response can be used as the response to unpolarized light.
+
+        The feed aligned projection is the projection from celestial polarization
         vector components (orthogonal on the sky) to instrumental feed vector
         components (often non-orthogonal on the sky). This is similar to a
         rotation matrix in that it just converts between coordinate systems
@@ -1650,14 +1675,14 @@ class UVBeam(UVBase):
         Returns
         -------
         UVBeam
-            feed_iresponse object.
+            feed_aligned_response object.
         UVBeam
-            feed_projection object.
+            feed_aligned_projection object.
 
         """
-        fproj, firesp = self.efield_to_feed_projection(
+        fproj, firesp = self.efield_to_feed_aligned_projection(
             inplace=False,
-            return_feed_iresponse=True,
+            return_feed_aligned_response=True,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,

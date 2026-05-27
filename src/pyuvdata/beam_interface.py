@@ -38,7 +38,8 @@ class BeamInterface:
         Beam object to use for computations. If a BeamInterface is passed, a new
         view of the same object is created.
     beam_type : str
-        The beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
+        The beam type, one of "efield", "power", "feed_aligned_response" or
+        "feed_aligned_projection".
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne).
         Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
@@ -49,7 +50,8 @@ class BeamInterface:
 
     beam: AnalyticBeam | UVBeam
     beam_type: (
-        Literal["efield", "power", "feed_iresponse", "feed_projection"] | None
+        Literal["efield", "power", "feed_aligned_response", "feed_aligned_projection"]
+        | None
     ) = None
     include_cross_pols: InitVar[bool] = True
 
@@ -82,8 +84,8 @@ class BeamInterface:
             elif self.beam.beam_type == "efield":
                 conv_func = {
                     "power": "efield_to_power",
-                    "feed_iresponse": "efield_to_feed_iresponse",
-                    "feed_projection": "efield_to_feed_projection",
+                    "feed_aligned_response": "efield_to_feed_aligned_response",
+                    "feed_aligned_projection": "efield_to_feed_aligned_projection",
                 }
                 warnings.warn(
                     "Input beam is an efield UVBeam but beam_type is specified as "

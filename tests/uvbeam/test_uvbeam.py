@@ -3726,7 +3726,7 @@ def test_plotting_errors(mwa_fee_1ppd):
 
 
 @pytest.mark.parametrize(
-    "method", ["decompose_feed_iresponse_projection", "efield_to_feed_iresponse"]
+    "method", ["decompose_feed_aligned_terms", "efield_to_feed_aligned_response"]
 )
 def test_decompose_errors(cst_power_1freq, cst_efield_2freq_cut_healpix, method):
     with pytest.raises(ValueError, match="beam_type must be efield."):
