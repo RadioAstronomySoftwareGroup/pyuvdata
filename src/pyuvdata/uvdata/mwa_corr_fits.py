@@ -1218,9 +1218,9 @@ class MWACorrFITS(UVData):
             Keyword option to flag antenna entirely or only at specific times and
             frequencies.
         ant_1_inds : numpy array of type int
-            Indices of antenna 1 corresponding the the baseline-time axis.
+            Indices of antenna 1 corresponding to the baseline-time axis.
         ant_2_inds : numpy array of type int
-            Indices of antenna 2 corresponding the the baseline-time axis.
+            Indices of antenna 2 corresponding to the baseline-time axis.
         flagged_ant_inds : numpy array of type int
             List of indices of flagged antennas.
 
@@ -1330,9 +1330,9 @@ class MWACorrFITS(UVData):
         cb_num : int
             Index of coarse band.
         ant_1_inds : numpy array of type int
-            Indices of antenna 1 corresponding the the baseline-time axis.
+            Indices of antenna 1 corresponding to the baseline-time axis.
         ant_2_inds : numpy array of type int
-            Indices of antenna 2 corresponding the the baseline-time axis.
+            Indices of antenna 2 corresponding to the baseline-time axis.
         cb_array : numpy array of type float
             Array corresponding to pfb shape for a coarse band.
         dig_gains : numpy array of type float
@@ -1410,9 +1410,9 @@ class MWACorrFITS(UVData):
         Parameters
         ----------
         ant_1_inds : numpy array of type int
-            Indices of antenna 1 corresponding the the baseline-time axis.
+            Indices of antenna 1 corresponding to the baseline-time axis.
         ant_2_inds : numpy array of type int
-            Indices of antenna 2 corresponding the the baseline-time axis.
+            Indices of antenna 2 corresponding to the baseline-time axis.
         avg_factor : int
             Factor by which frequency channels have been averaged.
         dig_gains : array

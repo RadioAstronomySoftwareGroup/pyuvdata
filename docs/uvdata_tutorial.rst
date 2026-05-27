@@ -1967,7 +1967,7 @@ information about the antennas (namely the system temperature and the so-called 
 gain" of the antenna, which typically depend on geometric size and aperture efficiency).
 
 Note that when normalizing, if the corresponding autocorrelations are not found or are
-otherwise marked as bad in ``flag_array``, then the the cross-correlation will be
+otherwise marked as bad in ``flag_array``, then the cross-correlation will be
 flagged as well (e.g., if all of antenna 1's autos are flagged, then every baseline that
 contains antenna 1 will also be flagged).
 

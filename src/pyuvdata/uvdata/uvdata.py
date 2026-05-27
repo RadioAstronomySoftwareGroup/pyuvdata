@@ -345,7 +345,7 @@ class UVData(UVBase):
             "astropy). "
             "Other optional keys include "
             "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
-            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
+            "frames without an epoch (e.g. ICRS) unless there is proper motion), "
             "'cat_times' (times for the coordinates, only used for 'ephem' types), "
             "'cat_pm_ra' (proper motion in RA), "
             "'cat_pm_dec' (proper motion in Dec), "

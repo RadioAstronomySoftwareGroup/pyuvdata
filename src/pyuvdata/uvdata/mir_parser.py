@@ -4114,7 +4114,7 @@ class MirParser:
                 freq_shift *= 2 if (rx_name == "230") else 3
                 # We have to do a bit of special handling for the so-called "RxB"
                 # data, which doesn't actually have the fDDS values stored. The correct
-                # value though just turns out to be the the RxA value multiplied by
+                # value though just turns out to be the RxA value multiplied by
                 # the ratio of the two gunn frequencies.
                 rxa_blhids = self.bl_data["blhid"][
                     (self.bl_data["ant1rx"] == 0) & (self.bl_data["ant2rx"] == 0)
