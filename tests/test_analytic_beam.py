@@ -216,35 +216,31 @@ def test_short_dipole_beam(az_za_deg_grid):
         "feed_angle=array([1.57079633, 0.        ]), mount_type='fixed')"
     )
 
-    iresponse_vals = beam.feed_iresponse_eval(
+    response_vals = beam.feed_aligned_response_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
-    expected_iresponse = np.zeros((1, 2, n_freqs, nsrcs), dtype=float)
+    expected_response = np.zeros((1, 2, n_freqs, nsrcs), dtype=float)
 
-    expected_iresponse[0, 0] = np.sqrt(
+    expected_response[0, 0] = np.sqrt(
         np.sum(np.abs(expected_efield[:, 0]) ** 2, axis=0)
     )
-    expected_iresponse[0, 1] = np.sqrt(
+    expected_response[0, 1] = np.sqrt(
         np.sum(np.abs(expected_efield[:, 1]) ** 2, axis=0)
     )
 
-    np.testing.assert_allclose(iresponse_vals, expected_iresponse, atol=1e-15, rtol=0)
+    np.testing.assert_allclose(response_vals, expected_response, atol=1e-15, rtol=0)
 
-    projection_vals = beam.feed_projection_eval(
+    projection_vals = beam.feed_aligned_projection_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
     expected_projval = np.zeros((2, 2, n_freqs, nsrcs), dtype=float)
 
-    expected_projval[0, 0] = -np.sin(az_vals) / expected_iresponse[0, 0]
-    expected_projval[0, 1] = np.cos(az_vals) / expected_iresponse[0, 1]
-    expected_projval[1, 0] = (
-        np.cos(za_vals) * np.cos(az_vals) / expected_iresponse[0, 0]
-    )
-    expected_projval[1, 1] = (
-        np.cos(za_vals) * np.sin(az_vals) / expected_iresponse[0, 1]
-    )
+    expected_projval[0, 0] = -np.sin(az_vals) / expected_response[0, 0]
+    expected_projval[0, 1] = np.cos(az_vals) / expected_response[0, 1]
+    expected_projval[1, 0] = np.cos(za_vals) * np.cos(az_vals) / expected_response[0, 0]
+    expected_projval[1, 1] = np.cos(za_vals) * np.sin(az_vals) / expected_response[0, 1]
 
     np.testing.assert_allclose(projection_vals, expected_projval, atol=1e-14, rtol=0)
 
@@ -269,11 +265,11 @@ def test_defined_decomp_methods(az_za_deg_grid):
 
             return data_array
 
-        def _feed_iresponse_eval(
+        def _feed_aligned_response_eval(
             self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
         ) -> FloatArray:
             data_array = self._get_empty_data_array(
-                az_grid.shape, beam_type="feed_iresponse"
+                az_grid.shape, beam_type="feed_aligned_response"
             )
 
             for feed_i in range(self.Nfeeds):
@@ -281,11 +277,11 @@ def test_defined_decomp_methods(az_za_deg_grid):
 
             return data_array
 
-        def _feed_projection_eval(
+        def _feed_aligned_projection_eval(
             self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
         ) -> FloatArray:
             data_array = self._get_empty_data_array(
-                az_grid.shape, beam_type="feed_projection"
+                az_grid.shape, beam_type="feed_aligned_projection"
             )
 
             data_array.fill(1 / np.sqrt(2))
@@ -295,23 +291,23 @@ def test_defined_decomp_methods(az_za_deg_grid):
     az_vals, za_vals, freqs = az_za_deg_grid
 
     this_cosbeam = CosEfield(width=3.0)
-    this_iresponse = this_cosbeam.feed_iresponse_eval(
+    this_response = this_cosbeam.feed_aligned_response_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
     from pyuvdata.data.test_analytic_beam import CosEfieldTest
 
     test_cosbeam = CosEfieldTest(width=3.0)
-    test_iresponse = test_cosbeam.feed_iresponse_eval(
+    test_response = test_cosbeam.feed_aligned_response_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
-    np.testing.assert_allclose(this_iresponse, test_iresponse, atol=1e-14, rtol=0)
+    np.testing.assert_allclose(this_response, test_response, atol=1e-14, rtol=0)
 
-    this_feed_proj = this_cosbeam.feed_projection_eval(
+    this_feed_proj = this_cosbeam.feed_aligned_projection_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
-    test_feed_proj = test_cosbeam.feed_projection_eval(
+    test_feed_proj = test_cosbeam.feed_aligned_projection_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
@@ -566,8 +562,8 @@ def test_to_uvbeam_errors():
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "Beam type must be one of ['efield', 'power', 'feed_iresponse', "
-            "'feed_projection']"
+            "Beam type must be one of ['efield', 'power', 'feed_aligned_response', "
+            "'feed_aligned_projection']"
         ),
     ):
         beam.to_uvbeam(
@@ -796,7 +792,7 @@ def test_set_x_orientation_deprecation():
         (ShortDipoleBeam(), "efield", "real", None, 90.0, None, None, None),
         (
             ShortDipoleBeam(),
-            "feed_iresponse",
+            "feed_aligned_response",
             "phase",
             None,
             90.0,
@@ -804,7 +800,16 @@ def test_set_x_orientation_deprecation():
             None,
             "Short Dipole",
         ),
-        (ShortDipoleBeam(), "feed_projection", "real", None, 90.0, None, None, None),
+        (
+            ShortDipoleBeam(),
+            "feed_aligned_projection",
+            "real",
+            None,
+            90.0,
+            None,
+            None,
+            None,
+        ),
         (ShortDipoleBeam(), "power", "real", None, 90.0, None, None, "Short Dipole"),
         (UniformBeam(), "power", "real", None, 90.0, None, None, None),
     ],

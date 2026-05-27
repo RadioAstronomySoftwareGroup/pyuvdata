@@ -391,11 +391,11 @@ class AnalyticBeam:
         self,
         grid_shape: tuple[int, int],
         beam_type: Literal[
-            "efield", "power", "feed_iresponse", "feed_projection"
+            "efield", "power", "feed_aligned_response", "feed_aligned_projection"
         ] = "efield",
     ) -> FloatArray:
         """Get the empty data to fill in the eval methods."""
-        if beam_type in ["efield", "feed_projection"]:
+        if beam_type in ["efield", "feed_aligned_projection"]:
             return np.zeros(
                 (self.Naxes_vec, self.Nfeeds, *grid_shape), dtype=np.complex128
             )
@@ -404,7 +404,7 @@ class AnalyticBeam:
                 (1, self.Npols, *grid_shape),
                 dtype=np.complex128 if self.Npols > self.Nfeeds else np.float64,
             )
-        elif beam_type == "feed_iresponse":
+        elif beam_type == "feed_aligned_response":
             return np.zeros((1, self.Nfeeds, *grid_shape), dtype=np.complex128)
 
     def efield_eval(
@@ -516,11 +516,23 @@ class AnalyticBeam:
 
             return data_array
 
-    def feed_iresponse_eval(
+    def feed_aligned_response_eval(
         self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
     ) -> FloatArray:
         """
-        Evaluate the feed I response at the given coordinates.
+        Evaluate the feed aligned response at the given coordinates.
+
+        The feed aligned response is the complex response of each instrumental
+        feed to electric fields aligned with it -- i.e. after projecting electric
+        fields to directions aligned with the feeds (these directions are
+        non-orthogonal in many directions on the sky even though the feeds are
+        generally physically orthogonal). Since the projection has already happened,
+        the feed aligned response only has a feed index, no vector component axis.
+        Non-zero phase is caused by time delays which can vary spatially but do
+        not depend on incident polarization.
+
+        Unpolarized light is equally spread among all polarization orientations,
+        so the feed aligned response can be used as the response to unpolarized light.
 
         Parameters
         ----------
@@ -544,11 +556,11 @@ class AnalyticBeam:
             az_array=az_array, za_array=za_array, freq_array=freq_array
         )
 
-        if hasattr(self, "_feed_iresponse_eval"):
+        if hasattr(self, "_feed_aligned_response_eval"):
             za_grid, _ = np.meshgrid(za_array, freq_array)
             az_grid, f_grid = np.meshgrid(az_array, freq_array)
 
-            return self._feed_iresponse_eval(
+            return self._feed_aligned_response_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             ).astype(complex)
         else:
@@ -574,11 +586,18 @@ class AnalyticBeam:
 
             return data_array.astype(complex)
 
-    def feed_projection_eval(
+    def feed_aligned_projection_eval(
         self, *, az_array: FloatArray, za_array: FloatArray, freq_array: FloatArray
     ) -> FloatArray:
         """
-        Evaluate the feed projection at the given coordinates.
+        Evaluate the feed aligned projection at the given coordinates.
+
+        The feed aligned projection is the projection from celestial polarization
+        vector components (orthogonal on the sky) to instrumental feed vector
+        components (often non-orthogonal on the sky). This is similar to a
+        rotation matrix in that it just converts between coordinate systems
+        (the magnitude of the response is removed), but is not unitary because
+        the projection of the feeds are not orthogonal in all directions on the sky.
 
         Parameters
         ----------
@@ -605,8 +624,8 @@ class AnalyticBeam:
         za_grid, _ = np.meshgrid(za_array, freq_array)
         az_grid, f_grid = np.meshgrid(az_array, freq_array)
 
-        if hasattr(self, "_feed_projection_eval"):
-            return self._feed_projection_eval(
+        if hasattr(self, "_feed_aligned_projection_eval"):
+            return self._feed_aligned_projection_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
             ).astype(complex)
         else:
@@ -615,7 +634,7 @@ class AnalyticBeam:
             )
 
             # set f to the magnitude of the I response, assume no time delays
-            f_vals = self.feed_iresponse_eval(
+            f_vals = self.feed_aligned_response_eval(
                 az_array=az_array, za_array=za_array, freq_array=freq_array
             )
             data_array = self._get_empty_data_array(az_grid.shape)
@@ -631,7 +650,7 @@ class AnalyticBeam:
         self,
         freq_array: FloatArray,
         beam_type: Literal[
-            "efield", "power", "feed_iresponse", "feed_projection"
+            "efield", "power", "feed_aligned_response", "feed_aligned_projection"
         ] = "efield",
         pixel_coordinate_system: (
             Literal["az_za", "orthoslant_zenith", "healpix"] | None
@@ -653,7 +672,8 @@ class AnalyticBeam:
         freq_array : ndarray of float
             Array of frequencies in Hz to evaluate the beam at.
         beam_type : str
-            Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
+            Beam type, one of "efield", "power", "feed_aligned_response" or
+            "feed_aligned_projection".
         pixel_coordinate_system : str
             Pixel coordinate system, options are "az_za", "orthoslant_zenith" and
             "healpix". Forced to be "healpix" if ``nside`` is given and by
@@ -676,7 +696,12 @@ class AnalyticBeam:
             Healpix ordering parameter, defaults to "ring" if nside is provided.
 
         """
-        allowed_beam_types = ["efield", "power", "feed_iresponse", "feed_projection"]
+        allowed_beam_types = [
+            "efield",
+            "power",
+            "feed_aligned_response",
+            "feed_aligned_projection",
+        ]
         if beam_type not in allowed_beam_types:
             raise ValueError(f"Beam type must be one of {allowed_beam_types}")
 
@@ -761,7 +786,7 @@ class AnalyticBeam:
         self,
         *,
         beam_type: Literal[
-            "efield", "power", "feed_iresponse", "feed_projection"
+            "efield", "power", "feed_aligned_response", "feed_aligned_projection"
         ] = "efield",
         freq: float,
         complex_type: str = "real",
@@ -782,7 +807,8 @@ class AnalyticBeam:
         Parameters
         ----------
         beam_type : str
-            Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
+            Beam type, one of "efield", "power", "feed_aligned_response" or
+            "feed_aligned_projection".
         freq : int
             The frequency index to plot.
         complex_type : str

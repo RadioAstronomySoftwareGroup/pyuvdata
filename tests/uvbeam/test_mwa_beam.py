@@ -294,10 +294,10 @@ def test_mwa_fhd_decompose(
     small_za_ind = np.nonzero(np.isclose(mwa_beam.axis2_array, 2.0 * np.pi / 180))
 
     if approach == "decompose":
-        firesp, fproj = mwa_beam.decompose_feed_iresponse_projection()
+        firesp, fproj = mwa_beam.decompose_feed_aligned_terms()
     elif approach == "joint":
-        rets = mwa_beam.efield_to_feed_projection(
-            return_feed_iresponse=True, inplace=inplace
+        rets = mwa_beam.efield_to_feed_aligned_projection(
+            return_feed_aligned_response=True, inplace=inplace
         )
         if inplace:
             firesp = rets
@@ -307,9 +307,9 @@ def test_mwa_fhd_decompose(
             fproj = rets[0]
     else:
         mwa_beam2 = mwa_beam.copy()
-        ret0 = mwa_beam.efield_to_feed_iresponse(inplace=inplace)
-        ret1 = mwa_beam2.efield_to_feed_projection(
-            return_feed_iresponse=False, inplace=inplace
+        ret0 = mwa_beam.efield_to_feed_aligned_response(inplace=inplace)
+        ret1 = mwa_beam2.efield_to_feed_aligned_projection(
+            return_feed_aligned_response=False, inplace=inplace
         )
         if inplace:
             firesp = mwa_beam
@@ -318,7 +318,7 @@ def test_mwa_fhd_decompose(
             firesp = ret0
             fproj = ret1
 
-    # feed I response should have a real component that is positive near zenith
+    # feed aligned response should have a real component that is positive near zenith
     assert np.all(firesp.data_array[0, :, :, small_za_ind].real > 0)
 
     az_array, za_array = np.meshgrid(mwa_beam.axis1_array, mwa_beam.axis2_array)
@@ -326,7 +326,7 @@ def test_mwa_fhd_decompose(
     # MWA fproj is pretty similar to dipole_fproj up to mutual coupling effects
     dipole_beam = ShortDipoleBeam()
 
-    dipole_fproj = dipole_beam.feed_projection_eval(
+    dipole_fproj = dipole_beam.feed_aligned_projection_eval(
         az_array=az_array.flatten(),
         za_array=za_array.flatten(),
         freq_array=np.asarray(np.asarray([mwa_beam.freq_array[-1]])),

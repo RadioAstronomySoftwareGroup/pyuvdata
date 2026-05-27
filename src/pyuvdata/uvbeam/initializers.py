@@ -24,7 +24,9 @@ def new_uvbeam(
     feed_version: str = "0.0",
     model_name: str = "default",
     model_version: str = "0.0",
-    beam_type: Literal["efield", "power", "feed_iresponse", "feed_projection"] = None,
+    beam_type: Literal[
+        "efield", "power", "feed_aligned_response", "feed_aligned_projection"
+    ] = None,
     feed_array: StrArray | None = None,
     feed_angle: FloatArray | None = None,
     mount_type: str | None = "fixed",
@@ -80,8 +82,9 @@ def new_uvbeam(
     model_version: str
         Version of the beam model.
     beam_type : str
-        Beam type, one of "efield", "power", "feed_iresponse" or "feed_projection".
-        Defaults to "power" if polarization_array is provided and "efield" otherwise.
+        Beam type, one of "efield", "power", "feed_aligned_response" or
+        "feed_aligned_projection". Defaults to "power" if polarization_array is
+        provided and "efield" otherwise.
     feed_array : ndarray of str
         Array of feed orientations. Options are: n/e or x/y or r/l.
     feed_angle : ndarray of float
@@ -268,7 +271,7 @@ def new_uvbeam(
             "Either nside or both axis1_array and axis2_array must be provided."
         )
 
-    if uvb.beam_type in ["power", "feed_iresponse"]:
+    if uvb.beam_type in ["power", "feed_aligned_response"]:
         uvb.Naxes_vec = 1
 
     uvb._set_cs_params()
@@ -305,7 +308,7 @@ def new_uvbeam(
                 f"expected shape {bv_shape}."
             )
         uvb.basis_vector_array = basis_vector_array
-    elif uvb.beam_type in ["efield", "feed_projection"]:
+    elif uvb.beam_type in ["efield", "feed_aligned_projection"]:
         if uvb.pixel_coordinate_system == "healpix":
             basis_vector_array = np.zeros(
                 (uvb.Naxes_vec, uvb.Ncomponents_vec, uvb.Npixels), dtype=float
