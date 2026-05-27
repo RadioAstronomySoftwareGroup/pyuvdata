@@ -133,7 +133,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to get, corresponds the the UVParameter.name.
+            Property name to get, corresponds to the UVParameter.name.
 
         Returns
         -------
@@ -155,7 +155,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to set, corresponds the the UVParameter.name.
+            Property name to set, corresponds to the UVParameter.name.
 
         Returns
         -------
@@ -182,7 +182,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to get, corresponds the the UVParameter.name with "_degrees"
+            Property name to get, corresponds to the UVParameter.name with "_degrees"
             appended.
 
         Returns
@@ -205,7 +205,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to set, corresponds the the UVParameter.name with "_degrees"
+            Property name to set, corresponds to the UVParameter.name with "_degrees"
             appended.
 
         Returns
@@ -230,7 +230,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to get, corresponds the the UVParameter.name with
+            Property name to get, corresponds to the UVParameter.name with
             "_lat_lon_alt" appended.
 
         Returns
@@ -253,7 +253,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to set, corresponds the the UVParameter.name with
+            Property name to set, corresponds to the UVParameter.name with
             "_lat_lon_alt" appended.
 
         Returns
@@ -278,7 +278,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to get, corresponds the the UVParameter.name with
+            Property name to get, corresponds to the UVParameter.name with
             "_lat_lon_alt_degrees" appended.
 
         Returns
@@ -301,7 +301,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Property name to set, corresponds the the UVParameter.name with
+            Property name to set, corresponds to the UVParameter.name with
             "_lat_lon_alt_degrees" appended.
 
         Returns

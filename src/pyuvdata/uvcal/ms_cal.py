@@ -687,7 +687,7 @@ class MSCal(UVCal):
             pol_order = utils.pol.determine_pol_order(self.jones_array, order="CASA")
             pol_order = utils.tools.slicify(pol_order, allow_empty=True)
 
-            # Alright, all the easy stuff is over, time to move on to the the heavy
+            # Alright, all the easy stuff is over, time to move on to the heavy
             # lifting, which we'll do spectral window by spectral window.
             for count, spw_id in enumerate(self.spw_array):
                 spw_sel, spw_nchan = spw_sel_dict[spw_id]
