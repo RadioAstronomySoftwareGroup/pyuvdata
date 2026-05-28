@@ -295,9 +295,15 @@ def test_defined_decomp_methods(az_za_deg_grid):
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
-    from pyuvdata.data.test_analytic_beam import CosEfieldTest
+    # get the comparison beam using the yaml construction to avoid importing it
+    # which breaks later yaml testing
+    input_yaml = """
+        beam: !AnalyticBeam
+            class: pyuvdata.data.test_analytic_beam.CosEfieldTest
+            width: 3.
+        """
+    test_cosbeam = yaml.safe_load(input_yaml)["beam"]
 
-    test_cosbeam = CosEfieldTest(width=3.0)
     test_response = test_cosbeam.feed_aligned_response_eval(
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
