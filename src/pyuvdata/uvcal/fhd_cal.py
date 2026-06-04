@@ -229,7 +229,7 @@ class FHDCal(UVCal):
         self._set_sky()
         self.gain_convention = "divide"
         self.gain_scale = "Jy"
-        self.pol_convetions = "sum"
+        self.pol_convention = "sum"
         self._set_gain()
 
         # currently don't have branch info. may change in future.
