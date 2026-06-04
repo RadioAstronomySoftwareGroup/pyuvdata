@@ -6971,6 +6971,9 @@ class UVData(UVBase):
         """
         # Use _get_uvparam_axis to make sure all relevant parameters are included.
         update_params = self._get_uvparam_axis("Nblts")
+        # make a list of parameters that can be derived from other parameters.
+        # these derived parameters will be updated afterwards from the other
+        # parameters so should not be included in the returned dict.
         derived_params = [
             "ant_1_array",
             "ant_2_array",
@@ -7002,9 +7005,12 @@ class UVData(UVBase):
         update_dict : dict
             Dictionary with new arrays to be added into the object after removing
             unneeded indices. Keys are UVParameters names, values are arrays
-            to concatenate with the remaining arrays. Only fundamental arrays
-            are updated using this, derived arrays are updated from these
-            fundamental arrays.
+            to concatenate with the remaining arrays. Only the arrays that carry
+            unique information (e.g. baseline_array, phase_center_id_array,
+            time_array, integration_time, scan_number_array and data like arrays)
+            are updated using this, other arrays that can be derived from the ones
+            in this dict (e.g. ant_1_array, ant_2_array, lst_array) are set
+            from the ones in this dict.
         astrometry_library : str
             Library to use for calculating the LSTs after resampling. Allowed options
             are 'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
