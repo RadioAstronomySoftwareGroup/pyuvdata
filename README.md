@@ -135,7 +135,7 @@ Please cite both of our JOSS papers:
 
 *Keating et al., (2025). pyuvdata v3: an interface for astronomical interferometric data sets in Python. Journal of Open Source Software, 10(109), 7482, https://doi.org/10.21105/joss.07482* [[ADS Link](https://ui.adsabs.harvard.edu/abs/2025JOSS...10.7482K)]
 
-*Hazelton et al, (2017), pyuvdata: an interface for astronomical interferometeric datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140* [[ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H)]
+*Hazelton et al, (2017), pyuvdata: an interface for astronomical interferometric datasets in python, Journal of Open Source Software, 2(10), 140, doi:10.21105/joss.00140* [[ADS Link](https://ui.adsabs.harvard.edu/abs/2017JOSS....2..140H)]
 
 # Installation
 Simple installation via conda is available for users, developers should follow

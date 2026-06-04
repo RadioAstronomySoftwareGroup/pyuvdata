@@ -331,10 +331,10 @@ class UVData(UVBase):
             "non-unique values can be used to indicate sets of phase centers that make "
             "up a mosaic observation), "
             "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
-            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
-            "Az/El, NOT the same as the old ``phase_type`` = 'drift') or 'unprojected' "
-            "(baseline coordinates in ENU, but data are not phased, similar to "
-            "the old ``phase_type`` = 'drift') "
+            "(position in RA/Dec which moves with time), 'driftscan' (fixed position "
+            "in Az/El, NOT the same as the old ``phase_type`` = 'drift') or "
+            "'unprojected' (baseline coordinates in ENU, but data are not phased, "
+            "similar to the old ``phase_type`` = 'drift') "
             "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
             "for ephem type phase centers), "
@@ -389,7 +389,7 @@ class UVData(UVBase):
 
         desc = (
             "Position angle between the hour circle (which is a great circle that goes "
-            "through the target postion and both poles) in the apparent/topocentric "
+            "through the target position and both poles) in the apparent/topocentric "
             "frame, and the frame given in the phase_center_frame attribute."
             "Shape (Nblts,), type = float."
         )
@@ -3134,7 +3134,7 @@ class UVData(UVBase):
         self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
     ):
         """
-        Get the data corresonding to a baseline and/or polarization.
+        Get the data corresponding to a baseline and/or polarization.
 
         Parameters
         ----------
@@ -3188,7 +3188,7 @@ class UVData(UVBase):
         self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
     ):
         """
-        Get the flags corresonding to a baseline and/or polarization.
+        Get the flags corresponding to a baseline and/or polarization.
 
         Parameters
         ----------
@@ -3246,7 +3246,7 @@ class UVData(UVBase):
         self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
     ):
         """
-        Get the nsamples corresonding to a baseline and/or polarization.
+        Get the nsamples corresponding to a baseline and/or polarization.
 
         Parameters
         ----------
@@ -4722,7 +4722,7 @@ class UVData(UVBase):
             The astropy frame to phase to, any astropy-supported frame is allowed unless
             use_old_proj is True, in which case it can only be 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
-            'icrs' accounts for precession, nutation & abberation.
+            'icrs' accounts for precession, nutation & aberration.
         ra : float
             An alias for `lon`.
         dec : float
@@ -4735,7 +4735,7 @@ class UVData(UVBase):
             corrections to the specified dist). Default is "sidereal".
         ephem_times : ndarray of float
             Only used when `cat_type="ephem"`. Describes the time for which the values
-            of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
+            of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
         pm_ra : float
             Proper motion in RA, in units of mas/year. Only used for sidereal phase
             centers.
@@ -4986,7 +4986,7 @@ class UVData(UVBase):
             The astropy frame to phase to, any astropy-supported frame is allowed unless
             use_old_proj is True, in which case it can only be 'icrs' or 'gcrs'.
             'gcrs' accounts for precession & nutation,
-            'icrs' accounts for precession, nutation & abberation.
+            'icrs' accounts for precession, nutation & aberration.
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
@@ -5437,7 +5437,7 @@ class UVData(UVBase):
             separate phase centers. Default is False.
         warn_spacing : bool
             Option to raise warnings about spacing that would prevent writing to
-            uvfits or mirad file formats. Default is False.
+            uvfits or miriad file formats. Default is False.
 
         Raises
         ------
@@ -5895,7 +5895,7 @@ class UVData(UVBase):
             separate phase centers. Default is False.
         warn_spacing : bool
             Option to raise warnings about spacing that would prevent writing to
-            uvfits or mirad file formats. Default is False.
+            uvfits or miriad file formats. Default is False.
 
         Raises
         ------
@@ -11142,7 +11142,7 @@ class UVData(UVBase):
             Should only be used for testing purposes.
         calc_lst : bool
             Recalculate the LST values upon writing the file. This is done to perform
-            higher-precision accounting for the difference in MIRAD timestamps vs
+            higher-precision accounting for the difference in MIRIAD timestamps vs
             pyuvdata (the former marks the beginning of an integration, the latter
             marks the midpoint). Default is False, which instead uses a simple formula
             for correcting the LSTs, expected to be accurate to approximately 0.1 µsec

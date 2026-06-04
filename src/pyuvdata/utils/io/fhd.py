@@ -229,7 +229,7 @@ def get_fhd_layout_info(
 
         * telescope_xyz : Telescope location in ECEF, shape (3,) (float)
         * Nants_telescope : Number of antennas in the telescope (int)
-        * antenna_postions : Antenna positions in relative ECEF,
+        * antenna_positions : Antenna positions in relative ECEF,
             shape (Nants_telescope, 3) (float)
         * antenna_names : Antenna names, length Nants_telescope (list of str)
         * antenna_numbers : Antenna numbers, shape (Nants_telescope,) (array of int)

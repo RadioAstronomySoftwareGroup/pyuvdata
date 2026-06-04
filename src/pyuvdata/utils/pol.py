@@ -144,7 +144,7 @@ def polstr2num(pol: str | IterableType[str], *, x_orientation: str | None = None
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
+        converting from E/N strings. See corresponding parameter on UVData
         for more details.
 
     Returns
@@ -200,7 +200,7 @@ def polnum2str(num, *, x_orientation=None):
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to convert to
-        E/N strings. See corresonding parameter on UVData for more details.
+        E/N strings. See corresponding parameter on UVData for more details.
 
     Returns
     -------
@@ -249,7 +249,7 @@ def jstr2num(jstr, *, x_orientation=None):
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
+        converting from E/N strings. See corresponding parameter on UVData
         for more details.
 
     Returns
@@ -300,7 +300,7 @@ def jnum2str(jnum, *, x_orientation=None):
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to convert to
-        E/N strings. See corresonding parameter on UVData for more details.
+        E/N strings. See corresponding parameter on UVData for more details.
 
     Returns
     -------
@@ -352,7 +352,7 @@ def parse_polstr(polstr, *, x_orientation=None):
     x_orientation : str, optional
         Orientation of the physical dipole corresponding to what is
         labelled as the x polarization ("east" or "north") to allow for
-        converting from E/N strings. See corresonding parameter on UVData
+        converting from E/N strings. See corresponding parameter on UVData
         for more details.
 
     Returns

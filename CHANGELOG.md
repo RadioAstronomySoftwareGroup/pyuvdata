@@ -50,9 +50,9 @@ better default colormaps for phase.
 fringe-stopped data.
 
 ### Fixed
-- A backwards compatibiilty issue with feed arrays in old beamfits files which
+- A backwards compatibility issue with feed arrays in old beamfits files which
 could specify feeds as "e" or "n".
-- Compatiblity with numpy>=2.3
+- Compatibility with numpy>=2.3
 
 ## [3.2.4] - 2025-09-15
 
@@ -702,7 +702,7 @@ to allow the function name to be passed into the methods, with sensible defaulti
 `Nspws` (which used to only be required for baseline and antenna types). These
 parameters all already exist on UVData and UVCal objects and UVFlag objects initialized
 from them will inherit them. UVFlag objects will also inherit these parameters when
-they are converted between types using UVData and UVCalobjects.
+they are converted between types using UVData and UVCal objects.
 - The `UVFlag.set_telescope_params` method, similar to the ones on UVData and UVCal,
 to set several of these new parameters.
 
@@ -1166,7 +1166,7 @@ taken at 2 seconds.
 - Added handling for `object_name` and `extra_keywords` to `sum_vis` and `diff_vis` methods and added the `override_params` option to override other parameters.
 
 ### Changed
-- Changed to use Astropy sites for telescope locations when avaliable. This results in a small change for our known position for the MWA.
+- Changed to use Astropy sites for telescope locations when available. This results in a small change for our known position for the MWA.
 - Modified `UVData.read` to do faster concatenation of files, changed the interface to `UVData.fast_concat` to allow lists of `UVData` objects to be passed in.
 
 ### Fixed
@@ -1191,7 +1191,7 @@ taken at 2 seconds.
 
 ### Changed
 - When `flex_spw=True`, the `channel_width` attribute of UVData is expected to be an array of type=float and shape=(`Nfreqs`,). Individual channels are allowed to have different channel widths.
-- Changed `freq_array` to be of shape (1, `Nfreqs`) (formerley (`Nspws`, `Nfreqs`)).
+- Changed `freq_array` to be of shape (1, `Nfreqs`) (formerly (`Nspws`, `Nfreqs`)).
 - Changed  `data_array`, `flag_array`, `nsample_array` to be of shape (`Nblts`, 1, `Nfreqs`, `Npols`) (formerly (`Nblts`, `Nspws`, `Nfreqs`, `Npols`)).
 - Changed UVH5 metadata byte conversion method from tobytes() to bytes()
 
@@ -1292,7 +1292,7 @@ controlled by the `method` keyword.
 
 ### Removed
 - Previously deprecated code marked for removal in version > 1.5:
- - reading multiple files with file format specific read functions (e.g.  read_mirad). Multi-file reads can only be performed with `uvdata.read`
+ - reading multiple files with file format specific read functions (e.g.  read_miriad). Multi-file reads can only be performed with `uvdata.read`
  - `read_metadata` keyword in various specific read functions (e.g. `read_miriad`)
  - `metadata_only` keyword in `select` and `get_redundancies`
  - `uvdata.miriad.read_miriad_metadata`
@@ -1331,7 +1331,7 @@ controlled by the `method` keyword.
 - The `phase_center` and `phase_data` keywords to `read_mwa_corr_fits` in favor of `phase_to_pointing_center` and the `phase_center_radec` keyword in the generic `read` method.
 - Support for reading only the header (not all the metadata) of uvfits files.
 - The `read_uvfits_metadata` and `read_uvfits_data` methods on the UVFITS object.
-- The `read_miriad_metadata` method on the Mirad object.
+- The `read_miriad_metadata` method on the Miriad object.
 
 ## [1.4.2] - 2019-10-15
 
@@ -1418,7 +1418,7 @@ controlled by the `method` keyword.
 - Added preliminary `UVFlag` module from hera_qm to pyuvdata. Will eventually promote to `UVBase` object, but for now this is undocumented functionality.
 
 ### Deprecated
-- Defined 'east' and 'north' as the allowed 'x_orientation' values in UVData and UVCal, Backwards compatiblity support exists for 'E' and 'N' values
+- Defined 'east' and 'north' as the allowed 'x_orientation' values in UVData and UVCal, Backwards compatibility support exists for 'E' and 'N' values
 - `UVData.order_pols` method in favor of `UVData.reorder_pols`.
 
 ### Fixed
@@ -1520,7 +1520,7 @@ controlled by the `method` keyword.
 - new method to calculate uvws from antenna positions
 - `UVBeam.get_beam_area` and `UVBeam.get_beam_sq_area` functions to calculate beam integrals, including for pseudo-Stokes beams
 - beam interpolation methods, to any set of points and to healpix pixel centers
-- a script to renumber antennas for CASA compatiblity if there are fewer than 256 antennas but numbers higher than that
+- a script to renumber antennas for CASA compatibility if there are fewer than 256 antennas but numbers higher than that
 - memo describing the beam fits file format
 - method to peak normalize UVBeam objects
 - support for reading FHD calibrations into UVCal objects

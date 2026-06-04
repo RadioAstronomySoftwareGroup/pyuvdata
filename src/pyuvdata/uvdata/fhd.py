@@ -105,7 +105,7 @@ class FHD(UVData):
 
         if layout_file is None:
             warnings.warn(
-                "The layout_file parameter was not passed, so antenna_postions will "
+                "The layout_file parameter was not passed, so antenna_positions will "
                 "not be defined and antenna names and numbers might be incorrect."
             )
 

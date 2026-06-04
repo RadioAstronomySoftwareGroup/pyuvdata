@@ -30,7 +30,7 @@ def _warning(msg, *a, **kwargs):
     msg : str
         Input warning message.
     a
-        postional parameters not used by this formatting method.
+        positional parameters not used by this formatting method.
     kwargs
         named parameters not used by this formatting method.
 

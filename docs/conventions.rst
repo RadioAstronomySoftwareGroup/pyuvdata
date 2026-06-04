@@ -50,7 +50,7 @@ discussed further below:
     interpolated to provide exact position information for phasing).
   - ``"driftscan"``: A driftscan phase center is similar to a sidereal one, except that
     the phase center is assumed to be static within the observer frame, and therefore
-    desribed by a single pair of horizontal coordinates (i..e, azimuth and elevation).
+    described by a single pair of horizontal coordinates (i..e, azimuth and elevation).
   - ``"unprojected"``: An unprojected phase center is a bit of an oxymoron, in that it
     denotes when no phasing has been applied (and therefore no phase center exists). In
     this context, geometric delays are *not* compensated for, but *uvw*-coordinates
@@ -141,7 +141,7 @@ records information about the optics of the antenna. The telescope optics can im
 data in multiple ways, though we focus our discussion here on its impact for polarimetric
 measurements, since a "static" single-polarization receiver can be sensitive to
 differing polarizations of light (depending on the optics type and where the source is
-in the sky from the persepctive of the observer).
+in the sky from the perspective of the observer).
 
 
 One good reference that covers several of the mount types listed below is
@@ -178,7 +178,7 @@ include:
     moves up and down in elevation. For this "right-handed" Nasmyth variant, a feed angle
     of 0 degrees will be aligned to sum of the parallactic and elevation angles.
   - ``"alt-az+nasmyth-l"``: The "left-handed" variant of the Nasmyth mount, where a
-    feed angle of 0 degrees is aigned to the **difference** of the parallactic and
+    feed angle of 0 degrees is aligned to the **difference** of the parallactic and
     elevation angles.
   - ``"phased"``: Denotes an instrument where the an individual antenna input is
     a phased array of detectors that are "beamformed" into a single voltage stream
@@ -187,7 +187,7 @@ include:
     while supported in UVFITS, it is a later addition to the format, and may be grouped
     into "other" in some software packages.
   - ``"fixed"``: Similar to "phased", except that there is neither mechanical or
-    electical steering of the antenna, and thus the beam remains fixed in the
+    electrical steering of the antenna, and thus the beam remains fixed in the
     azimuth-elevation frame. In this frame, a feed angle of 0 degrees is aligned/
     parallel to the direction of local north. Note that this is a pyuvdata-defined mount
     type, and does not necessarily have a corresponding entry in, for example, UVFITS.

@@ -126,7 +126,7 @@ select = [
 ignore = [
     "N806", # non-lowercase variable (we use N* for axes lengths)
     "B028", # no-explicit-stacklevel for warnings
-    "SIM108", # prefer ternary opperators. I find them difficult to read.
+    "SIM108", # prefer ternary operators. I find them difficult to read.
     "D203", # one-blank-line-before-class. we use two.
     "D212", # multi-line-summary-first-line. We put it on the second line.
 ]

@@ -93,7 +93,7 @@ file types pass in the folder name.
 
 b) Instantiate an object from an FHD dataset
 ********************************************
-When reading FHD datasets, we need to pass in several auxilliary files.
+When reading FHD datasets, we need to pass in several auxiliary files.
 
 .. clear-namespace
 
@@ -890,7 +890,7 @@ an option to sort the auto visibilities before the cross visibilities (``autos_f
     uvd.reorder_blts()
     assert np.all(np.diff(uvd.time_array) >= 0)
 
-    # Explicity sorting by "time" then "baseline" gets the same result
+    # Explicitly sorting by "time" then "baseline" gets the same result
     uvd2 = uvd.copy()
     uvd2.reorder_blts("time", minor_order="baseline")
     assert uvd == uvd2
@@ -1797,7 +1797,7 @@ set of inputs but can accept any other parameters supported by the class.
 Importantly, the times and baselines can be provided either as unique values,
 with the intention that their cartesian outer product should be
 used (i.e. the combination of each provided time with each baseline), or as full
-length-Nblt arrays (if you don't require all combinations). While this behaviour can
+length-Nblts arrays (if you don't require all combinations). While this behavior can
 be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
 to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
 where each baseline observed one time each. This case is ambiguous without the

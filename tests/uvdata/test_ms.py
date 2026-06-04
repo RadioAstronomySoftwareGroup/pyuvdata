@@ -308,7 +308,7 @@ def test_read_ms_write_uvfits(nrao_ms, tmp_path):
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(ms_uv, item) is None

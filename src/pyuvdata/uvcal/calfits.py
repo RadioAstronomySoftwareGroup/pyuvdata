@@ -548,7 +548,7 @@ class CALFITS(UVCal):
             if x_orientation is None:
                 # This is for the "newer" version of calfits, since XORIENT is no longer
                 # written to the header (but we can use it to set the new parameters).
-                # Tranpose here so that the shape is (Nants, Nfeeds)
+                # Transpose here so that the shape is (Nants, Nfeeds)
                 # NB: Older versions of the fits reader produce " " here, so we use
                 # strip so that the output across versions is a uniform ""
                 self.telescope.feed_array = np.array(

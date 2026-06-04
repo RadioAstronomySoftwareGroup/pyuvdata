@@ -436,7 +436,7 @@ def _select_blt_preprocess(
     if time_blt_inds is not None:
         selections.extend(time_selections)
         if blt_inds is not None:
-            # Use intesection (and) to join
+            # Use intersection (and) to join
             # antenna_names/nums/ant_pairs_nums/blt_inds with times
             blt_inds = np.intersect1d(blt_inds, time_blt_inds)
         else:

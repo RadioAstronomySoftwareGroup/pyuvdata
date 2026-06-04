@@ -366,7 +366,7 @@ def test_break_read_fhdcal(multi):
     assert fhd_cal.history == expected_history
 
     message_list = [
-        "No layout file, antenna_postions will not be defined."
+        "No layout file, antenna_positions will not be defined."
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
     if nfiles == 1:

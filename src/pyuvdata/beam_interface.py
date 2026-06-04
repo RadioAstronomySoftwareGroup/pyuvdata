@@ -128,8 +128,8 @@ class BeamInterface:
         """Return a new interface instance that is in the power-beam mode.
 
         If already in the power-beam mode, this is a no-op. Note that this might be
-        slighty unexpected, because the effect of `include_cross_pols` is not accounted
-        for in this case.
+        slightly unexpected, because the effect of `include_cross_pols` is not
+        accounted for in this case.
 
         Parameters
         ----------

@@ -14,7 +14,7 @@ Using BeamInterface
 -------------------
 
 The following code shows how to set up two BeamInterface objects, one with an
-analytic beam and one with a UVBeam. Then each is evalated at the same frequency
+analytic beam and one with a UVBeam. Then each is evaluated at the same frequency
 and directions using the same call to :meth:`pyuvdata.BeamInterface.compute_response`.
 The value of the BeamInterface object is that it unifies the interface so the
 code calling it does not need to know if the beam that is attached to it is an

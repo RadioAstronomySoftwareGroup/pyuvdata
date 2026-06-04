@@ -66,7 +66,7 @@ def read_metafits(
         cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
         dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64)
 
-        # get antenna postions in enu coordinates
+        # get antenna positions in enu coordinates
         antenna_positions = np.zeros((len(antenna_numbers), 3))
         antenna_positions[:, 0] = meta_tbl["East"][1::2]
         antenna_positions[:, 1] = meta_tbl["North"][1::2]

@@ -211,7 +211,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
                 return nbls
 
     def get_blt_order(self) -> tuple[str]:
-        """Get the blt order from analysing metadata."""
+        """Get the blt order from analyzing metadata."""
         return utils.bltaxis.determine_blt_order(
             time_array=self.time_array,
             ant_1_array=self.ant_1_array,

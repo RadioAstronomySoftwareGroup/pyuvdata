@@ -681,9 +681,9 @@ class MWABeam(UVBeam):
                     (data[:, 8] + 1j * data[:, 9]).reshape(n_phi, n_theta).T
                 )
 
-        # Now we have to work out the apperature array factor -- the factor
+        # Now we have to work out the aperture array factor -- the factor
         # to multiply the average dipole jones by to account for all the
-        # apperature array stuff: geometric dipole delays, delay line settings,
+        # aperture array stuff: geometric dipole delays, delay line settings,
         # dipole impedances, dipole couplings
 
         # set up the dipole centers on a 4x4 grid with the dipole spacing for

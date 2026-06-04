@@ -542,8 +542,8 @@ class UVBeam(UVBase):
         )
 
         desc = (
-            "Reference impedance of the beam model. The radiated E-farfield "
-            "or the realised gain depend on the impedance of the port used to "
+            "Reference impedance of the beam model. The radiated E-far field "
+            "or the realized gain depend on the impedance of the port used to "
             "excite the simulation. This is the reference impedance (Z0) of "
             "the simulation. units: Ohms"
         )
@@ -1046,7 +1046,7 @@ class UVBeam(UVBase):
         keep_basis_vector : bool
             If True, keep the directionality information and
             just multiply the efields for each basis vector separately
-            (caution: this is not what is standardly meant by the power beam).
+            (caution: this is not what is normally meant by the power beam).
         inplace : bool
             Option to apply conversion directly on self or to return a new
             UVBeam object.
@@ -3634,8 +3634,8 @@ class UVBeam(UVBase):
         """
         Parse a CST beam yaml file.
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         filename : str
             Filename to parse.
 
@@ -3897,7 +3897,7 @@ class UVBeam(UVBase):
                 "ref_imp",
                 "x_orientation",
             ]
-            # One of the standard paramters in the settings yaml file is
+            # One of the standard parameters in the settings yaml file is
             # longer than 8 characters.
             # This causes warnings and straight truncation when writing to
             # beamfits files

@@ -190,7 +190,7 @@ class UVFITS(UVData):
                     "integration times. Setting to None which will cause the check to "
                     "error. Set `run_check` to False to read in the file without "
                     "checking. Then set the integration_time (to an array of length "
-                    "Nblts) directly on the object to allow futher processing."
+                    "Nblts) directly on the object to allow further processing."
                 )
 
         if proc is not None:
@@ -450,7 +450,7 @@ class UVFITS(UVData):
                 else:
                     warnings.warn(
                         "UVFITS file is missing AIPS SU table, which is required when "
-                        "SOURCE is one of the `random paramters` in the main binary "
+                        "SOURCE is one of the `random parameters` in the main binary "
                         "table. Bypassing for now, but note that this file _may_ not "
                         "work correctly in UVFITS-based programs (e.g., AIPS, CASA)."
                     )
@@ -741,7 +741,7 @@ class UVFITS(UVData):
             if "DIAMETER" in ant_hdu.columns.names:
                 self.telescope.antenna_diameters = ant_hdu.data.field("DIAMETER")
 
-            # If written by older versions of pyuvdata, we don't neccessarily want to
+            # If written by older versions of pyuvdata, we don't necessarily want to
             # trust the mount information, otherwise read it in.
             if ant_hdu.header.get("HASMNT", not pyuvdata_written):
                 ref_dict = utils.antenna.MOUNT_NUM2STR_DICT
@@ -755,7 +755,7 @@ class UVFITS(UVData):
                 ]
 
             if ant_hdu.header.get("HASFEED", not pyuvdata_written):
-                # Tranpose here so that the shape is (Nants, Nfeeds)
+                # Transpose here so that the shape is (Nants, Nfeeds)
                 # NB: Older versions of the fits reader produce " " here, so we use
                 # strip so that the output across versions is a uniform ""
                 self.telescope.feed_array = np.array(
@@ -952,7 +952,7 @@ class UVFITS(UVData):
             nchan_list += [np.sum(chan_mask)]
             start_freq_array += [self.freq_array[chan_mask][0]]
             # Need the array direction here since channel_width is always supposed
-            # to be > 0, but channels can be in decending freq order
+            # to be > 0, but channels can be in descending freq order
             freq_dir = 1.0
             if nchan_list[-1] > 1:
                 freq_dir = np.sign(np.median(np.diff(self.freq_array[chan_mask])))
@@ -1161,7 +1161,7 @@ class UVFITS(UVData):
         ):
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
-            # Otherwise just use the antenna arrays unless writing for mirad.
+            # Otherwise just use the antenna arrays unless writing for miriad.
             # MIRIAD requires the BASELINE column.
             parnames_use.append("BASELINE")
         else:

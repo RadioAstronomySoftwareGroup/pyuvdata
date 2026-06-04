@@ -119,7 +119,7 @@ are stored in structured folders, for this file type pass in the folder name.
 
 b) Instantiate an object from an FHD dataset
 ********************************************
-When reading FHD datasets, we need to pass in several auxilliary files.
+When reading FHD datasets, we need to pass in several auxiliary files.
 
 .. clear-namespace
 
@@ -291,7 +291,7 @@ that should be noted:
     following precedence: (i) the value of ``uvd_pol_convention``, (ii) whatever is
     specified as the convention of the ``UVCal`` object (either via ``uvc_pol_convention``
     or ``UVCal.pol_convention``, see above), (iii) if still unspecified, no convention
-    will be used and a warning will be raised. This was always the behaviour in earlier
+    will be used and a warning will be raised. This was always the behavior in earlier
     versions of ``pyuvdata`` (pre-v3).
 
 * When **un-calibrating** with :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=True``):
@@ -945,7 +945,7 @@ The :meth:`pyuvdata.UVCal.initialize_from_uvdata` method allows you to initializ
 a UVCal object from the metadata in a UVData object. This is useful for codes
 that are calculating calibration solutions from UVData objects. There are many
 optional parameters to allow users to specify additional metadata or changes
-from the uvdata metadata. By default, this method creats a metadata only UVCal
+from the uvdata metadata. By default, this method creates a metadata only UVCal
 object, but it can optionally create the data-like arrays as well, filled with zeros.
 
 .. clear-namespace

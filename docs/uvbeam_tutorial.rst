@@ -98,7 +98,7 @@ delay and amplitude arrays to generate beams pointed any where or with varying
 gains per dipole. Set a delay to 32 to get a beam where that dipole is turned
 off (or set the amplitude to zero).
 
-Depending on the beam version you want, you also need to specify some other paramers:
+Depending on the beam version you want, you also need to specify some other parameters:
 
 - For the AEE beam you need to pass the Z matrix file to the ``mwa_zfile`` parameter.
 - The native format of the FEE beam is spherical harmonic modes, so there is also
@@ -383,7 +383,7 @@ plots of their E-Field beams.
   :width: 600
 
 It's a bit hard to see the structure in the inner part of the beam. We can zoom
-in using the ``max_zenith_deg`` keyword and we'll also use a symmetric log colorscale.
+in using the ``max_zenith_deg`` keyword and we'll also use a symmetric log color scale.
 
 .. code-block:: python
 
@@ -491,7 +491,7 @@ of the feed (e.g. "nn" or "ee") can also be used if the feeds are oriented towar
     assert uvb2.feed_array == ["y"]
     assert uvb2.feed_angle == [0.]
 
-    # make a copy and select a feed by phyiscal orientation
+    # make a copy and select a feed by physical orientation
     uvb2 = uvb.copy()
     uvb2.select(feeds=["n"])
     assert uvb2.feed_array == ["y"]
@@ -640,7 +640,7 @@ extra interpolation errors.
 
 Note that the HEALPix scheme does not have a pixel exactly at zenith, so using
 HEALPix for beams may lead to undesirable behavior at zenith -- interpolations
-of healpix beams near zenith may give noticably weird results. These are likely
+of healpix beams near zenith may give noticeably weird results. These are likely
 to be most problematic for E-field beams, which have a pole in the polarization
 vector coordinates at zenith and beams with maximum sensitivity at zenith
 because there is not point at the maximum response. However, the HEALPix scheme

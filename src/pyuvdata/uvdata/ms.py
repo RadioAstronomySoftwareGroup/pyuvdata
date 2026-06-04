@@ -159,7 +159,7 @@ class MS(UVData):
         temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
         data_desc_array = np.zeros(self.Nblts * self.Nspws)
 
-        # astropys Time has some overheads associated with it, so use unique to run
+        # astropy's Time has some overheads associated with it, so use unique to run
         # this date conversion as few times as possible. Note that the default for MS
         # is MJD UTC seconds, versus JD UTC days for UVData.
         time_array, time_ind = np.unique(self.time_array, return_inverse=True)
