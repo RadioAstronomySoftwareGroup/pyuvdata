@@ -107,6 +107,7 @@ def test_read_fhdcal_write_read_calfits_h5(
         cal_out.phase_center_id_array = fhd_cal.phase_center_id_array
         cal_out.Nphase = fhd_cal.Nphase
     assert fhd_cal == cal_out
+    assert fhd_cal.pol_convention == "sum"
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")

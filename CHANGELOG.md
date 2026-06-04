@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - Support for MWA Average Embedded Element beams in UVBeam.
 
 ### Fixed
+- A bug where `UVCal.pol_convention` was not being properly set when reading in
+FHD calibration solutions due to a typo.
 - A bug where `UVData.scan_number_array` was not properly updated when objects
 were resampled in time.
 - A bug where `UVData.scan_number_array` was not properly updated in the
