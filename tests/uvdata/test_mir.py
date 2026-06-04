@@ -63,7 +63,7 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
     uvfits_uv.read_uvfits(testfile)
     assert sma_mir.telescope.instrument == uvfits_uv.telescope.instrument
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(sma_mir, item) is None

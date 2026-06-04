@@ -162,7 +162,7 @@ def cart3_to_polar2(xyz_array):
         raise ValueError("xyz_array must be length 3 across the zeroth axis.")
 
     # The longitude coord is relatively easy to calculate, just take the X and Y
-    # components and find the arctac of the pair.
+    # components and find the arctan of the pair.
     lon_array = np.mod(np.arctan2(xyz_array[1], xyz_array[0]), 2.0 * np.pi, dtype=float)
 
     # If we _knew_ that xyz_array was always of length 1, then this call could be a much
@@ -195,10 +195,10 @@ def _rotate_matmul_wrapper(*, xyz_array, rot_matrix, n_rot):
         on a fixed set of vectors. If nrot = 1, shape may be (1, 3, n_vec), (3, n_vec),
         or (3,).
     rot_matrix : ndarray of floats
-        Series of rotation matricies to be applied to the stack of vectors. Must be
+        Series of rotation matrices to be applied to the stack of vectors. Must be
         of shape (n_rot, 3, 3)
     n_rot : int
-        Number of individual rotation matricies to be applied.
+        Number of individual rotation matrices to be applied.
 
     Returns
     -------
@@ -275,7 +275,7 @@ def _rotate_one_axis(xyz_array, *, rot_amount, rot_axis):
     temp_jdx = (rot_axis + 1) % 3
     temp_idx = (rot_axis + 2) % 3
 
-    # Fill in the rotation matricies accordingly
+    # Fill in the rotation matrices accordingly
     rot_matrix[rot_axis, rot_axis] = 1
     rot_matrix[temp_idx, temp_idx] = np.cos(rot_amount, dtype=np.float64)
     rot_matrix[temp_jdx, temp_jdx] = rot_matrix[temp_idx, temp_idx]
@@ -365,7 +365,7 @@ def _rotate_two_axis(xyz_array, *, rot_amount1, rot_amount2, rot_axis1, rot_axis
             xyz_array, rot_amount=rot_amount1 + rot_amount2, rot_axis=rot_axis1
         )
 
-    # Figure out how many individual rotation matricies we need, accounting for the
+    # Figure out how many individual rotation matrices we need, accounting for the
     # fact that these can either be floats or ndarrays.
     n_rot = max(
         rot_amount1.shape[0] if isinstance(rot_amount1, np.ndarray) else 1,
@@ -380,7 +380,7 @@ def _rotate_two_axis(xyz_array, *, rot_amount1, rot_amount2, rot_axis1, rot_axis
     # a part in 1e15.
     rot_matrix = np.empty((3, 3, n_rot), dtype=np.float64)
 
-    # There are two permulations per pair of axes -- when the pair is right-hand
+    # There are two permutations per pair of axes -- when the pair is right-hand
     # oriented vs left-hand oriented. Check here which one it is. For example,
     # rotating first on the x-axis, second on the y-axis is considered a
     # "right-handed" pair, whereas z-axis first, then y-axis would be considered
@@ -401,7 +401,7 @@ def _rotate_two_axis(xyz_array, *, rot_amount1, rot_amount2, rot_axis1, rot_axis
     cos_hi = np.cos(rot_amount1 if lhd_order else rot_amount2, dtype=np.float64)
 
     # Take care of the diagonal terms first, since they aren't actually affected by the
-    # order of rotational opertations
+    # order of rotational operations
     rot_matrix[temp_idx[0], temp_idx[0]] = cos_hi
     rot_matrix[temp_idx[1], temp_idx[1]] = cos_lo
     rot_matrix[temp_idx[2], temp_idx[2]] = cos_lo * cos_hi
@@ -530,7 +530,7 @@ def calc_uvw(
     antenna_numbers: ndarray of int
         List of antenna numbers, ordered in the same way as `antenna_positions` (e.g.,
         `antenna_numbers[0]` should given the number of antenna that resides at ECEF
-        position given by `antenna_positions[0]`). Shape is (Nants,), requred if not
+        position given by `antenna_positions[0]`). Shape is (Nants,), required if not
         providing `uvw_array`. Contains all unique entires of the joint set of
         `ant_1_array` and `ant_2_array`.
     ant_1_array : ndarray of int
@@ -601,7 +601,7 @@ def calc_uvw(
         # Use the app_ra, app_dec, and lst_array arrays to figure out how many unique
         # rotations are actually needed. If the ratio of Nblts to number of unique
         # entries is favorable, we can just rotate the antenna positions and save
-        # outselves a bit of work.
+        # ourselves a bit of work.
         if to_enu:
             # If to_enu, skip all this -- there's only one unique ha + dec combo
             unique_mask = np.zeros(len(ant_1_index), dtype=np.bool_)
@@ -629,7 +629,7 @@ def calc_uvw(
             unique_dec = app_dec[unique_mask]
             unique_pa = 0.0 if frame_pa is None else frame_pa[unique_mask]
 
-        # Tranpose the ant vectors so that they are in the proper shape
+        # Transpose the ant vectors so that they are in the proper shape
         ant_vectors = np.transpose(antenna_positions)[np.newaxis, :, :]
         # Apply rotations, and then reorganize the ndarray so that you can access
         # individual antenna vectors quickly.
@@ -739,7 +739,7 @@ def calc_uvw(
                     new_coords, rot_amount=frame_pa, rot_axis=0
                 )
 
-            # Finally drop the now-vestigal last axis of the array
+            # Finally drop the now-vestigial last axis of the array
             new_coords = new_coords[:, :, 0]
 
     # There's one last task to do, which is to re-align the axes from projected
@@ -770,7 +770,7 @@ def transform_sidereal_coords(
     Parameters
     ----------
     lon_coord : float or ndarray of floats
-        Logitudinal coordinate to be transformed, typically expressed as the right
+        Longitudinal coordinate to be transformed, typically expressed as the right
         ascension, in units of radians. Can either be a float, or an ndarray of
         floats with shape (Ncoords,). Must agree with lat_coord.
     lat_coord : float or ndarray of floats
@@ -795,7 +795,7 @@ def transform_sidereal_coords(
         in fractional years.
     time_array : float or ndarray of floats
         Julian date(s) to which the coordinates correspond to, only used in frames
-        with annular motion terms (e.g., abberation in GCRS). Can either be a float,
+        with annular motion terms (e.g., aberration in GCRS). Can either be a float,
         or an ndarray of floats with shape (Ntimes,), assuming that either lat_coord
         and lon_coord are floats, or that Ntimes == Ncoords.
 
@@ -805,7 +805,7 @@ def transform_sidereal_coords(
         Longitudinal coordinates, in units of radians. Output will be an ndarray
         if any inputs were, with shape (Ncoords,) or (Ntimes,), depending on inputs.
     new_lon : float or ndarray of floats
-        Latidudinal coordinates, in units of radians. Output will be an ndarray
+        Latitudinal coordinates, in units of radians. Output will be an ndarray
         if any inputs were, with shape (Ncoords,) or (Ntimes,), depending on inputs.
     """
     lon_coord = longitude * units.rad
@@ -914,7 +914,7 @@ def transform_icrs_to_app(
 
     As of astropy v4.2, the agreement between the three libraries is consistent down to
     the level of better than 1 mas, with the values produced by astropy and pyERFA
-    consistent to bettter than 10 µas (this is not surprising, given that astropy uses
+    consistent to better than 10 µas (this is not surprising, given that astropy uses
     pyERFA under the hood for astrometry). ERFA is the default as it outputs
     coordinates natively in the apparent frame (whereas NOVAS and astropy do not), as
     well as the fact that of the three libraries, it produces results the fastest.
@@ -1095,7 +1095,7 @@ def transform_icrs_to_app(
 
     if astrometry_library == "astropy":
         # Astropy doesn't have (oddly enough) a way of getting at the apparent RA/Dec
-        # directly, but we can cheat this by going to AltAz, and then coverting back
+        # directly, but we can cheat this by going to AltAz, and then converting back
         # to apparent RA/Dec using the telescope lat and LAST.
         if (epoch is not None) and (pm_ra is not None) and (pm_dec is not None):
             # astropy is a bit weird in how it handles proper motion, so rather than
@@ -1191,7 +1191,7 @@ def transform_icrs_to_app(
             0.0,  # Pressure, set to 0 for now (no atm refrac)
         )
 
-        # NOVAS wants things in terrestial time and UT1
+        # NOVAS wants things in terrestrial time and UT1
         tt_time_array = time_obj_array.tt.jd
         ut1_time_array = time_obj_array.ut1.jd
         gast_array = time_obj_array.sidereal_time("apparent", "greenwich").rad
@@ -1338,12 +1338,12 @@ def transform_app_to_icrs(
         float, or an ndarray of shape (Ntimes,).
     app_ra : float or ndarray of float
         ICRS RA of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ncoord,). Note that if time_array is
-        not a singleton value, then Ncoord must be equal to Ntimes.
+        be a single float or array of shape (Ncoords,). Note that if time_array is
+        not a singleton value, then Ncoords must be equal to Ntimes.
     app_dec : float or ndarray of float
         ICRS Dec of the celestial target, expressed in units of radians. Can either
-        be a single float or array of shape (Ncoord,). Note that if time_array is
-        not a singleton value, then Ncoord must be equal to Ntimes.
+        be a single float or array of shape (Ncoords,). Note that if time_array is
+        not a singleton value, then Ncoords must be equal to Ntimes.
     telescope_loc : tuple of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
@@ -1366,10 +1366,10 @@ def transform_app_to_icrs(
     -------
     icrs_ra : ndarray of floats
         ICRS right ascension coordinates, in units of radians, of either shape
-        (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
+        (Ntimes,) if Ntimes >1, otherwise (Ncoords,).
     icrs_dec : ndarray of floats
         ICRS declination coordinates, in units of radians, of either shape
-        (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
+        (Ntimes,) if Ntimes >1, otherwise (Ncoords,).
     """
     site_loc, on_moon = get_loc_obj(
         telescope_loc,
@@ -1518,7 +1518,7 @@ def calc_parallactic_angle(*, app_ra, app_dec, lst_array, telescope_lat):
     telescope_lat : float
         Latitude of the observatory, in units of radians.
     lst_array : float or ndarray of float
-        Array of local apparent sidereal timesto calculate position angle values
+        Array of local apparent sidereal times to calculate position angle values
         for, in units of radians. Can either be a single float or an array of shape
         (Ntimes,).
     """
@@ -1546,8 +1546,8 @@ def calc_frame_pos_angle(
     reference frame. Note that this is slightly different than parallactic
     angle, which is the difference between apparent declination and elevation.
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     time_array : ndarray of floats
         Array of julian dates to calculate position angle values for, of shape
         (Ntimes,).
@@ -1577,7 +1577,7 @@ def calc_frame_pos_angle(
         is "SPHERE". Only used if frame is mcmf.
     offset_pos : float
         Distance of the offset position used to calculate the frame PA. Default
-        is 0.5 degrees, which should be sufficent for most applications.
+        is 0.5 degrees, which should be sufficient for most applications.
 
 
     Returns
@@ -1597,7 +1597,7 @@ def calc_frame_pos_angle(
         )
 
     # This creates an array of unique entries of ra + dec + time, since the processing
-    # time for each element can be non-negligible, and entries along the Nblt axis can
+    # time for each element can be non-negligible, and entries along the Nblts axis can
     # be highly redundant.
     unique_mask = np.union1d(
         np.union1d(
@@ -1673,7 +1673,7 @@ def lookup_jplhorizons(
     """
     Lookup solar system body coordinates via the JPL-Horizons service.
 
-    This utility is useful for generating ephemerides, which can then be interpolated in
+    This utility is useful for generating ephemerids, which can then be interpolated in
     order to provide positional data for a target which is moving, such as planetary
     bodies and other solar system objects. Use of this function requires the
     installation of the `astroquery` module.
@@ -1903,7 +1903,7 @@ def interpolate_ephem(
     time_array : array-like of floats
         Times to interpolate positions for, in UTC Julian days.
     ephem_times : array-like of floats
-        Times in UTC Julian days which describe that match to the recorded postions
+        Times in UTC Julian days which describe that match to the recorded positions
         of the target. Must be array-like, of shape (Npts,), where Npts is the number
         of ephemeris points.
     ephem_ra : array-like of floats
@@ -2396,7 +2396,7 @@ def uvw_track_generator(
     antenna_numbers: ndarray of int, optional
         List of antenna numbers, ordered in the same way as `antenna_positions` (e.g.,
         `antenna_numbers[0]` should given the number of antenna that resides at ECEF
-        position given by `antenna_positions[0]`). Shape is (Nants,), requred if
+        position given by `antenna_positions[0]`). Shape is (Nants,), required if
         supplying ant_1_array and ant_2_array.
     ant_1_array : ndarray of int, optional
         Antenna number of the first antenna in the baseline pair, for all baselines

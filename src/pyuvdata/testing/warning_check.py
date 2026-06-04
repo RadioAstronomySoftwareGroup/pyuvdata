@@ -210,7 +210,7 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
 
     Similar to ``pytest.warns``, but allows for specifying multiple warnings.
     It also better matches warning strings when the warning uses f-strings or
-    formating. Can be used as a drop-in replacement for ``pytest.warns`` if
+    formatting. Can be used as a drop-in replacement for ``pytest.warns`` if
     only one warning is issued (if more are issued they will need to be added
     to the input lists for this to pass).
 

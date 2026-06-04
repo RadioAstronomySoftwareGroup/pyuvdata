@@ -239,7 +239,7 @@ class BeamFITS(UVBeam):
                     data = np.expand_dims(data, axis=0)
 
             self.freq_array = fits_utils._gethduaxis(primary_hdu, ax_nums["freq"])
-            # default frequency axis is Hz, but check for corresonding CUNIT
+            # default frequency axis is Hz, but check for corresponding CUNIT
             freq_units = primary_header.pop("CUNIT" + str(ax_nums["freq"]), "Hz")
             if freq_units != "Hz":
                 freq_factor = {"kHz": 1e3, "MHz": 1e6, "GHz": 1e9}

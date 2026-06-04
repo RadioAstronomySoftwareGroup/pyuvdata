@@ -130,7 +130,7 @@ def test_read_mwa_write_uvfits(tmp_path):
     mwa_uv._filename.form = (1,)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwa_uv, item) is None
@@ -166,7 +166,7 @@ def test_read_mwax_write_uvfits(tmp_path):
     uvfits_uv.read_uvfits(testfile)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwax_uv, item) is None
@@ -252,7 +252,7 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     mwa_uv._filename.form = (1,)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwa_uv, item) is None
@@ -391,7 +391,7 @@ def test_ppds(tmp_path):
     mwa_uv._filename.form = (1,)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwa_uv, item) is None
@@ -1289,7 +1289,7 @@ def test_read_mwa(benchmark, tmp_path):
     mwa_uv._filename.form = (1,)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwa_uv, item) is None
@@ -1343,7 +1343,7 @@ def test_read_mwax(benchmark, tmp_path):
     uvfits_uv.read_uvfits(testfile)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(mwax_uv, item) is None

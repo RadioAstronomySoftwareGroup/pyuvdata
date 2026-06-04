@@ -196,7 +196,7 @@ class FHDCal(UVCal):
 
         else:
             warnings.warn(
-                "No layout file, antenna_postions will not be defined "
+                "No layout file, antenna_positions will not be defined "
                 "and antenna_names might be incorrect."
             )
 

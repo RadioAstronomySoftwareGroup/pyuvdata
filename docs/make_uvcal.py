@@ -36,7 +36,7 @@ def write_uvcal_rst(write_file=None):
         ":meth:`pyuvdata.UVCal.from_file` class method\n"
         "(as ``uvc = UVCal.from_file(<filename>)``), from arrays in memory using\n"
         "the :meth:`pyuvdata.UVCal.new` class method, from a\n"
-        ":class:`pyvdata.UVData` object using the\n"
+        ":class:`pyuvdata.UVData` object using the\n"
         ":meth:`pyuvdata.UVCal.initialize_from_uvdata` class method, or as an\n"
         "empty object (as ``cal = UVCal()``).\n"
         "When an empty UVCal object is initialized, it has all of these attributes\n"

@@ -326,7 +326,7 @@ def uvcalibrate(
 
     uvdata_times, uvd_time_ri = np.unique(uvdata.time_array, return_inverse=True)
     uvcal_times_to_keep = None
-    # time_range supercedes time_array.
+    # time_range supersedes time_array.
     if uvcal.time_range is not None:
         if np.min(uvdata_times) < np.min(uvcal.time_range[:, 0]) or np.max(
             uvdata_times
@@ -573,7 +573,7 @@ def uvcalibrate(
                 gain = (
                     np.conj(uvcal_use.get_gains(uvcal_key1))
                     * uvcal_use.get_gains(uvcal_key2)
-                ).T  # tranpose to match uvdata shape
+                ).T  # transpose to match uvdata shape
             else:
                 gain = (
                     uvcal_use.get_gains(uvcal_key1)

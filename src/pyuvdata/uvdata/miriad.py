@@ -396,7 +396,7 @@ class Miriad(UVData):
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
-        # describes antenna attributes (e.g. antpos for the antenna_postions).
+        # describes antenna attributes (e.g. antpos for the antenna_positions).
         # Therefore on write, nants (which gives the size of the antpos array)
         # needs to be increased to be the max value of antenna_numbers+1 and the
         # antpos array needs to be inflated with zeros at locations where we
@@ -1642,7 +1642,7 @@ class Miriad(UVData):
             Should only be used for testing purposes.
         calc_lst : bool
             Recalculate the LST values upon writing the file. This is done to perform
-            higher-precision accounting for the difference in MIRAD timestamps vs
+            higher-precision accounting for the difference in MIRIAD timestamps vs
             pyuvdata (the former marks the beginning of an integration, the latter
             marks the midpoint). Default is False, which instead uses a simple formula
             for correcting the LSTs, expected to be accurate to approximately 0.1 µsec
@@ -1818,7 +1818,7 @@ class Miriad(UVData):
 
         # Miriad has no way to keep track of antenna numbers, so the antenna
         # numbers are simply the index for each antenna in any array that
-        # describes antenna attributes (e.g. antpos for the antenna_postions).
+        # describes antenna attributes (e.g. antpos for the antenna_positions).
         # Therefore on write, nants (which gives the size of the antpos array)
         # needs to be increased to be the max value of antenna_numbers+1 and the
         # antpos array needs to be inflated with zeros at locations where we

@@ -573,7 +573,7 @@ def hpx_latlon_to_zenithangle_azimuth(hpx_lat, hpx_lon):
     Parameters
     ----------
     hpx_lat: float or array of float
-        Healpix latiudinal coordinate in radians.
+        Healpix latitudinal coordinate in radians.
     hpx_lon: float or array of float
         Healpix longitudinal coordinate in radians.
 
@@ -622,7 +622,7 @@ def zenithangle_azimuth_to_hpx_latlon(zenith_angle, azimuth):
     Returns
     -------
     hpx_lat: float or array of float
-        Healpix latiudinal coordinate in radians.
+        Healpix latitudinal coordinate in radians.
     hpx_lon: float or array of float
         Healpix longitudinal coordinate in radians.
 

@@ -964,7 +964,7 @@ def test_phase_hera_zenith_timestamp_minimal_changes(hera_uvh5):
     # check that phasing to zenith with one timestamp has small changes
     # (it won't be identical because of precession/nutation changing the
     # coordinate axes)
-    # use gcrs rather than icrs to reduce differences (don't include abberation)
+    # use gcrs rather than icrs to reduce differences (don't include aberration)
     uv_raw_small = uv_raw.select(times=uv_raw.time_array[0], inplace=False)
     uv_phase_simple_small = uv_raw_small.copy()
     uv_phase_simple_small.phase_to_time(
@@ -9832,7 +9832,7 @@ def test_print_object_dms(sma_mir):
 )
 def test_print_object_full(sma_mir, frame, epoch):
     """
-    Test that print object w/ all optional paramters prints as expected.
+    Test that print object w/ all optional parameters prints as expected.
     """
     # Now check and see what happens if we add the full suite of phase center parameters
     _ = sma_mir._add_phase_center(

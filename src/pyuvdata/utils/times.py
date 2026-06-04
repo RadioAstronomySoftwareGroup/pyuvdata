@@ -36,7 +36,7 @@ def get_lst_for_time(
 
     This function calculates the local apparent sidereal time (LAST), given a UTC time
     and a position on the Earth, using either the astropy or NOVAS libraries. It
-    is important to note that there is an apporoximate 20 microsecond difference
+    is important to note that there is an approximate 20 microsecond difference
     between the two methods, presumably due to small differences in the apparent
     reference frame. These differences will cancel out when calculating coordinates
     in the TOPO frame, so long as apparent coordinates are calculated using the
@@ -51,9 +51,9 @@ def get_lst_for_time(
         Alternative way of specifying telescope lat/lon/alt, either as a 3-element
         tuple with latitude and longitude in degrees, or as an astropy
         EarthLocation (or lunarsky MoonLocation). Cannot supply both
-        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
+        `telescope_loc` and `latitude`, `longitude`, or `altitude`.
     latitude : float
-        Latitude of location to get lst for in degrees. Cannot specify both `latitute`
+        Latitude of location to get lst for in degrees. Cannot specify both `latitude`
         and `telescope_loc`.
     longitude : float
         Longitude of location to get lst for in degrees. Cannot specify both `longitude`
@@ -154,8 +154,8 @@ def get_lst_for_time(
         )
 
         # Technically one should correct for the polar wobble here, but the differences
-        # along the equitorial are miniscule -- of order 10s of nanoradians, well below
-        # the promised accuracy of IERS -- and rotation matricies can be expensive.
+        # along the equatorial are miniscule -- of order 10s of nanoradians, well below
+        # the promised accuracy of IERS -- and rotation matrices can be expensive.
         # We do want to correct though for for secular polar drift (s'/TIO locator),
         # which nudges the Earth rotation angle of order 47 uas per century.
         sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
@@ -275,7 +275,7 @@ def check_lsts_against_times(
     telescope_loc : tuple or EarthLocation or MoonLocation
         Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
         or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
-        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
+        `telescope_loc` and `latitude`, `longitude`, or `altitude`.
 
     Returns
     -------

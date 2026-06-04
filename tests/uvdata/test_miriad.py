@@ -386,7 +386,7 @@ def test_read_miriad_write_uvfits(uv_in_uvfits):
     miriad_uv.filename = uvfits_uv.filename
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
-        # Check to make sure that the UVFITS-specific paramters are set on the
+        # Check to make sure that the UVFITS-specific parameters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
         # UVFITS-based obj.
         assert getattr(miriad_uv, item) is None

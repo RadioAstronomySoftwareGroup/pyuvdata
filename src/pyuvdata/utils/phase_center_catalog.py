@@ -68,7 +68,7 @@ def look_in_catalog(
         epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
     cat_times : ndarray of floats
         Only used when `cat_type="ephem"`. Describes the time for which the values
-        of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
+        of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
     cat_pm_ra : float
         Proper motion in RA, in units of mas/year. Only used for sidereal phase
         centers.
@@ -252,7 +252,7 @@ def print_phase_center_info(
     """
     Print out the details of the phase centers.
 
-    Prints out an ASCII table that contains the details of the supploed phase center
+    Prints out an ASCII table that contains the details of the supplied phase center
     catalog, which typically acts as the internal source catalog for various UV objects.
 
     Parameters
@@ -272,7 +272,7 @@ def print_phase_center_info(
         is used.
     return_str: bool
         If set to True, the method returns an ASCII string which contains all the
-        table infrmation. Default is False.
+        table information. Default is False.
     print_table : bool
         If set to True, prints the table to the terminal window. Default is True.
 
@@ -632,7 +632,7 @@ def generate_phase_center_cat_entry(
         epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
     cat_times : ndarray of floats
         Only used when `cat_type="ephem"`. Describes the time for which the values
-        of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
+        of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
     cat_pm_ra : float
         Proper motion in RA, in units of mas/year. Only used for sidereal phase
         centers.

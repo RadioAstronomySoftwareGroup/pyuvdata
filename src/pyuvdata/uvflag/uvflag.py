@@ -651,7 +651,7 @@ class UVFlag(UVBase):
         return
 
     def _set_type_antenna(self):
-        """Set the type and required propertis consistent with an antenna object."""
+        """Set the type and required properties consistent with an antenna object."""
         self.type = "antenna"
         self._ant_array.required = True
         self._baseline_array.required = False
@@ -669,7 +669,7 @@ class UVFlag(UVBase):
         self._lst_array.form = ("Ntimes",)
 
     def _set_type_baseline(self):
-        """Set the type and required propertis consistent with a baseline object."""
+        """Set the type and required properties consistent with a baseline object."""
         self.type = "baseline"
         self._ant_array.required = False
         self._baseline_array.required = True
@@ -690,7 +690,7 @@ class UVFlag(UVBase):
         self._lst_array.form = ("Nblts",)
 
     def _set_type_waterfall(self):
-        """Set the type and required propertis consistent with a waterfall object."""
+        """Set the type and required properties consistent with a waterfall object."""
         self.type = "waterfall"
         self._ant_array.required = False
         self._baseline_array.required = False
@@ -1880,7 +1880,7 @@ class UVFlag(UVBase):
         convert_wgts : bool
             if True convert self.weights_array to ones
             unless a column or row is completely flagged, in which case
-            convert those pixels to zero. This is used when reinterpretting
+            convert those pixels to zero. This is used when reinterpreting
             flags as metrics to calculate flag fraction. Zero weighting
             completely flagged rows/columns prevents those from counting
             against a threshold along the other dimension.

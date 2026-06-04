@@ -16,7 +16,7 @@ def write_uvdata_rst(write_file=None):
     UV.telescope = Telescope()
     out = "UVData\n======\n\n"
     out += (
-        "UVData is the main user class for intereferometric data (visibilities).\n"
+        "UVData is the main user class for interferometric data (visibilities).\n"
         "It provides import and export functionality to and from the supported file\n"
         "formats (UVFITS, MeasurementSets, Miriad, uvh5, FHD, MIR) as well as\n"
         "numerous methods for transforming the data (phasing, averaging, selecting,\n"
@@ -29,7 +29,7 @@ def write_uvdata_rst(write_file=None):
         "Starting in version 3.0, metadata that is associated with the telescope\n"
         "(as opposed to the data set) is stored in a :class:`pyuvdata.Telescope`\n"
         "object (see :ref:`Telescope`) as the ``telescope`` attribute on a UVData\n"
-        "object. This includesmetadata related to the telescope location, antenna\n"
+        "object. This includes metadata related to the telescope location, antenna\n"
         "names, numbers and positions as well as other telescope metadata.\n\n"
         "UVData objects can be initialized in many ways: from a file using the\n"
         ":meth:`pyuvdata.UVData.from_file` class method\n"
