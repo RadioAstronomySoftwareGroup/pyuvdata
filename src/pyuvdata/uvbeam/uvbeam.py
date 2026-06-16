@@ -2225,6 +2225,11 @@ class UVBeam(UVBase):
             Shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
+        # print("INTERP!") # REMINDER TO MAKE A REAL PR FOR PYUVSIM WTIH
+        #                    THE DELAY THING AND NOT A HACK!
+        # TODO: actually identify when interpolating from INSIDE PYUVSIM
+        #       TO CLARIFY NOT REINTERPOLATING IN TIME!!!
+
         if new_object:
             # To create a new object, we always need the interpolated basis vectors.
             return_basis_vector = True
@@ -4600,6 +4605,17 @@ class UVBeam(UVBase):
         ValueError
             If the file_type is not set and cannot be determined from the file name.
         """
+        print(f"filename: {filename}")
+        print(f"mwa_zfile: {mwa_zfile}")
+        print(f"file_type: {file_type}")
+        print(f"mwa_model_type: {mwa_model_type}")
+        print(f"mwa_include_cross_feed_coupling: {mwa_include_cross_feed_coupling}")
+        print(f"delays: {delays}")
+
+        if isinstance(delays, list):
+            warnings.warn("Converting delays to a numpy array with integer dtype.")
+            delays = np.asarray(delays, dtype=int)
+
         if isinstance(filename, list | tuple | np.ndarray):
             multi = True
         else:
