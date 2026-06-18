@@ -75,7 +75,7 @@ test = [
     "coverage",
     "cython>=3.0",
     "pre-commit",
-    "pytest>=8.2.0",
+    "pytest>=8.2.0,<9.1",
     "pytest-xdist",
     "pytest-cases>=3.9.1",
     "pytest-cov",
