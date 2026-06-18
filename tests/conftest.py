@@ -45,7 +45,13 @@ def setup_and_teardown_package():
         iers.conf.auto_max_age = None
 
     # Also ensure that we're downloading the site data from astropy
-    EarthLocation._get_site_registry(force_download=True)
+    try:
+        # the parameter name was changed in astropy 8.0.0 as a part of fixing
+        # the refresh_cache keyword on the various astropy site functions
+        # This can be removed when we require astropy >= 8.0
+        EarthLocation._get_site_registry(force_download=True)
+    except TypeError:
+        EarthLocation._get_site_registry(refresh_cache=True)
 
     yield
 
