@@ -17,7 +17,7 @@ repos:
           args: ['--fix=no']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.17
+    rev: v0.15.18
     hooks:
       - id: ruff
       - id: ruff-format
@@ -30,6 +30,6 @@ repos:
         additional_dependencies: ["bandit[toml]"]
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.25.2
+    rev: v1.26.1
     hooks:
     - id: zizmor
