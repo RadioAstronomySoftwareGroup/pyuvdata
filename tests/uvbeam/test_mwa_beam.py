@@ -294,17 +294,17 @@ def test_mwa_fhd_decompose(
     small_za_ind = np.nonzero(np.isclose(mwa_beam.axis2_array, 2.0 * np.pi / 180))
 
     if approach == "decompose":
-        firesp, fproj = mwa_beam.decompose_feed_aligned_terms()
+        fa_resp, fa_proj = mwa_beam.decompose_feed_aligned_terms()
     elif approach == "joint":
         rets = mwa_beam.efield_to_feed_aligned_projection(
             return_feed_aligned_response=True, inplace=inplace
         )
         if inplace:
-            firesp = rets
-            fproj = mwa_beam
+            fa_resp = rets
+            fa_proj = mwa_beam
         else:
-            firesp = rets[1]
-            fproj = rets[0]
+            fa_resp = rets[1]
+            fa_proj = rets[0]
     else:
         mwa_beam2 = mwa_beam.copy()
         ret0 = mwa_beam.efield_to_feed_aligned_response(inplace=inplace)
@@ -312,35 +312,38 @@ def test_mwa_fhd_decompose(
             return_feed_aligned_response=False, inplace=inplace
         )
         if inplace:
-            firesp = mwa_beam
-            fproj = mwa_beam2
+            fa_resp = mwa_beam
+            fa_proj = mwa_beam2
         else:
-            firesp = ret0
-            fproj = ret1
+            fa_resp = ret0
+            fa_proj = ret1
+
+    fa_proj.check()
+    fa_resp.check()
 
     # feed aligned response should have a real component that is positive near zenith
-    assert np.all(firesp.data_array[0, :, :, small_za_ind].real > 0)
+    assert np.all(fa_resp.data_array[0, :, :, small_za_ind].real > 0)
 
     az_array, za_array = np.meshgrid(mwa_beam.axis1_array, mwa_beam.axis2_array)
 
-    # MWA fproj is pretty similar to dipole_fproj up to mutual coupling effects
+    # MWA fa_proj is pretty similar to dipole_fa_proj up to mutual coupling effects
     dipole_beam = ShortDipoleBeam()
 
-    dipole_fproj = dipole_beam.feed_aligned_projection_eval(
+    dipole_fa_proj = dipole_beam.feed_aligned_projection_eval(
         az_array=az_array.flatten(),
         za_array=za_array.flatten(),
         freq_array=np.asarray(np.asarray([mwa_beam.freq_array[-1]])),
     )
-    dipole_fproj = dipole_fproj.reshape(2, 2, mwa_beam.Naxes2, mwa_beam.Naxes1)
+    dipole_fa_proj = dipole_fa_proj.reshape(2, 2, mwa_beam.Naxes2, mwa_beam.Naxes1)
 
     # they are very similar near zenith
-    fproj_diff = fproj.data_array[:, :, 0] - dipole_fproj
+    fa_proj_diff = fa_proj.data_array[:, :, 0] - dipole_fa_proj
 
     np.testing.assert_allclose(
-        fproj_diff[:, :, small_za_ind].real, 0, rtol=0, atol=2e-4
+        fa_proj_diff[:, :, small_za_ind].real, 0, rtol=0, atol=2e-4
     )
     np.testing.assert_allclose(
-        fproj_diff[:, :, small_za_ind].imag, 0, rtol=0, atol=2e-4
+        fa_proj_diff[:, :, small_za_ind].imag, 0, rtol=0, atol=2e-4
     )
 
 

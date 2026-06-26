@@ -149,6 +149,34 @@ def cst_efield_1freq(cst_efield_1freq_main):
 
 
 @pytest.fixture(scope="session")
+def cst_feed_aligned_1freq_main(cst_efield_1freq_main):
+    beam = cst_efield_1freq_main.copy()
+
+    fa_resp, fa_proj = beam.decompose_feed_aligned_terms()
+
+    yield fa_resp, fa_proj
+    del fa_resp, fa_proj
+
+
+@pytest.fixture(scope="function")
+def cst_fa_resp_1freq(cst_feed_aligned_1freq_main):
+    fa_resp, _ = cst_feed_aligned_1freq_main
+    beam = fa_resp.copy()
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="function")
+def cst_fa_proj_1freq(cst_feed_aligned_1freq_main):
+    _, fa_proj = cst_feed_aligned_1freq_main
+    beam = fa_proj.copy()
+
+    yield beam
+    del beam
+
+
+@pytest.fixture(scope="session")
 def cst_efield_1freq_cut_main(cst_efield_2freq_cut_main):
     """Make session level cut down single freq efield beam."""
     beam = single_freq_version(cst_efield_2freq_cut_main.copy())
