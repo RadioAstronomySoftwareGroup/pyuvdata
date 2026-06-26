@@ -101,7 +101,7 @@ class UVBeam(UVBase):
             "orthogonal. The mapping of these basis vectors to directions aligned with"
             "the pixel coordinate system is contained in the `basis_vector_array`. "
             "The allowed values for this parameter are 2 or 3 (or 1 if beam_type is "
-            "'power')."
+            "'power' or 'feed_aligned_response')."
         )
         self._Naxes_vec = uvp.UVParameter(
             "Naxes_vec", description=desc, expected_type=int, acceptable_vals=[2, 3]
@@ -224,18 +224,19 @@ class UVBeam(UVBase):
             form=("Npixels",),
         )
 
-        desc = "String indicating beam type. Allowed values are 'efield', and 'power'."
+        allowed_vals = [
+            "efield",
+            "power",
+            "feed_aligned_response",
+            "feed_aligned_projection",
+        ]
+        desc = f"String indicating beam type. Allowed values are {allowed_vals}."
         self._beam_type = uvp.UVParameter(
             "beam_type",
             description=desc,
             form="str",
             expected_type=str,
-            acceptable_vals=[
-                "efield",
-                "power",
-                "feed_aligned_response",
-                "feed_aligned_projection",
-            ],
+            acceptable_vals=allowed_vals,
         )
 
         desc = (
@@ -357,14 +358,13 @@ class UVBeam(UVBase):
             "means that the frequency dependence of the antenna sensitivity "
             "is included in the data_array while the frequency dependence "
             "of the receiving chain is included in the bandpass_array. "
-            "Peak normalized means that for each frequency the data_array"
-            "is separately normalized such that the peak is 1 (so the beam "
-            "is dimensionless) and all direction-independent frequency "
-            'dependence is moved to the bandpass_array (if the beam_type is "efield", '
-            "then peak normalized means that the absolute value of the peak is 1). "
-            "Solid angle normalized means the peak normalized "
-            "beam is divided by the integral of the beam over the sphere, "
-            "so the beam has dimensions of 1/stradian."
+            "Peak normalized means that for each frequency the data_array "
+            "is separately normalized such that the absolute value of the peak "
+            "is 1 (so the beam is dimensionless) and all direction-independent "
+            "frequency dependence is moved to the bandpass_array. "
+            "Solid angle normalized means the peak normalized beam is divided "
+            "by the integral of the beam over the sphere, so the beam has "
+            "dimensions of 1/steradian."
         )
         self._data_normalization = uvp.UVParameter(
             "data_normalization",
@@ -375,13 +375,16 @@ class UVBeam(UVBase):
         )
 
         desc = (
-            "Depending on beam type, either complex E-field values "
-            "('efield' beam type) or power values ('power' beam type) for "
-            "beam model. Units are normalized to either peak or solid angle as "
-            "given by data_normalization. The shape depends on the beam_type and "
-            "pixel_coordinate_system. If it is a 'healpix' beam, the shape is: "
-            "(Naxes_vec, Nfeeds or Npols, Nfreqs, Npixels), if it is not a healpix "
-            "beam it is (Naxes_vec, Nfeeds or Npols, Nfreqs, Naxes2, Naxes1)."
+            "Depending on beam type, one of: complex E-field values "
+            "('efield' beam type), power values ('power' beam type, real or "
+            "complex depending on whether cross polarizations are included),"
+            "or one of two complex components of an E-field beam: the feed-aligned"
+            "response or feed-aligned projection. Units are normalized as given "
+            "by the data_normalization parameter. The shape depends on the "
+            "beam_type and pixel_coordinate_system. If it is a 'healpix' beam, "
+            "the shape is: (Naxes_vec, Nfeeds or Npols, Nfreqs, Npixels), if it "
+            "is not a healpix beam it is (Naxes_vec, Nfeeds or Npols, Nfreqs, "
+            "Naxes2, Naxes1)."
         )
         self._data_array = uvp.UVParameter(
             "data_array",
@@ -999,15 +1002,18 @@ class UVBeam(UVBase):
         self._fix_feeds()
 
         # first make sure the required parameters and forms are set properly
-        # _set_cs_params is called by _set_efield/_set_power
-        if self.beam_type == "efield":
-            self._set_efield()
-        elif self.beam_type == "power":
-            if self.Naxes_vec > 1:
-                keep_basis_vector = True
-            else:
-                keep_basis_vector = False
-            self._set_power(keep_basis_vector=keep_basis_vector)
+        # _set_cs_params is called by the _set_{beam_type} methods
+        set_method = f"_set_{self.beam_type}"
+        if hasattr(self, set_method):
+            kwargs = {}
+            if self.beam_type == "power":
+                if self.Naxes_vec > 1:
+                    keep_basis_vector = True
+                else:
+                    keep_basis_vector = False
+                kwargs = {"keep_basis_vector": keep_basis_vector}
+
+            getattr(self, set_method)(**kwargs)
 
         if self.antenna_type == "simple":
             self._set_simple()
@@ -1680,14 +1686,14 @@ class UVBeam(UVBase):
             feed_aligned_projection object.
 
         """
-        fproj, firesp = self.efield_to_feed_aligned_projection(
+        fa_proj, fa_resp = self.efield_to_feed_aligned_projection(
             inplace=False,
             return_feed_aligned_response=True,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
         )
-        return firesp, fproj
+        return fa_resp, fa_proj
 
     def _interp_freq(self, freq_array, *, kind="linear", tol=1.0):
         """
@@ -1895,7 +1901,7 @@ class UVBeam(UVBase):
 
     def _prepare_polarized_inputs(self, polarizations):
         """Prepare inputs for polarized interpolation functions."""
-        # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+        # Npols is only defined for power beams. All other beam_types need Nfeeds.
         if self.beam_type == "power":
             # get requested polarization indices
             if polarizations is None:
@@ -3054,7 +3060,7 @@ class UVBeam(UVBase):
         Combine two UVBeam objects.
 
         Objects can be added along frequency, feed or polarization
-        (for efield or power beams), and/or pixel axes.
+        (depending on beam_type), and/or pixel axes.
 
         Parameters
         ----------
@@ -3272,7 +3278,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_pix_axis
                 )[..., order]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_pix_axis = 2
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_pix_axis])
@@ -3304,7 +3310,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_ax1_axis
                 )[..., order]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_ax1_axis = 3
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_ax1_axis])
@@ -3337,7 +3343,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_ax2_axis
                 )[..., order, :]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_ax2_axis = 2
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_ax2_axis])
@@ -3487,7 +3493,7 @@ class UVBeam(UVBase):
             this.data_array[
                 np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, pix_t2o)
             ] = other.data_array
-            if this.beam_type == "efield":
+            if this.basis_vector_array is not None:
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), pix_t2o)
                 ] = other.basis_vector_array
@@ -3499,7 +3505,7 @@ class UVBeam(UVBase):
             this.data_array[
                 np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, ax2_t2o, ax1_t2o)
             ] = other.data_array
-            if this.beam_type == "efield":
+            if this.basis_vector_array is not None:
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), ax2_t2o, ax1_t2o)
                 ] = other.basis_vector_array
@@ -3697,7 +3703,7 @@ class UVBeam(UVBase):
             Cannot be set if the beam_type is "power".
         polarizations : array_like of int or str, optional
             The polarizations to keep in the object.
-            Cannot be set if the beam_type is "efield". If passing strings, the
+            Cannot be set if the beam_type is not "power". If passing strings, the
             canonical polarization strings (e.g. "xx", "rr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "nn", "ee") are also supported.
@@ -3749,8 +3755,10 @@ class UVBeam(UVBase):
                     "represented when all feeds are present."
                 )
 
-        if polarizations is not None and beam_object.beam_type == "efield":
-            raise ValueError("polarizations cannot be used with efield beams")
+        if polarizations is not None and beam_object.beam_type != "power":
+            raise ValueError(
+                f"polarizations cannot be used with {beam_object.beam_type} beams"
+            )
 
         if axis1_inds is not None:
             if beam_object.pixel_coordinate_system == "healpix":
@@ -4053,7 +4061,7 @@ class UVBeam(UVBase):
             Specifying any of the associated keywords to this function will
             override the values in the settings file.
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -4305,7 +4313,7 @@ class UVBeam(UVBase):
                 raise ValueError("feed_angle cannot be a multi-dimensional array.")
             feed_angle = np.atleast_1d(feed_angle)
 
-            if beam_type == "efield":
+            if beam_type != "power":
                 exp_len = len(feed_pol) if isinstance(feed_pol, list | tuple) else 1
                 if exp_len != len(feed_angle):
                     raise ValueError(
@@ -4484,7 +4492,7 @@ class UVBeam(UVBase):
         filename : str
             A FEKO text file.
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
@@ -4778,7 +4786,7 @@ class UVBeam(UVBase):
         CST
         ---
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -4843,7 +4851,7 @@ class UVBeam(UVBase):
         FEKO
         ----
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str or list of str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
