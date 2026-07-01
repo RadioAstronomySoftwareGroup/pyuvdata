@@ -136,7 +136,6 @@ def power_beam_for_adding(cst_power_1freq):
 
 @pytest.fixture(scope="function")
 def efield_beam_for_adding(cst_efield_1freq):
-    # Add feeds
     efield_beam = cst_efield_1freq
 
     # generate more frequencies for testing by copying and adding
@@ -147,6 +146,38 @@ def efield_beam_for_adding(cst_efield_1freq):
     yield efield_beam
 
     del efield_beam
+
+    return
+
+
+@pytest.fixture(scope="function")
+def fa_resp_for_adding(cst_fa_resp_1freq):
+    beam = cst_fa_resp_1freq
+
+    # generate more frequencies for testing by copying and adding
+    new_beam = beam.copy()
+    new_beam.freq_array = beam.freq_array + beam.Nfreqs * 1e6
+    beam += new_beam
+
+    yield beam
+
+    del beam
+
+    return
+
+
+@pytest.fixture(scope="function")
+def fa_proj_for_adding(cst_fa_proj_1freq):
+    beam = cst_fa_proj_1freq
+
+    # generate more frequencies for testing by copying and adding
+    new_beam = beam.copy()
+    new_beam.freq_array = beam.freq_array + beam.Nfreqs * 1e6
+    beam += new_beam
+
+    yield beam
+
+    del beam
 
     return
 
@@ -2413,24 +2444,34 @@ def test_add_multi_power(power_beam_for_adding):
     assert beam1 == beam_ref
 
 
-def test_add_multi_efield(efield_beam_for_adding):
-    efield_beam = efield_beam_for_adding
+@pytest.mark.parametrize(
+    "beam_type", ["efield", "feed_aligned_response", "feed_aligned_projection"]
+)
+def test_add_multi_efield(
+    beam_type, efield_beam_for_adding, fa_resp_for_adding, fa_proj_for_adding
+):
+    if beam_type == "efield":
+        beam = efield_beam_for_adding
+    elif beam_type == "feed_aligned_response":
+        beam = fa_resp_for_adding
+    elif beam_type == "feed_aligned_projection":
+        beam = fa_proj_for_adding
 
     # Another combo with efield
-    beam_ref = efield_beam.copy()
-    beam1 = efield_beam.select(
-        axis1_inds=np.arange(0, efield_beam.Naxes1 // 2),
-        axis2_inds=np.arange(0, efield_beam.Naxes2 // 2),
+    beam_ref = beam.copy()
+    beam1 = beam.select(
+        axis1_inds=np.arange(0, beam.Naxes1 // 2),
+        axis2_inds=np.arange(0, beam.Naxes2 // 2),
         inplace=False,
     )
-    beam2 = efield_beam.select(
-        axis1_inds=np.arange(efield_beam.Naxes1 // 2, efield_beam.Naxes1),
-        axis2_inds=np.arange(efield_beam.Naxes2 // 2, efield_beam.Naxes2),
+    beam2 = beam.select(
+        axis1_inds=np.arange(beam.Naxes1 // 2, beam.Naxes1),
+        axis2_inds=np.arange(beam.Naxes2 // 2, beam.Naxes2),
         inplace=False,
     )
     beam1 += beam2
     assert utils.history._check_histories(
-        efield_beam.history + "  Downselected to specific parts of "
+        beam.history + "  Downselected to specific parts of "
         "first image axis, parts of second "
         "image axis using pyuvdata. Combined "
         "data along first image, second image "
@@ -2439,20 +2480,14 @@ def test_add_multi_efield(efield_beam_for_adding):
     )
 
     # Zero out missing data in reference object
-    beam_ref.data_array[
-        :, :, :, : efield_beam.Naxes2 // 2, efield_beam.Naxes1 // 2 :
-    ] = 0.0
-    beam_ref.data_array[
-        :, :, :, efield_beam.Naxes2 // 2 :, : efield_beam.Naxes1 // 2
-    ] = 0.0
+    beam_ref.data_array[:, :, :, : beam.Naxes2 // 2, beam.Naxes1 // 2 :] = 0.0
+    beam_ref.data_array[:, :, :, beam.Naxes2 // 2 :, : beam.Naxes1 // 2] = 0.0
 
-    beam_ref.basis_vector_array[
-        :, :, : efield_beam.Naxes2 // 2, efield_beam.Naxes1 // 2 :
-    ] = 0.0
-    beam_ref.basis_vector_array[
-        :, :, efield_beam.Naxes2 // 2 :, : efield_beam.Naxes1 // 2
-    ] = 0.0
-    beam1.history = efield_beam.history
+    if beam_type != "feed_aligned_response":
+        beam_ref.basis_vector_array[:, :, : beam.Naxes2 // 2, beam.Naxes1 // 2 :] = 0.0
+        beam_ref.basis_vector_array[:, :, beam.Naxes2 // 2 :, : beam.Naxes1 // 2] = 0.0
+
+    beam1.history = beam.history
     assert beam1, beam_ref
 
 
@@ -2554,10 +2589,17 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         if param == "beam_type":
             beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
         elif param == "Naxes_vec":
-            beam2_copy = beam2.copy()
+            beam1_copy = efield_beam.select(freq_chans=0, inplace=False)
+            beam2_copy = efield_beam.select(freq_chans=1, inplace=False)
             beam2_copy.Naxes_vec = value
             beam2_copy.data_array = np.concatenate(
-                (beam2_copy.data_array, beam2_copy.data_array, beam2_copy.data_array)
+                (beam2_copy.data_array, (beam2_copy.data_array[0])[np.newaxis])
+            )
+            beam2_copy.basis_vector_array = np.concatenate(
+                (
+                    beam2_copy.basis_vector_array,
+                    (beam2_copy.basis_vector_array[0])[np.newaxis],
+                )
             )
         else:
             beam2_copy = beam2.copy()
@@ -3716,3 +3758,14 @@ def test_plotting_errors(mwa_fee_1ppd):
         "to plot.",
     ):
         beam.plot(freq_ind=5.5)
+
+
+@pytest.mark.parametrize(
+    "method", ["decompose_feed_aligned_terms", "efield_to_feed_aligned_response"]
+)
+def test_decompose_errors(cst_power_1freq, cst_efield_2freq_cut_healpix, method):
+    with pytest.raises(ValueError, match="beam_type must be efield."):
+        getattr(cst_power_1freq, method)()
+
+    with pytest.raises(ValueError, match="pixel_coordinate_system must be az_za."):
+        getattr(cst_efield_2freq_cut_healpix, method)()

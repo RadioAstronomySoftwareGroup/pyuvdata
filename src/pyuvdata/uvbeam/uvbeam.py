@@ -101,7 +101,7 @@ class UVBeam(UVBase):
             "orthogonal. The mapping of these basis vectors to directions aligned with"
             "the pixel coordinate system is contained in the `basis_vector_array`. "
             "The allowed values for this parameter are 2 or 3 (or 1 if beam_type is "
-            "'power')."
+            "'power' or 'feed_aligned_response')."
         )
         self._Naxes_vec = uvp.UVParameter(
             "Naxes_vec", description=desc, expected_type=int, acceptable_vals=[2, 3]
@@ -224,24 +224,29 @@ class UVBeam(UVBase):
             form=("Npixels",),
         )
 
-        desc = "String indicating beam type. Allowed values are 'efield', and 'power'."
+        allowed_vals = [
+            "efield",
+            "power",
+            "feed_aligned_response",
+            "feed_aligned_projection",
+        ]
+        desc = f"String indicating beam type. Allowed values are {allowed_vals}."
         self._beam_type = uvp.UVParameter(
             "beam_type",
             description=desc,
             form="str",
             expected_type=str,
-            acceptable_vals=["efield", "power"],
+            acceptable_vals=allowed_vals,
         )
 
         desc = (
             "Beam basis vector components, essentially the mapping between the "
             "directions that the electrical field values are recorded in to the "
             "directions aligned with the pixel coordinate system (or azimuth/zenith "
-            "angle for HEALPix beams)."
-            'Not required if beam_type is "power". The shape depends on the '
-            'pixel_coordinate_system, if it is "healpix", the shape is: '
-            "(Naxes_vec, Ncomponents_vec, Npixels), otherwise it is "
-            "(Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
+            "angle for HEALPix beams). Not required if Naxes_vec is 1 (typically "
+            "true of power beams). The shape depends on the pixel_coordinate_system,"
+            "if it is 'healpix', the shape is: (Naxes_vec, Ncomponents_vec, Npixels), "
+            "otherwise it is (Naxes_vec, Ncomponents_vec, Naxes2, Naxes1)"
         )
         self._basis_vector_array = uvp.UVParameter(
             "basis_vector_array",
@@ -353,14 +358,13 @@ class UVBeam(UVBase):
             "means that the frequency dependence of the antenna sensitivity "
             "is included in the data_array while the frequency dependence "
             "of the receiving chain is included in the bandpass_array. "
-            "Peak normalized means that for each frequency the data_array"
-            "is separately normalized such that the peak is 1 (so the beam "
-            "is dimensionless) and all direction-independent frequency "
-            'dependence is moved to the bandpass_array (if the beam_type is "efield", '
-            "then peak normalized means that the absolute value of the peak is 1). "
-            "Solid angle normalized means the peak normalized "
-            "beam is divided by the integral of the beam over the sphere, "
-            "so the beam has dimensions of 1/stradian."
+            "Peak normalized means that for each frequency the data_array "
+            "is separately normalized such that the absolute value of the peak "
+            "is 1 (so the beam is dimensionless) and all direction-independent "
+            "frequency dependence is moved to the bandpass_array. "
+            "Solid angle normalized means the peak normalized beam is divided "
+            "by the integral of the beam over the sphere, so the beam has "
+            "dimensions of 1/steradian."
         )
         self._data_normalization = uvp.UVParameter(
             "data_normalization",
@@ -371,13 +375,16 @@ class UVBeam(UVBase):
         )
 
         desc = (
-            "Depending on beam type, either complex E-field values "
-            "('efield' beam type) or power values ('power' beam type) for "
-            "beam model. Units are normalized to either peak or solid angle as "
-            "given by data_normalization. The shape depends on the beam_type and "
-            "pixel_coordinate_system. If it is a 'healpix' beam, the shape is: "
-            "(Naxes_vec, Nfeeds or Npols, Nfreqs, Npixels), if it is not a healpix "
-            "beam it is (Naxes_vec, Nfeeds or Npols, Nfreqs, Naxes2, Naxes1)."
+            "Depending on beam type, one of: complex E-field values "
+            "('efield' beam type), power values ('power' beam type, real or "
+            "complex depending on whether cross polarizations are included),"
+            "or one of two complex components of an E-field beam: the feed-aligned"
+            "response or feed-aligned projection. Units are normalized as given "
+            "by the data_normalization parameter. The shape depends on the "
+            "beam_type and pixel_coordinate_system. If it is a 'healpix' beam, "
+            "the shape is: (Naxes_vec, Nfeeds or Npols, Nfreqs, Npixels), if it "
+            "is not a healpix beam it is (Naxes_vec, Nfeeds or Npols, Nfreqs, "
+            "Naxes2, Naxes1)."
         )
         self._data_array = uvp.UVParameter(
             "data_array",
@@ -818,12 +825,18 @@ class UVBeam(UVBase):
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
-    def _set_power(self):
+    def _set_power(self, keep_basis_vector=False):
         """Set beam_type to 'power' and adjust required parameters."""
         self.beam_type = "power"
-        self._Naxes_vec.acceptable_vals = [1, 2, 3]
-        self._basis_vector_array.required = False
-        self._Ncomponents_vec.required = False
+        if keep_basis_vector:
+            self._Naxes_vec.acceptable_vals = [2, 3]
+            self._basis_vector_array.required = True
+            self._Ncomponents_vec.required = True
+        else:
+            # this is the typical case
+            self._Naxes_vec.acceptable_vals = [1]
+            self._basis_vector_array.required = False
+            self._Ncomponents_vec.required = False
         self._Npols.required = True
         self._polarization_array.required = True
 
@@ -833,6 +846,28 @@ class UVBeam(UVBase):
             if pol in [-3, -4, -7, -8]:
                 self._data_array.expected_type = uvp._get_generic_type(complex)
 
+        # call set_cs_params to fix data_array form
+        self._set_cs_params()
+
+    def _set_feed_aligned_response(self):
+        self.beam_type = "feed_aligned_response"
+        self._Naxes_vec.acceptable_vals = [1]
+        self._basis_vector_array.required = False
+        self._Ncomponents_vec.required = False
+        self._Npols.required = False
+        self._polarization_array.required = False
+        self._data_array.expected_type = uvp._get_generic_type(complex)
+        # call set_cs_params to fix data_array form
+        self._set_cs_params()
+
+    def _set_feed_aligned_projection(self):
+        self.beam_type = "feed_aligned_projection"
+        self._Naxes_vec.acceptable_vals = [2, 3]
+        self._Ncomponents_vec.required = True
+        self._basis_vector_array.required = True
+        self._Npols.required = False
+        self._polarization_array.required = False
+        self._data_array.expected_type = uvp._get_generic_type(complex)
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
@@ -967,11 +1002,18 @@ class UVBeam(UVBase):
         self._fix_feeds()
 
         # first make sure the required parameters and forms are set properly
-        # _set_cs_params is called by _set_efield/_set_power
-        if self.beam_type == "efield":
-            self._set_efield()
-        elif self.beam_type == "power":
-            self._set_power()
+        # _set_cs_params is called by the _set_{beam_type} methods
+        set_method = f"_set_{self.beam_type}"
+        if hasattr(self, set_method):
+            kwargs = {}
+            if self.beam_type == "power":
+                if self.Naxes_vec > 1:
+                    keep_basis_vector = True
+                else:
+                    keep_basis_vector = False
+                kwargs = {"keep_basis_vector": keep_basis_vector}
+
+            getattr(self, set_method)(**kwargs)
 
         if self.antenna_type == "simple":
             self._set_simple()
@@ -1059,6 +1101,12 @@ class UVBeam(UVBase):
         check_extra : bool
             Option to check optional parameters as well as required ones.
 
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the power beam object. If inplace is
+            True, returns None.
+
         """
         # Do a quick compatibility check w/ the old feed types.
         self._fix_feeds()
@@ -1096,7 +1144,7 @@ class UVBeam(UVBase):
             beam_object.Naxes_vec = 1
 
         # adjust requirements, fix data_array form
-        beam_object._set_power()
+        beam_object._set_power(keep_basis_vector=keep_basis_vector)
         power_data = np.zeros(
             beam_object._data_array.expected_shape(beam_object), dtype=np.complex128
         )
@@ -1280,6 +1328,12 @@ class UVBeam(UVBase):
         check_extra : bool
             Option to check optional parameters as well as required ones.
 
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the pstokes beam object. If inplace is
+            True, returns None.
+
         """
         # Do a quick compatibility check w/ the old feed types.
         self._fix_feeds()
@@ -1348,7 +1402,7 @@ class UVBeam(UVBase):
             ]
         )
         beam_object.Naxes_vec = 1
-        beam_object._set_power()
+        beam_object._set_power(keep_basis_vector=False)
 
         history_update_string = (
             " Converted from efield to pseudo-stokes power using pyuvdata."
@@ -1364,6 +1418,282 @@ class UVBeam(UVBase):
             )
         if not inplace:
             return beam_object
+
+    def efield_to_feed_aligned_response(
+        self,
+        *,
+        inplace=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Convert E-field beam to feed aligned response.
+
+        The feed aligned response is the complex response of each instrumental
+        feed to electric fields aligned with it -- i.e. after projecting electric
+        fields to directions aligned with the feeds (these directions are
+        non-orthogonal in many directions on the sky even though the feeds are
+        generally physically orthogonal). Since the projection has already happened,
+        the feed aligned response only has a feed index, no vector component axis.
+        Non-zero phase is caused by time delays which can vary spatially but do
+        not depend on incident polarization.
+
+        Unpolarized light is equally spread among all polarization orientations,
+        so the feed aligned response can be used as the response to unpolarized light.
+
+        Parameters
+        ----------
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam or None
+            If inplace is False, returns the feed aligned response beam object.
+            If inplace is True, returns None.
+
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = self.copy()
+
+        if beam_object.beam_type != "efield":
+            raise ValueError("beam_type must be efield.")
+
+        if beam_object.pixel_coordinate_system != "az_za":
+            raise ValueError("pixel_coordinate_system must be az_za.")
+
+        beam_object._set_feed_aligned_response()
+        # feed aligned response (also called F) is composed of two parts:
+        # the magnitude part and the complex phase part which is from time delays.
+        # The magnitude is the sqrt of the sum of the squares of the response to
+        # the two vector orientations (azimuthally aligned & zenith angle aligned)
+        f_mag = np.sqrt(np.sum(np.abs(beam_object.data_array) ** 2, axis=0))
+
+        # to calculate the complex delay part we first need to account for phase
+        # jumps that are just due to the coordinate system. Because vector fields
+        # in a sphere have poles in any coordinate system, this flip has to be
+        # accounted for in any coordinate system.
+
+        # we can use the set of points at zenith (with different azimuth values)
+        # to identify where these phase flips happen.
+        zenith_ind = np.nonzero(
+            beam_object.axis2_array == beam_object.axis2_array.min()
+        )
+
+        flip_array = np.copy(beam_object.data_array)
+        for va_i in range(beam_object.Naxes_vec):
+            for f_i in range(beam_object.Nfeeds):
+                az_angles = np.angle(np.squeeze(flip_array[va_i, f_i, :, zenith_ind]))
+                az_angles = az_angles.reshape((beam_object.Nfreqs, beam_object.Naxes1))
+                az_angles[az_angles < 0] += 2 * np.pi
+                az_angle_diff = abs(az_angles - np.unwrap(az_angles, period=np.pi))
+                az_flip = np.logical_and(az_angle_diff > 1, az_angle_diff < 4)
+                # az_flip is shape (Nfreqs, Naxis1), need to reorder to get
+                # those axes adjacent
+                flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
+                flip_array[va_i, f_i, az_flip] *= -1
+                # now switch back
+                flip_array = np.transpose(flip_array, axes=(0, 1, 2, 4, 3))
+                # check if zenith response is mostly negative now, if so make it
+                # positive
+                # use mean instead of max because can occasionally get max
+                # values just above zero
+                # this is frequency dependent because the earlier flips are
+                # frequency dependent so keep the freq axis
+                mean_zen_val = np.mean(
+                    np.squeeze(flip_array[va_i, f_i, :, zenith_ind].real), axis=-1
+                )
+                flip_array[va_i, f_i, mean_zen_val < 0] *= -1
+
+        # to compute the time delay, first sum the flipped array across the vector
+        # direction axis -- this gives us what is common to each instrumental
+        # pol across incident polarizations. Then normalize by the abs to remove
+        # the magnitude which we have accounted for in f_mag.
+        f_delay = np.sum(flip_array, axis=0)
+        # take care not to divide by zero (generates NaNs)
+        wh_nonzero = np.nonzero(np.abs(f_delay) > 0)
+        f_delay[wh_nonzero] = f_delay[wh_nonzero] / np.abs(f_delay[wh_nonzero])
+
+        beam_object.data_array = f_mag * f_delay
+        beam_object.data_array = beam_object.data_array[np.newaxis]
+
+        beam_object.Naxes_vec = 1
+        history_update_string = (
+            " Converted from efield to feed aligned response using pyuvdata."
+        )
+        beam_object.history = beam_object.history + history_update_string
+        beam_object.basis_vector_array = None
+        beam_object.Ncomponents_vec = None
+
+        if run_check:
+            beam_object.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+        if not inplace:
+            return beam_object
+
+    def efield_to_feed_aligned_projection(
+        self,
+        *,
+        inplace=True,
+        return_feed_aligned_response=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Convert E-field beam to feed aligned projection.
+
+        The feed aligned projection is the projection from celestial polarization
+        vector components (orthogonal on the sky) to instrumental feed vector
+        components (often non-orthogonal on the sky). This is similar to a
+        rotation matrix in that it just converts between coordinate systems
+        (the magnitude of the response is removed), but is not unitary because
+        the projection of the feeds are not orthogonal in all directions on the sky.
+
+        Parameters
+        ----------
+        inplace : bool
+            Option to apply conversion directly on self or to return a new
+            UVBeam object.
+        return_feed_aligned_response : bool
+            Option to return the feed aligned response, which is necessarily calculated.
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam or tuple of UVBeam or None
+            If inplace is False and return_feed_aligned_response is True: returns
+            both the feed aligned projection and feed aligned response beam objects.
+            If inplace is False and return_feed_aligned_response is False: returns
+            the feed aligned projection beam object.
+            If inplace is True and return_feed_aligned_response is True: returns
+            the feed aligned response beam object.
+            If inplace is True and return_feed_aligned_response is False: returns None.
+
+        """
+        if inplace:
+            beam_object = self
+        else:
+            beam_object = self.copy()
+
+        if beam_object.beam_type != "efield":
+            raise ValueError("beam_type must be efield.")
+
+        if beam_object.pixel_coordinate_system != "az_za":
+            raise ValueError("pixel_coordinate_system must be az_za.")
+
+        # first get the feed aligned response, then divide it out to get the feed
+        # projection
+        feed_resp = beam_object.efield_to_feed_aligned_response(
+            inplace=False,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+
+        beam_object._set_feed_aligned_projection()
+
+        for va_i in range(beam_object.Naxes_vec):
+            for f_i in range(beam_object.Nfeeds):
+                # take care not to divide by zero (generates NaNs)
+                wh_nonzero = np.nonzero(np.abs(feed_resp.data_array[0, f_i]) > 0)
+                beam_object.data_array[va_i, f_i, *wh_nonzero] /= feed_resp.data_array[
+                    0, f_i, *wh_nonzero
+                ]
+
+        history_update_string = (
+            " Converted from efield to feed aligned projection using pyuvdata."
+        )
+        beam_object.history = beam_object.history + history_update_string
+
+        if run_check:
+            beam_object.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        if return_feed_aligned_response:
+            if inplace:
+                return feed_resp
+            else:
+                return beam_object, feed_resp
+        elif not inplace:
+            return beam_object
+
+    def decompose_feed_aligned_terms(
+        self, run_check=True, check_extra=True, run_check_acceptability=True
+    ):
+        """
+        Decompose an E-field beam into feed aligned component objects.
+
+        Decompose the E-field beam into two objects, one with the feed aligned
+        response and one with the feed aligned projection.
+
+        The feed aligned response is the complex response of each instrumental
+        feed to electric fields aligned with it -- i.e. after projecting electric
+        fields to directions aligned with the feeds (these directions are
+        non-orthogonal in many directions on the sky even though the feeds are
+        generally physically orthogonal). Since the projection has already happened,
+        the feed aligned response only has a feed index, no vector component axis.
+        Non-zero phase is caused by time delays which can vary spatially but do
+        not depend on incident polarization.
+
+        Unpolarized light is equally spread among all polarization orientations,
+        so the feed aligned response can be used as the response to unpolarized light.
+
+        The feed aligned projection is the projection from celestial polarization
+        vector components (orthogonal on the sky) to instrumental feed vector
+        components (often non-orthogonal on the sky). This is similar to a
+        rotation matrix in that it just converts between coordinate systems
+        (the magnitude of the response is removed), but is not unitary because
+        the projection of the feeds are not orthogonal in all directions on the sky.
+
+        Parameters
+        ----------
+        run_check : bool
+            Option to check for the existence and proper shapes of the required
+            parameters after converting to power.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of required parameters
+            after converting to power.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+
+        Returns
+        -------
+        UVBeam
+            feed_aligned_response object.
+        UVBeam
+            feed_aligned_projection object.
+
+        """
+        fa_proj, fa_resp = self.efield_to_feed_aligned_projection(
+            inplace=False,
+            return_feed_aligned_response=True,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+        return fa_resp, fa_proj
 
     def _interp_freq(self, freq_array, *, kind="linear", tol=1.0):
         """
@@ -1571,7 +1901,7 @@ class UVBeam(UVBase):
 
     def _prepare_polarized_inputs(self, polarizations):
         """Prepare inputs for polarized interpolation functions."""
-        # Npols is only defined for power beams.  For E-field beams need Nfeeds.
+        # Npols is only defined for power beams. All other beam_types need Nfeeds.
         if self.beam_type == "power":
             # get requested polarization indices
             if polarizations is None:
@@ -2730,7 +3060,7 @@ class UVBeam(UVBase):
         Combine two UVBeam objects.
 
         Objects can be added along frequency, feed or polarization
-        (for efield or power beams), and/or pixel axes.
+        (depending on beam_type), and/or pixel axes.
 
         Parameters
         ----------
@@ -2948,7 +3278,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_pix_axis
                 )[..., order]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_pix_axis = 2
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_pix_axis])
@@ -2980,7 +3310,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_ax1_axis
                 )[..., order]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_ax1_axis = 3
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_ax1_axis])
@@ -3013,7 +3343,7 @@ class UVBeam(UVBase):
                     [this.data_array, data_zero_pad], axis=data_ax2_axis
                 )[..., order, :]
 
-                if this.beam_type == "efield":
+                if this.basis_vector_array is not None:
                     basisvec_ax2_axis = 2
                     basisvec_pad_dims = tuple(
                         list(this.basis_vector_array.shape[0:basisvec_ax2_axis])
@@ -3163,7 +3493,7 @@ class UVBeam(UVBase):
             this.data_array[
                 np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, pix_t2o)
             ] = other.data_array
-            if this.beam_type == "efield":
+            if this.basis_vector_array is not None:
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), pix_t2o)
                 ] = other.basis_vector_array
@@ -3175,7 +3505,7 @@ class UVBeam(UVBase):
             this.data_array[
                 np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, ax2_t2o, ax1_t2o)
             ] = other.data_array
-            if this.beam_type == "efield":
+            if this.basis_vector_array is not None:
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), ax2_t2o, ax1_t2o)
                 ] = other.basis_vector_array
@@ -3373,7 +3703,7 @@ class UVBeam(UVBase):
             Cannot be set if the beam_type is "power".
         polarizations : array_like of int or str, optional
             The polarizations to keep in the object.
-            Cannot be set if the beam_type is "efield". If passing strings, the
+            Cannot be set if the beam_type is not "power". If passing strings, the
             canonical polarization strings (e.g. "xx", "rr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "nn", "ee") are also supported.
@@ -3425,8 +3755,10 @@ class UVBeam(UVBase):
                     "represented when all feeds are present."
                 )
 
-        if polarizations is not None and beam_object.beam_type == "efield":
-            raise ValueError("polarizations cannot be used with efield beams")
+        if polarizations is not None and beam_object.beam_type != "power":
+            raise ValueError(
+                f"polarizations cannot be used with {beam_object.beam_type} beams"
+            )
 
         if axis1_inds is not None:
             if beam_object.pixel_coordinate_system == "healpix":
@@ -3729,7 +4061,7 @@ class UVBeam(UVBase):
             Specifying any of the associated keywords to this function will
             override the values in the settings file.
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -3981,7 +4313,7 @@ class UVBeam(UVBase):
                 raise ValueError("feed_angle cannot be a multi-dimensional array.")
             feed_angle = np.atleast_1d(feed_angle)
 
-            if beam_type == "efield":
+            if beam_type != "power":
                 exp_len = len(feed_pol) if isinstance(feed_pol, list | tuple) else 1
                 if exp_len != len(feed_angle):
                     raise ValueError(
@@ -4160,7 +4492,7 @@ class UVBeam(UVBase):
         filename : str
             A FEKO text file.
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
@@ -4454,7 +4786,7 @@ class UVBeam(UVBase):
         CST
         ---
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -4519,7 +4851,7 @@ class UVBeam(UVBase):
         FEKO
         ----
         beam_type : str
-            What beam_type to read in ('power' or 'efield').
+            What beam_type to read in, only 'power' or 'efield' are supported.
         feed_pol : str or list of str
             The feed polarization that the files corresponds to, e.g. x, y, r or l.
             Defaults to 'x'.
