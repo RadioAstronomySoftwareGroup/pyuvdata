@@ -633,7 +633,7 @@ class AnalyticBeam:
                 az_array=az_array, za_array=za_array, freq_array=freq_array
             )
 
-            # set f to the magnitude of the I response, assume no time delays
+            # set f to the magnitude of the feed-aligned response, assume no time delays
             f_vals = self.feed_aligned_response_eval(
                 az_array=az_array, za_array=za_array, freq_array=freq_array
             )

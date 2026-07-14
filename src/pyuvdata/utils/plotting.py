@@ -441,7 +441,7 @@ def beam_plot(
     elif beam_type == "efield":
         beam_type_label = "E-field"
     elif beam_type == "feed_aligned_response":
-        beam_type_label = "Feed I response"
+        beam_type_label = "Feed-aligned"
     elif beam_type == "feed_aligned_projection":
         beam_type_label = "Feed projection"
 
