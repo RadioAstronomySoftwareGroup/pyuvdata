@@ -378,7 +378,7 @@ class UVBeam(UVBase):
             "Depending on beam type, one of: complex E-field values "
             "('efield' beam type), power values ('power' beam type, real or "
             "complex depending on whether cross polarizations are included),"
-            "or one of two complex components of an E-field beam: the feed-aligned"
+            "or one of two complex components of an E-field beam: the feed-aligned "
             "response or feed-aligned projection. Units are normalized as given "
             "by the data_normalization parameter. The shape depends on the "
             "beam_type and pixel_coordinate_system. If it is a 'healpix' beam, "

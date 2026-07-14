@@ -3,13 +3,17 @@ UVBeam
 ------
 
 UVBeam objects hold all of the metadata and data required to work with primary beam
-models for radio telescopes. UVBeam supports both E-field and power beams
-(labeled by the ``beam_type`` attribute) in a few different coordinate and gridding
-systems (e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labeled
-by the ``pixel_coordinate_system`` attribute).
+models for radio telescopes. UVBeam supports E-field (Jones matrix) and power beams
+(labeled by the ``beam_type`` attribute) as well as feed-aligned projection and
+feed-aligned response beams, which are the two products of an E-field beam
+decomposition used in some analysis codes (see :ref:`jones_decomp` for details).
+Beams are supported in a few different coordinate and gridding systems
+(e.g. regular azimuth/zenith angle grids, zenith-based HEALPix grids, labeled by
+the ``pixel_coordinate_system`` attribute).
 
-For E-field beams, UVBeam supports specifying the E-field components in two or three
-directions which may not align with the pixel coordinate system (or even be orthogonal).
+For E-field (and feed-aligned projection) beams, UVBeam supports specifying the
+E-field components in two or three directions which may not align with the pixel
+coordinate system (or even be orthogonal).
 The mapping between the E-field component vectors and unit vectors aligned with the
 pixel coordinate system is defined per pixel in the ``basis_vector_array``. That array
 has an axis of length ``Naxes_vec`` which is the number of E-field components used to
@@ -704,6 +708,62 @@ b) Generating pseudo Stokes ("pI", "pQ", "pU", "pV") beams
 
 .. image:: Images/hera_pstokes.png
   :width: 600
+
+
+.. _jones_decomp:
+
+UVBeam: Decomposing E-Field beams to feed-aligned products
+----------------------------------------------------------
+
+E-field beams can be decomposed into two the following two terms:
+
+- ``feed_aligned_projection``: The projection matrix from celestial polarization
+  vector components (orthogonal on the sky) to instrumental polarization vector
+  components (the directions of maximal feed response which are generally non-orthogonal
+  on the sky). This is similar to a rotation matrix, but is not unitary because the
+  feed aligned vector components are not orthogonal in all directions on the sky.
+  The data array for these beams have the same shape as for E-field beams and they
+  describe how unit vectors aligned with celestial polarization vector components
+  map to the feed-aligned directions across the sky.
+- ``feed_aligned_response``: The complex, direction dependent response of each feed
+  to electric fields aligned with the feed. The data array for these beams have
+  ``Naxis_vec=1`` and describe how each feed responds to feed-aligned polarization
+  across the sky. These beams are complex in general, with the amplitude giving the
+  sensivity of the feed in each direction of the sky and the phase related to the
+  direction-dependent time delay of the feed response.
+
+These two terms are used in FHD and pyfhd and may be useful to other analysis
+codes, particularly ones that grid the data into instrumental polarization
+uv planes. In that context, the feed-aligned response can be used as the gridding
+kernel (e.g. for optimal map-making) and the feed-aligned projection can be used
+to translate between Stokes parameters and instrumental polarization for both
+sources and maps.
+
+a) Decomposing E-Field beams to feed-aligned products
+*****************************************************
+
+.. clear-namespace
+
+.. code-block:: python
+
+    from pyuvdata import UVBeam
+    from pyuvdata.datasets import fetch_data
+
+    filename = fetch_data("mwa_full_EE")
+
+    mwa_beam = UVBeam.from_file(filename, pixels_per_deg=1)
+    mwa_fa_resp, mwa_fa_proj = mwa_beam.decompose_feed_aligned_terms()
+
+    mwa_fa_resp.plot(savefile="Images/mwa_fa_resp.png", freq_ind=-1)
+
+    mwa_fa_proj.plot(savefile="Images/mwa_fa_proj.png", freq_ind=-1)
+
+.. image:: Images/mwa_fa_resp.png
+  :width: 600
+
+.. image:: Images/mwa_fa_proj.png
+  :width: 600
+
 
 
 UVBeam: Calculating beam areas

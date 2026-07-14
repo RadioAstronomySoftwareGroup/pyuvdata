@@ -12,8 +12,9 @@ Evaluating analytic beams
 -------------------------
 
 To evaluate an analytic beam at one or more frequencies and in in one or more
-directions, use either the :meth:`pyuvdata.analytic_beam.AnalyticBeam.efield_eval`
-or :meth:`pyuvdata.analytic_beam.AnalyticBeam.power_eval` methods as appropriate.
+directions, use one of the eval methods (:meth:`pyuvdata.analytic_beam.AnalyticBeam.efield_eval`,
+:meth:`pyuvdata.analytic_beam.AnalyticBeam.power_eval`, :meth:`feed_aligned_response_eval`,
+:meth:`feed_aligned_projection_eval`) methods as appropriate.
 
 Evaluating an Airy Beam power response
 **************************************
@@ -180,6 +181,22 @@ response does not.
 .. image:: Images/short_dipole_beam.png
     :width: 600
 
+
+You can also plot the feed-aligned response or projection.
+
+.. code-block:: python
+
+    dipole_beam.plot(beam_type="feed_aligned_response", freq=100e6, savefile="Images/short_dipole_fa_response.png")
+
+    dipole_beam.plot(beam_type="feed_aligned_projection", freq=100e6, savefile="Images/short_dipole_fa_projection.png")
+
+.. image:: Images/short_dipole_fa_response.png
+    :width: 600
+
+.. image:: Images/short_dipole_fa_projection.png
+    :width: 600
+
+
 Defining new analytic beams
 ---------------------------
 
@@ -249,11 +266,17 @@ E-field beams (if only ``_efield_eval`` defined, power beams will be calculated
 from the E-field beams). If only ``_power_eval`` is defined, the E-field beam is
 defined as the square root of the auto polarization power beam, so the E-field
 beam will be real and positive definite. Both methods can be specified, which
-may allow for computational efficiencies in some cases.
+may allow for computational efficiencies in some cases. You can also specify the
+``_feed_aligned_response_eval`` and ``_feed_aligned_projection_eval``. If they
+are not specified they are calculated based on the ``_efield_eval`` but with the
+assumption that there are no time delays in the feed-aligned response, which may
+not be appropriate. If there are time delays, the feed_aligned eval methods should
+be specified. See :ref:`jones_decomp` for more details on these beam types.
 
-The inputs to the ``_efield_eval`` and ``_power_eval`` methods are the same and
-give the directions (azimuth and zenith angle) and frequencies to evaluate the
-beam. All three inputs must be two-dimensional with the first axis having the
+The inputs to the various eval methods (``_efield_eval``, ``_power_eval``,
+``_feed_aligned_response_eval`` and ``_feed_aligned_projection_eval``) are the
+same and give the directions (azimuth and zenith angle) and frequencies to evaluate
+the beam. All three inputs must be two-dimensional with the first axis having the
 length of the number of frequencies and the second axis having the having the
 length of the number of directions (these are essentially the output of an
 ``np.meshgrid`` on the direction and frequency vectors). The inputs are:
@@ -265,11 +288,11 @@ length of the number of directions (these are essentially the output of an
     - ``freq_array``: an array of frequencies in Hz at which to evaluate the beam.
       Shape: (number of frequencies, number of directions)
 
-The ``_efield_eval`` and ``_power_eval`` methods must return arrays with the beam
+The eval methods methods must return arrays with the beam
 response. The shapes and types of the returned arrays are:
 
-    - _efield_eval: a complex array of beam responses with shape:
-      (``Naxes_vec``, ``Nfeeds``, ``freq_array.size``, ``az_array.size``).
+    - ``_efield_eval`` and ``_feed_aligned_projection_eval``: a complex array
+      with shape: (``Naxes_vec``, ``Nfeeds``, ``freq_array.size``, ``az_array.size``).
       ``Naxes_vec`` is 2 for the ``"az_za"`` basis, and ``Nfeeds`` is typically 2.
 
     - ``_power_eval``: an array with shape: (1, ``Npols``, ``freq_array.size``,
@@ -279,6 +302,10 @@ response. The shapes and types of the returned arrays are:
       array should be real if ``include_cross_pols`` was set to False and it can
       be complex if ``include_cross_pols`` was set to True (it will be cast to
       complex when it is called via the ``power_eval`` method on the base class).
+
+    - ``_feed_aligned_response_eval``: an array with shape:
+      (1, ``Nfeeds``, ``freq_array.size``, ``az_array.size``). The array can be
+      complex if there are direction-dependent time delays in the feed response.
 
 
 Below we provide some examples of beams defined in pyuvdata to make this more
