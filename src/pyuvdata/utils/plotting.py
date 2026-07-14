@@ -88,7 +88,9 @@ def plot_beam_arrays(
         matplotlib.colors.LogNorm or matplotlib.colors.SymLogNorm if the data
         have negative values.
     plt_kwargs : dict, optional
-        Keywords to be passed into the matplotlib.pyplot.imshow call.
+        Keywords to be passed into the matplotlib.pyplot.pcolormesh (for regularly
+        gridded beams) or matplotlib.pyplot.scatter (for non-regularly gridded
+        beams) call.
     norm_kwargs : dict, optional
         Keywords to be passed into the norm object, typically vmin/vmax, plus
         linthresh for SymLogNorm.
@@ -333,7 +335,9 @@ def beam_plot(
         matplotlib.colors.LogNorm or matplotlib.colors.SymLogNorm if the data
         have negative values.
     plt_kwargs : dict, optional
-        Keywords to be passed into the matplotlib.pyplot.imshow call.
+        Keywords to be passed into the matplotlib.pyplot.pcolormesh (for regularly
+        gridded beams) or matplotlib.pyplot.scatter (for non-regularly gridded
+        beams) call.
     norm_kwargs : dict, optional
         Keywords to be passed into the norm object, typically vmin/vmax, plus
         linthresh for SymLogNorm.
