@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 - Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Added
+- Support for two new types of beams in UVBeam and AnalyticBeam: feed_aligned_response
+and feed_aligned_projection beams which result from an E-field beam decomposition
+used in some analysis codes.
 - Added more options for controlling labels on beam plots.
 - Support for MWA Average Embedded Element beams in UVBeam.
 
