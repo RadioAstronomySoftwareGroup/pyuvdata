@@ -3,11 +3,15 @@
 
 """Testing environment setup and teardown for pytest."""
 
+import contextlib
+
+import astropy
 import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy.utils import iers
+from packaging.version import Version
 
 from pyuvdata import UVCal, UVData
 from pyuvdata.datasets import fetch_data, fetch_dict
@@ -31,31 +35,38 @@ def pytest_sessionstart(session):
 @pytest.fixture(autouse=True, scope="session")
 def setup_and_teardown_package():
     """Handle possible IERS issues."""
-    # Do a calculation that requires a current IERS table. This will trigger
-    # automatic downloading of the IERS table if needed, including trying the
-    # mirror site in python 3 (but won't redownload if a current one exists).
-    # If there's not a current IERS table and it can't be downloaded, turn off
-    # auto downloading for the tests and turn it back on once all tests are
-    # completed (done by extending auto_max_age).
-    # Also, the check_warnings function will ignore IERS-related warnings.
-    try:
-        t1 = Time.now()
-        t1.ut1  # noqa B018
-    except Exception:
-        iers.conf.auto_max_age = None
+
+    if Version(astropy.__version__) < Version("8.0.1"):
+        # Do a calculation that requires a current IERS table. This will trigger
+        # automatic downloading of the IERS table if needed, including trying the
+        # mirror site in python 3 (but won't redownload if a current one exists).
+        # If there's not a current IERS table and it can't be downloaded, turn off
+        # auto downloading for the tests and turn it back on once all tests are
+        # completed (done by extending auto_max_age).
+        # Also, the check_warnings function will ignore IERS-related warnings.
+        try:
+            t1 = Time.now()
+            t1.ut1  # noqa B018
+        except Exception:
+            orig_max_age = iers.conf.auto_max_age
+            iers.conf.auto_max_age = None
 
     # Also ensure that we're downloading the site data from astropy
-    try:
-        # the parameter name was changed in astropy 8.0.0 as a part of fixing
-        # the refresh_cache keyword on the various astropy site functions
-        # This can be removed when we require astropy >= 8.0
-        EarthLocation._get_site_registry(force_download=True)
-    except TypeError:
-        EarthLocation._get_site_registry(refresh_cache=True)
+    with contextlib.suppress(FileNotFoundError):
+        # this sometimes errors on windows, unclear why, but most of the time the
+        # registry hasn't changed, so just move on with our testing if it errors
+        if Version(astropy.__version__) < Version("7.2.1"):
+            # the parameter name was changed in astropy 8.0.0 as a part of fixing
+            # the refresh_cache keyword on the various astropy site functions
+            # This can be removed when we require astropy >= 8.0
+            EarthLocation._get_site_registry(force_download=True)
+        else:
+            EarthLocation._get_site_registry(refresh_cache=True)
 
     yield
 
-    iers.conf.auto_max_age = 30
+    if iers.conf.auto_max_age is None:
+        iers.conf.auto_max_age = orig_max_age
 
 
 @pytest.fixture(scope="session")
