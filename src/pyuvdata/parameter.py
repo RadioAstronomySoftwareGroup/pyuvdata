@@ -1547,7 +1547,10 @@ class SkyCoordParameter(UVParameter):
         sky_separation = self.value.separation(other.value).rad
         if np.any(sky_separation > self.tols[1]):
             if not silent:
-                print(f"{self.name} parameter is not close. ")
+                print(
+                    f"{self.name} parameter is not close. Max sky separation is "
+                    f"{sky_separation.max()}, absolute tolerance is {self.tols[1]}."
+                )
             return False
 
         return True

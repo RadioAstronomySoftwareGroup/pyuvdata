@@ -3,24 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- Moved the miriad telescope, antenna and frequency axis handling on to the
-`aipy_extracts.UV` object so that it is shared between the `UVData` and `UVCal` readers,
-adding `UV.get_telescope`, `UV.get_freq_axis` and `UV.get_data_antennas` methods.
-- Changed how `UVCal.read_ms_cal` groups together calibration solutions based on time.
-Previously solution timestamps needed to be within the default tolerance for
-`UVCal.time_array` (1 millisecond), but testing suggests that CASA-based processes
-have some "slop" in them on the order of tens of milliseconds, and therefore the
-time tolerance was increased to 250 ms. This can be controlled through the keyword
-`time_atol` (specified in seconds).
-- Refactored `UVData.frequency_average` and `UVData.downsample_in_time` to use the new
-numba-based `utils.averaging.mapped_average` routine, which is significantly faster and
-uses less memory (substantially so for `UVData.frequency_average`).
-- `uvcalibrate` now records more detail in `UVData.history`, including which records
-were calibrated when a selection was used, whether the rest were flagged, and how the
-solutions were interpolated if `interpolate` was set.
-- Updating code to no longer set shapes directly on ndarrays (deprecated in NumPy 2.5)
-- Require lunarsky>1.0 to drop spiceypy requirement
+## [3.2.7] - 2025-08-20
 
 ### Added
 - Support for reading Miriad bandpass, gains, delays, and leakage calibration tables
@@ -56,6 +39,25 @@ and feed_aligned_projection beams which result from an E-field beam decompositio
 used in some analysis codes.
 - Added more options for controlling labels on beam plots.
 - Support for MWA Average Embedded Element beams in UVBeam.
+
+### Changed
+- Moved the miriad telescope, antenna and frequency axis handling on to the
+`aipy_extracts.UV` object so that it is shared between the `UVData` and `UVCal` readers,
+adding `UV.get_telescope`, `UV.get_freq_axis` and `UV.get_data_antennas` methods.
+- Changed how `UVCal.read_ms_cal` groups together calibration solutions based on time.
+Previously solution timestamps needed to be within the default tolerance for
+`UVCal.time_array` (1 millisecond), but testing suggests that CASA-based processes
+have some "slop" in them on the order of tens of milliseconds, and therefore the
+time tolerance was increased to 250 ms. This can be controlled through the keyword
+`time_atol` (specified in seconds).
+- Refactored `UVData.frequency_average` and `UVData.downsample_in_time` to use the new
+numba-based `utils.averaging.mapped_average` routine, which is significantly faster and
+uses less memory (substantially so for `UVData.frequency_average`).
+- `uvcalibrate` now records more detail in `UVData.history`, including which records
+were calibrated when a selection was used, whether the rest were flagged, and how the
+solutions were interpolated if `interpolate` was set.
+- Updating code to no longer set shapes directly on ndarrays (deprecated in NumPy 2.5)
+- Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Fixed
 - A bug where `UVData.frequency_average` would either raise an IndexError or zero out
