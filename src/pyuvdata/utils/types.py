@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 IntArray = NDArray[np.integer]
 FloatArray = NDArray[np.floating]
+ComplexArray = NDArray[np.complexfloating]
 StrArray = NDArray[np.str_]
 BoolArray = NDArray[np.bool_]
 
