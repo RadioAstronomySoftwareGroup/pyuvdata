@@ -157,6 +157,7 @@ def uvcalibrate(
     freq_range_check: bool = True,
     uvc_pol_convention: Literal["sum", "avg"] | None = None,
     uvd_pol_convention: Literal["sum", "avg"] | None = None,
+    apply_to_weights: bool = False,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -213,6 +214,12 @@ def uvcalibrate(
         represents either the convention that *has* been adopted in ``uvdata`` (in the
         case that ``undo=True``), or the convention that is *desired* for the resulting
         ``UVData`` object (if ``undo=False``).
+    apply_to_weights : bool
+        Option to apply gains corrections to `UVData.nsample_array`, effectively
+        reweighting the data. Only applicable for gains calibration, `nsample_array`
+        array will be multiplied by the inverse-square of the absolute value of the
+        gains correction applied to the data (similar to the behavior of CASA's
+        applycal function with `calwt=True`). Default is False.
 
     Returns
     -------
@@ -507,6 +514,8 @@ def uvcalibrate(
             freq_array=freq_array_use,
             channel_width=channel_width,
         )
+        # Force this to false if we've got a delay soln, since it has no amplitude terms
+        apply_to_weights = False
 
     # D-term calibration
     if d_term_cal:
@@ -606,8 +615,16 @@ def uvcalibrate(
                 mult_gains = not mult_gains
             if mult_gains:
                 uvdata.data_array[blt_inds, :, pol_ind] *= gain[gain_slice]
+                if apply_to_weights:
+                    uvdata.nsample_array[blt_inds, :, pol_ind] /= (
+                        abs(gain[gain_slice]) ** 2
+                    )
             else:
                 uvdata.data_array[blt_inds, :, pol_ind] /= gain[gain_slice]
+                if apply_to_weights:
+                    uvdata.nsample_array[blt_inds, :, pol_ind] *= (
+                        abs(gain[gain_slice]) ** 2
+                    )
 
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
