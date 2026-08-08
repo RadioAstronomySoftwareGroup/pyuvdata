@@ -23,6 +23,7 @@ from . import bls  # noqa
 from . import bltaxis  # noqa
 from . import coordinates  # noqa
 from . import frequency  # noqa
+from . import gain_interpolate  # noqa
 from . import history  # noqa
 from . import io  # noqa
 from . import phase_center_catalog  # noqa
