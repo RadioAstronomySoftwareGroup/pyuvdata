@@ -4400,6 +4400,224 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
+    def interpolate_in_time(
+        self,
+        new_times,
+        *,
+        kind="linear",
+        amp_kind=None,
+        pha_kind=None,
+        poly_order=3,
+        amp_poly_order=None,
+        pha_poly_order=None,
+        use_complex_interp=False,
+        flag_nearest=True,
+        allow_extrapolation=False,
+        flag_delta=0.0,
+        amp_flag_delta=None,
+        pha_flag_delta=None,
+        max_time_delta=1.0,
+        amp_max_time_delta=None,
+        pha_max_time_delta=None,
+        old_var=None,
+        new_var=None,
+        inplace=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Interpolate the gains or delays in time.
+
+        Interpolates the calibration solutions onto a new set of times, carrying the
+        flags along with them. Note that complex gains are split into a pair of
+        real-valued quantities before being interpolated, either amplitude and phase
+        (the default) or real and imaginary, since amplitude and phase can vary on
+        different timescales. Several keywords therefore have "amp" and "pha"
+        counterparts, which override the shared value when interpolating amplitude and
+        phase respectively.
+
+        Note that quantities which cannot be meaningfully interpolated are either
+        carried over from the nearest old time (`integration_time`,
+        `ref_antenna_array`) or dropped entirely (`quality_array`,
+        `total_quality_array`, `phase_center_id_array`, `scan_number_array`).
+
+        Parameters
+        ----------
+        new_times : array_like of float
+            The new times to interpolate to, shape (Ntimes,), units are Julian days.
+        kind : str
+            The type of interpolation to use. Options are "nearest", "linear", "cubic",
+            and "poly" (polynomial fit using Chebyshev polynomials). Default is
+            "linear".
+        amp_kind : str or None
+            If set, the interpolation kind used for amplitude. Default is None, which
+            uses the value set for `kind`.
+        pha_kind : str or None
+            If set, the interpolation kind used for phase. Default is None, which uses
+            the value set for `kind`.
+        poly_order : int or sequence of int
+            Polynomial order to use when the interpolation kind is "poly". Default is 3.
+        amp_poly_order : int or None
+            If set, the polynomial order used for amplitude. Default is None, which
+            uses the value set for `poly_order`.
+        pha_poly_order : int or None
+            If set, the polynomial order used for phase. Default is None, which uses
+            the value set for `poly_order`.
+        use_complex_interp : bool
+            If True, split complex gains into real and imaginary parts rather than
+            amplitude and phase. Ignored when `cal_type` is "delay". Default is False.
+        flag_nearest : bool
+            If True, interpolated solutions adjacent to a flagged solution are also
+            flagged. If False, flagged solutions are simply excluded from the
+            interpolation. Default is True.
+        allow_extrapolation : bool
+            If True, allow new times outside the range of the existing times. Default
+            is False, which flags those solutions.
+        flag_delta : float
+            Largest change between adjacent solutions that is considered acceptable,
+            used to flag apparent discontinuities. Default is 0.0, which disables the
+            check.
+        amp_flag_delta : float or None
+            If set, the flagging threshold used for amplitude, in fractional amplitude.
+            Default is None, which uses the value set for `flag_delta`.
+        pha_flag_delta : float or None
+            If set, the flagging threshold used for phase, in radians. Default is None,
+            which uses the value set for `flag_delta`.
+        max_time_delta : float
+            Largest gap allowed between a new time and the existing times that bracket
+            it, units are days. Default is 1.0.
+        amp_max_time_delta : float or None
+            If set, the gap limit used for amplitude. Default is None, which uses the
+            value set for `max_time_delta`.
+        pha_max_time_delta : float or None
+            If set, the gap limit used for phase. Default is None, which uses the value
+            set for `max_time_delta`.
+        old_var : ndarray of float or None
+            Additional variables to fit against when the kind is "poly", shape
+            (Nvar, Ntimes). Note that time is always included as a fit variable, and
+            does not need to be supplied here. Default is None.
+        new_var : ndarray of float or None
+            Values of those variables at `new_times`, shape (Nvar, Nnew). Required if
+            `old_var` is set.
+        inplace : bool
+            If True, modify this object, otherwise return a modified copy. Default is
+            False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters after
+            interpolating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            interpolating. Default is True.
+
+        Returns
+        -------
+        UVCal object or None
+            The interpolated object, or None if `inplace` is True.
+
+        Raises
+        ------
+        ValueError
+            If the object records time_range rather than time_array, since
+            interpolation needs discrete times to work from.
+
+        """
+        if self.time_array is None or self.time_range is not None:
+            raise ValueError(
+                "Cannot interpolate an object that records time_range rather than "
+                "time_array, since there are no discrete times to interpolate from."
+            )
+
+        # Check if the refant changes in time, and if so, throw a warning (since it may
+        # introduce discontinuities in phase).
+        if (
+            self.ref_antenna_array is not None
+            and len(np.unique(self.ref_antenna_array)) > 1
+        ):
+            warnings.warn(
+                "Different reference antennas are used at different times, so the "
+                "solutions are not all on a common phase reference, and therefore may "
+                "introduce errors in the interpolated values."
+            )
+
+        cal_object = self if inplace else self.copy()
+        is_gain = cal_object.cal_type == "gain"
+
+        new_times = np.asarray(new_times, dtype=float)
+        old_times = cal_object.time_array
+
+        if is_gain:
+            interp_mode = "complex" if use_complex_interp else "ampphase"
+            old_cal = cal_object.gain_array
+        else:
+            # Delays are real-valued, so there is nothing to split apart.
+            interp_mode = "real"
+            old_cal = cal_object.delay_array
+
+        new_cal, new_flags = utils.gain_interpolate.time_interp_cal(
+            old_times,
+            old_cal,
+            cal_object.flag_array,
+            new_times,
+            interp_mode=interp_mode,
+            kind=kind,
+            amp_kind=amp_kind,
+            pha_kind=pha_kind,
+            poly_order=poly_order,
+            amp_poly_order=amp_poly_order,
+            pha_poly_order=pha_poly_order,
+            flag_nearest=flag_nearest,
+            allow_extrapolation=allow_extrapolation,
+            flag_delta=flag_delta,
+            amp_flag_delta=amp_flag_delta,
+            pha_flag_delta=pha_flag_delta,
+            max_time_delta=max_time_delta,
+            amp_max_time_delta=amp_max_time_delta,
+            pha_max_time_delta=pha_max_time_delta,
+            old_var=old_var,
+            new_var=new_var,
+        )
+
+        cal_object.time_array = new_times
+        cal_object.Ntimes = len(new_times)
+        cal_object.flag_array = new_flags
+        if is_gain:
+            cal_object.gain_array = new_cal
+        else:
+            cal_object.delay_array = new_cal
+
+        # Integration time and refant can't be interpolated, so carry it over from
+        # whichever old time each new time sits closest to.
+        near_idx = np.argmin(
+            np.abs(new_times[:, np.newaxis] - old_times[np.newaxis, :]), axis=1
+        )
+
+        for name in ["integration_time", "ref_antenna_array"]:
+            if getattr(cal_object, name) is not None:
+                setattr(cal_object, name, getattr(cal_object, name)[near_idx])
+
+        # Quality arrays are no longer sensical, given that they describe the quality
+        # of the original solns -- dump them now. The same goes for scan numbers and
+        # phase centers IDs per time interval (though the phase catalog is left
+        # untouched).
+        cal_object.quality_array = None
+        cal_object.total_quality_array = None
+        cal_object.phase_center_id_array = None
+        cal_object.scan_number_array = None
+
+        # Set LSTs directly rather than interpolating
+        cal_object.set_lsts_from_time_array()
+
+        if run_check:
+            cal_object.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        return None if inplace else cal_object
+
     @classmethod
     @combine_docstrings(initializers.new_uvcal_from_uvdata)
     def initialize_from_uvdata(

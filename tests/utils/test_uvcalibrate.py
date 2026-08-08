@@ -939,3 +939,65 @@ def test_uvcalibrate_wideband_gains():
 
     # Check that either things agree with expectations or that data are flagged
     assert np.all((exp_data == new_uvd.data_array) | new_uvd.flag_array)
+
+
+def test_uvcalibrate_interpolated_gains(uvcalibrate_data):
+    """End-to-end check that interpolated solutions calibrate correctly."""
+    uvd, uvc = uvcalibrate_data
+
+    # Start from unity visibilities, so that stamping the gains in and then taking
+    # them back out again should land on exactly what it started with.
+    uvd.data_array[:] = 1.0
+    uvd.flag_array[:] = False
+
+    # Antenna-based gains along the lines of what SMA data actually looks like, with
+    # phase drifting linearly in time and amplitude following a slower third-order
+    # curve, each scaled per antenna so that every baseline encodes a different pattern.
+    time_ramp = ((uvc.time_array - uvc.time_array[0]) / np.ptp(uvc.time_array))[
+        None, None, :, None
+    ]
+    ant_ramp = ((np.arange(uvc.Nants_data) + 1.0) / uvc.Nants_data)[
+        :, None, None, None
+    ] * time_ramp
+    gain_amp = 1 + (0.1 * ant_ramp) - (0.5 * ant_ramp**2) + (0.6 * ant_ramp**3)
+    gain_pha = 0.6 * ant_ramp
+    uvc.gain_array = np.broadcast_to(
+        gain_amp * np.exp(1j * gain_pha), uvc.gain_array.shape
+    ).astype(uvc.gain_array.dtype)
+    uvc.flag_array[:] = False
+
+    # Stamp the gains onto the data.
+    uvc.gain_convention = "multiply"
+    uvd2 = utils.uvcalibrate(uvd, uvc, inplace=False)
+
+    # Verify that the visibilities have changed.
+    assert not np.allclose(uvd2.data_array, uvd.data_array)
+
+    # Down-select the solns to test the interpolation
+    uvc2 = uvc.select(times=uvc.time_array[::3], inplace=False)
+    uvc3 = uvc2.interpolate_in_time(
+        uvc.time_array, amp_kind="poly", amp_poly_order=3, pha_kind="linear"
+    )
+
+    assert uvc3.Ntimes == uvc.Ntimes
+    assert not uvc3.flag_array.any()
+    np.testing.assert_allclose(uvc3.gain_array, uvc.gain_array, rtol=1e-10)
+
+    # Flip the gain convention to see that the interpolated gains (correctly) undo
+    # the previous uvcalibrate with the full time series gains tables.
+    uvc3.gain_convention = "divide"
+    uvd3 = utils.uvcalibrate(uvd2, uvc3, inplace=False)
+
+    np.testing.assert_allclose(uvd3.data_array, uvd.data_array, rtol=1e-5)
+
+    # Verify the cubic interp does a better job fitting the non-linear ramp
+    amp_errs = []
+    for amp_kind in ["cubic", "linear"]:
+        uvc4 = uvc2.interpolate_in_time(
+            uvc.time_array, amp_kind=amp_kind, pha_kind="linear"
+        )
+        amp_errs.append(
+            np.max(np.abs(np.abs(uvc4.gain_array) - np.abs(uvc.gain_array)))
+        )
+
+    assert amp_errs[0] < amp_errs[1]
