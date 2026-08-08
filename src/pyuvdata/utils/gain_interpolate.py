@@ -1198,12 +1198,9 @@ def time_interp_cal(
     old_times = np.asarray(old_times, dtype=float)
     new_times = np.asarray(new_times, dtype=float)
 
-    # Numba has no support for arrays that are not in the native byte order, which
-    # data read out of a FITS file frequently are not, so byte-swap those up front.
+    # Numba has no support for arrays that are not in the native byte order
     if not old_cal.dtype.isnative:
         old_cal = old_cal.astype(old_cal.dtype.newbyteorder("="))
-    if not old_flags.dtype.isnative:
-        old_flags = old_flags.astype(old_flags.dtype.newbyteorder("="))
 
     # Note that amp_kind and pha_kind can each select a polynomial fit on their own,
     # so the fit variables have to be built whenever any of the three asks for one.
