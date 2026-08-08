@@ -1001,3 +1001,69 @@ def test_uvcalibrate_interpolated_gains(uvcalibrate_data):
         )
 
     assert amp_errs[0] < amp_errs[1]
+
+
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
+@pytest.mark.filterwarnings("ignore:pol_convention is not specified on the UVData")
+@pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
+@pytest.mark.parametrize("undo", [False, True])
+def test_uvcalibrate_apply_to_weights(uvcalibrate_data, gain_convention, undo):
+    uvd, uvc = uvcalibrate_data
+    uvc.gain_convention = gain_convention
+    if undo:
+        # uvcalibrate refuses to undo unless the data are already in the gain units.
+        uvd.vis_units = uvc.gain_scale
+
+    # The weights should be left well enough alone if the option is not selected.
+    uvd_noweight = utils.uvcalibrate(uvd, uvc, undo=undo, inplace=False)
+    np.testing.assert_array_equal(uvd_noweight.nsample_array, uvd.nsample_array)
+
+    uvd_weight = utils.uvcalibrate(
+        uvd, uvc, undo=undo, apply_to_weights=True, inplace=False
+    )
+    assert uvd_weight.nsample_array.dtype == uvd.nsample_array.dtype
+
+    # Nothing but the weights themselves should be touched by the reweighting.
+    uvd_weight_check = uvd_weight.copy()
+    uvd_weight_check.nsample_array = uvd_noweight.nsample_array
+    assert uvd_weight_check == uvd_noweight
+
+    # The correction applied to the weights should be the inverse-square of the one
+    # applied to the visibilities, which we can pull straight back out of the data.
+    good_mask = (uvd.data_array != 0.0) & (uvd_weight.data_array != 0.0)
+    amp_corr = np.abs(uvd_weight.data_array[good_mask]) / np.abs(
+        uvd.data_array[good_mask]
+    )
+
+    np.testing.assert_allclose(
+        uvd_weight.nsample_array[good_mask] / uvd.nsample_array[good_mask],
+        amp_corr**-2.0,
+        rtol=1e-4,
+    )
+
+
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
+def test_uvcalibrate_apply_to_weights_delay(uvcalibrate_data):
+    # Verify that delay solutions leave the weights alone
+    uvd, _ = uvcalibrate_data
+    uvd.nsample_array[:] = 1.0
+
+    uvc = UVCal.initialize_from_uvdata(
+        uvd,
+        gain_convention="divide",
+        cal_style="redundant",
+        cal_type="delay",
+        wide_band=True,
+        metadata_only=False,
+        jones_array="linear",
+        pol_convention="avg",
+        gain_scale="Jy",
+    )
+    uvc.delay_array[:] = np.linspace(
+        -1.0, 1.0, uvc.delay_array.size, dtype=float
+    ).reshape(uvc.delay_array.shape)
+    uvc.flag_array[:] = False
+
+    uvd_weight = utils.uvcalibrate(uvd, uvc, apply_to_weights=True, inplace=False)
+
+    np.testing.assert_array_equal(uvd_weight.nsample_array, 1.0)
