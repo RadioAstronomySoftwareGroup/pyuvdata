@@ -4701,3 +4701,184 @@ def test_fast_concat_phase_center_missing_err(uvcal_phase_center):
 
     with pytest.raises(ValueError, match="To combine these data, phase_center_id_"):
         uvcal_phase_center.fast_concat(uvcopy, axis="time")
+
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic"])
+def test_interpolate_in_time(caltype, kind, gain_data, delay_data):
+    # Check that interpolating back to the original times returns the orig solns
+    if caltype == "gain":
+        calobj = gain_data
+    else:
+        calobj = delay_data
+
+    old_times = calobj.time_array.copy()
+    if caltype == "gain":
+        exp_cal = calobj.gain_array.copy()
+    else:
+        exp_cal = calobj.delay_array.copy()
+
+    # max_time_delta is disabled here, since the times in these files are spaced
+    # much further apart than any sensible limit.
+    calobj2 = calobj.interpolate_in_time(old_times, kind=kind, max_time_delta=0.0)
+
+    assert calobj2.Ntimes == len(old_times)
+    np.testing.assert_allclose(calobj2.time_array, old_times)
+    if caltype == "gain":
+        np.testing.assert_allclose(calobj2.gain_array, exp_cal, rtol=1e-5)
+    else:
+        np.testing.assert_allclose(calobj2.delay_array, exp_cal, rtol=1e-5)
+    assert not calobj2.flag_array.any()
+
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic", "poly"])
+def test_interpolate_in_time_upsample(caltype, kind, gain_data, delay_data):
+    # Check that upsampling the solns actually returns something
+    if caltype == "gain":
+        calobj = gain_data
+    else:
+        calobj = delay_data
+
+    old_times = calobj.time_array
+    new_times = np.sort(
+        np.concatenate([old_times, 0.5 * (old_times[1:] + old_times[:-1])])
+    )
+
+    calobj2 = calobj.interpolate_in_time(new_times, kind=kind, max_time_delta=0.0)
+
+    assert calobj2.Ntimes == len(new_times)
+    if caltype == "gain":
+        new_cal = calobj2.gain_array
+    else:
+        new_cal = calobj2.delay_array
+    assert new_cal.shape[2] == len(new_times)
+    assert np.isfinite(new_cal).all()
+    assert calobj2.check()
+
+
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_interpolate_in_time_metadata(caltype, gain_data, delay_data):
+    if caltype == "gain":
+        calobj = gain_data
+    else:
+        calobj = delay_data
+
+    # None of the test files carry these, so set them here.
+    calobj.integration_time = np.arange(calobj.Ntimes) + 1.0
+    calobj.ref_antenna_array = np.full(calobj.Ntimes, 7)
+    calobj.scan_number_array = np.arange(calobj.Ntimes)
+    calobj.phase_center_id_array = np.zeros(calobj.Ntimes, dtype=int)
+    old_times = calobj.time_array
+    new_times = old_times[[0, 0, -1]]
+
+    calobj2 = calobj.interpolate_in_time(new_times, max_time_delta=0.0)
+
+    # Check that the non-interpolated parameters are dropped
+    assert calobj2.quality_array is None
+    assert calobj2.total_quality_array is None
+    assert calobj2.scan_number_array is None
+    assert calobj2.phase_center_id_array is None
+
+    np.testing.assert_array_equal(calobj2.ref_antenna_array, [7, 7, 7])
+    np.testing.assert_allclose(calobj2.integration_time, [1.0, 1.0, calobj.Ntimes])
+    assert len(calobj2.lst_array) == len(new_times)
+
+
+def test_interpolate_in_time_refant_warning(gain_data):
+    calobj = gain_data
+    calobj.ref_antenna_array = np.arange(calobj.Ntimes)
+    new_times = calobj.time_array[[0, -1]]
+
+    with check_warnings(
+        UserWarning, match="Different reference antennas are used at different times"
+    ):
+        calobj2 = calobj.interpolate_in_time(new_times, max_time_delta=0.0)
+
+    np.testing.assert_array_equal(calobj2.ref_antenna_array, [0, calobj.Ntimes - 1])
+
+
+def test_interpolate_in_time_inplace(gain_data):
+    calobj = gain_data
+    calobj2 = calobj.copy()
+    new_times = calobj.time_array[:3]
+
+    ret_val = calobj2.interpolate_in_time(new_times, max_time_delta=0.0, inplace=True)
+
+    assert ret_val is None
+    assert calobj2.Ntimes == 3
+    assert calobj.Ntimes != 3
+
+
+@pytest.mark.parametrize("use_complex_interp", [True, False])
+def test_interpolate_in_time_complex(use_complex_interp, gain_data):
+    """Check complex (real/imaginary) interpolation."""
+    calobj = gain_data
+    old_times = calobj.time_array.copy()
+    exp_gains = calobj.gain_array.copy()
+
+    calobj2 = calobj.interpolate_in_time(
+        old_times, use_complex_interp=use_complex_interp, max_time_delta=0.0
+    )
+
+    np.testing.assert_allclose(calobj2.gain_array, exp_gains, rtol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "interp_kwargs",
+    [
+        {"amp_kind": "cubic", "pha_kind": "linear"},
+        {"kind": "poly", "amp_poly_order": 2, "pha_poly_order": 1},
+        {"amp_flag_delta": 0.5, "pha_flag_delta": 0.5},
+        {"amp_max_time_delta": 100.0, "pha_max_time_delta": 100.0},
+    ],
+)
+def test_interpolate_in_time_split_kwargs(interp_kwargs, gain_data):
+    calobj = gain_data
+    new_times = calobj.time_array[:3]
+
+    calobj2 = calobj.interpolate_in_time(new_times, **interp_kwargs)
+
+    assert calobj2.Ntimes == 3
+    assert np.isfinite(calobj2.gain_array).all()
+
+
+@pytest.mark.parametrize("allow_extrapolation", [True, False])
+def test_interpolate_in_time_extrapolation(allow_extrapolation, gain_data):
+    calobj = gain_data
+    old_times = calobj.time_array
+    new_times = np.array([old_times[0] - 1.0, old_times[0], old_times[-1] + 1.0])
+
+    calobj2 = calobj.interpolate_in_time(
+        new_times, allow_extrapolation=allow_extrapolation, max_time_delta=0.0
+    )
+
+    exp_flags = [not allow_extrapolation, False, not allow_extrapolation]
+    np.testing.assert_array_equal(calobj2.flag_array[0, 0, :, 0], exp_flags)
+
+
+def test_interpolate_in_time_var(gain_data):
+    calobj = gain_data
+    old_times = calobj.time_array
+    new_times = old_times[:3]
+
+    calobj2 = calobj.interpolate_in_time(
+        new_times,
+        kind="poly",
+        poly_order=[2, 1],
+        old_var=np.vstack([np.sin(old_times)]),
+        new_var=np.vstack([np.sin(new_times)]),
+        max_time_delta=0.0,
+    )
+
+    assert calobj2.Ntimes == 3
+    assert np.isfinite(calobj2.gain_array).all()
+
+
+@pytest.mark.parametrize("keep_time_array", [True, False])
+def test_interpolate_in_time_errs(gain_data, keep_time_array):
+    new_times = gain_data.time_array[:3]
+    calobj = time_array_to_time_range(gain_data, keep_time_array=keep_time_array)
+
+    with pytest.raises(ValueError, match="Cannot interpolate an object that records"):
+        calobj.interpolate_in_time(new_times)
