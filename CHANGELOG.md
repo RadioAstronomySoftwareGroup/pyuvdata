@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 - Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Added
+- A new method `UVCal.interpolate_in_time`, which allows for UVCal calibration tables
+to be "upsampled" in time.
+- A new module (`gains_interpolate.py`) for performing time-based interpolation of
+calibration solutions.
+- A new option for `uvcalibrate`, called `apply_to_weights`, which allows for the values
+in `UVData.nsample_array` to be adjusted in a manner consistent with the expected
+inverse variance (e.g., if the visibilities are scaled up by a factor of 2 in amplitude,
+`nsample_array` is scaled down by a factor of 4).
 - Support for two new types of beams in UVBeam and AnalyticBeam: feed_aligned_response
 and feed_aligned_projection beams which result from an E-field beam decomposition
 used in some analysis codes.
