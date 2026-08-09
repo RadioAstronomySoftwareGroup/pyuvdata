@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          NUMBA_DISABLE_JIT=1 pytest tests/utils/test_bls_numba.py tests/utils/test_gain_interpolate.py tests/utils/test_averaging.py -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
+          NUMBA_DISABLE_JIT=1 pytest tests/utils/test_bls_numba.py tests/utils/test_gain_interpolate.py tests/utils/test_averaging.py tests/uvdata/test_mir_numba.py -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
 
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         if: success()
