@@ -41,7 +41,51 @@ from .mir_meta_data import (
     MirWeData,
 )
 
-__all__ = ["MirParser", "MirPackdataError"]
+__all__ = ["MirParser", "MirPackdataError", "MirCompassError"]
+
+# Format versions of the COMPASS solution file that this reader understands, given that
+# we've already had one version update that was incompatible with a prior version.
+COMPASS_SUPPORTED_VERSIONS = frozenset([(0, 12)])
+
+# Keys that `_read_compass_solns` requires in order to operate.
+COMPASS_REQUIRED_KEYS = (
+    "antArr",
+    "ant1Arr",
+    "ant2Arr",
+    "rx1Arr",
+    "rx2Arr",
+    "rxList",
+    "sbArr",
+    "winArr",
+    "bandpassArr",
+    "sefdArr",
+    "mjdArr",
+    "flagArr",
+    "staticAntFlagArr",
+    "staticBaseFlagArr",
+)
+
+# COMPASS keys that only ever appeared in the pre-0.12 schema.
+COMPASS_LEGACY_KEYS = ("reBandpassArr", "imBandpassArr", "staticFlagArr")
+
+# Stand-in bandpass solution used where COMPASS has none for a baseline, which flags the
+# record outright. A module-level constant so that applying it costs nothing per record.
+_BAD_BP_SOLN = {"cal_soln": 1.0, "weight_soln": 0.0, "flag_soln": True}
+
+
+class MirCompassError(Exception):
+    """
+    Class for errors when reading a COMPASS solution file.
+
+    Raised when a COMPASS-derived bandpass/flagging solution file cannot be interpreted
+    -- either because it declares a format version this reader does not support, or
+    because it is missing datasets the reader requires.
+    """
+
+    def __init__(
+        self, message="There was an error reading a COMPASS solution file."
+    ) -> MirCompassError:
+        super().__init__(message)
 
 
 class MirPackdataError(Exception):
@@ -233,12 +277,7 @@ class MirParser:
             "raw_data": ["data", "scale_fac"],
             "vis_data": ["data", "flags"],
             "auto_data": ["data", "flags"],
-            "_compass_bp_soln": [
-                "cal_soln",
-                "cal_flags",
-                "weight_soln",
-                "weight_flags",
-            ],
+            "_compass_bp_soln": ["cal_soln", "weight_soln", "flag_soln"],
             "_compass_sphid_flags": [...],
             "_compass_static_flags": [...],
             "_stored_masks": [
@@ -3225,6 +3264,123 @@ class MirParser:
         # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(update_data=update_data)
 
+    @staticmethod
+    def _parse_compass_version(file, filename=None) -> tuple[int] | None:
+        """
+        Read and parse the format version of a COMPASS solution file.
+
+        This is an internal helper function, not designed to be called by users.
+
+        Parameters
+        ----------
+        file : h5py.File
+            Open handle to the COMPASS solution file.
+        filename : str
+            Name of the file, used only in error messages.
+
+        Returns
+        -------
+        version : tuple of int or None
+            The version as a tuple of integers, or None if no version was recorded
+            in the file, which generally means it predates v0.11.
+
+        Raises
+        ------
+        MirCompassError
+            If a "compassVersion" dataset is present but cannot be parsed.
+        """
+        if "compassVersion" not in file:
+            return None
+
+        raw_ver = file["compassVersion"][...]
+        # MATLAB writes char arrays as uint16 (a (1, N) row vector, hence the flatten),
+        # but be tolerant of a writer that stores a genuine string instead.
+        if raw_ver.dtype.kind in "SU":
+            ver_str = np.asarray(raw_ver).ravel()[0]
+            if isinstance(ver_str, bytes):
+                ver_str = ver_str.decode()
+        else:
+            ver_str = "".join(chr(val) for val in np.asarray(raw_ver).ravel())
+
+        ver_str = ver_str.strip().strip("\x00")
+        try:
+            version = tuple(int(item) for item in ver_str.split("."))
+        except ValueError as err:
+            raise MirCompassError(
+                f'Cannot parse the "compassVersion" of COMPASS solution file '
+                f"{filename}: got {ver_str!r}, expected a dot-separated string "
+                'such as "0.12.3" (major/minor/patch).'
+            ) from err
+
+        if len(version) < 2:
+            raise MirCompassError(
+                f'The "compassVersion" of COMPASS solution file {filename} is '
+                f"{ver_str!r}, which does not contain both a major and minor version."
+            )
+
+        return version
+
+    @staticmethod
+    def _check_compass_format(file, filename=None):
+        """
+        Verify that a COMPASS solution file matches a schema this reader supports.
+
+        This is an internal helper function, not designed to be called by users. The
+        COMPASS solution schema has already changed incompatibly once, so this checks
+        both the declared version and the presence of the datasets that are actually
+        needed, in order to fail with something more useful than a bare `KeyError` from
+        h5py that names neither the file nor the expectation.
+
+        Parameters
+        ----------
+        file : h5py.File
+            Open handle to the COMPASS solution file.
+        filename : str
+            Name of the file, used in the error messages.
+
+        Raises
+        ------
+        MirCompassError
+            If the file declares an unsupported format version, carries no version at
+            all, or is missing datasets required to read the solutions.
+        """
+        version = MirParser._parse_compass_version(file, filename=filename)
+        supported = ", ".join(
+            f"{maj}.{min_}" for maj, min_ in sorted(COMPASS_SUPPORTED_VERSIONS)
+        )
+
+        if version is None or version[:2] not in COMPASS_SUPPORTED_VERSIONS:
+            # A file with no version at all predates the marker, which puts it well
+            # outside the supported range -- so it is reported the same way, just
+            # without a version to quote back.
+            version_msg = (
+                "contains no compassVersion"
+                if version is None
+                else f"contains version {'.'.join(str(item) for item in version)}"
+            )
+            raise MirCompassError(
+                f"COMPASS solution file {filename} {version_msg}, but this version of "
+                f"pyuvdata supports format version(s) {supported}. Either regenerate "
+                "the solutions with a supported version of COMPASS, or use a version "
+                "of pyuvdata that understands this one."
+            )
+
+        missing = [key for key in COMPASS_REQUIRED_KEYS if key not in file]
+        if missing:
+            message = (
+                f"COMPASS solution file {filename} is missing required dataset(s): "
+                f"{', '.join(missing)}."
+            )
+            legacy = [key for key in COMPASS_LEGACY_KEYS if key in file]
+            if legacy:
+                message += (
+                    f" It does contain {', '.join(legacy)}, which only appear in the "
+                    "pre-0.12 COMPASS schema, so this looks like a solution file "
+                    "written by an older version of COMPASS. Regenerate the solutions "
+                    f"with a version of COMPASS matching format version(s) {supported}."
+                )
+            raise MirCompassError(message)
+
     def _read_compass_solns(self, filename=None) -> dict:
         """
         Read COMPASS-formatted gains and flags.
@@ -3248,10 +3404,65 @@ class MirParser:
 
         Raises
         ------
+        MirCompassError
+            If the file declares a format version this reader does not support, or is
+            missing datasets that are required to read the solutions.
         UserWarning
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
+
+        Notes
+        -----
+        COMPASS is the SMA calibration and reduction pipeline. It writes its solutions
+        as a MATLAB ``-v7.3`` file, which is HDF5 underneath (hence the use of h5py
+        rather than `scipy.io.loadmat` to read it). This method reads the subset of the
+        calibration solutions needed to apply bandpass and flags to visibilities.
+
+        Datasets read by this method:
+        =================== ==========================================================
+        Dataset             Shape and meaning
+        =================== ==========================================================
+        `compassVersion`    Format version, e.g. ``'0.12.3'``. Checked against
+                            `COMPASS_SUPPORTED_VERSIONS`.
+        `antArr`            ``(1, Nant)`` antenna numbers.
+        `ant1Arr`,          ``(1, Nbase)`` antenna numbers of each baseline end.
+        `ant2Arr`
+        `rx1Arr`, `rx2Arr`  ``(1, Nbase)`` receiver code at each baseline end.
+        `rxList`            ``(1, Nrx)`` receiver codes present, e.g. ``[0, 3]``.
+                            Mapped to an A/B index (0/1) on read.
+        `sbArr`             ``(1, Nwin)`` sideband, 0 = LSB, 1 = USB.
+        `winArr`            ``(1, Nwin)`` spectral window number.
+        `bandpassArr`       ``(Nrx, Nant, Nwin, Nchan, 2)`` float32, the trailing axis
+                            being ``[real, imag]``; read via ``.view(np.complex64)``.
+        `sefdArr`           ``(Nrx, Nant, Nwin, Nchan)``. Note this is **squared on
+                            read** -- COMPASS records SEFD, the weights want SEFD^2.
+        `mjdArr`            ``(1, Nint)`` timestamps, matched against
+                            ``in_data["mjd"]`` to within half a second, since COMPASS
+                            has no access to the MIR integration header IDs.
+        `flagArr`           ``(Nint, Npol, Nbase, Nwin, Nchan // 8)`` uint8, bit-packed
+                            per-integration flags.
+        `staticAntFlagArr`  ``(Nrx, Nant, Nwin, Nchan // 8)`` uint8, bit-packed
+                            antenna-based flags that apply to the whole track.
+        `staticBaseFlagArr` ``(Nrx, Nbase, Nwin, Nchan // 8)`` uint8, bit-packed
+                            baseline-based flags that apply to the whole track.
+        =================== ==========================================================
+
+        Datasets written by COMPASS but consumed elsewhere:
+        `obsID`, `obsData`, `antPos`, `freqArr`, `gainApEff`, `gainWinRefAnt`,
+        `gainWinSolns`, `gainWinTimes`, `gainWinPha`, `gainWinAmp`, `gainWinUse`,
+        `gainWinSouID`, `gainUniqueSou`, `gainSouRA`, `gainSouDec`, `gainSouEpoch`,
+        `crossRxGainSolns`, `crossRxGainTimes`, `crossRxGainSouID`,
+        `crossRxGainUniqueSou`, `crossRxGainSouRA`, `crossRxGainSouDec`, and
+        `crossRxGainSouEpoch`, `crossRxBandpass`, `sameRxBandpass`, and `hasPol`.
+
+        An example of the format is the `compass_soln_file` fixture in
+        `test_mir_parser.py`, which builds a minimal but complete solution file.
         """
+        # Two conventions to note:
+        #   1) Every 1D array is recorded as a 2D array of shape (1, N), an artefact of
+        #      MATLAB, which is why they are read as file[key][0].
+        #   2) Flag arrays are bit-packed into uint8, so their last axis is Nchan // 8.
+
         # When we read in the COMPASS solutions, we will need to map some per-blhid
         # values to per-sphid values, so create an indexing array that we can do this
         # with conveniently.
@@ -3291,6 +3502,10 @@ class MirParser:
 
         # MATLAB v7.3 format uses HDF5 format, so h5py here ftw!
         with h5py.File(filename, "r") as file:
+            # Check the format/version up front, so that any problems get caught
+            # early and reported in terms of what the file actually contains.
+            self._check_compass_format(file, filename=filename)
+
             # First, pull out the bandpass solns, and the associated metadata. Note that
             # the real/imag values here are split to make it easier for grabbing the
             # data cleanly w/o worries about endianness/recasting.
@@ -3374,9 +3589,8 @@ class MirParser:
                     new_key = key1[:2] + key2
                     bp_gains_corr[new_key] = {
                         "cal_soln": cal_soln,
-                        "cal_flags": cal_flags,
                         "weight_soln": weight_soln,
-                        "weight_flags": weight_flags,
+                        "flag_soln": cal_flags | weight_flags,
                     }
 
             compass_soln_dict["bp_gains_corr"] = bp_gains_corr
@@ -3507,6 +3721,9 @@ class MirParser:
 
         Raises
         ------
+        MirCompassError
+            If the file declares a format version this reader does not support, or is
+            missing datasets that are required to read the solutions.
         UserWarning
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
@@ -3600,20 +3817,14 @@ class MirParser:
                     cal_soln = bp_soln[(ant1, rx1, ant2, rx2, sb, chunk)]
                 except KeyError:
                     # Flag the soln if either ant1 or ant2 solns are bad.
-                    cal_soln = {
-                        "cal_soln": 1.0,
-                        "cal_flags": True,
-                        "weight_soln": 0.0,
-                        "weight_flags": True,
-                    }
+                    cal_soln = _BAD_BP_SOLN
                 finally:
                     # One way or another, we should have a set of gains solutions that
                     # we can apply now (flagging the data where appropriate).
-                    vis_data[sphid]["data"] *= cal_soln["cal_soln"]
-                    vis_data[sphid]["weights"] *= cal_soln["weight_soln"]
-                    vis_data[sphid]["flags"] |= (
-                        cal_soln["cal_flags"] | cal_soln["weight_flags"]
-                    )
+                    idict = vis_data[sphid]
+                    idict["data"] *= cal_soln["cal_soln"]
+                    idict["weights"] *= cal_soln["weight_soln"]
+                    idict["flags"] |= cal_soln["flag_soln"]
 
         if not (
             self._compass_sphid_flags is None or self._compass_static_flags is None
@@ -4321,8 +4532,7 @@ class MirParser:
         from ..telescopes import known_telescope_location
         from ..utils import ECEF_from_rotECEF
 
-        sma_loc = known_telescope_location("SMA")
-        assert sma_loc.unit == "m"
+        sma_loc = known_telescope_location("SMA").to("m")
         sma_lat = sma_loc.lat.rad
         sma_lon = sma_loc.lon.rad
         sma_loc = np.array(sma_loc.value.tolist())
