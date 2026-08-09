@@ -19,16 +19,28 @@ import pytest
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_parser import (
+    COMPASS_SUPPORTED_VERSIONS,
     NEW_AUTO_DTYPE,
     NEW_AUTO_HEADER,
     NEW_VIS_DTYPE,
     NEW_VIS_HEADER,
     OLD_AUTO_DTYPE,
     OLD_AUTO_HEADER,
+    MirCompassError,
     MirMetaError,
     MirPackdataError,
     MirParser,
 )
+
+# A version string within the supported range, written the way MATLAB writes char
+# arrays (a uint16 row vector) so the fixture exercises the real read path.
+COMPASS_TEST_MAJOR, COMPASS_TEST_MINOR = min(COMPASS_SUPPORTED_VERSIONS)
+COMPASS_TEST_VERSION = f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}.3"
+
+
+def _matlab_char_array(string):
+    """Encode a str the way MATLAB -v7.3 stores a char array."""
+    return np.array([[ord(char) for char in string]], dtype=np.uint16)
 
 
 @pytest.fixture(scope="module")
@@ -36,6 +48,9 @@ def compass_soln_file(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp("mir_parser", numbered=True)
     filename = os.path.join(tmp_path, "compass_soln.mat")
     with h5py.File(filename, "w") as file:
+        # Format version marker, checked against COMPASS_SUPPORTED_VERSIONS on read.
+        file["compassVersion"] = _matlab_char_array(COMPASS_TEST_VERSION)
+
         # Set up some basic indexing for our one-baseline test file
         file["antArr"] = np.array([[1, 4]])
         file["ant1Arr"] = np.array([[1]])
@@ -316,6 +331,87 @@ def test_compass_read_err(mir_data: MirParser, compass_soln_file):
     # the COMPASS solutions, so unloading it should allow it resolve the error above.
     mir_data.unload_data()
     mir_data.read_compass_solns(compass_soln_file)
+
+
+@pytest.fixture
+def compass_soln_copy(compass_soln_file, tmp_path):
+    """Give each test a writable copy of the reference solution file."""
+    filename = os.path.join(tmp_path, "compass_soln_copy.mat")
+    with h5py.File(compass_soln_file, "r") as src, h5py.File(filename, "w") as dest:
+        for key in src:
+            dest[key] = src[key][...]
+    yield filename
+
+
+@pytest.mark.parametrize(
+    "ver_str",
+    ["0.11.9", "1.12.3", "99.0.0", f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}"],
+)
+def test_compass_version_check(mir_data: MirParser, compass_soln_copy, ver_str):
+    """A solution file from an unsupported schema should say so, and name the file."""
+    supported = f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}"
+    with h5py.File(compass_soln_copy, "r+") as file:
+        del file["compassVersion"]
+        file["compassVersion"] = _matlab_char_array(ver_str)
+
+    mir_data.unload_data()
+    version = tuple(int(item) for item in ver_str.split("."))
+    if version[:2] in COMPASS_SUPPORTED_VERSIONS:
+        # A bare "major.minor" is fine -- the patch level is not part of the schema.
+        mir_data.read_compass_solns(compass_soln_copy)
+        return
+
+    with pytest.raises(MirCompassError, match="contains version") as err:
+        mir_data.read_compass_solns(compass_soln_copy)
+    assert compass_soln_copy in str(err.value)
+    assert supported in str(err.value)
+
+
+@pytest.mark.parametrize("ver_str", ["not-a-version", "0", ""])
+def test_compass_version_unparsable(mir_data: MirParser, compass_soln_copy, ver_str):
+    """A version marker we cannot make sense of should be reported as such."""
+    with h5py.File(compass_soln_copy, "r+") as file:
+        del file["compassVersion"]
+        file["compassVersion"] = _matlab_char_array(ver_str)
+
+    mir_data.unload_data()
+    with pytest.raises(MirCompassError, match="compassVersion"):
+        mir_data.read_compass_solns(compass_soln_copy)
+
+
+def test_compass_version_missing(mir_data: MirParser, compass_soln_copy):
+    """A file with no version marker predates the supported range, so it is refused."""
+    with h5py.File(compass_soln_copy, "r+") as file:
+        del file["compassVersion"]
+
+    mir_data.unload_data()
+    with pytest.raises(MirCompassError, match="contains no compassVersion") as err:
+        mir_data.read_compass_solns(compass_soln_copy)
+    # The message still has to name the file and what would have been acceptable, even
+    # though there is no version to quote back.
+    assert compass_soln_copy in str(err.value)
+    assert f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}" in str(err.value)
+
+
+def test_compass_legacy_schema_err(mir_data: MirParser, compass_soln_copy):
+    """A pre-0.12 file should be diagnosed as such, not fail on a bare KeyError."""
+    with h5py.File(compass_soln_copy, "r+") as file:
+        # Recreate the shape of the older schema: split real/imag bandpass arrays and
+        # a single combined static flag array.
+        bp_arr = file["bandpassArr"][...]
+        del file["bandpassArr"]
+        file["reBandpassArr"] = bp_arr[..., 0]
+        file["imBandpassArr"] = bp_arr[..., 1]
+        file["staticFlagArr"] = file["staticAntFlagArr"][...]
+        del file["staticAntFlagArr"]
+
+    mir_data.unload_data()
+    with pytest.raises(MirCompassError, match="missing required dataset") as err:
+        mir_data.read_compass_solns(compass_soln_copy)
+    msg = str(err.value)
+    assert "bandpassArr" in msg
+    assert "staticAntFlagArr" in msg
+    assert "pre-0.12 COMPASS schema" in msg
 
 
 def test_compass_flag_sphid_apply(mir_data: MirParser, compass_soln_file):
