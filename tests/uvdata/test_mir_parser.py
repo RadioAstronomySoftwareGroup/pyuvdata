@@ -18,6 +18,7 @@ import pytest
 
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
+from pyuvdata.uvdata import mir_numba
 from pyuvdata.uvdata.mir_parser import (
     COMPASS_SUPPORTED_VERSIONS,
     NEW_AUTO_DTYPE,
@@ -26,6 +27,7 @@ from pyuvdata.uvdata.mir_parser import (
     NEW_VIS_HEADER,
     OLD_AUTO_DTYPE,
     OLD_AUTO_HEADER,
+    OLD_VIS_DTYPE,
     MirCompassError,
     MirMetaError,
     MirPackdataError,
@@ -841,6 +843,120 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
     assert _read_data.keys() == make_data.keys()
     for key in _read_data:
         assert np.array_equal(_read_data[key][0], make_data[key])
+
+
+@pytest.mark.parametrize("read_only", [True, False])
+def test_load_data_read_only_deprecated(mir_data: MirParser, read_only):
+    """The read_only keyword is ignored now, and says so."""
+    with check_warnings(DeprecationWarning, "The read_only keyword is deprecated"):
+        mir_data.load_data(load_raw=True, read_only=read_only)
+
+    # Whatever was asked for, the records must be detached from the packed block so
+    # that they can be modified -- that is what the keyword used to opt out of.
+    for rec in mir_data.raw_data.values():
+        assert rec["data"].flags.writeable
+
+
+@pytest.mark.parametrize("scale_data", [True, False])
+def test_unpack_old_vis_format(mir_data: MirParser, scale_data):
+    """Verify that big-endian (old format) packed data unpack identically.
+
+    Numba has no array type for non-native byte order, so handing an old-format block
+    straight to a kernel raises a TypingError rather than producing wrong numbers. There
+    is no old-format data set to test against, so byte-swap a current-format block and
+    check that both orders give the same answer.
+    """
+    mir_data.load_data(load_raw=True)
+    packdata = mir_data._read_packdata(
+        mir_data._file_dict, mir_data.in_data["inhid"], "cross"
+    )[1][0]["packdata"].view(NEW_VIS_DTYPE)
+
+    old_packdata = packdata.astype(OLD_VIS_DTYPE)
+    assert not old_packdata.dtype.isnative
+    assert np.array_equal(packdata, old_packdata)
+
+    recpos_dict = mir_data.sp_data._recpos_dict
+    sidx_arr = recpos_dict["start_idx"].astype(np.int64)
+    eidx_arr = recpos_dict["end_idx"].astype(np.int64)
+    hid_arr = mir_data.sp_data["sphid"]
+
+    if scale_data:
+        new_dict = mir_data._unpack_scaled(packdata, hid_arr, sidx_arr, eidx_arr)
+        old_dict = mir_data._unpack_scaled(old_packdata, hid_arr, sidx_arr, eidx_arr)
+    else:
+        # The raw path has to hand values back in the order they were recorded in, so
+        # `_copy_scaled_inplace` falls back to numpy rather than converting them.
+        def _raw(pdata):
+            idict = {
+                hid: {"scale_fac": pdata[sidx], "data": pdata[(sidx + 1) : eidx]}
+                for hid, sidx, eidx in zip(hid_arr, sidx_arr, eidx_arr, strict=True)
+            }
+            mir_data._copy_scaled_inplace(idict, pdata, sidx_arr, eidx_arr)
+            return idict
+
+        new_dict, old_dict = _raw(packdata), _raw(old_packdata)
+
+    assert new_dict.keys() == old_dict.keys()
+    for hid, new_rec in new_dict.items():
+        for field, new_val in new_rec.items():
+            assert np.array_equal(new_val, old_dict[hid][field]), f"{hid} {field}"
+
+
+def test_unpack_unscaled_matches_isnan(mir_data: MirParser):
+    """The auto path is a block copy plus an isnan and a fill, so check it composes."""
+    mir_data.load_data(load_auto=True, load_cross=False)
+    packdata = mir_data._read_packdata(
+        mir_data._file_dict, mir_data.in_data["inhid"], "auto"
+    )[1][0]["packdata"].view(NEW_AUTO_DTYPE)
+
+    recpos_dict = mir_data.ac_data._recpos_dict
+    sidx_arr = recpos_dict["start_idx"].astype(np.int64)
+    eidx_arr = recpos_dict["end_idx"].astype(np.int64)
+    hid_arr = mir_data.ac_data["achid"]
+
+    data_dict = mir_data._unpack_unscaled(packdata, hid_arr, sidx_arr, eidx_arr)
+    for hid, sidx, eidx in zip(hid_arr, sidx_arr, eidx_arr, strict=True):
+        rec = packdata[sidx:eidx]
+        assert np.array_equal(data_dict[hid]["data"], rec, equal_nan=True)
+        assert np.array_equal(data_dict[hid]["flags"], np.isnan(rec))
+        assert np.array_equal(data_dict[hid]["weights"], np.ones_like(rec))
+
+
+def test_copy_scaled_inplace_kernel_and_numpy_agree(mir_data: MirParser, monkeypatch):
+    """Both sides of the COPY_KERNEL_MIN_RECS threshold must produce the same values.
+
+    The threshold is moved rather than the record count, since the test data set has
+    fewer records than the default threshold and the point here is that the numpy and
+    kernel copies agree on identical input.
+    """
+    mir_data.load_data(load_raw=True)
+    packdata = mir_data._read_packdata(
+        mir_data._file_dict, mir_data.in_data["inhid"], "cross"
+    )[1][0]["packdata"].view(NEW_VIS_DTYPE)
+
+    recpos_dict = mir_data.sp_data._recpos_dict
+    sidx_arr = recpos_dict["start_idx"].astype(np.int64)
+    eidx_arr = recpos_dict["end_idx"].astype(np.int64)
+    hid_arr = mir_data.sp_data["sphid"]
+
+    def _build(min_recs):
+        monkeypatch.setattr(mir_numba, "COPY_KERNEL_MIN_RECS", min_recs)
+        idict = {
+            hid: {"scale_fac": packdata[sidx], "data": packdata[(sidx + 1) : eidx]}
+            for hid, sidx, eidx in zip(hid_arr, sidx_arr, eidx_arr, strict=True)
+        }
+        mir_data._copy_scaled_inplace(idict, packdata, sidx_arr, eidx_arr)
+        return idict
+
+    numpy_side = _build(len(hid_arr) + 1)  # threshold above the count -> numpy copies
+    kernel_side = _build(1)  # threshold at one record -> the kernel copies
+
+    for hid, rec in numpy_side.items():
+        assert np.array_equal(rec["data"], kernel_side[hid]["data"])
+        assert rec["scale_fac"] == kernel_side[hid]["scale_fac"]
+        # Both paths must detach the records from the (possibly read-only) block.
+        for side in (rec, kernel_side[hid]):
+            assert side["data"].flags.writeable
 
 
 def test_apply_tsys_errs(mir_data):
