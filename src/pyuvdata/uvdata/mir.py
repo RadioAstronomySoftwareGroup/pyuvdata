@@ -369,8 +369,9 @@ class Mir(UVData):
             pol_idx = spdx_dict[window]["pol_idx"]  # Polarization to load data into
             ch_slice = spdx_dict[window]["ch_slice"]  # Channel range to load data into
 
-            # Now populate the fields with the relevant data from the object
-            self.data_array[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
+            np.conjugate(
+                vis_rec["data"], out=self.data_array[blt_idx, pol_idx, ch_slice]
+            )
             self.flag_array[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
             self.nsample_array[blt_idx, pol_idx, ch_slice] = vis_rec["weights"]
 
