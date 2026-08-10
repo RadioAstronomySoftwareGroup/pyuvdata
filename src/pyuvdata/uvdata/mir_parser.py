@@ -18,6 +18,7 @@ from functools import partial
 import h5py
 import numpy as np
 
+from . import mir_numba
 from .mir_meta_data import (
     NEW_AUTO_DTYPE,
     NEW_AUTO_HEADER,
@@ -1019,6 +1020,168 @@ class MirParser:
 
         return vis_dict
 
+    @classmethod
+    def _unpack_scaled(cls, packdata, hid_arr, sidx_arr, eidx_arr) -> dict:
+        """
+        Unpack commonly-scaled records from a packdata block into visibilities.
+
+        Note that this is an internal helper function which is not meant for general
+        use. This does what `_convert_raw_to_vis` does, but in a single pass over the
+        packed block and straight into one set of per-integration buffers, rather than
+        allocating three arrays per spectral record. The per-record entries handed back
+        are views onto those buffers.
+
+        Parameters
+        ----------
+        packdata : ndarray of int16
+            Packed data block for a single integration.
+        hid_arr : ndarray of int
+            Header keys ("sphid") of the records to unpack, used as the dict keys.
+        sidx_arr, eidx_arr : ndarray of int
+            Start (common exponent) and end index of each record within `packdata`.
+
+        Returns
+        -------
+        vis_dict : dict
+            A dictionary in the format of `vis_data`, with keys of sphid matched to
+            dicts with items "data", "flags", and "weights".
+        """
+        # Make sure packdata is native type, since numba will otherwise balk
+        if not packdata.dtype.isnative:
+            packdata = packdata.astype(packdata.dtype.newbyteorder("="))
+
+        nchan_arr = (eidx_arr - sidx_arr - 1) // 2
+        # Exclusive prefix sum -- where each record *starts* in the output. Spelled
+        # this way rather than with np.cumulative_sum, which needs numpy 2.0.
+        out_off = np.cumsum(nchan_arr) - nchan_arr
+
+        ntot = int(nchan_arr.sum())
+        data_out = np.empty(ntot, dtype=np.complex64)
+        flag_out = np.empty(ntot, dtype=bool)
+        wt_out = np.empty(ntot, dtype=np.float32)
+
+        # No normalization applied here -- multiplying by float32 unity is exact, so
+        # this reproduces `_convert_raw_to_vis` bit for bit. `apply_tsys` supplies real
+        # values for these when the two passes are fused together.
+        unity = np.ones(len(nchan_arr), dtype=np.float32)
+        mir_numba.unpack_scaled(
+            packdata,
+            sidx_arr,
+            nchan_arr,
+            out_off,
+            unity,
+            unity,
+            np.zeros(len(nchan_arr), dtype=bool),
+            data_out,
+            flag_out,
+            wt_out,
+        )
+
+        return {
+            hid: {
+                "data": data_out[off : off + nch],
+                "flags": flag_out[off : off + nch],
+                "weights": wt_out[off : off + nch],
+            }
+            for hid, off, nch in zip(hid_arr, out_off, nchan_arr, strict=True)
+        }
+
+    @classmethod
+    def _unpack_unscaled(cls, packdata, hid_arr, sidx_arr, eidx_arr) -> dict:
+        """
+        Unpack un-scaled (float) records from a packdata block.
+
+        Note that this is an internal helper function which is not meant for general
+        use. Used for the auto-correlations, whose values are recorded as floats
+        (without a shared exponent). Data are flagged with NaNs, with weights given
+        a standard value.
+
+        Parameters
+        ----------
+        packdata : ndarray of float32
+            Packed data block for a single integration.
+        hid_arr : ndarray of int
+            Header keys ("achid") of the records to unpack, used as the dict keys.
+        sidx_arr, eidx_arr : ndarray of int
+            Start and end index of each record within `packdata`.
+
+        Returns
+        -------
+        data_dict : dict
+            Keys of achid, matched to dicts with items "data", "flags", "weights".
+        """
+        # Make sure packdata is native type, since numba will otherwise balk
+        if not packdata.dtype.isnative:
+            packdata = packdata.astype(packdata.dtype.newbyteorder("="))
+
+        nchan_arr = eidx_arr - sidx_arr
+        # Exclusive prefix sum -- where each record *starts* in the output. Spelled
+        # this way rather than with np.cumulative_sum, which needs numpy 2.0.
+        out_off = np.cumsum(nchan_arr) - nchan_arr
+
+        ntot = int(nchan_arr.sum())
+        data_out = np.empty(ntot, dtype=packdata.dtype)
+        flag_out = np.empty(ntot, dtype=bool)
+        wt_out = np.empty(ntot, dtype=np.float32)
+
+        mir_numba.copy_records(packdata, sidx_arr, nchan_arr, out_off, data_out)
+        np.isnan(data_out, out=flag_out)
+        wt_out.fill(1.0)
+
+        return {
+            hid: {
+                "data": data_out[off : off + nch],
+                "flags": flag_out[off : off + nch],
+                "weights": wt_out[off : off + nch],
+            }
+            for hid, off, nch in zip(hid_arr, out_off, nchan_arr, strict=True)
+        }
+
+    @classmethod
+    def _copy_scaled_inplace(cls, data_dict, packdata, sidx_arr, eidx_arr):
+        """
+        Replace raw record views with writable views onto one copied block.
+
+        Note that this is an internal helper function which is not meant for general
+        use. This function will force a copy of the raw data so as to allow the
+        underlying data to be manipulated (particularly if the data is read in by
+        something like mmap).
+
+        Parameters
+        ----------
+        data_dict : dict
+            A dictionary in the format of `raw_data`, with items "scale_fac" and "data".
+            Modified in place.
+        packdata : ndarray of int16
+            Packed data block for a single integration.
+        sidx_arr, eidx_arr : ndarray of int
+            Start and end index of each spectral record within `packdata`.
+        """
+        nvals_arr = eidx_arr - sidx_arr
+        # Note the byte-order check -- the kernel cannot take big-endian data
+        if (
+            len(sidx_arr) < mir_numba.COPY_KERNEL_MIN_RECS
+            or not packdata.dtype.isnative
+        ):
+            for idict, sidx, eidx in zip(
+                data_dict.values(), sidx_arr, eidx_arr, strict=True
+            ):
+                rec = packdata[sidx:eidx].copy()
+                idict["scale_fac"] = rec[0]
+                idict["data"] = rec[1:]
+            return
+
+        # Exclusive prefix sum, as in the unpacking helpers above.
+        out_off = np.cumsum(nvals_arr) - nvals_arr
+        data_out = np.empty(int(nvals_arr.sum()), dtype=packdata.dtype)
+        mir_numba.copy_records(packdata, sidx_arr, nvals_arr, out_off, data_out)
+
+        for idict, off, nvals in zip(
+            data_dict.values(), out_off, nvals_arr, strict=True
+        ):
+            idict["scale_fac"] = data_out[off]
+            idict["data"] = data_out[(off + 1) : (off + nvals)]
+
     @staticmethod
     def _convert_vis_to_raw(vis_dict) -> dict:
         """
@@ -1091,13 +1254,7 @@ class MirParser:
         return raw_dict
 
     def _read_data(
-        self,
-        data_type=None,
-        *,
-        scale_data=True,
-        use_mmap=True,
-        read_only=False,
-        apply_cal=None,
+        self, data_type=None, *, scale_data=True, use_mmap=True, apply_cal=None
     ) -> dict:
         """
         Read "sch_read" mir file into a list of ndarrays.
@@ -1121,9 +1278,6 @@ class MirParser:
             There is usually no performance penalty to doing this, although reading in
             data is slow, you may try seeing this to False and seeing if performance
             improves.
-        read_only : bool
-            Only applicable if `return_vis=False` and `use_mmap=True`. If set to True,
-            will return back data arrays which are read-only. Default is False.
         apply_cal : bool
             If True, COMPASS-based bandpass and flags solutions will be applied upon
             reading in of data. By default, the solutions will be applied if they have
@@ -1161,12 +1315,10 @@ class MirParser:
             apply_cal = self._has_compass_soln
 
         if data_type == "cross":
-            if apply_cal:
+            if scale_data:
                 chavg_call = partial(self._rechunk_data, inplace=True)
             else:
-                chavg_call = partial(
-                    self._rechunk_raw, inplace=True, return_vis=scale_data
-                )
+                chavg_call = partial(self._rechunk_raw, inplace=True, return_vis=False)
             recpos_dict = self.sp_data._recpos_dict
             metadata_attr = self.sp_data
         else:
@@ -1217,40 +1369,41 @@ class MirParser:
             packdata = packdata["packdata"].view(data_dtype)
             hid_subarr = metadata_attr.get_header_keys(index=idx_arr)
 
-            # We copy here if we want the raw values AND we've used memmap, since
-            # otherwise the resultant entries in raw_data will be memmap arrays, which
-            # will be read only (and we want attributes to be modifiable.)
-            sidx_arr = recpos_start[idx_arr]
-            eidx_arr = recpos_end[idx_arr]
+            sidx_arr = recpos_start[idx_arr].astype(np.int64)
+            eidx_arr = recpos_end[idx_arr].astype(np.int64)
             chan_avg_arr = recpos_chavg[idx_arr]
-            temp_dict = {}
-            for hid, sidx, eidx in zip(hid_subarr, sidx_arr, eidx_arr, strict=True):
-                if common_scale:
-                    temp_dict[hid] = {
+            no_chavg = np.all(chan_avg_arr == 1)
+
+            if common_scale and scale_data:
+                # Inflate the data and pass it along.
+                temp_dict = self._unpack_scaled(
+                    packdata, hid_subarr, sidx_arr, eidx_arr
+                )
+                if apply_cal:
+                    temp_dict = self._apply_compass_solns(temp_dict)
+            elif common_scale:
+                # Pass along the raw crosses. Note that the dict construct here is
+                # relatively light weight - construct it either for copying later for
+                # for channel averaging.
+                temp_dict = {
+                    hid: {
                         "scale_fac": packdata[sidx],
                         "data": packdata[(sidx + 1) : eidx],
                     }
-                else:
-                    data_arr = packdata[sidx:eidx]
-                    temp_dict[hid] = {
-                        "data": data_arr,
-                        "flags": np.isnan(data_arr),
-                        "weights": np.ones_like(data_arr),
-                    }
-
-            if apply_cal and common_scale:
-                temp_dict = self._convert_raw_to_vis(temp_dict)
-                temp_dict = self._apply_compass_solns(temp_dict)
-
-            if np.all(chan_avg_arr == 1):
-                if apply_cal:
-                    pass
-                elif scale_data and common_scale:
-                    temp_dict = self._convert_raw_to_vis(temp_dict)
-                elif not read_only:
-                    for idict in temp_dict.values():
-                        idict["data"] = idict["data"].copy()
+                    for hid, sidx, eidx in zip(
+                        hid_subarr, sidx_arr, eidx_arr, strict=True
+                    )
+                }
+                if no_chavg:
+                    # Force the copy in case of a read-only memory map
+                    self._copy_scaled_inplace(temp_dict, packdata, sidx_arr, eidx_arr)
             else:
+                # Un-scaled (float) records, i.e. the auto-correlations.
+                temp_dict = self._unpack_unscaled(
+                    packdata, hid_subarr, sidx_arr, eidx_arr
+                )
+
+            if not no_chavg:
                 chavg_call(temp_dict, chan_avg_arr)
 
             data_dict.update(temp_dict)
@@ -1689,7 +1842,7 @@ class MirParser:
         allow_downselect=None,
         allow_conversion=None,
         use_mmap=True,
-        read_only=False,
+        read_only=None,
     ):
         """
         Load visibility data into MirParser class.
@@ -1739,16 +1892,23 @@ class MirParser:
             data is slow, you may try seeing this to False and seeing if performance
             improves.
         read_only : bool
-            Only applicable if `load_cross=True`, `use_mmap=True`, and `load_raw=True`.
-            If set to True, will return back data arrays which are read-only. Default is
-            False.
+            Deprecated and ignored, will be removed in version 3.4.
 
         Raises
         ------
         UserWarning
             If attempting to set both `load_vis` and `load_raw` to True. Also if the
             method is about to attempt to convert previously loaded data.
+        DeprecationWarning
+            If `read_only` is set.
         """
+        if read_only is not None:
+            warnings.warn(
+                "The read_only keyword is deprecated and has no effect, and will be "
+                "removed in version 3.4.",
+                DeprecationWarning,
+            )
+
         # Figure out what exactly we're going to load here.
         if load_cross is None:
             load_cross = self._has_cross
@@ -1813,9 +1973,7 @@ class MirParser:
 
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_cross:
-            data_dict = self._read_data(
-                "cross", scale_data=load_vis, use_mmap=use_mmap, read_only=read_only
-            )
+            data_dict = self._read_data("cross", scale_data=load_vis, use_mmap=use_mmap)
 
             setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
 
@@ -1833,9 +1991,7 @@ class MirParser:
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
-            self.auto_data = self._read_data(
-                "auto", use_mmap=use_mmap, read_only=read_only
-            )
+            self.auto_data = self._read_data("auto", use_mmap=use_mmap)
 
     def unload_data(self, *, unload_vis=True, unload_raw=True, unload_auto=True):
         """

@@ -46,8 +46,9 @@ def reference_scaled(packdata, sidx, nchan_arr, norm, wt_val, all_flag):
             # No usable normalization: flag the record, leave the values unscaled.
             rec_flags = np.ones_like(rec_flags)
         else:
-            rec_data *= norm[irec]
-            rec_weights *= wt_val[irec]
+            # Cast to match the kernel.
+            rec_data *= np.float32(norm[irec])
+            rec_weights *= np.float32(wt_val[irec])
         data.append(rec_data)
         flags.append(rec_flags)
         weights.append(rec_weights)

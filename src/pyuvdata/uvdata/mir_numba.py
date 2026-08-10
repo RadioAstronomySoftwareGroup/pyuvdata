@@ -20,18 +20,7 @@ import numpy as np
 BAD_VAL = -32768
 
 # Record count below which callers should copy with numpy rather than calling
-# `copy_records`. Unlike the unpacking kernels, that one has nothing to amortize its
-# setup against -- a slice copy is already close to free -- so numpy wins by 11x at a
-# single record, and measured from an in-memory source the two cross over between 12
-# records (kernel 1.3x slower) and 32 (kernel 1.5x faster). That matters for reads which
-# select one record per integration, where the kernel would otherwise be entered
-# thousands of times for a few microseconds of work apiece.
-#
-# Copying from a memory map instead is a page-in rather than a memcpy, and there the
-# comparison did not reproduce across data sets -- the kernel measured both 2-4x faster
-# and 3x slower depending on which file it ran against, so this threshold comes from the
-# in-memory case alone. Worth revisiting on a machine where the page cache can actually
-# be dropped between trials.
+# `copy_records`. Note that this may require some additional testing/tuning.
 COPY_KERNEL_MIN_RECS = 24
 
 
@@ -59,9 +48,11 @@ def unpack_scaled(
     out_off : ndarray of int
         Index at which each record's channels begin in the output buffers.
     norm : ndarray of float32
-        Per-record multiplicative normalization applied to the data (1 for none).
+        Per-record multiplicative normalization applied to the data (1 for none). Note
+        that float64 works too, but is cast down to single precision.
     wt_val : ndarray of float32
-        Per-record value written to the weights of every unflagged channel.
+        Per-record value written to the weights of every unflagged channel. Note that
+        float64 works too, but is cast down to single precision.
     all_flag : ndarray of bool
         Records for which every channel should be marked flagged. `norm` and `wt_val`
         are ignored for these records.
@@ -82,8 +73,10 @@ def unpack_scaled(
         if flag_state:
             wgt = np.float32(1.0)
         else:
-            sfac *= norm[irec]
-            wgt = wt_val[irec]
+            # Cast explicitly here to preverve backwards compatibility/behavior with
+            # testing against prior numpy-based behavior.
+            sfac *= np.float32(norm[irec])
+            wgt = np.float32(wt_val[irec])
 
         start += 1
         for jdx in range(nchan[irec]):
