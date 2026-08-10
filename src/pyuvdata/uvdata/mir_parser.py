@@ -1021,7 +1021,16 @@ class MirParser:
         return vis_dict
 
     @classmethod
-    def _unpack_scaled(cls, packdata, hid_arr, sidx_arr, eidx_arr) -> dict:
+    def _unpack_scaled(
+        cls,
+        packdata,
+        hid_arr,
+        sidx_arr,
+        eidx_arr,
+        norm_arr=None,
+        wt_arr=None,
+        all_flag_arr=None,
+    ) -> dict:
         """
         Unpack commonly-scaled records from a packdata block into visibilities.
 
@@ -1031,6 +1040,10 @@ class MirParser:
         allocating three arrays per spectral record. The per-record entries handed back
         are views onto those buffers.
 
+        The Tsys normalization is folded into that same pass when it is supplied, which
+        is what makes it free -- applying it afterwards, as `apply_tsys` has to for data
+        that are already loaded, means a second traversal of the visibilities.
+
         Parameters
         ----------
         packdata : ndarray of int16
@@ -1039,6 +1052,15 @@ class MirParser:
             Header keys ("sphid") of the records to unpack, used as the dict keys.
         sidx_arr, eidx_arr : ndarray of int
             Start (common exponent) and end index of each record within `packdata`.
+        norm_arr: ndarray of float32
+            Per-record normalization for the data. Default is None, which applies no
+            (additional) normalization.
+        wt_arr : ndarray of float32
+            Per-record weights. Default is None, which fills in the weights with a
+            value of unity (1.0).
+        all_flag_arr : ndarray of bool
+            Records to flag in their entirety. Default is None, which applies no
+            flagging to the spectral records.
 
         Returns
         -------
@@ -1060,18 +1082,21 @@ class MirParser:
         flag_out = np.empty(ntot, dtype=bool)
         wt_out = np.empty(ntot, dtype=np.float32)
 
-        # No normalization applied here -- multiplying by float32 unity is exact, so
-        # this reproduces `_convert_raw_to_vis` bit for bit. `apply_tsys` supplies real
-        # values for these when the two passes are fused together.
-        unity = np.ones(len(nchan_arr), dtype=np.float32)
+        # With no normalization supplied, unity stands in -- multiplying by float32 one
+        # is exact, so that path reproduces `_convert_raw_to_vis` bit for bit.
+        if norm_arr is None:
+            norm_arr = wt_arr = np.ones(len(nchan_arr), dtype=np.float32)
+        if all_flag_arr is None:
+            all_flag_arr = np.zeros(len(nchan_arr), dtype=bool)
+
         mir_numba.unpack_scaled(
             packdata,
             sidx_arr,
             nchan_arr,
             out_off,
-            unity,
-            unity,
-            np.zeros(len(nchan_arr), dtype=bool),
+            norm_arr,
+            wt_arr,
+            all_flag_arr,
             data_out,
             flag_out,
             wt_out,
@@ -1254,7 +1279,13 @@ class MirParser:
         return raw_dict
 
     def _read_data(
-        self, data_type=None, *, scale_data=True, use_mmap=True, apply_cal=None
+        self,
+        data_type=None,
+        *,
+        scale_data=True,
+        use_mmap=True,
+        apply_cal=None,
+        apply_tsys=False,
     ) -> dict:
         """
         Read "sch_read" mir file into a list of ndarrays.
@@ -1282,6 +1313,10 @@ class MirParser:
             If True, COMPASS-based bandpass and flags solutions will be applied upon
             reading in of data. By default, the solutions will be applied if they have
             been previously loaded into the object.
+        apply_tsys : bool
+            If True, fold the Tsys normalization into the unpacking pass, which costs
+            nothing beyond generating the values. Only possible when handing back
+            unpacked cross spectra. Default False.
 
         Returns
         -------
@@ -1360,6 +1395,12 @@ class MirParser:
             "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
         )
 
+        norm_arr = wt_arr = all_flag_arr = None
+        mask_idx = np.nonzero(metadata_attr._mask)[0]
+        if apply_tsys and (data_type == "cross") and scale_data:
+            norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
+            self._tsys_applied = True
+
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
         for inhid, idx_arr in inhid_groups.items():
@@ -1375,9 +1416,18 @@ class MirParser:
             no_chavg = np.all(chan_avg_arr == 1)
 
             if common_scale and scale_data:
-                # Inflate the data and pass it along.
+                tsys_slice = {}
+                if norm_arr is not None:
+                    # `_get_tsys_norm` returns one entry per selected record, in order,
+                    # whereas the loop here works with row numbers into the full table.
+                    pos = np.searchsorted(mask_idx, idx_arr)
+                    tsys_slice = {
+                        "norm_arr": norm_arr[pos],
+                        "wt_arr": wt_arr[pos],
+                        "all_flag_arr": all_flag_arr[pos],
+                    }
                 temp_dict = self._unpack_scaled(
-                    packdata, hid_subarr, sidx_arr, eidx_arr
+                    packdata, hid_subarr, sidx_arr, eidx_arr, **tsys_slice
                 )
                 if apply_cal:
                     temp_dict = self._apply_compass_solns(temp_dict)
@@ -1562,50 +1612,44 @@ class MirParser:
                 )
                 packdata[inhid].tofile(file)
 
-    def apply_tsys(self, *, invert=False, force=False, use_cont_det=None):
+    def _get_tsys_norm(self, *, invert=False, use_cont_det=None) -> tuple[np.ndarray]:
         """
-        Apply Tsys calibration to the visibilities.
+        Calculate the per-spectral-record Tsys normalization.
 
-        SMA MIR data are recorded as correlation coefficients. This allows one to apply
-        system temperature information to the data to get values in units of Jy.
+        Note that this is an internal helper function which is not meant for general
+        use. Pulls the per-record scale factors out of `apply_tsys` so that they can
+        either be applied to already-loaded data or folded into `_read_data` (rather
+        than applying them on a second pass). Values are returned in single precision,
+        since that's the same precision as the the underlying visibilities.
 
         Parameters
         ----------
         invert : bool
-            If set to True, this will effectively undo the Tsys correction that has
-            been applied. Default is False (convert uncalibrated visibilities to units
-            of Jy).
-        force : bool
-            Normally the method will check if tsys has already been applied (or not
-            applied yet, if `invert=True`), and will throw an error if that is the case.
-            If set to True, this check will be bypassed. Default is False.
+            If True, return the values needed to undo a previous application.
         use_cont_det : bool
-            If set to True, use the continuum tsys data for calculating system
-            temperatures. If set to False, the spectral tsys data will be applied if
-            available. Default is True.
+            If True, derive system temperatures from the continuum detector data. If
+            False, use the spectral Tsys data. Default is to use the value recorded in
+            the `_tsys_use_cont_det` attribute.
+
+        Returns
+        -------
+        norm_arr : ndarray of float32
+            Multiplicative normalization for the visibilities of each record.
+        wt_arr : ndarray of float32
+            Multiplicative normalization for the weights of each record.
+        all_flag_arr : ndarray of bool
+            Records with no usable system temperature, which are flagged in their
+            entirety and left un-normalized. `norm_arr` and `wt_arr` are set to unity
+            for these entries.
+
+        Raises
+        ------
+        UserWarning
+            If no system temperature is available for a given baseline.
         """
-        if self.vis_data is None:
-            raise ValueError(
-                "Must call load_data first before applying tsys normalization."
-            )
-
-        if (self._tsys_applied and not invert) and (not force):
-            raise ValueError(
-                "Cannot apply tsys again if it has been applied already. Run "
-                "apply_tsys with invert=True to undo the prior correction first."
-            )
-
-        if (not self._tsys_applied and invert) and (not force):
-            raise ValueError(
-                "Cannot undo tsys application if it was never applied. Set "
-                "invert=True to apply the correction first."
-            )
-
         if use_cont_det or (use_cont_det is None and self._tsys_use_cont_det):
-            # Create a dictionary here to map antenna pair + integration time step with
-            # a sqrt(tsys) value. Note that the last index here is the receiver number,
-            # which technically has a different keyword under which the system
-            # temperatures are stored.
+            # Map antenna pair + integration + receiver onto a sqrt(tsys) value. The
+            # second receiver's temperatures live under a different field name.
             tsys_dict = {
                 (idx, jdx, 0): tsys**0.5 if (tsys > 0 and tsys < 1e5) else 0.0
                 for idx, jdx, tsys in zip(
@@ -1621,15 +1665,17 @@ class MirParser:
                 }
             )
 
-            # now create a per-blhid SEFD dictionary based on antenna pair, integration
-            # time step, and receiver pairing.
-            normal_dict = {}
-            for blhid, idx, jdx, kdx, ldx, mdx in zip(
-                *self.bl_data[("blhid", "inhid", "iant1", "ant1rx", "iant2", "ant2rx")],
-                strict=True,
+            # One SEFD per baseline record. This loop is over bl_data rather than
+            # sp_data, which is smaller by the number of spectral windows.
+            bl_keys = self.bl_data[
+                ("blhid", "inhid", "iant1", "ant1rx", "iant2", "ant2rx")
+            ]
+            bl_norm = np.zeros(len(bl_keys[0]), dtype=np.float64)
+            for pos, (blhid, idx, jdx, kdx, ldx, mdx) in enumerate(
+                zip(*bl_keys, strict=True)
             ):
                 try:
-                    normal_dict[blhid] = (2.0 * self.jypk) * (
+                    bl_norm[pos] = (2.0 * self.jypk) * (
                         tsys_dict[(idx, jdx, kdx)] * tsys_dict[(idx, ldx, mdx)]
                     )
                 except KeyError:
@@ -1639,28 +1685,25 @@ class MirParser:
                     )
 
             if invert:
-                for key, value in normal_dict.items():
-                    if value != 0:
-                        normal_dict[key] = 1.0 / value
+                np.reciprocal(bl_norm, where=(bl_norm != 0), out=bl_norm)
 
-            # Finally, multiply the individual spectral records by the SEFD values
-            # that are in the dictionary.
-            int_time_dict = dict(self.in_data.get_value(("inhid", "rinteg")))
-            for sp_rec in self.sp_data:
-                vis_dict = self.vis_data[sp_rec["sphid"]]
-                n_sample = abs(sp_rec["fres"] * 1e6) * int_time_dict[sp_rec["inhid"]]
-                try:
-                    norm_val = normal_dict[sp_rec["blhid"]]
-                    if norm_val == 0.0:
-                        vis_dict["flags"][:] = True
-                    else:
-                        vis_dict["data"] *= norm_val
-                        if invert:
-                            vis_dict["weights"] *= (norm_val**2.0) / n_sample
-                        else:
-                            vis_dict["weights"] *= n_sample / (norm_val**2.0)
-                except KeyError:
-                    self.vis_data[sp_rec["sphid"]]["flags"][:] = True
+            # Line the per-baseline values up with the spectral records.
+            blhid_map = {
+                key: idx for idx, key in enumerate(self.bl_data.get_header_keys())
+            }
+            bl_pos = np.array([blhid_map[k] for k in self.sp_data["blhid"]], dtype=int)
+            norm_arr = bl_norm[bl_pos]
+            all_flag_arr = norm_arr == 0.0
+
+            # Samples == freq resolution * integration time
+            n_sample = np.abs(self.sp_data["fres"] * 1e6) * (
+                self.in_data.get_value("rinteg", header_key=self.sp_data["inhid"])
+            )
+            with np.errstate(divide="ignore", invalid="ignore"):
+                if invert:
+                    wt_arr = np.square(norm_arr) / n_sample
+                else:
+                    wt_arr = n_sample / np.square(norm_arr)
         else:
             # The "wt" column is calculated as (integ time)/(T_DSB ** 2), but we want
             # units of Jy**-2. To do this, we just need to multiply by one of the
@@ -1691,17 +1734,78 @@ class MirParser:
 
             if invert:
                 for arr in [norm_arr, wt_arr]:
-                    arr = np.reciprocal(arr, where=(arr != 0), out=arr)
+                    np.reciprocal(arr, where=(arr != 0), out=arr)
 
-            for sphid, norm_val, wt_val in zip(
-                self.sp_data["sphid"], norm_arr, wt_arr, strict=True
-            ):
-                vis_dict = self.vis_data[sphid]
-                if norm_val == 0.0:
-                    vis_dict["flags"][:] = True
-                else:
-                    vis_dict["data"] *= norm_val
-                    vis_dict["weights"] *= wt_val
+            all_flag_arr = norm_arr == 0.0
+
+        # Records with no usable Tsys are left alone rather than scaled by zero, which
+        # is what `apply_tsys` does when it finds one -- it sets the flags and moves on.
+        norm_arr = np.where(all_flag_arr, 1.0, norm_arr).astype(np.float32)
+        wt_arr = np.where(all_flag_arr, 1.0, wt_arr).astype(np.float32)
+
+        return norm_arr, wt_arr, all_flag_arr
+
+    def apply_tsys(self, *, invert=False, force=False, use_cont_det=None):
+        """
+        Apply Tsys calibration to the visibilities.
+
+        SMA MIR data are recorded as correlation coefficients. This allows one to apply
+        system temperature information to the data to get values in units of Jy.
+
+        Parameters
+        ----------
+        invert : bool
+            If set to True, this will effectively undo the Tsys correction that has
+            been applied. Default is False (convert uncalibrated visibilities to units
+            of Jy).
+        force : bool
+            Normally the method will check if tsys has already been applied (or not
+            applied yet, if `invert=True`), and will throw an error if that is the case.
+            If set to True, this check will be bypassed. Default is False.
+        use_cont_det : bool
+            If set to True, use the continuum tsys data for calculating system
+            temperatures. If set to False, the spectral tsys data will be applied if
+            available. Default is True.
+
+        Raises
+        ------
+        ValueError
+            If data are not loaded, or if the correction has already been applied (or
+            has not been applied, when `invert=True`) and `force=False`.
+        """
+        if self.vis_data is None:
+            raise ValueError(
+                "Must call load_data first before applying tsys normalization."
+            )
+
+        if (self._tsys_applied and not invert) and (not force):
+            raise ValueError(
+                "Cannot apply tsys again if it has been applied already. Run "
+                "apply_tsys with invert=True to undo the prior correction first."
+            )
+
+        if (not self._tsys_applied and invert) and (not force):
+            raise ValueError(
+                "Cannot undo tsys application if it was never applied. Set "
+                "invert=True to apply the correction first."
+            )
+
+        # Grab the values we need for apply tsys/weights corrections per-sphid
+        norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm(
+            invert=invert, use_cont_det=use_cont_det
+        )
+
+        for sphid, norm_val, wt_val, all_flag in zip(
+            self.sp_data["sphid"], norm_arr, wt_arr, all_flag_arr, strict=True
+        ):
+            vis_dict = self.vis_data[sphid]
+            if all_flag:
+                # If no useful tsys is available, skip the normalization but flag
+                # the entire record.
+                vis_dict["flags"][:] = True
+            else:
+                vis_dict["data"] *= norm_val
+                vis_dict["weights"] *= wt_val
 
         self._tsys_applied = not invert
 
@@ -1973,18 +2077,24 @@ class MirParser:
 
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_cross:
-            data_dict = self._read_data("cross", scale_data=load_vis, use_mmap=use_mmap)
+            # Since we're loading in "fresh" data, mark that tsys has not yet been
+            # applied (otherwise apply_tsys can thrown an error). Note this has to
+            # happen before the read, which sets the flag itself if it folds the
+            # normalization into the unpacking pass.
+            self._tsys_applied = False
+            data_dict = self._read_data(
+                "cross",
+                scale_data=load_vis,
+                use_mmap=use_mmap,
+                apply_tsys=bool(apply_tsys and load_vis),
+            )
 
             setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
 
-            if load_vis:
-                # Since we've loaded in "fresh" data, we mark that tsys has
-                # not yet been applied (otherwise apply_tsys can thrown an error).
-                self._tsys_applied = False
-
-                # Apply tsys if needed.
-                if apply_tsys and load_vis:
-                    self.apply_tsys()
+            # Only needed if the read did not fold the normalization into the unpacking
+            # pass, which it does for anything handed back as unpacked cross spectra.
+            if load_vis and apply_tsys and not self._tsys_applied:
+                self.apply_tsys()
 
         # We wrap the auto data here in a somewhat special way because of some issues
         # with the existing online code and how it writes out data. At some point
