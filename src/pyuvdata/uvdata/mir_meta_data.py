@@ -3280,7 +3280,8 @@ class MirCodesData(MirMetaData):
             A list of all the unique code types, as recorded in the "v_name" field
             of the metadata.
         """
-        return sorted(set(self.get_value("v_name")))
+        # np.unique rather than sorted(set(...)) since it's ~3x faster on a full track
+        return np.unique(self.get_value("v_name")).tolist()
 
     def where(
         self,
