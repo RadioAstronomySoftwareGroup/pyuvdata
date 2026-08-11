@@ -13,6 +13,7 @@ import contextlib
 import copy
 import os
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 import h5py
@@ -2598,8 +2599,12 @@ class MirParser:
 
         filepath = os.path.abspath(filepath)
 
-        for attr in self._metadata_attrs.values():
-            attr.read(filepath)
+        # Read the metadata tables concurrently. Each one populates only its own object,
+        # so there is nothing to coordinate. Note the list call helps surface any
+        # exceptions that are thrown (and have it halt the loading process).
+        attr_list = list(self._metadata_attrs.values())
+        with ThreadPoolExecutor(max_workers=len(attr_list)) as pool:
+            list(pool.map(lambda attr: attr.read(filepath), attr_list))
 
         # This indexes the "main" file that contains all the visibilities, to make
         # it faster to read in the data.
