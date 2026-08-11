@@ -386,7 +386,7 @@ def test_mir_meta_where_pseudo_key(mir_eng_data):
     assert isinstance(eng_keys, list)
     for key in eng_keys:
         assert isinstance(key, tuple)
-        assert key in mir_eng_data._header_key_index_dict
+        assert key in mir_eng_data._header_key_index
 
 
 @pytest.mark.parametrize(
@@ -556,12 +556,12 @@ def test_mir_meta_get_header_pseudo_keys(mir_eng_data):
 
 def test_mir_meta_set_header_key_index_dict(mir_sp_data):
     mir_sp_data._set_header_key_index_dict()
-    for key, value in mir_sp_data._header_key_index_dict.items():
+    for key, value in mir_sp_data._header_key_index.items():
         assert key == (value + 1)
 
     mir_sp_data._data["sphid"] = np.flip(mir_sp_data._data["sphid"])
     mir_sp_data._set_header_key_index_dict()
-    for key, value in mir_sp_data._header_key_index_dict.items():
+    for key, value in mir_sp_data._header_key_index.items():
         assert (20 - key) == value
 
 
@@ -587,7 +587,7 @@ def test_mir_meta_sort_by_header_key(mir_bl_data):
     mir_bl_data._data["blhid"] = np.flip(mir_bl_data._data["blhid"])
     mir_bl_data._sort_by_header_key()
     assert mir_bl_copy != mir_bl_data
-    assert mir_bl_copy._header_key_index_dict == mir_bl_data._header_key_index_dict
+    assert mir_bl_copy._header_key_index == mir_bl_data._header_key_index
     assert np.all(mir_bl_copy._data["blhid"] == mir_bl_copy._data["blhid"])
 
 
@@ -784,7 +784,7 @@ def test_mir_meta_add_check_errs(mir_sp_data, cmd, args, err_type, err_msg):
     else:
         other = mir_sp_data.copy()
         if cmd == "muck_key":
-            other._header_key_index_dict[-1] = -1
+            other._header_key_index[-1] = -1
         elif cmd == "muck_data":
             other["gunnLO"] = -1.0
 
