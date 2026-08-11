@@ -18,7 +18,7 @@ import pytest
 
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
-from pyuvdata.uvdata import mir_numba
+from pyuvdata.uvdata import mir_numba, mir_parser
 from pyuvdata.uvdata.mir_parser import (
     COMPASS_SUPPORTED_VERSIONS,
     NEW_AUTO_DTYPE,
@@ -784,13 +784,9 @@ def test_read_packdata_inhid_err(
 
 def test_read_packdata_mmap(mir_data):
     """Test that reading in vis data with mmap works just as well as np.read"""
-    mmap_data = mir_data._read_packdata(
-        mir_data._file_dict, mir_data.in_data["inhid"], use_mmap=True
-    )
+    mmap_data = mir_data._read_packdata(mir_data._file_dict, mir_data.in_data["inhid"])
 
-    reg_data = mir_data._read_packdata(
-        mir_data._file_dict, mir_data.in_data["inhid"], use_mmap=False
-    )
+    reg_data = mir_data._read_packdata(mir_data._file_dict, mir_data.in_data["inhid"])
 
     assert mmap_data.keys() == reg_data.keys()
     for key in mmap_data:
@@ -843,6 +839,137 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
     assert _read_data.keys() == make_data.keys()
     for key in _read_data:
         assert np.array_equal(_read_data[key][0], make_data[key])
+
+
+@pytest.mark.parametrize("data_type", ["cross", "auto"])
+@pytest.mark.parametrize("scale_data", [True, False])
+def test_read_data_scatter_matches_serial(mir_data: MirParser, data_type, scale_data):
+    """Both read paths must hand back the same values through `_read_data`.
+
+    `_scatter_read_packdata` is checked against `_read_packdata` elsewhere, but that
+    compares the packed buffers rather than what `_read_data` makes of them -- the two
+    paths index those buffers differently, so a mistake there shows up only here.
+    """
+    if data_type == "auto" and not scale_data:
+        pytest.skip("scale_data does not apply to the autos")
+
+    scatter = mir_data._read_data(data_type, scale_data=scale_data, scatter_read=True)
+    serial = mir_data._read_data(data_type, scale_data=scale_data, scatter_read=False)
+
+    assert scatter.keys() == serial.keys()
+    for hid, rec in serial.items():
+        assert scatter[hid].keys() == rec.keys()
+        for field, val in rec.items():
+            assert np.array_equal(scatter[hid][field], val, equal_nan=True), (
+                f"{data_type} {hid} {field} differs between read paths"
+            )
+
+
+@pytest.mark.parametrize("kwarg", ["use_mmap", "read_only"])
+@pytest.mark.parametrize("value", [True, False])
+def test_read_data_withdrawn_kwargs(mir_data: MirParser, kwarg, value):
+    """The withdrawn read keywords are still accepted by `_read_data`, and ignored.
+
+    Callers reach into this method directly rather than through `load_data`, so the
+    notice has to live here too, or their next read raises TypeError.
+    """
+    with check_warnings(DeprecationWarning, f"The {kwarg} keyword is deprecated"):
+        got = mir_data._read_data("cross", scale_data=False, **{kwarg: value})
+
+    ref = mir_data._read_data("cross", scale_data=False)
+    assert got.keys() == ref.keys()
+    for hid, rec in ref.items():
+        assert np.array_equal(got[hid]["data"], rec["data"])
+        assert got[hid]["scale_fac"] == rec["scale_fac"]
+
+
+@pytest.mark.parametrize("use_mmap", [True, False])
+def test_load_data_use_mmap_deprecated(mir_data: MirParser, use_mmap):
+    """The use_mmap keyword is ignored now, and says so."""
+    with check_warnings(DeprecationWarning, "The use_mmap keyword is deprecated"):
+        mir_data.load_data(load_raw=True, use_mmap=use_mmap)
+
+    # Whichever way it was set, the data that come back must be the same.
+    ref = mir_data.copy()
+    ref.unload_data()
+    ref.load_data(load_raw=True)
+    for hid, rec in ref.raw_data.items():
+        assert np.array_equal(rec["data"], mir_data.raw_data[hid]["data"])
+        assert rec["scale_fac"] == mir_data.raw_data[hid]["scale_fac"]
+
+
+@pytest.mark.parametrize(
+    "offsets,lengths,kwargs,nreads",
+    [
+        [[0, 100], [100, 100], {}, 1],  # adjacent -> merged
+        [[0, 1 << 20], [100, 100], {}, 2],  # far apart -> separate
+        [[0, 200], [100, 100], {"max_gap": 10}, 2],  # gap wider than allowed
+        [[0, 10, 20], [10, 10, 10], {"max_bytes": 15}, 3],  # merge capped by size
+        [[500, 0], [100, 100], {}, 1],  # unsorted input, close enough to merge
+        [[500, 0], [100, 100], {"max_gap": 10}, 2],  # unsorted input, kept apart
+    ],
+)
+def test_coalesce_ranges(offsets, lengths, kwargs, nreads):
+    """Ranges merge only when they are close enough and the result stays bounded."""
+    offsets = np.array(offsets)
+    lengths = np.array(lengths)
+    reads = MirParser._coalesce_ranges(offsets, lengths, **kwargs)
+    assert len(reads) == nreads
+
+    # Every range must sit inside exactly one read, and reads must not overlap.
+    seen = set()
+    for start, size, members in reads:
+        for idx in members:
+            assert start <= offsets[idx]
+            assert (offsets[idx] + lengths[idx]) <= (start + size)
+            assert idx not in seen
+            seen.add(idx)
+    assert seen == set(range(len(offsets)))
+
+
+def test_coalesce_ranges_covers_everything():
+    """A large scatter of random ranges is still covered exactly once."""
+    rng = np.random.default_rng(0)
+    offsets = np.sort(rng.choice(10_000_000, 500, replace=False))
+    lengths = rng.integers(100, 5000, 500)
+    reads = MirParser._coalesce_ranges(offsets, lengths)
+    seen = set()
+    for start, size, members in reads:
+        assert size <= max(mir_parser.SCATTER_READ_MAX, int(lengths.max()))
+        for idx in members:
+            assert start <= offsets[idx]
+            assert (offsets[idx] + lengths[idx]) <= (start + size)
+            seen.add(int(idx))
+    assert seen == set(range(500))
+
+
+@pytest.mark.parametrize("data_type", ["cross", "auto"])
+def test_scatter_read_packdata_matches_whole_records(mir_data: MirParser, data_type):
+    """The scattered read must return the same bytes as reading whole records."""
+    metadata_attr = mir_data.sp_data if data_type == "cross" else mir_data.ac_data
+    recpos = metadata_attr._recpos_dict
+    groups = metadata_attr.group_by(
+        "inhid", index=np.nonzero(metadata_attr._mask)[0], return_index=True
+    )
+
+    sparse, index_dict = mir_data._scatter_read_packdata(
+        data_type, groups, recpos["start_idx"], recpos["end_idx"]
+    )
+    whole = mir_data._read_packdata(
+        mir_data._file_dict, mir_data.in_data["inhid"], data_type
+    )
+
+    assert sparse.keys() == groups.keys()
+    for inhid, idx_arr in groups.items():
+        buf, dtype, _ = sparse[inhid]
+        ref = whole[inhid][0]["packdata"].view(whole[inhid][1])
+        assert buf.dtype == dtype
+        sidx_arr, eidx_arr = index_dict[inhid]
+        for row, idx in enumerate(idx_arr):
+            assert np.array_equal(
+                buf[sidx_arr[row] : eidx_arr[row]],
+                ref[recpos["start_idx"][idx] : recpos["end_idx"][idx]],
+            )
 
 
 @pytest.mark.parametrize("read_only", [True, False])

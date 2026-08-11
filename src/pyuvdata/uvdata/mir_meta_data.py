@@ -2778,8 +2778,8 @@ class MirMetaData:
         end_idx = start_idx + (rec_size_arr // val_size)
 
         recpos_dict = {
-            "start_idx": start_idx,
-            "end_idx": end_idx,
+            "start_idx": start_idx.astype(np.int64),
+            "end_idx": end_idx.astype(np.int64),
             "chan_avg": np.ones(len(start_idx), dtype=int),
         }
 
