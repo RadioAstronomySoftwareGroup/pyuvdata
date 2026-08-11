@@ -45,6 +45,17 @@ from .mir_meta_data import (
 
 __all__ = ["MirParser", "MirPackdataError", "MirCompassError"]
 
+# Number of scattered reads to make in one go -- this number comes after a bit of trial
+# and error, and may need to be further tuned, but 8 was the best number after testing
+# on a few different systems.
+SCATTER_READ_THREADS = 8
+
+# Two values separated by less is more efficient to grab in a single read.
+SCATTER_READ_GAP = 131072
+
+# Upper bound on a single coalesced read, set at 8 MB.
+SCATTER_READ_MAX = 8 << 20
+
 # Format versions of the COMPASS solution file that this reader understands, given that
 # we've already had one version update that was incompatible with a prior version.
 COMPASS_SUPPORTED_VERSIONS = frozenset([(0, 12)])
@@ -73,6 +84,31 @@ COMPASS_LEGACY_KEYS = ("reBandpassArr", "imBandpassArr", "staticFlagArr")
 # Stand-in bandpass solution used where COMPASS has none for a baseline, which flags the
 # record outright. A module-level constant so that applying it costs nothing per record.
 _BAD_BP_SOLN = {"cal_soln": 1.0, "weight_soln": 0.0, "flag_soln": True}
+
+
+def _dep_warning(kwargs: dict, version: str = "3.4"):
+    """
+    Warn about keywords that no longer do anything.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Dictionary with keywords and values to check.
+    version: str
+        Version that will remove the keyword(s).
+
+    Raises
+    ------
+    DeprecationWarning
+        If value is not None.
+    """
+    for key, value in kwargs.items():
+        if value is not None:
+            warnings.warn(
+                f"The {key} keyword is deprecated and has no effect, and will be "
+                f"removed in version {version}.",
+                DeprecationWarning,
+            )
 
 
 class MirCompassError(Exception):
@@ -649,13 +685,325 @@ class MirParser:
                 int_dict[inhid_map[key]] = new_dict[key]
 
     @staticmethod
-    def _read_packdata(
-        file_dict=None,
-        inhid_arr=None,
-        data_type="cross",
+    def _coalesce_ranges(offsets, lengths, max_gap=None, max_bytes=None) -> list:
+        """
+        Merge byte ranges that sit close together on disk into single reads.
+
+        Note that this is an internal helper function which is not meant for general
+        use. A scattered read is dominated by per-read latency rather than by bandwidth,
+        so two ranges separated by a small gap are cheaper to fetch as one read.
+
+        Parameters
+        ----------
+        offsets : ndarray of int
+            Start of each range, in bytes from the beginning of the file.
+        lengths : ndarray of int
+            Length of each range, in bytes.
+        max_gap : int
+            Largest gap, in bytes, worth reading through rather than issuing a second
+            read for. Default is `SCATTER_READ_GAP`.
+        max_bytes : int
+            Largest read to build by merging for a single thread/scattered read.
+            Default is `SCATTER_READ_MAX`.
+
+        Returns
+        -------
+        reads : list of tuple
+            One entry per read to issue, each a tuple of the read's start offset, its
+            length, and the list of indices into `offsets` that it covers.
+        """
+        max_gap = SCATTER_READ_GAP if max_gap is None else max_gap
+        max_bytes = SCATTER_READ_MAX if max_bytes is None else max_bytes
+        order = np.argsort(offsets, kind="stable")
+
+        reads = []
+        start = end = None
+        members = []
+        for idx in order:
+            rec_start = int(offsets[idx])
+            rec_end = rec_start + int(lengths[idx])
+            if start is None:
+                start, end, members = rec_start, rec_end, [idx]
+            elif (rec_start - end <= max_gap) and (
+                max(end, rec_end) - start <= max_bytes
+            ):
+                end = max(end, rec_end)
+                members.append(idx)
+            else:
+                reads.append((start, end - start, members))
+                start, end, members = rec_start, rec_end, [idx]
+        if start is not None:
+            reads.append((start, end - start, members))
+
+        return reads
+
+    @staticmethod
+    def _check_packdata_headers(headers, int_dict, hdr_fmt, data_type, raise_err):
+        """
+        Compare integration headers against the object's indexing information.
+
+        Note that this is an internal helper function which is not meant for general
+        use. This verifies that integration record headers (ahead of packdata in the has
+        the integration number and size that it should.
+
+        Parameters
+        ----------
+        headers : dict
+            Mapping of integration header key to the header record read from the file.
+        int_dict : dict
+            Per-integration indexing information for the file in question.
+        hdr_fmt : list
+            Format of the packdata headers, used to work out what is checkable.
+        data_type : str
+            Type of data being read, used only for the message.
+        raise_err : bool
+            Whether a mismatch should raise (True), warn (None), or pass silently
+            (False).
+
+        Raises
+        ------
+        MirPackdataError
+            If the headers disagree with `int_dict` and `raise_err=True`.
+        UserWarning
+            The same, when `raise_err=None`.
+        """
+        has_inhid = any("inhid" in item for item in hdr_fmt)
+        has_rs = any("record_size" in item for item in hdr_fmt)
+        if not (has_inhid or has_rs):
+            return
+
+        good_check = True
+        for inhid, packdata in headers.items():
+            if inhid not in int_dict:
+                continue
+            idict = int_dict[inhid]
+            if has_inhid and (idict["inhid"] != packdata["inhid"]):
+                good_check = False
+            if has_rs and (idict["record_size"] != packdata["record_size"]):
+                good_check = False
+
+        if not good_check:
+            if raise_err:
+                raise MirPackdataError(
+                    "File indexing information differs from that found in in "
+                    f"file_dict. Cannot read in {data_type} data."
+                )
+            elif raise_err is None:
+                warnings.warn(
+                    "File indexing information differs from that found in in "
+                    f"file_dict. The {data_type} data may be corrupted."
+                )
+
+    @staticmethod
+    def _pread_scatter(
+        read,
         *,
-        use_mmap=False,
-        raise_err=None,
+        fd,
+        filename,
+        offsets,
+        lengths,
+        owners,
+        hdr_dtype,
+        data_dtype,
+        packdata_dict,
+        index_dict,
+        headers,
+    ):
+        """
+        Issue one read and put each range it covers where it belongs.
+
+        Note that this is an internal helper function which is not meant for general
+        use. Runs on a worker thread, which is safe because the ranges within a read are
+        disjoint and each one lands in its own slice of an already-allocated buffer --
+        nothing here resizes or reallocates.
+
+        Parameters
+        ----------
+        read : tuple
+            One entry from `_coalesce_ranges`: start offset, length, and the indices it
+            covers.
+        fd : int
+            Open file descriptor to read from.
+        filename : str
+            Name of the file, used only for error messages.
+        offsets, lengths : list of int
+            Start and length of every range, in bytes.
+        owners : list of tuple
+            For each range, the integration it belongs to and its row within that
+            integration's buffer, or -1 for the integration header.
+        hdr_dtype, data_dtype : numpy dtype
+            Format of the packdata headers and of the data itself.
+        packdata_dict, index_dict, headers : dict
+            Destinations, as described in `_scatter_read_packdata`. Modified in place.
+
+        Raises
+        ------
+        MirPackdataError
+            If the read comes up short, which means the file is truncated.
+        """
+        start, size, members = read
+        buf = os.pread(fd, size, start)
+        if len(buf) != size:
+            raise MirPackdataError(
+                f"Read past the end of {filename}; the file appears truncated."
+            )
+
+        # Wrap the buffer once and work in bytes from there. Slicing the bytes object
+        # directly would copy each range an extra time, and building a typed array per
+        # record costs more than the copy itself when there are thousands of them.
+        src = np.frombuffer(buf, dtype=np.uint8)
+        itemsize = data_dtype.itemsize
+
+        for idx in members:
+            inhid, row = owners[idx]
+            rel = offsets[idx] - start
+            if row < 0:
+                headers[inhid] = np.frombuffer(
+                    buf, dtype=hdr_dtype, count=1, offset=rel
+                )[0]
+                continue
+            sidx = index_dict[inhid][0][row] * itemsize
+            dst = packdata_dict[inhid][0].view(np.uint8)
+            dst[sidx : sidx + lengths[idx]] = src[rel : rel + lengths[idx]]
+
+    def _scatter_read_packdata(
+        self, data_type, inhid_groups, recpos_start, recpos_end, *, raise_err=None
+    ) -> tuple[dict, dict]:
+        """
+        Read only the selected spectral records, using many reads at once.
+
+        Note that this is an internal helper function which is not meant for general
+        use. This function will performed a "scattered" read, which allows for multiple
+        threads to pull in data from disk in parallel rather than running single
+        threaded in serial. This is particularly advantageous for partial reads, where
+        the file can be read in larger blocks rather than reading in the whole
+        integration record.
+
+        Unlike `_read_packdata`, this returbs _only_ the selected records in a compacted
+        format, so the the returned index arrays is provided to extract out the
+        appropriate range of data/channels for a given spectral record.
+
+        Parameters
+        ----------
+        data_type : str
+            Type of data to read, either "cross" or "auto".
+        inhid_groups : dict
+            Mapping of integration header key to the index positions of the records
+            selected within it, as returned by `MirMetaData.group_by`.
+        recpos_start : ndarray of int
+            Start position of every record within its integration (in units of the data
+            dtype, NOT bytes).
+        recpos_end : ndarray of int
+            End position of every record within its integration (in units of the data
+            dtype, NOT bytes).
+        raise_err : bool
+            Whether an inconsistency between the file headers and the object's indexing
+            information should raise (True), warn (None, the default), or pass silently
+            (False).
+
+        Returns
+        -------
+        packdata_dict : dict
+            Mapping of integration header key to a tuple of the compacted buffer (viewed
+            as the data dtype), the data dtype, and whether the data share a common
+            exponent.
+        index_dict : dict
+            Mapping of integration header key to a tuple of the start and end index of
+            each selected record within that integration's compacted buffer, ordered to
+            match `inhid_groups`.
+
+        Raises
+        ------
+        MirPackdataError
+            If the file headers disagree with the object's indexing information and
+            `raise_err=True`.
+        UserWarning
+            The same, when `raise_err=None`.
+        """
+        packdata_dict = {}
+        index_dict = {}
+
+        for filepath, indv_file_dict in self._file_dict.items():
+            fdict = indv_file_dict[data_type]
+            hdr_dtype = np.dtype(fdict["read_hdr_fmt"])
+            hdr_size = hdr_dtype.itemsize
+            data_dtype = fdict["read_data_fmt"]
+            itemsize = data_dtype.itemsize
+            int_dict = fdict["int_dict"]
+            filename = os.path.join(filepath, fdict["filetype"])
+
+            # Work out every byte range we need, tagging each with what it belongs to so
+            # that the results can be put back where they go. The integration header
+            # pops off alongside the records so that it can be checked against what is
+            # inside of int_dict.
+            offsets, lengths, owners = [], [], []
+            for inhid, idx_arr in inhid_groups.items():
+                if inhid not in int_dict:
+                    continue
+                rec_start = int(int_dict[inhid]["record_start"])
+                offsets.append(rec_start)
+                lengths.append(hdr_size)
+                owners.append((inhid, -1))
+
+                nvals = (recpos_end[idx_arr] - recpos_start[idx_arr]).astype(np.int64)
+                out_off = np.cumsum(nvals) - nvals
+                index_dict[inhid] = (out_off, out_off + nvals)
+                packdata_dict[inhid] = (
+                    np.empty(int(nvals.sum()), dtype=data_dtype),
+                    data_dtype,
+                    fdict["common_scale"],
+                )
+                for row, idx in enumerate(idx_arr):
+                    offsets.append(
+                        rec_start + hdr_size + (int(recpos_start[idx]) * itemsize)
+                    )
+                    lengths.append(int(nvals[row]) * itemsize)
+                    owners.append((inhid, row))
+
+            if not offsets:
+                continue
+
+            reads = self._coalesce_ranges(np.array(offsets), np.array(lengths))
+            headers = {}
+
+            fd = os.open(filename, os.O_RDONLY)
+            try:
+                # Bound up front rather than closed over, so that nothing here depends
+                # on the state of the enclosing loop when a worker actually runs.
+                run = partial(
+                    self._pread_scatter,
+                    fd=fd,
+                    filename=filename,
+                    offsets=offsets,
+                    lengths=lengths,
+                    owners=owners,
+                    hdr_dtype=hdr_dtype,
+                    data_dtype=data_dtype,
+                    packdata_dict=packdata_dict,
+                    index_dict=index_dict,
+                    headers=headers,
+                )
+                if SCATTER_READ_THREADS > 1 and len(reads) > 1:
+                    with ThreadPoolExecutor(
+                        max_workers=min(SCATTER_READ_THREADS, len(reads))
+                    ) as pool:
+                        # list() so that a failure in any read surfaces here.
+                        list(pool.map(run, reads))
+                else:
+                    for read in reads:
+                        run(read)
+            finally:
+                os.close(fd)
+
+            self._check_packdata_headers(
+                headers, int_dict, fdict["read_hdr_fmt"], data_type, raise_err
+            )
+
+        return packdata_dict, index_dict
+
+    @staticmethod
+    def _read_packdata(
+        file_dict=None, inhid_arr=None, data_type="cross", *, raise_err=None
     ) -> dict:
         """
         Read packed data mir file into memory (@staticmethod).
@@ -677,10 +1025,6 @@ class MirParser:
         data_type : str
             Type of data to read, must either be "cross" (cross-correlations) or "auto"
             (auto-correlations). Default is "cross".
-        use_mmap : bool
-            By default, the method will read all of the data into memory. However,
-            if set to True, then the method will return mmap-based objects instead,
-            which can be substantially faster on sparser reads.
         raise_err : bool
             By default, the method will raise a warning if something is internally
             inconsistent with the headers in the file, which can happen if the data
@@ -731,7 +1075,7 @@ class MirParser:
 
             # Read list is basically storing all of the individual reads that we need to
             # execute in order to grab all of the data we need. Note that each entry
-            # here is going to correspond to a call to either np.fromfile or np.memmap.
+            # here is going to correspond to a call to np.fromfile.
             read_list = []
 
             for ind_key in key_set:
@@ -781,21 +1125,19 @@ class MirParser:
                 inhid_list.append(ind_key)
             filename = os.path.join(filepath, indv_file_dict[data_type]["filetype"])
             # Time to actually read in the data
-            if use_mmap:
-                # memmap is a little special, in that it wants the _absolute_ offset
-                # rather than the relative offset that np.fromfile uses (if passing a
-                # file object rather than a string with the path toward the file).
+            with open(filename, "rb") as visibilities_file:
+                # Note that we do one open here to avoid the overheads associated
+                # with opening and closing the file each integration.
                 for read_dict in read_list:
                     int_data_dict.update(
                         zip(
                             read_dict["inhid_list"],
                             zip(
-                                np.memmap(
-                                    filename=filename,
+                                np.fromfile(
+                                    visibilities_file,
                                     dtype=read_dict["int_dtype_dict"],
-                                    mode="r",
-                                    offset=read_dict["start_offset"],
-                                    shape=(read_dict["num_vals"],),
+                                    count=read_dict["num_vals"],
+                                    offset=read_dict["del_offset"],
                                 ),
                                 read_dict["data_dtype"],
                                 read_dict["common_scale"],
@@ -804,28 +1146,6 @@ class MirParser:
                             strict=True,
                         )
                     )
-            else:
-                with open(filename, "rb") as visibilities_file:
-                    # Note that we do one open here to avoid the overheads associated
-                    # with opening and closing the file each integration.
-                    for read_dict in read_list:
-                        int_data_dict.update(
-                            zip(
-                                read_dict["inhid_list"],
-                                zip(
-                                    np.fromfile(
-                                        visibilities_file,
-                                        dtype=read_dict["int_dtype_dict"],
-                                        count=read_dict["num_vals"],
-                                        offset=read_dict["del_offset"],
-                                    ),
-                                    read_dict["data_dtype"],
-                                    read_dict["common_scale"],
-                                    strict=True,
-                                ),
-                                strict=True,
-                            )
-                        )
 
             has_inhid = any("inhid" in item for item in hdr_fmt)
             has_rs = any("record_size" in item for item in hdr_fmt)
@@ -1284,9 +1604,11 @@ class MirParser:
         data_type=None,
         *,
         scale_data=True,
-        use_mmap=True,
+        scatter_read=True,
         apply_cal=None,
         apply_tsys=False,
+        use_mmap=None,
+        read_only=None,
     ) -> dict:
         """
         Read "sch_read" mir file into a list of ndarrays.
@@ -1302,14 +1624,11 @@ class MirParser:
             a scaled/floating point format. If set to False, will return a dictionary
             containing the data read in the compact format. Default is True. This
             argument is ignored if the data are not scaled.
-        use_mmap : bool
-            If False, then each integration record needs to be read in before it can
-            be parsed on a per-spectral record basis (which can be slow if only reading
-            a small subset of the data). Default is True, which will leverage mmap to
-            access data on disk (that does not require reading in the whole record).
-            There is usually no performance penalty to doing this, although reading in
-            data is slow, you may try seeing this to False and seeing if performance
-            improves.
+        scatter_read : bool
+            If set to True, performs a "scattered" read where multiple blocks of data
+            are read in parallel and reassembled, If False, data are read in serial
+            (with `np.fromfile`). Default is True, which is typically faster by a factor
+            of several (or more).
         apply_cal : bool
             If True, COMPASS-based bandpass and flags solutions will be applied upon
             reading in of data. By default, the solutions will be applied if they have
@@ -1318,6 +1637,10 @@ class MirParser:
             If True, fold the Tsys normalization into the unpacking pass, which costs
             nothing beyond generating the values. Only possible when handing back
             unpacked cross spectra. Default False.
+        use_mmap : bool
+            Deprecated and ignored, will be removed in version 3.4.
+        read_only : bool
+            Deprecated and ignored, will be removed in version 3.4.
 
         Returns
         -------
@@ -1338,6 +1661,8 @@ class MirParser:
             contains the per-channel weights for the spectrum (all of length equal to
             `"nch"` in the relevant metadata container).
         """
+        _dep_warning({"use_mmap": use_mmap, "read_only": read_only}, "3.4")
+
         if data_type not in ["auto", "cross"]:
             raise ValueError(
                 'Argument for data_type not recognized, must be "cross" or "auto".'
@@ -1366,16 +1691,36 @@ class MirParser:
         recpos_end = recpos_dict["end_idx"]
         recpos_chavg = recpos_dict["chan_avg"]
 
+        def _group():
+            return metadata_attr.group_by(
+                "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+            )
+
+        def _do_read(inhid_groups, raise_err):
+            if scatter_read:
+                # Scatter read the records, and return a compacted array of values
+                return self._scatter_read_packdata(
+                    data_type,
+                    inhid_groups,
+                    recpos_start,
+                    recpos_end,
+                    raise_err=raise_err,
+                )
+            return (
+                self._read_packdata(
+                    file_dict=self._file_dict,
+                    inhid_arr=self.in_data["inhid"],
+                    data_type=data_type,
+                    raise_err=raise_err,
+                ),
+                None,
+            )
+
+        inhid_groups = _group()
         try:
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
-            packdata_dict = self._read_packdata(
-                file_dict=self._file_dict,
-                inhid_arr=self.in_data["inhid"],
-                data_type=data_type,
-                use_mmap=use_mmap,
-                raise_err=True,
-            )
+            packdata_dict, index_dict = _do_read(inhid_groups, True)
         except MirPackdataError:
             # Catch an error that indicates that the metadata inside the vis file does
             # not match that in _file_dict, and attempt to fix the problem.
@@ -1385,16 +1730,9 @@ class MirParser:
             )
             self._fix_int_dict(data_type)
             self._update_filter(update_data=False)
-            packdata_dict = self._read_packdata(
-                file_dict=self._file_dict,
-                inhid_arr=self.in_data["inhid"],
-                data_type=data_type,
-                use_mmap=use_mmap,
-            )
-
-        inhid_groups = metadata_attr.group_by(
-            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
-        )
+            # The filter just moved, so the grouping has to be rebuilt before retrying.
+            inhid_groups = _group()
+            packdata_dict, index_dict = _do_read(inhid_groups, None)
 
         norm_arr = wt_arr = all_flag_arr = None
         mask_idx = np.nonzero(metadata_attr._mask)[0]
@@ -1408,11 +1746,18 @@ class MirParser:
             # Pop here lets us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
             packdata, data_dtype, common_scale = packdata_dict.pop(inhid)
-            packdata = packdata["packdata"].view(data_dtype)
             hid_subarr = metadata_attr.get_header_keys(index=idx_arr)
 
-            sidx_arr = recpos_start[idx_arr].astype(np.int64)
-            eidx_arr = recpos_end[idx_arr].astype(np.int64)
+            if index_dict is None:
+                # Note the view: the packed block is stored as raw bytes, and the record
+                # positions are in units of the data dtype rather than of bytes.
+                packdata = packdata["packdata"].view(data_dtype)
+                sidx_arr = recpos_start[idx_arr]
+                eidx_arr = recpos_end[idx_arr]
+            else:
+                # The scatter read hands back a buffer holding only what was selected,
+                # so positions are relative to that rather than to the record on disk.
+                sidx_arr, eidx_arr = index_dict.pop(inhid)
             chan_avg_arr = recpos_chavg[idx_arr]
             no_chavg = np.all(chan_avg_arr == 1)
 
@@ -1869,7 +2214,7 @@ class MirParser:
 
     def _downselect_data(self, *, select_vis=None, select_raw=None, select_auto=None):
         """
-        Downselect data attributes based on metadata..
+        Downselect data attributes based on metadata.
 
         This method will set entries in the data attributes (e.g., `vis_data`,
         `raw_data`, and `auto_data`) based on metadata header values present
@@ -1946,7 +2291,7 @@ class MirParser:
         apply_tsys=True,
         allow_downselect=None,
         allow_conversion=None,
-        use_mmap=True,
+        use_mmap=None,
         read_only=None,
     ):
         """
@@ -1989,13 +2334,7 @@ class MirParser:
             `load_raw=False`). Default is True if all of the required spectral records
             have been loaded into the `raw_data` attribute.
         use_mmap : bool
-            If False, then each integration record needs to be read in before it can
-            be parsed on a per-spectral record basis (which can be slow if only reading
-            a small subset of the data). Default is True, which will leverage mmap to
-            access data on disk (that does not require reading in the whole record).
-            There is usually no performance penalty to doing this, although reading in
-            data is slow, you may try seeing this to False and seeing if performance
-            improves.
+            Deprecated and ignored, will be removed in version 3.4.
         read_only : bool
             Deprecated and ignored, will be removed in version 3.4.
 
@@ -2005,14 +2344,9 @@ class MirParser:
             If attempting to set both `load_vis` and `load_raw` to True. Also if the
             method is about to attempt to convert previously loaded data.
         DeprecationWarning
-            If `read_only` is set.
+            If `use_mmap` or `read_only` is set.
         """
-        if read_only is not None:
-            warnings.warn(
-                "The read_only keyword is deprecated and has no effect, and will be "
-                "removed in version 3.4.",
-                DeprecationWarning,
-            )
+        _dep_warning({"use_mmap": use_mmap, "read_only": read_only}, "3.4")
 
         # Figure out what exactly we're going to load here.
         if load_cross is None:
@@ -2084,10 +2418,7 @@ class MirParser:
             # normalization into the unpacking pass.
             self._tsys_applied = False
             data_dict = self._read_data(
-                "cross",
-                scale_data=load_vis,
-                use_mmap=use_mmap,
-                apply_tsys=bool(apply_tsys and load_vis),
+                "cross", scale_data=load_vis, apply_tsys=bool(apply_tsys and load_vis)
             )
 
             setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
@@ -2102,7 +2433,7 @@ class MirParser:
         # we will fix this, but for now, we triage the autos here. Note that if we
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
-            self.auto_data = self._read_data("auto", use_mmap=use_mmap)
+            self.auto_data = self._read_data("auto")
 
     def unload_data(self, *, unload_vis=True, unload_raw=True, unload_auto=True):
         """
