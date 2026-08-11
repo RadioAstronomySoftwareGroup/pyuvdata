@@ -577,6 +577,7 @@ class MirMetaData:
         self._data = None
         self._mask = None
         self._header_key_index_dict = None
+        self._header_key_sorted = None
         self._stored_values = {}
         self._recpos_dict = None
 
@@ -698,8 +699,8 @@ class MirMetaData:
             verbose_print(f"{name} object header key lists are different.")
             return False
 
-        this_idx = np.array([self._header_key_index_dict[key] for key in this_keys])
-        other_idx = np.array([other._header_key_index_dict[key] for key in this_keys])
+        this_idx = self._lookup_header_keys(this_keys)
+        other_idx = other._lookup_header_keys(this_keys)
 
         # Figure out which fields inside the data array we need to compare.
         comp_fields = list(self.dtype.fields)
@@ -936,7 +937,13 @@ class MirMetaData:
         copy_obj = type(self)()
 
         deepcopy_list = ["_stored_values", "_recpos_dict"]
-        data_list = ["_stored_values", "_data", "_mask", "_header_key_index_dict"]
+        data_list = [
+            "_stored_values",
+            "_data",
+            "_mask",
+            "_header_key_index_dict",
+            "_header_key_sorted",
+        ]
 
         for attr in vars(self):
             if skip_data and attr in data_list:
@@ -1079,6 +1086,7 @@ class MirMetaData:
         and_where_args=True,
         header_key=None,
         index=None,
+        as_index=False,
     ):
         """
         Find array index positions where selection criteria are met.
@@ -1115,14 +1123,17 @@ class MirMetaData:
             Index positions of the array. Note that this is typically what you are
             calling this method for, but is included as an argument to simplify
             argument processing for various calls.
+        as_index : bool
+            If True, hand back index positions where criteria are met. Default is False,
+            which instead passes back a boolean mask.
 
         Returns
         -------
         index_arr : ndarray
             Array that can be used to access specific index positions, supplied as an
             ndarray of dtype int of variable length if supplying arguments to either
-            `header_key` or `index`, otherwise of dtype bool and length matching that
-            of the object.
+            `header_key` or `index` (or if `as_index=True`), otherwise of dtype bool
+            and length matching that of the object.
 
         Raises
         ------
@@ -1144,7 +1155,9 @@ class MirMetaData:
                 "Only one of index, header_key, and where arguments can be set."
             )
         elif arg_check == 3:
-            return self._mask.copy() if (use_mask or (use_mask is None)) else ...
+            if not (use_mask or (use_mask is None)):
+                return ...
+            return np.nonzero(self._mask)[0] if as_index else self._mask.copy()
         elif where is not None:
             use_mask = True if (use_mask is None) else use_mask
         elif use_mask:
@@ -1159,11 +1172,19 @@ class MirMetaData:
             # This is a little trickier - use the pos dict to determine which entries
             # it is that we are trying to grab.
             if isinstance(header_key, int) or issubclass(type(header_key), np.integer):
-                return self._header_key_index_dict[header_key]
+                if self._keys_are_ordered():
+                    keys = self.get_header_keys(use_mask=False)
+                    try:
+                        val = keys.dtype.type(header_key)
+                    except (OverflowError, ValueError) as err:
+                        raise KeyError(f"Header key not found: {header_key}") from err
+                    pos = int(np.searchsorted(keys, val))
+                    if pos >= len(keys) or keys[pos] != val:
+                        raise KeyError(f"Header key not found: {header_key}")
+                    return pos
+                return self._header_key_index[header_key]
             else:
-                return np.array(
-                    [self._header_key_index_dict[key] for key in header_key], dtype=int
-                )
+                return self._lookup_header_keys(header_key)
 
         # At this point, we expect to hand back a boolean mask, so either instantiate
         # it or make a copy of the supplied mask argument.
@@ -1213,7 +1234,7 @@ class MirMetaData:
                 )
             )
 
-        return mask
+        return np.nonzero(mask)[0] if as_index else mask
 
     def get_value(
         self,
@@ -1288,7 +1309,9 @@ class MirMetaData:
         ValueError
             If field_name is not a list, set, tuple, or str.
         """
-        idx_arr = self._index_query(use_mask, where, and_where_args, header_key, index)
+        idx_arr = self._index_query(
+            use_mask, where, and_where_args, header_key, index, as_index=True
+        )
 
         if isinstance(field_name, list | set | tuple):
             if return_tuples is None:
@@ -1711,17 +1734,120 @@ class MirMetaData:
 
     def _set_header_key_index_dict(self):
         """
-        Set internal header key to index position dictionary attribute.
+        Mark the header key to index position mapping as needing to be rebuilt.
 
         Note that this is an internal helper function, not intended for general users.
-        Generates a dictionary that can be used for mapping header key values to index
-        positions inside the data array.
+        The mapping itself is built on first use rather than here, so this method only
+        discards whatever was cached.
         """
-        self._header_key_index_dict = dict(
-            zip(
-                self.get_header_keys(use_mask=False), np.arange(self._size), strict=True
+        self._header_key_index_dict = None
+        self._header_key_sorted = None
+
+    @property
+    def _header_key_index(self) -> dict:
+        """
+        Map of header key value to index position, built on demand.
+
+        Note that this is an internal helper, not intended for general users. This is
+        built on-the-fly as needed to lower the cost of loading in data sets.
+        """
+        if self._header_key_index_dict is None:
+            self._header_key_index_dict = dict(
+                zip(
+                    self.get_header_keys(use_mask=False),
+                    np.arange(self._size),
+                    strict=True,
+                )
             )
-        )
+        return self._header_key_index_dict
+
+    def _keys_are_ordered(self) -> bool:
+        """
+        Report whether header keys are ints in increasing order.
+
+        Note that this is an internal helper, not intended for general users. When they
+        are, positions can be found by searching the key array rather than by looking
+        them up in a dict.
+        """
+        if self._header_key_sorted is None:
+            keys = self.get_header_keys(use_mask=False)
+            self._header_key_sorted = (
+                isinstance(keys, np.ndarray)
+                and keys.dtype.kind in "iu"
+                and np.all(np.diff(keys) > 0)
+            )
+        return self._header_key_sorted
+
+    def _lookup_header_keys(self, header_key) -> np.ndarray:
+        """
+        Find the index positions of a sequence of header keys.
+
+        Note that this is an internal helper, not intended for general users. Header
+        keys are typically assigned in increasing order, in which case the positions can
+        be found with a search over the (already stored) key array. Objects with pseudo
+        header keys (tuples) or otherwise unordered keys fall back to that dict.
+
+        Parameters
+        ----------
+        header_key : sequence of int or tuple
+            Header key values to locate.
+
+        Returns
+        -------
+        index_arr : ndarray of int
+            Position of each entry of `header_key` within the data array.
+
+        Raises
+        ------
+        KeyError
+            If any entry of `header_key` is not present.
+        """
+        if self._keys_are_ordered():
+            if not isinstance(header_key, np.ndarray):
+                header_key = np.asarray(list(header_key))
+            if header_key.dtype.kind in "iu" and header_key.ndim == 1:
+                return self._search_header_keys(header_key)
+
+        return np.array([self._header_key_index[key] for key in header_key], dtype=int)
+
+    def _search_header_keys(self, lookup) -> np.ndarray:
+        """
+        Find the positions of integer header keys by searching the sorted key array.
+
+        Note that this is an internal helper, not intended for general users, and only
+        valid when `_keys_are_searchable` reports True.
+
+        Parameters
+        ----------
+        lookup : ndarray of int
+            Header key values to locate.
+
+        Returns
+        -------
+        index_arr : ndarray of int
+            Position of each entry of `lookup` within the data array.
+
+        Raises
+        ------
+        KeyError
+            If any entry of `lookup` is not present.
+        """
+        keys = self.get_header_keys(use_mask=False)
+
+        # Check that the array isn't empty, and that the mix/max ranges fall inside the
+        # (sorted) range of the keys we are looking at.
+        if lookup.size and (
+            not len(keys) or (lookup.min() < keys[0]) or (lookup.max() > keys[-1])
+        ):
+            raise KeyError("Header key(s) out of range for this object.")
+        lookup = lookup.astype(keys.dtype, copy=False)
+
+        pos = np.searchsorted(keys, lookup)
+        missing = keys[pos] != lookup
+        if np.any(missing):
+            raise KeyError(f"Header key(s) not found: {lookup[missing][:5].tolist()}")
+
+        return pos
 
     def _generate_new_header_keys(self, other) -> dict:
         """
@@ -2144,8 +2270,8 @@ class MirMetaData:
             raise ValueError("Cannot both merge and discard flagged data.")
 
         # Grab copies of the metadata we need for various operations
-        index_dict1 = self._header_key_index_dict.copy()
-        index_dict2 = other._header_key_index_dict.copy()
+        index_dict1 = self._header_key_index.copy()
+        index_dict2 = other._header_key_index.copy()
         this_mask = self._mask.copy()
         other_mask = other._mask.copy()
 
