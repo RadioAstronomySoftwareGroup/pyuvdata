@@ -3161,24 +3161,16 @@ class MirParser:
             weight_arr = vis_data["weights"].reshape(good_mask.shape)
 
             # Sum across all of the channels now, tabulating the sum of all of the
-            # weights (either all ones or whatever is in the weights spectrum).
+            # weights (either all ones or whatever is in the weights spectrum). Note the
+            # flagged entries are zeroed out and then summed, rather than visa versa, as
+            # the former is subtantially faster.
             if weight_data:
                 # Tabulate the weights, which are just summed across the channels
-                temp_weights = np.sum(
-                    weight_arr, axis=1, where=good_mask, initial=0, out=None
-                )
-                temp_vis = np.sum(
-                    (data_arr * weight_arr),
-                    axis=1,
-                    where=good_mask,
-                    initial=0,
-                    out=None,
-                )
+                temp_weights = np.sum(np.where(good_mask, weight_arr, 0), axis=1)
+                temp_vis = np.sum(np.where(good_mask, data_arr * weight_arr, 0), axis=1)
                 norm_vals = temp_weights
             else:
-                temp_vis = np.sum(
-                    data_arr, axis=1, where=good_mask, initial=0, out=None
-                )
+                temp_vis = np.sum(np.where(good_mask, data_arr, 0), axis=1)
                 norm_vals = np.sum(good_mask, axis=1, dtype=np.float32)
 
                 # The weights here are in Jy**-2, so take the reciprocal, sum,
@@ -3186,11 +3178,8 @@ class MirParser:
                 # the weights "should" be in the nominal Jy**-2 units.
                 # variance of each channel (without accounting for)
                 temp_weights = np.sum(
-                    np.reciprocal(weight_arr, where=good_mask, out=None),
-                    where=good_mask,
+                    np.where(good_mask, np.reciprocal(weight_arr, where=good_mask), 0),
                     axis=1,
-                    initial=0,
-                    out=None,
                 )
                 temp_weights = np.reciprocal(
                     temp_weights, where=(temp_weights != 0), out=temp_weights
