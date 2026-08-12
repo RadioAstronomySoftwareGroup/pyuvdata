@@ -756,6 +756,61 @@ def test_fix_int_dict_cross(mir_data):
     # Attempt to load the data
     _ = mir_data._read_data("cross", scale_data=False)
 
+    # And once more, this time repaired through the public entry point.
+    mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
+    mir_data.fix_int_headers("cross")
+    assert good_dict == mir_data._file_dict
+
+
+def test_fix_int_headers_called(mir_data: MirParser):
+    called = []
+    mir_data._fix_int_dict = lambda data_type=None: called.append(data_type)
+    mir_data.fix_int_headers()
+    assert called == ["cross", "auto"]
+
+    called = []
+    # Check that dropping autos causes only crosses to be checked
+    mir_data._has_auto = False
+    mir_data.fix_int_headers()
+
+    assert called == ["cross"]
+
+
+@pytest.mark.parametrize(
+    "data_type,err_msg",
+    [
+        ["yes", "Argument for data_type not recognized"],
+        ["auto", "This object has no auto-correlation data."],
+    ],
+)
+def test_fix_int_headers_errs(mir_data: MirParser, data_type, err_msg):
+    """Bad arguments should be caught before anything is rewritten."""
+    mir_data._has_auto = False
+    with pytest.raises(ValueError, match=err_msg):
+        mir_data.fix_int_headers(data_type)
+
+
+def test_fix_int_headers_unblocks_streaming(mir_data: MirParser):
+    cross_dict = mir_data._file_dict[mir_data.filepath]["cross"]
+    good = copy.deepcopy(cross_dict["int_dict"])
+    # Shift each record start, so that the header found there does not match.
+    cross_dict["int_dict"] = {
+        key: {**val, "record_start": val["record_start"] + 8}
+        for key, val in good.items()
+    }
+
+    with pytest.raises(MirPackdataError, match="fix_int_headers"):
+        next(iter(mir_data.stream_integrations("cross")))
+
+    mir_data.fix_int_headers("cross")
+    assert mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] == good
+    # And streaming now works, matching what a plain read gives back.
+    expected = mir_data._read_data("cross", scale_data=False)
+    streamed = {}
+    for _, idict in mir_data.stream_integrations("cross", scale_data=False):
+        streamed.update(idict)
+    assert streamed.keys() == expected.keys()
+
 
 @pytest.mark.parametrize(
     "kwargs,muck_int_dict,errfunc,errtype,errmsg",
@@ -839,6 +894,93 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
     assert _read_data.keys() == make_data.keys()
     for key in _read_data:
         assert np.array_equal(_read_data[key][0], make_data[key])
+
+
+@pytest.mark.parametrize("data_type", ["cross", "auto"])
+@pytest.mark.parametrize("scale_data", [True, False])
+@pytest.mark.parametrize("apply_tsys", [True, False])
+@pytest.mark.parametrize("batch", [1, 2, 1000])
+def test_stream_integrations_matches_read_data(
+    mir_data: MirParser, data_type, scale_data, apply_tsys, batch
+):
+    """Streaming must hand back exactly what reading it all at once does.
+
+    The batch size decides only how much is held at a time, so it must not change any
+    value, and a batch larger than the number of integrations has to behave as a single
+    pass rather than falling off the end. Note that `apply_tsys` is passed explicitly
+    to both, since the two methods default it differently -- `stream_integrations`
+    follows `load_data` rather than `_read_data`.
+    """
+    if data_type == "auto" and not scale_data:
+        pytest.skip("scale_data does not apply to the autos")
+
+    expected = mir_data._read_data(
+        data_type, scale_data=scale_data, apply_tsys=apply_tsys
+    )
+    streamed = {}
+    inhid_list = []
+    for inhid, idict in mir_data.stream_integrations(
+        data_type, batch=batch, scale_data=scale_data, apply_tsys=apply_tsys
+    ):
+        inhid_list.append(inhid)
+        streamed.update(idict)
+
+    # Integrations arrive in order, once each.
+    assert inhid_list == sorted(set(inhid_list))
+    assert streamed.keys() == expected.keys()
+    for hid, rec in expected.items():
+        assert streamed[hid].keys() == rec.keys()
+        for field, val in rec.items():
+            assert np.array_equal(streamed[hid][field], val, equal_nan=True), (
+                f"{data_type} {hid} {field} differs when streamed"
+            )
+
+
+def test_stream_records_matches_stream_integrations(mir_data: MirParser):
+    """The record-wise wrapper must be a flattening of the integration-wise form."""
+    by_int = [
+        (hid, rec)
+        for _, idict in mir_data.stream_integrations("cross")
+        for hid, rec in idict.items()
+    ]
+    by_rec = list(mir_data.stream_records("cross"))
+
+    assert [hid for hid, _ in by_rec] == [hid for hid, _ in by_int]
+    for (_, left), (_, right) in zip(by_rec, by_int, strict=True):
+        for field, val in right.items():
+            assert np.array_equal(left[field], val, equal_nan=True)
+
+
+def test_stream_integrations_respects_select(mir_data: MirParser):
+    """Streaming has to honor the active selection, exactly as `_read_data` does."""
+    inhid = np.unique(mir_data.sp_data["inhid"])[:1]
+    mir_data.select(where=("inhid", "eq", inhid))
+
+    yielded = list(mir_data.stream_integrations("cross"))
+    assert [key for key, _ in yielded] == list(inhid)
+    assert set().union(*(set(idict) for _, idict in yielded)) == set(
+        mir_data.sp_data["sphid"]
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"data_type": "yes"}, "Argument for data_type not recognized"],
+        [{"apply_cal": True}, "Cannot apply calibration if no tables loaded."],
+    ],
+)
+def test_stream_integrations_errs(mir_data: MirParser, kwargs, err_msg):
+    """Bad arguments must be rejected on the same terms as `_read_data`."""
+    with pytest.raises(ValueError, match=err_msg):
+        next(iter(mir_data.stream_integrations(**kwargs)))
+
+
+def test_stream_integrations_raw_no_cal(mir_data: MirParser):
+    """Raw records carry no calibration, so asking for both has to be an error."""
+    mir_data._has_compass_soln = True
+    with pytest.raises(ValueError, match="Cannot return raw data"):
+        next(iter(mir_data.stream_integrations(scale_data=False, apply_cal=True)))
 
 
 @pytest.mark.parametrize("data_type", ["cross", "auto"])

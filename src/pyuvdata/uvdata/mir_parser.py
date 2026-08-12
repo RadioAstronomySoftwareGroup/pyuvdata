@@ -56,6 +56,11 @@ SCATTER_READ_GAP = 131072
 # Upper bound on a single coalesced read, set at 8 MB.
 SCATTER_READ_MAX = 8 << 20
 
+# Integrations to read at once when streaming based on peak memory usage plus fetch
+# time for a scattered read. Testing showed this to be relatively flag between 4 and 32
+# integrations -- setting this as a compromise mid-point.
+STREAM_BATCH_SIZE = 8
+
 # Format versions of the COMPASS solution file that this reader understands, given that
 # we've already had one version update that was incompatible with a prior version.
 COMPASS_SUPPORTED_VERSIONS = frozenset([(0, 12)])
@@ -683,6 +688,59 @@ class MirParser:
             # with the "correct" values as determined by scanning through sch_read
             for key in inhid_map:
                 int_dict[inhid_map[key]] = new_dict[key]
+
+    def fix_int_headers(self, data_type=None):
+        """
+        Repair the recorded position of each integration within the data file.
+
+        The metadata tables record where each integration's block of packed data begins
+        and how long it is. On a small number of data sets those values disagree with
+        what the data file itself reports, which makes reads either fail outright or
+        hand back the wrong records. This method rescans the file, takes the positions
+        it finds there as the truth, and rewrites the recorded values to match.
+
+        This is normally unnecessary -- `load_data` performs the same repair on its own
+        when it detects the problem. It exists as a separate call for the cases where
+        that automatic path is not available, most notably `stream_integrations`, which
+        cannot repair anything part way through without changing the answer for records
+        it has already handed out.
+
+        Note that any data already loaded is left untouched, and should be re-read
+        afterwards, since it may have been drawn from the wrong part of the file.
+
+        Parameters
+        ----------
+        data_type : str
+            Which data to repair, either "cross" (cross-correlations) or "auto"
+            (auto-correlations). Default is to repair both, skipping the
+            auto-correlations if the data set has none.
+
+        Raises
+        ------
+        ValueError
+            If `data_type` is not "cross", "auto", or None, or if "auto" is requested
+            for a data set that has no auto-correlations.
+        MirPackdataError
+            If the file is corrupted badly enough that the positions cannot be
+            recovered from it, e.g. a record of negative length.
+        """
+        if data_type is None:
+            type_list = ["cross"] + (["auto"] if self._has_auto else [])
+        elif data_type not in ["cross", "auto"]:
+            raise ValueError(
+                'Argument for data_type not recognized, must be "cross" or "auto".'
+            )
+        elif data_type == "auto" and not self._has_auto:
+            raise ValueError("This object has no auto-correlation data.")
+        else:
+            type_list = [data_type]
+
+        for dtype in type_list:
+            self._fix_int_dict(dtype)
+
+        # The record positions just moved, so anything derived from them has to be
+        # rebuilt before the next read consults it.
+        self._update_filter(update_data=False)
 
     @staticmethod
     def _coalesce_ranges(offsets, lengths, max_gap=None, max_bytes=None) -> list:
@@ -1371,8 +1429,10 @@ class MirParser:
             Packed data block for a single integration.
         hid_arr : ndarray of int
             Header keys ("sphid") of the records to unpack, used as the dict keys.
-        sidx_arr, eidx_arr : ndarray of int
-            Start (common exponent) and end index of each record within `packdata`.
+        sidx_arr : ndarray of int
+            Starting index (common exponent index) of each record within `packdata`.
+        eidx_arr : ndarray of int
+            End index of each record within `packdata`.
         norm_arr: ndarray of float32
             Per-record normalization for the data. Default is None, which applies no
             (additional) normalization.
@@ -1599,6 +1659,103 @@ class MirParser:
 
         return raw_dict
 
+    def _unpack_integration(
+        self,
+        packdata,
+        *,
+        common_scale,
+        hid_arr,
+        sidx_arr,
+        eidx_arr,
+        chavg_arr,
+        chavg_call,
+        scale_data,
+        apply_cal=False,
+        norm_arr=None,
+        wt_arr=None,
+        all_flag_arr=None,
+    ) -> dict:
+        """
+        Turn one integration's packed data into a dict of spectral records.
+
+        Note that this is an internal helper function, not meant to be called by users.
+        It carries the per-integration half of `_read_data`, which is shared with
+        `stream_integrations` -- the two differ only in how much packed data they hold
+        at once, not in how a given integration is unpacked. Every argument is already
+        narrowed to this one integration, so that nothing here needs to know how the
+        records were selected or where they sat in the metadata tables.
+
+        Parameters
+        ----------
+        packdata : ndarray
+            Packed data for this integration, already viewed as the data dtype.
+        common_scale : bool
+            Whether the records carry a shared scale factor, i.e. are packed integers
+            (the crosses) rather than floats (the autos).
+        hid_arr : ndarray of int
+            Header keys of the records in this integration.
+        sidx_arr : ndarray of int
+            Start positions for each spectral record within `packdata`.
+        eidx_arr : ndarray of int
+            End positions for each spectral record within `packdata`.
+        chavg_arr : ndarray of int
+            Channel averaging factor of each record.
+        chavg_call : callable
+            Channel averaging routine to use, called as `chavg_call(dict, chavg_arr)`.
+        scale_data : bool
+            If True, return scaled visibilities, otherwise return the packed records.
+        apply_cal : bool
+            If True, apply COMPASS bandpass and flags. Default is False.
+        norm_arr : ndarray or None
+            Per-spectral record tsys normalization per record in this integration.
+            If None, no tsys correction is applied.
+        wt_arr : ndarray or None
+            Weights for each spectral record. If None, a value of 1.0 is assumed.
+        all_flag_arr : ndarray or None
+            Flags all channels in a spectral record, nominally due to a bad system
+            temperature scaling. If None, no additional flagging is applied. Note that
+            flagged records will ignore the values provided for `norm_arr` and `wt_arr`
+            (with 1.0 used as the default value for the latter).
+
+        Returns
+        -------
+        data_dict : dict
+            Spectral records for this integration, keyed on header key.
+        """
+        no_chavg = np.all(chavg_arr == 1)
+
+        if common_scale and scale_data:
+            data_dict = self._unpack_scaled(
+                packdata,
+                hid_arr,
+                sidx_arr,
+                eidx_arr,
+                norm_arr=norm_arr,
+                wt_arr=wt_arr,
+                all_flag_arr=all_flag_arr,
+            )
+            if apply_cal:
+                data_dict = self._apply_compass_solns(data_dict)
+        elif common_scale:
+            # Pass along the raw crosses. Note that the dict construct here is
+            # relatively light weight - construct it either for copying later for
+            # for channel averaging.
+            data_dict = {
+                hid: {"scale_fac": packdata[sidx], "data": packdata[(sidx + 1) : eidx]}
+                for hid, sidx, eidx in zip(hid_arr, sidx_arr, eidx_arr, strict=True)
+            }
+            if no_chavg:
+                # Force the copy in case of a read-only memory map
+                self._copy_scaled_inplace(data_dict, packdata, sidx_arr, eidx_arr)
+        else:
+            # Un-scaled (float) records, i.e. autos.
+            data_dict = self._unpack_unscaled(packdata, hid_arr, sidx_arr, eidx_arr)
+
+        if not no_chavg:
+            chavg_call(data_dict, chavg_arr)
+
+        return data_dict
+
     def _read_data(
         self,
         data_type=None,
@@ -1687,9 +1844,10 @@ class MirParser:
             recpos_dict = self.ac_data._recpos_dict
             metadata_attr = self.ac_data
 
-        recpos_start = recpos_dict["start_idx"]
-        recpos_end = recpos_dict["end_idx"]
-        recpos_chavg = recpos_dict["chan_avg"]
+        hid_arr = metadata_attr.get_header_keys(use_mask=False)
+        full_sidx_arr = recpos_dict["start_idx"]
+        full_eidx_arr = recpos_dict["end_idx"]
+        chavg_arr = recpos_dict["chan_avg"]
 
         def _group():
             return metadata_attr.group_by(
@@ -1702,8 +1860,8 @@ class MirParser:
                 return self._scatter_read_packdata(
                     data_type,
                     inhid_groups,
-                    recpos_start,
-                    recpos_end,
+                    full_sidx_arr,
+                    full_eidx_arr,
                     raise_err=raise_err,
                 )
             return (
@@ -1735,7 +1893,7 @@ class MirParser:
             packdata_dict, index_dict = _do_read(inhid_groups, None)
 
         norm_arr = wt_arr = all_flag_arr = None
-        mask_idx = np.nonzero(metadata_attr._mask)[0]
+        sub_norm_arr = sub_wt_arr = sub_flag_arr = None
         if apply_tsys and (data_type == "cross") and scale_data:
             norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
             self._tsys_applied = True
@@ -1746,63 +1904,38 @@ class MirParser:
             # Pop here lets us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
             packdata, data_dtype, common_scale = packdata_dict.pop(inhid)
-            hid_subarr = metadata_attr.get_header_keys(index=idx_arr)
-
             if index_dict is None:
-                # Note the view: the packed block is stored as raw bytes, and the record
-                # positions are in units of the data dtype rather than of bytes.
+                # Note the view: the packed block is stored as raw bytes, and the
+                # record positions are in units of the data dtype rather than of bytes.
                 packdata = packdata["packdata"].view(data_dtype)
-                sidx_arr = recpos_start[idx_arr]
-                eidx_arr = recpos_end[idx_arr]
+                sidx_arr = full_sidx_arr[idx_arr]
+                eidx_arr = full_eidx_arr[idx_arr]
             else:
                 # The scatter read hands back a buffer holding only what was selected,
                 # so positions are relative to that rather than to the record on disk.
                 sidx_arr, eidx_arr = index_dict.pop(inhid)
-            chan_avg_arr = recpos_chavg[idx_arr]
-            no_chavg = np.all(chan_avg_arr == 1)
 
-            if common_scale and scale_data:
-                tsys_slice = {}
-                if norm_arr is not None:
-                    # `_get_tsys_norm` returns one entry per selected record, in order,
-                    # whereas the loop here works with row numbers into the full table.
-                    pos = np.searchsorted(mask_idx, idx_arr)
-                    tsys_slice = {
-                        "norm_arr": norm_arr[pos],
-                        "wt_arr": wt_arr[pos],
-                        "all_flag_arr": all_flag_arr[pos],
-                    }
-                temp_dict = self._unpack_scaled(
-                    packdata, hid_subarr, sidx_arr, eidx_arr, **tsys_slice
+            if norm_arr is not None:
+                sub_norm_arr = norm_arr[idx_arr]
+                sub_wt_arr = wt_arr[idx_arr]
+                sub_flag_arr = all_flag_arr[idx_arr]
+
+            data_dict.update(
+                self._unpack_integration(
+                    packdata,
+                    common_scale=common_scale,
+                    hid_arr=hid_arr[idx_arr],
+                    sidx_arr=sidx_arr,
+                    eidx_arr=eidx_arr,
+                    chavg_arr=chavg_arr[idx_arr],
+                    chavg_call=chavg_call,
+                    scale_data=scale_data,
+                    apply_cal=apply_cal,
+                    norm_arr=sub_norm_arr,
+                    wt_arr=sub_wt_arr,
+                    all_flag_arr=sub_flag_arr,
                 )
-                if apply_cal:
-                    temp_dict = self._apply_compass_solns(temp_dict)
-            elif common_scale:
-                # Pass along the raw crosses. Note that the dict construct here is
-                # relatively light weight - construct it either for copying later for
-                # for channel averaging.
-                temp_dict = {
-                    hid: {
-                        "scale_fac": packdata[sidx],
-                        "data": packdata[(sidx + 1) : eidx],
-                    }
-                    for hid, sidx, eidx in zip(
-                        hid_subarr, sidx_arr, eidx_arr, strict=True
-                    )
-                }
-                if no_chavg:
-                    # Force the copy in case of a read-only memory map
-                    self._copy_scaled_inplace(temp_dict, packdata, sidx_arr, eidx_arr)
-            else:
-                # Un-scaled (float) records, i.e. the auto-correlations.
-                temp_dict = self._unpack_unscaled(
-                    packdata, hid_subarr, sidx_arr, eidx_arr
-                )
-
-            if not no_chavg:
-                chavg_call(temp_dict, chan_avg_arr)
-
-            data_dict.update(temp_dict)
+            )
 
             # Do the del here to break the reference to the "old" data so that
             # subsequent assignments don't cause issues for raw_dict.
@@ -1810,6 +1943,179 @@ class MirParser:
 
         # Figure out which results we need to pass back
         return data_dict
+
+    def stream_integrations(
+        self,
+        data_type="cross",
+        *,
+        batch=STREAM_BATCH_SIZE,
+        scale_data=True,
+        apply_tsys=True,
+        apply_cal=None,
+    ):
+        """
+        Read the selected data one integration at a time.
+
+        Yields the same spectral records that `load_data` would put into `vis_data` or
+        `raw_data`, but an integration at a time, so as to support reading in a large
+        data set without loading everything into memory first.
+
+        Records are yielded in ascending integration order, and within an integration
+        in ascending header-key order, which is the same order `load_data` would have
+        produced them in.
+
+        Parameters
+        ----------
+        data_type : str
+            Type of data to read, either "cross" (default) or "auto".
+        batch : int
+            Number of integrations to read from disk at once. This sets the peak memory
+            of the read, and exists because reading a single integration at a time
+            leaves the scatter read with too few byte ranges to keep the storage busy.
+            Default is `STREAM_BATCH_SIZE`.
+        scale_data : bool
+            If True (default), return calibrated visibilities, matching what
+            `load_data` puts in `vis_data`. If False, return the packed "raw" records
+            instead, matching `load_data(load_raw=True)` and `raw_data`.
+        apply_tsys : bool
+            If True (default), scale visibilities by the tsys-derived forward gain.
+            Only meaningful when `scale_data=True`.
+        apply_cal : bool
+            If True, apply COMPASS bandpass and flags. Default is to apply them if
+            solutions have been read in, matching `load_data`.
+
+        Yields
+        ------
+        inhid : int
+            Header key of the integration these records belong to.
+        data_dict : dict
+            Spectral records for that integration, keyed on header key, in the same
+            format as `vis_data` (or `raw_data` when `scale_data=False`).
+
+        Raises
+        ------
+        ValueError
+            If `data_type` is not "cross" or "auto", or if `apply_cal` is requested
+            without COMPASS solutions loaded or alongside `scale_data=False`.
+        """
+        if data_type not in ["auto", "cross"]:
+            raise ValueError(
+                'Argument for data_type not recognized, must be "cross" or "auto".'
+            )
+        if apply_cal:
+            if not self._has_compass_soln:
+                raise ValueError("Cannot apply calibration if no tables loaded.")
+            if not scale_data:
+                raise ValueError("Cannot return raw data if setting apply_cal=True")
+        elif apply_cal is None and scale_data:
+            apply_cal = self._has_compass_soln
+
+        if data_type == "cross":
+            if scale_data:
+                chavg_call = partial(self._rechunk_data, inplace=True)
+            else:
+                chavg_call = partial(self._rechunk_raw, inplace=True, return_vis=False)
+            metadata_attr = self.sp_data
+        else:
+            chavg_call = partial(self._rechunk_data, inplace=True)
+            metadata_attr = self.ac_data
+
+        recpos_dict = metadata_attr._recpos_dict
+        full_sidx_arr = recpos_dict["start_idx"]
+        full_eidx_arr = recpos_dict["end_idx"]
+        chavg_arr = recpos_dict["chan_avg"]
+
+        inhid_groups = metadata_attr.group_by(
+            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+        )
+
+        norm_arr = wt_arr = all_flag_arr = None
+        sub_norm_arr = sub_wt_arr = sub_flag_arr = None
+        hid_arr = metadata_attr.get_header_keys(use_mask=False)
+
+        if apply_tsys and (data_type == "cross") and scale_data:
+            norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
+            self._tsys_applied = True
+
+        keys = list(inhid_groups)
+        for start in range(0, len(keys), batch):
+            sub = {key: inhid_groups[key] for key in keys[start : start + batch]}
+            try:
+                packdata_dict, index_dict = self._scatter_read_packdata(
+                    data_type, sub, full_sidx_arr, full_eidx_arr, raise_err=True
+                )
+            except MirPackdataError as err:
+                # `_read_data` repairs this in place and re-reads, but that cannot be
+                # done part way through a stream without changing the answer for
+                # records already handed out, so point at the path that does repair it.
+                raise MirPackdataError(
+                    "Values in int_dict do not match that recorded inside the file for "
+                    f"{data_type} data, which cannot be repaired mid-stream. Call "
+                    "`fix_int_headers` to correct them, then stream again."
+                ) from err
+
+            for inhid, idx_arr in sub.items():
+                packdata, _, common_scale = packdata_dict.pop(inhid)
+                sidx_arr, eidx_arr = index_dict.pop(inhid)
+                if norm_arr is not None:
+                    sub_norm_arr = norm_arr[idx_arr]
+                    sub_wt_arr = wt_arr[idx_arr]
+                    sub_flag_arr = all_flag_arr[idx_arr]
+
+                data_dict = self._unpack_integration(
+                    packdata,
+                    common_scale=common_scale,
+                    hid_arr=hid_arr[idx_arr],
+                    sidx_arr=sidx_arr,
+                    eidx_arr=eidx_arr,
+                    chavg_arr=chavg_arr[idx_arr],
+                    chavg_call=chavg_call,
+                    scale_data=scale_data,
+                    apply_cal=apply_cal,
+                    norm_arr=sub_norm_arr,
+                    wt_arr=sub_wt_arr,
+                    all_flag_arr=sub_flag_arr,
+                )
+                del packdata
+
+                yield inhid, data_dict
+
+    def stream_records(self, data_type="cross", **kwargs):
+        """
+        Read the selected data one spectral record at a time.
+
+        Thin wrapper around `stream_integrations` for callers that would rather see a
+        flat sequence of records than a sequence of integrations.
+
+        Parameters
+        ----------
+        data_type : str
+            Type of data to read, either "cross" (default) or "auto".
+        batch : int
+            Number of integrations to read from disk at once. This sets the peak memory
+            of the read, and exists because reading a single integration at a time
+            leaves the scatter read with too few byte ranges to keep the storage busy.
+            Default is `STREAM_BATCH_SIZE`.
+        scale_data : bool
+            If True (default), return calibrated visibilities, matching what
+            `load_data` puts in `vis_data`. If False, return the packed "raw" records
+            instead, matching `load_data(load_raw=True)` and `raw_data`.
+        apply_tsys : bool
+            If True (default), scale visibilities by the tsys-derived forward gain.
+            Only meaningful when `scale_data=True`.
+        apply_cal : bool
+            If True, apply COMPASS bandpass and flags. Default is to apply them if
+            solutions have been read in, matching `load_data`.
+
+        Yields
+        ------
+        header_key : int
+            Header key of the spectral record (sphid for cross, achid for auto).
+        record : dict
+            The spectral record itself, in the same format as an entry of `vis_data`.
+        """
+        for _, data_dict in self.stream_integrations(data_type, **kwargs):
+            yield from data_dict.items()
 
     def _write_cross_data(self, filepath=None, *, append_data=False, raise_err=True):
         """
@@ -2038,8 +2344,8 @@ class MirParser:
                 key: idx for idx, key in enumerate(self.bl_data.get_header_keys())
             }
             bl_pos = np.array([blhid_map[k] for k in self.sp_data["blhid"]], dtype=int)
-            norm_arr = bl_norm[bl_pos]
-            all_flag_arr = norm_arr == 0.0
+            temp_norm = bl_norm[bl_pos]
+            temp_flag = temp_norm == 0.0
 
             # Samples == freq resolution * integration time
             n_sample = np.abs(self.sp_data["fres"] * 1e6) * (
@@ -2047,16 +2353,16 @@ class MirParser:
             )
             with np.errstate(divide="ignore", invalid="ignore"):
                 if invert:
-                    wt_arr = np.square(norm_arr) / n_sample
+                    temp_wt = np.square(temp_norm) / n_sample
                 else:
-                    wt_arr = n_sample / np.square(norm_arr)
+                    temp_wt = n_sample / np.square(temp_norm)
         else:
             # The "wt" column is calculated as (integ time)/(T_DSB ** 2), but we want
             # units of Jy**-2. To do this, we just need to multiply by one of the
             # forward gain of the antenna (130 Jy/K for SMA) squared and the channel
             # width. The factor of 2**2 (4) arises because we need to convert T_DSB**2
             # to T_SSB**2. Note the 1e6 is there to convert fres from MHz to Hz.
-            wt_arr = (
+            temp_wt = (
                 self.sp_data["wt"]
                 * abs(self.sp_data["fres"])
                 * (1e6 * ((self.jypk * 2.0) ** (-2.0)))
@@ -2065,29 +2371,39 @@ class MirParser:
             # For data normalization, we used the "wt" but strip out the integration
             # time and take the inverse sqrt to get T_DSB, and then use the forward
             # gain (plus 2x for DSB -> SSB) to get values of Jy.
-            norm_arr = np.zeros_like(wt_arr)
-            norm_arr = np.reciprocal(
-                self.sp_data["wt"], where=(wt_arr != 0), out=norm_arr
+            temp_norm = np.zeros_like(temp_wt)
+            temp_norm = np.reciprocal(
+                self.sp_data["wt"], where=(temp_wt != 0), out=temp_norm
             )
-            norm_arr = (
+            temp_norm = (
                 self.jypk
                 * 2.0
                 * np.sqrt(
-                    norm_arr
+                    temp_norm
                     * self.in_data.get_value("rinteg", header_key=self.sp_data["inhid"])
                 )
             )
 
             if invert:
-                for arr in [norm_arr, wt_arr]:
+                for arr in [temp_norm, temp_wt]:
                     np.reciprocal(arr, where=(arr != 0), out=arr)
 
-            all_flag_arr = norm_arr == 0.0
+            temp_flag = temp_norm == 0.0
 
         # Records with no usable Tsys are left alone rather than scaled by zero, which
         # is what `apply_tsys` does when it finds one -- it sets the flags and moves on.
-        norm_arr = np.where(all_flag_arr, 1.0, norm_arr).astype(np.float32)
-        wt_arr = np.where(all_flag_arr, 1.0, wt_arr).astype(np.float32)
+        temp_norm = np.where(temp_flag, 1.0, temp_norm).astype(np.float32)
+        temp_wt = np.where(temp_flag, 1.0, temp_wt).astype(np.float32)
+
+        norm_arr = np.zeros(self.sp_data._size, dtype=np.float32)
+        wt_arr = np.zeros(self.sp_data._size, dtype=np.float32)
+        all_flag_arr = np.zeros(self.sp_data._size, dtype=bool)
+
+        # Refill these to the size of the other arrays used (e.g., recpos)
+        mask_idx = np.nonzero(self.sp_data._mask)[0]
+        norm_arr[mask_idx] = temp_norm
+        wt_arr[mask_idx] = temp_wt
+        all_flag_arr[mask_idx] = temp_flag
 
         return norm_arr, wt_arr, all_flag_arr
 
@@ -2141,8 +2457,16 @@ class MirParser:
             invert=invert, use_cont_det=use_cont_det
         )
 
+        # `_get_tsys_norm` hands back one entry per row of the full table, so that the
+        # read path can index it with the same row numbers it uses for everything else.
+        # Here the records in hand are the selected ones, so narrow it down to those.
+        mask_idx = np.nonzero(self.sp_data._mask)[0]
         for sphid, norm_val, wt_val, all_flag in zip(
-            self.sp_data["sphid"], norm_arr, wt_arr, all_flag_arr, strict=True
+            self.sp_data["sphid"],
+            norm_arr[mask_idx],
+            wt_arr[mask_idx],
+            all_flag_arr[mask_idx],
+            strict=True,
         ):
             vis_dict = self.vis_data[sphid]
             if all_flag:
