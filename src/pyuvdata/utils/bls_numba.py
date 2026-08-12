@@ -8,17 +8,17 @@ import numpy as np
 from .types import Int64Array, UInt64Array
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def _max_ant(ant1: Int64Array, ant2: Int64Array) -> np.int64:
     return np.maximum(np.max(ant1), np.max(ant2))
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def _min_ant(ant1: Int64Array, ant2: Int64Array) -> np.int64:
     return np.minimum(np.min(ant1), np.min(ant2))
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def _baseline_to_antnums(
     baselines: UInt64Array, max_baseline: np.uint64, use_miriad_convention: bool = False
 ) -> UInt64Array:
@@ -60,12 +60,12 @@ def _baseline_to_antnums(
     return ant_arr
 
 
-@numba.vectorize("uint64(uint64,uint64,uint64,uint64)")
+@numba.vectorize("uint64(uint64,uint64,uint64,uint64)", cache=True)
 def _antnums_to_baseline_vec(ant1, ant2, offset, modulus):
     return (modulus * ant1) + ant2 + offset
 
 
-@numba.njit()
+@numba.njit(cache=True)
 def _antnums_to_baseline(
     ant1: UInt64Array,
     ant2: UInt64Array,
