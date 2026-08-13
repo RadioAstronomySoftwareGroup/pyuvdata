@@ -817,8 +817,8 @@ def transform_sidereal_coords(
         raise ValueError("lon and lat must be the same shape.")
 
     if lon_coord.ndim == 0:
-        lon_coord.shape += (1,)
-        lat_coord.shape += (1,)
+        lon_coord = np.atleast_1d(lon_coord)
+        lat_coord = np.atleast_1d(lat_coord)
 
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
@@ -1082,16 +1082,16 @@ def transform_icrs_to_app(
     # throw errors if we try to treat it as an array. Reshape to a 1D array of len 1
     # so that all the calls can be uniform
     if ra_coord.ndim == 0:
-        ra_coord.shape += (1,)
-        dec_coord.shape += (1,)
+        ra_coord = np.atleast_1d(ra_coord)
+        dec_coord = np.atleast_1d(dec_coord)
         if pm_ra_coord is not None:
-            pm_ra_coord.shape += (1,)
+            pm_ra_coord = np.atleast_1d(pm_ra_coord)
         if pm_dec_coord is not None:
-            pm_dec_coord.shape += (1,)
+            pm_dec_coord = np.atleast_1d(pm_dec_coord)
         if d_coord is not None:
-            d_coord.shape += (1,)
+            d_coord = np.atleast_1d(d_coord)
         if v_coord is not None:
-            v_coord.shape += (1,)
+            v_coord = np.atleast_1d(v_coord)
 
     if astrometry_library == "astropy":
         # Astropy doesn't have (oddly enough) a way of getting at the apparent RA/Dec

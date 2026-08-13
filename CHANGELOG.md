@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Updating code to no longer set shapes directly on ndarrays (deprecated in NumPy 2.5)
 - Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Added
