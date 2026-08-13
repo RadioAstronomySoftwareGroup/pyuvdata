@@ -4582,9 +4582,9 @@ class UVData(UVBase):
             cat_lon = np.array(cat_lon, dtype=float)
             cat_lat = np.array(cat_lat, dtype=float)
             cat_times = np.array(cat_times, dtype=float)
-            cat_lon.shape += (1,) if (cat_lon.ndim == 0) else ()
-            cat_lat.shape += (1,) if (cat_lat.ndim == 0) else ()
-            cat_times.shape += (1,) if (cat_times.ndim == 0) else ()
+            cat_lon = np.atleast_1d(cat_lon)
+            cat_lat = np.atleast_1d(cat_lat)
+            cat_times = np.atleast_1d(cat_times)
             check_ephem = np.min(time_array) < np.min(cat_times)
             check_ephem = check_ephem or (np.max(time_array) > np.max(cat_times))
             # If the ephem was supplied by JPL-Horizons, then we can easily expand

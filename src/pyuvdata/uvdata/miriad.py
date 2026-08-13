@@ -979,7 +979,7 @@ class Miriad(UVData):
             # some point, the below will need to be fixed -- I'm keeping this here so
             # that I can skip reading through the MIRIAD programmers guide yet again.
             if len(d.shape) == 1:
-                d.shape = (1,) + d.shape
+                d = np.reshape(d, (1, *d.shape))
 
             if np.size(d) != self.Nfreqs:
                 raise ValueError("Number of channels in spectrum has changed!")
@@ -1251,8 +1251,7 @@ class Miriad(UVData):
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
                 # axis but avoid any missing visbilities
-                uvw = d[0] * c_ns
-                uvw.shape = (1, 3)
+                uvw = np.reshape(d[0] * c_ns, (1, 3))
                 uvw_pol_list[blt_index, :, pol_ind] = uvw
                 ra_pol_list[blt_index, pol_ind] = d[7]
                 dec_pol_list[blt_index, pol_ind] = d[8]
