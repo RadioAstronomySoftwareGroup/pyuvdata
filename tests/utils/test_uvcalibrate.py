@@ -1067,3 +1067,211 @@ def test_uvcalibrate_apply_to_weights_delay(uvcalibrate_data):
     uvd_weight = utils.uvcalibrate(uvd, uvc, apply_to_weights=True, inplace=False)
 
     np.testing.assert_array_equal(uvd_weight.nsample_array, 1.0)
+
+
+def test_uvcalibrate_select_blt_inds(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # Both calls need apply_to_weights, since the weights are compared below.
+    full = utils.uvcalibrate(uvd, uvc, inplace=False, apply_to_weights=True)
+    mask = np.zeros(uvd.Nblts, dtype=bool)
+    mask[: uvd.Nblts // 3] = True
+    part = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        uvd_select_kwargs={"blt_inds": np.nonzero(mask)[0]},
+        apply_to_weights=True,
+    )
+
+    np.testing.assert_array_equal(part.data_array[mask], full.data_array[mask])
+    np.testing.assert_array_equal(part.flag_array[mask], full.flag_array[mask])
+    np.testing.assert_array_equal(part.nsample_array[mask], full.nsample_array[mask])
+    # Everything outside the selection has to come back untouched.
+    np.testing.assert_array_equal(part.data_array[~mask], uvd.data_array[~mask])
+    np.testing.assert_array_equal(part.flag_array[~mask], uvd.flag_array[~mask])
+    np.testing.assert_array_equal(part.nsample_array[~mask], uvd.nsample_array[~mask])
+
+
+def test_uvcalibrate_catalog_names(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # Split the data across two phase centers so there is something to choose between.
+    cat_id = uvd._add_phase_center(cat_name="second_source", cat_type="unprojected")
+    half = np.zeros(uvd.Nblts, dtype=bool)
+    half[uvd.Nblts // 2 :] = True
+    uvd.phase_center_id_array[half] = cat_id
+    first_name = uvd.phase_center_catalog[uvd.phase_center_id_array[0]]["cat_name"]
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    part = utils.uvcalibrate(
+        uvd, uvc, inplace=False, uvd_select_kwargs={"catalog_names": ["second_source"]}
+    )
+
+    np.testing.assert_array_equal(part.data_array[half], full.data_array[half])
+    np.testing.assert_array_equal(part.data_array[~half], uvd.data_array[~half])
+
+    # A bare string should behave the same as a length-one list.
+    single = utils.uvcalibrate(
+        uvd, uvc, inplace=False, uvd_select_kwargs={"catalog_names": "second_source"}
+    )
+    np.testing.assert_array_equal(single.data_array, part.data_array)
+
+    # Naming every phase center is the same as not selecting at all.
+    both = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        uvd_select_kwargs={"catalog_names": [first_name, "second_source"]},
+    )
+    np.testing.assert_array_equal(both.data_array, full.data_array)
+
+
+def test_uvcalibrate_select_polarizations(uvcalibrate_data):
+    """Selecting a polarization should leave the others exactly as they were."""
+    uvd, uvc = uvcalibrate_data
+
+    keep = uvd.polarization_array[0]
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    part = utils.uvcalibrate(
+        uvd, uvc, inplace=False, uvd_select_kwargs={"polarizations": [keep]}
+    )
+
+    np.testing.assert_array_equal(part.data_array[:, :, 0], full.data_array[:, :, 0])
+    np.testing.assert_array_equal(part.data_array[:, :, 1:], uvd.data_array[:, :, 1:])
+    np.testing.assert_array_equal(part.flag_array[:, :, 1:], uvd.flag_array[:, :, 1:])
+
+
+@pytest.mark.parametrize("by_chans", [True, False])
+def test_uvcalibrate_select_frequencies(uvcalibrate_data, by_chans):
+    """Selecting channels should leave the rest of the band exactly as it was."""
+    uvd, uvc = uvcalibrate_data
+
+    keep = np.arange(uvd.Nfreqs // 3)
+    sel = {"freq_chans": keep} if by_chans else {"frequencies": uvd.freq_array[keep]}
+    rest = np.setdiff1d(np.arange(uvd.Nfreqs), keep)
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    part = utils.uvcalibrate(uvd, uvc, inplace=False, uvd_select_kwargs=sel)
+
+    np.testing.assert_array_equal(part.data_array[:, keep], full.data_array[:, keep])
+    np.testing.assert_array_equal(part.flag_array[:, keep], full.flag_array[:, keep])
+    np.testing.assert_array_equal(part.data_array[:, rest], uvd.data_array[:, rest])
+    np.testing.assert_array_equal(part.flag_array[:, rest], uvd.flag_array[:, rest])
+
+
+def test_uvcalibrate_select_frequencies_with_blts(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    keep_f = np.arange(uvd.Nfreqs // 3)
+    rest_f = np.setdiff1d(np.arange(uvd.Nfreqs), keep_f)
+    mask = np.zeros(uvd.Nblts, dtype=bool)
+    mask[::2] = True
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    part = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        uvd_select_kwargs={"freq_chans": keep_f, "blt_inds": np.nonzero(mask)[0]},
+    )
+
+    # Only the intersection is calibrated.
+    np.testing.assert_array_equal(
+        part.data_array[np.ix_(mask, keep_f)], full.data_array[np.ix_(mask, keep_f)]
+    )
+    np.testing.assert_array_equal(
+        part.data_array[np.ix_(~mask, keep_f)], uvd.data_array[np.ix_(~mask, keep_f)]
+    )
+    np.testing.assert_array_equal(part.data_array[:, rest_f], uvd.data_array[:, rest_f])
+
+
+def test_uvcalibrate_select_errs(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+    with pytest.raises(
+        ValueError, match=re.escape("Unrecognized keyword(s) in uvd_select_kwargs")
+    ):
+        utils.uvcalibrate(uvd, uvc, inplace=False, uvd_select_kwargs={"nonsense": 1})
+
+    with pytest.raises(ValueError, match="Cannot set inplace via interp_kwargs"):
+        utils.uvcalibrate(
+            uvd, uvc, inplace=False, interpolate=True, interp_kwargs={"inplace": True}
+        )
+
+    with pytest.raises(ValueError, match="Cannot set inplace via uvc_select_kwargs"):
+        utils.uvcalibrate(uvd, uvc, inplace=False, uvc_select_kwargs={"inplace": True})
+
+
+@pytest.mark.parametrize("kind", ["nearest", "linear"])
+def test_uvcalibrate_interpolate(uvcalibrate_data, kind):
+    uvd, uvc = uvcalibrate_data
+
+    uvc_copy = uvc.select(times=uvc.time_array[::2], inplace=False)
+
+    manual = uvc_copy.interpolate_in_time(
+        np.unique(uvd.time_array), kind=kind, allow_extrapolation=True, inplace=False
+    )
+    expected = utils.uvcalibrate(uvd, manual, inplace=False)
+    got = utils.uvcalibrate(
+        uvd,
+        uvc_copy,
+        inplace=False,
+        interpolate=True,
+        interp_kwargs={"kind": kind, "allow_extrapolation": True},
+    )
+
+    np.testing.assert_allclose(got.data_array, expected.data_array)
+    np.testing.assert_array_equal(got.flag_array, expected.flag_array)
+    # The object handed in must not be modified.
+    assert uvc_copy.Ntimes == uvc.Ntimes // 2 + uvc.Ntimes % 2
+
+
+def test_uvcalibrate_interpolate_with_select(uvcalibrate_data):
+    """Interpolation and record selection should compose."""
+    uvd, uvc = uvcalibrate_data
+    uvc_thin = uvc.select(times=uvc.time_array[::2], inplace=False)
+    interp_kwargs = {"kind": "linear", "allow_extrapolation": True}
+
+    full = utils.uvcalibrate(
+        uvd, uvc_thin, inplace=False, interpolate=True, interp_kwargs=interp_kwargs
+    )
+    mask = np.zeros(uvd.Nblts, dtype=bool)
+    mask[::2] = True
+    part = utils.uvcalibrate(
+        uvd,
+        uvc_thin,
+        inplace=False,
+        interpolate=True,
+        interp_kwargs=interp_kwargs,
+        uvd_select_kwargs={"blt_inds": np.nonzero(mask)[0]},
+    )
+
+    np.testing.assert_array_equal(part.data_array[mask], full.data_array[mask])
+    np.testing.assert_array_equal(part.data_array[~mask], uvd.data_array[~mask])
+
+
+@pytest.mark.filterwarnings("ignore:Antennas .* have data on UVData but are missing")
+@pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
+def test_uvcalibrate_uvc_select_kwargs(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # Drop an antenna from the solutions -- a selection that leaves the time axis
+    # alone, so it does not need interpolating back to match the data.
+    keep = uvc.ant_array[:-1]
+    manual = uvc.select(antenna_nums=keep, inplace=False)
+    expected = utils.uvcalibrate(uvd, manual, inplace=False, ant_check=False)
+    got = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        ant_check=False,
+        uvc_select_kwargs={"antenna_nums": keep},
+    )
+
+    np.testing.assert_array_equal(got.data_array, expected.data_array)
+    np.testing.assert_array_equal(got.flag_array, expected.flag_array)
+    # Dropping the antenna has to actually change the result, or this proves nothing.
+    full = utils.uvcalibrate(uvd, uvc, inplace=False, ant_check=False)
+    assert not np.array_equal(got.flag_array, full.flag_array)
+    # The UVCal handed in must be untouched.
+    assert len(uvc.ant_array) == len(keep) + 1

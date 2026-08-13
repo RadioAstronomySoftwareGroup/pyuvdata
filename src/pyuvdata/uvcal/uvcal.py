@@ -4037,8 +4037,9 @@ class UVCal(UVBase):
             list of spw indices to keep. Can be None (to keep everything).
         freq_inds : list of int
             list of frequency indices to keep. Can be None (to keep everything).
-        pol_inds : list of int
-            list of polarization indices to keep. Can be None (to keep everything).
+        jones_inds : list of int
+            list of Jones polarization indices to keep. Can be None (to keep
+            everything).
         history_update_string : str
             string to append to the end of the history.
 

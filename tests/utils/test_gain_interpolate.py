@@ -904,3 +904,22 @@ def test_time_interp_cal_var_errs(
         gi_utils.time_interp_cal(
             old_times, gain_array, blank_flags, new_times, kind="poly", **var_kwargs
         )
+
+
+@pytest.mark.parametrize("kind,kwargs", [["cubic", {}], ["poly", {"poly_order": 3}]])
+def test_time_interp_cal_undersupplied_flags_nans(
+    gain_array, blank_flags, old_times, new_times, kind, kwargs
+):
+    # Verify that cubin/poly interpolation with too few solns get flagged
+    few = slice(0, 3)
+    new_cal, new_flags = gi_utils.time_interp_cal(
+        old_times[few],
+        gain_array[:, :, few],
+        blank_flags[:, :, few],
+        new_times,
+        kind=kind,
+        **kwargs,
+    )
+
+    assert not np.all(np.isfinite(new_cal)), "expected this case to produce NaN"
+    assert np.all(new_flags[~np.isfinite(new_cal)])

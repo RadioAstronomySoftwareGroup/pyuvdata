@@ -2489,11 +2489,17 @@ class UVFlag(UVBase):
         -------
         blt_inds : list of int
             list of baseline-time indices to keep. Can be None (to keep everything).
+        time_inds : list of int
+            list of time indices to keep. Can be None (to keep everything; only
+            valid for "waterfall" and "antenna" modes).
         ant_inds : list of int
             list of antenna number indices to keep. Can be None
             (keep all; only valid for "antenna" mode).
         freq_inds : list of int
             list of frequency indices to keep. Can be None (to keep everything).
+        spw_inds : list of int
+            list of spectral window indices to keep. Can be None (to keep
+            everything).
         pol_inds : list of int
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
