@@ -1286,4 +1286,11 @@ def time_interp_cal(
     else:
         new_cal, new_flags = _interp_dispatcher(mode=interp_mode, **interp_kwargs)
 
+    # Some schemes, e.g., "cubic" and "poly", will return NaN if no interpolation can
+    # be generated b/c of a lack of enough data points to interpolate/fit to -- make
+    # sure those are flagged now in the returned solns.
+    bad_vals = ~np.isfinite(new_cal)
+    if np.any(bad_vals):
+        new_flags |= bad_vals
+
     return new_cal, new_flags

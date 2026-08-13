@@ -142,6 +142,100 @@ def _apply_pol_convention_corrections(
     uvdata.pol_convention = None if undo else uvd_pol_convention
 
 
+def _select_uvd_records(uvdata, uvd_select_kwargs):
+    """
+    Work out which records a calibration should be applied to.
+
+    Note that this is an internal helper function, not meant to be called by users.
+    This function grabs the indicies that match a given set of `select` keywords, for
+    use during `uvcalibrate`. Under the hood, it uses `UVData._select_preprocess`, to
+    identify these index positions, allowing for a subset of visibilities to be modified
+    in place (rather than selecting out a subset, applying calibration, and then
+    merging the modified visibilities back in).
+
+    Note this chooses what to calibrate; nothing is removed from `uvdata` either way.
+
+    Parameters
+    ----------
+    uvdata : UVData object
+        Object being calibrated, used to resolve the selection and size the masks.
+    uvd_select_kwargs : dict or None
+        Keywords describing the selection, as accepted by `UVData.select`.
+
+    Returns
+    -------
+    blt_mask : ndarray of bool or None
+        Mask of shape (Nblts,), or None when every record is being calibrated.
+    freq_inds : ndarray of int or None
+        Indices of the channels being calibrated, or None for all of them. Returned
+        as indices rather than a mask because they are used to index the data.
+    pol_mask : ndarray of bool or None
+        Mask of shape (Npols,), or None when every polarization is being calibrated.
+
+    Raises
+    ------
+    ValueError
+        If a keyword is not one `UVData.select` accepts, or if the selection leaves
+        nothing to calibrate.
+    """
+    if not uvd_select_kwargs:
+        return None, None, None
+
+    # `_select_preprocess` takes every selection keyword positionally-by-name with no
+    # defaults, so fill in the ones the caller did not ask about.
+    allowed = {
+        "antenna_nums": None,
+        "antenna_names": None,
+        "ant_str": None,
+        "bls": None,
+        "frequencies": None,
+        "freq_chans": None,
+        "spws": None,
+        "times": None,
+        "time_range": None,
+        "lsts": None,
+        "lst_range": None,
+        "polarizations": None,
+        "blt_inds": None,
+        "phase_center_ids": None,
+        "catalog_names": None,
+    }
+    passthrough = {"invert", "strict", "warn_spacing"}
+    unknown = set(uvd_select_kwargs) - set(allowed) - passthrough
+    if unknown:
+        raise ValueError(
+            f"Unrecognized keyword(s) in uvd_select_kwargs: {sorted(unknown)}. "
+            f"Allowed: {sorted(set(allowed) | passthrough)}."
+        )
+    kwargs = dict(allowed)
+    kwargs.update(uvd_select_kwargs)
+
+    blt_inds, freq_inds, _, pol_inds, _ = uvdata._select_preprocess(**kwargs)
+
+    blt_mask = None
+    if blt_inds is not None:
+        blt_mask = np.zeros(uvdata.Nblts, dtype=bool)
+        blt_mask[blt_inds] = True
+        if not blt_mask.any():
+            raise ValueError(
+                "The selection leaves no baseline-time records to calibrate."
+            )
+
+    if freq_inds is not None:
+        freq_inds = np.asarray(freq_inds)
+        if not freq_inds.size:
+            raise ValueError("The selection leaves no frequencies to calibrate.")
+
+    pol_mask = None
+    if pol_inds is not None:
+        pol_mask = np.zeros(uvdata.Npols, dtype=bool)
+        pol_mask[pol_inds] = True
+        if not pol_mask.any():
+            raise ValueError("The selection leaves no polarizations to calibrate.")
+
+    return blt_mask, freq_inds, pol_mask
+
+
 def uvcalibrate(
     uvdata,
     uvcal,
@@ -158,6 +252,10 @@ def uvcalibrate(
     uvc_pol_convention: Literal["sum", "avg"] | None = None,
     uvd_pol_convention: Literal["sum", "avg"] | None = None,
     apply_to_weights: bool = False,
+    uvd_select_kwargs=None,
+    uvc_select_kwargs=None,
+    interpolate: bool = False,
+    interp_kwargs=None,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -220,6 +318,27 @@ def uvcalibrate(
         array will be multiplied by the inverse-square of the absolute value of the
         gains correction applied to the data (similar to the behavior of CASA's
         applycal function with `calwt=True`). Default is False.
+    uvd_select_kwargs : dict, optional
+        Keywords describing which data to calibrate, using the same vocabulary
+        `UVData.select` accepts -- e.g. `{"catalog_names": ["3c279"]}` to calibrate
+        one source, or `{"antenna_nums": [1, 2]}`, `{"time_range": [...]}`,
+        `{"blt_inds": [...]}`. Default is None, which calibrates everything. See the
+        `UVData.select` docstring for further details.
+    uvc_select_kwargs : dict, optional
+        Keywords passed to `UVCal.select` to choose which solutions to calibrate
+        with, e.g. `{"catalog_names": ["3c279"]}` to use the solutions derived from
+        one source. Default is None, which uses all of the solutions. See the
+        `UVCal.select` docstring for further details.
+    interpolate : bool
+        If True, interpolate the calibration onto the times of the data being
+        calibrated (via `UVCal.interpolate_in_time`) before applying it, rather than
+        requiring the two to already agree. Default is False.
+    interp_kwargs : dict, optional
+        Keywords passed through to `UVCal.interpolate_in_time` when
+        `interpolate=True`, e.g. `{"kind": "linear"}`. The times to interpolate onto
+        are supplied by this method, and `inplace` may not be set. Default is None,
+        which uses the defaults of `interpolate_in_time` (see that methods docstring
+        for further details).
 
     Returns
     -------
@@ -330,6 +449,41 @@ def uvcalibrate(
                         "are missing on UVCal. To continue calibration and "
                         "flag the data from missing antennas, set ant_check=False."
                     )
+
+    # Work out which baseline-time records are being calibrated, and find those entries
+    blt_mask, freq_inds, pol_mask = _select_uvd_records(uvdata, uvd_select_kwargs)
+    # A plain slice when nothing was selected, so the untouched path stays a view.
+    freq_sel = slice(None) if freq_inds is None else freq_inds
+
+    if uvc_select_kwargs is not None:
+        # Narrow the solutions before anything else looks at them, so that the time
+        # checks and any interpolation below see only the ones being applied.
+        if "inplace" in uvc_select_kwargs:
+            raise ValueError(
+                "Cannot set inplace via uvc_select_kwargs, since uvcalibrate needs "
+                "to leave the UVCal object it was handed alone."
+            )
+        uvcal = uvcal.select(**uvc_select_kwargs, inplace=False)
+
+    if interpolate:
+        interp_kwargs = {} if interp_kwargs is None else dict(interp_kwargs)
+        if "inplace" in interp_kwargs:
+            raise ValueError(
+                "Cannot set inplace via interp_kwargs, since uvcalibrate needs to "
+                "leave the UVCal object it was handed alone."
+            )
+        if uvcal.time_range is not None:
+            raise ValueError(
+                "Cannot interpolate a UVCal object that uses time_range rather than "
+                "time_array, since there is no single time to interpolate from."
+            )
+        # Interpolate onto every time in the data. Note that we do this also for the
+        # times left out of the selection to keep the time-axis "locking", since that
+        # is used by the checks below. The extra solutions simply go unused, and the
+        # overhead here is low to justify the extra arithmetic.
+        uvcal = uvcal.interpolate_in_time(
+            np.unique(uvdata.time_array), inplace=False, **interp_kwargs
+        )
 
     uvdata_times, uvd_time_ri = np.unique(uvdata.time_array, return_inverse=True)
     uvcal_times_to_keep = None
@@ -551,9 +705,28 @@ def uvcalibrate(
         for key in uvdata.get_antpairpols():
             # get indices for this key
             blt_inds = uvdata.antpair2ind(key)
+            keep_pos = None
+            if (blt_mask is not None or freq_inds is not None) and isinstance(
+                blt_inds, slice
+            ):
+                # `antpair2ind` hands back a slice when the records happen to be
+                # contiguous, but a slice won't work with the select operations,
+                # so make the indices.
+                blt_inds = np.arange(uvdata.Nblts)[blt_inds]
+            if blt_mask is not None:
+                # If we need are just performing the apply on a subset of baseline pairs
+                # then we want to grab those now.
+                keep_pos = blt_mask[blt_inds]
+                blt_inds = blt_inds[keep_pos]
+                if not blt_inds.size:
+                    # Nothing selected on this baseline, skip!
+                    continue
             pol_ind = np.argmin(
                 np.abs(uvdata.polarization_array - polstr2num(key[2], uvd_x))
             )
+            if pol_mask is not None and not pol_mask[pol_ind]:
+                # This polarization was not selected, so skip it
+                continue
 
             # try to get gains for each antenna
             ant1_num = key[0]
@@ -593,6 +766,11 @@ def uvcalibrate(
             if uvcal.time_range is not None and uvcal.Ntimes > 1:
                 gain = gain[trange_ind_arr[blt_inds], :]
                 flag = flag[trange_ind_arr[blt_inds], :]
+            elif keep_pos is not None and gain.shape[0] == keep_pos.size:
+                # If we only need a subset of the interpolated gains, grab them now
+                # for the apply step.
+                gain = gain[keep_pos]
+                flag = flag[keep_pos]
 
             # Use a slice operator to expand out the flags and gains with a wide_band
             # calibration solution, otherwise use the Ellipsis to select the whole
@@ -600,31 +778,37 @@ def uvcalibrate(
             gain_slice = ...
             if uvcal_use.wide_band:
                 gain_slice = np.s_[
-                    :, [uvc_spw_map[spw] for spw in uvdata.flex_spw_id_array]
+                    :, [uvc_spw_map[spw] for spw in uvdata.flex_spw_id_array[freq_sel]]
+                ]
+            elif freq_inds is not None:
+                gain_slice = np.s_[:, freq_inds]
+
+            # Do the same on the data side
+            if freq_inds is None:
+                data_slice = np.s_[blt_inds, :, pol_ind]
+            else:
+                data_slice = np.s_[
+                    blt_inds[:, np.newaxis], freq_inds[np.newaxis, :], pol_ind
                 ]
 
             # propagate flags
             if prop_flags:
                 mask = np.isclose(gain, 0.0) | flag
                 gain[mask] = 1.0
-                uvdata.flag_array[blt_inds, :, pol_ind] |= mask[gain_slice]
+                uvdata.flag_array[data_slice] |= mask[gain_slice]
 
             # apply to data
             mult_gains = uvcal_use.gain_convention == "multiply"
             if undo:
                 mult_gains = not mult_gains
             if mult_gains:
-                uvdata.data_array[blt_inds, :, pol_ind] *= gain[gain_slice]
+                uvdata.data_array[data_slice] *= gain[gain_slice]
                 if apply_to_weights:
-                    uvdata.nsample_array[blt_inds, :, pol_ind] /= (
-                        abs(gain[gain_slice]) ** 2
-                    )
+                    uvdata.nsample_array[data_slice] /= abs(gain[gain_slice]) ** 2
             else:
-                uvdata.data_array[blt_inds, :, pol_ind] /= gain[gain_slice]
+                uvdata.data_array[data_slice] /= gain[gain_slice]
                 if apply_to_weights:
-                    uvdata.nsample_array[blt_inds, :, pol_ind] *= (
-                        abs(gain[gain_slice]) ** 2
-                    )
+                    uvdata.nsample_array[data_slice] *= abs(gain[gain_slice]) ** 2
 
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
