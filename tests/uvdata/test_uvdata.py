@@ -295,12 +295,17 @@ def mwa_integration_time():
     new_times = np.min(uv_init.time_array) + (
         np.arange(11, dtype=float) * new_int_time_jd
     )
+    # Selecting a subset of the antennas here, since it catches the critical integ
+    # time issue but significantly reduces the file size (and reduces the testing time
+    # by about 10% across the full run).
+    ant_nums = sorted({58, 61}.union(uv_init.telescope.antenna_numbers[:12].tolist()))
     uvd = UVData.new(
         freq_array=uv_init.freq_array,
         channel_width=uv_init.channel_width,
         polarization_array=uv_init.polarization_array,
         times=new_times,
         telescope=uv_init.telescope,
+        antpairs=list(itertools.combinations_with_replacement(ant_nums, 2)),
         do_blt_outer=True,
         empty=True,
     )
