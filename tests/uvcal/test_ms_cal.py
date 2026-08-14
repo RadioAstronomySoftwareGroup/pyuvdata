@@ -400,6 +400,73 @@ def test_ms_dterm_warning(sma_pcal, tmp_path):
         sma_pcal.write_ms_cal(testfile, clobber=True)
 
 
+@pytest.mark.parametrize("offset", [1e-5, 10.0])
+def test_ms_cal_offset_spw_times(sma_bcal, tmp_path, offset):
+    """Check that per-spw time stamps get lined up on a common time axis."""
+    from casacore import tables
+
+    testfile = os.path.join(tmp_path, "offset_spw_times.ms")
+    sma_bcal.write_ms_cal(testfile, clobber=True)
+    with tables.table(testfile, ack=False, readonly=False) as tb:
+        nrows = tb.nrows()
+        spw_ids = tb.getcol("SPECTRAL_WINDOW_ID")
+        tb.putcol("TIME", tb.getcol("TIME") + (offset * spw_ids))
+
+    uvcal = UVCal()
+    uvcal.read(testfile)
+
+    if offset < 1e-3:
+        # If the offset is small, we should get back the orig number of timestamps
+        assert uvcal.Ntimes == sma_bcal.Ntimes
+        assert uvcal.__eq__(
+            sma_bcal, allowed_failures=allowed_failures + ["_time_array", "_lst_array"]
+        )
+
+        # And writing back out should reproduce the same number of records we read in.
+        outfile = os.path.join(tmp_path, "offset_spw_times_rewrite.ms")
+        uvcal.write_ms_cal(outfile, clobber=True)
+        with tables.table(outfile, ack=False) as tb:
+            assert tb.nrows() == nrows
+    else:
+        # Otherwise, we'll get one entry per spectral window
+        assert uvcal.Ntimes == sma_bcal.Ntimes * sma_bcal.Nspws
+
+        # Confirm that the data are stripped in the way that we expect
+        for spw in sma_bcal.spw_array:
+            chan_mask = sma_bcal.flex_spw_id_array == spw
+            for item in ["gain_array", "flag_array", "quality_array"]:
+                np.testing.assert_array_almost_equal(
+                    getattr(sma_bcal, item)[:, chan_mask, 0, :],
+                    getattr(uvcal, item)[:, chan_mask, spw, :],
+                )
+
+
+def test_ms_cal_uneven_spw_times(sma_pcal, tmp_path):
+    """Check handling when windows record differing numbers of solutions."""
+    from casacore import tables
+
+    testfile = os.path.join(tmp_path, "uneven_spw_times.ms")
+    sma_pcal.write_ms_cal(testfile, clobber=True)
+
+    with tables.table(testfile, ack=False, readonly=False) as tb:
+        spw_ids = tb.getcol("SPECTRAL_WINDOW_ID")
+        tb.putcol("TIME", tb.getcol("TIME") + (10.0 * spw_ids))
+
+    # Drop the first solution of the last window, so that the two windows no longer
+    # agree on how many solutions they have.
+    with tables.table(testfile, ack=False, readonly=False) as tb:
+        spw_ids = tb.getcol("SPECTRAL_WINDOW_ID")
+        times = tb.getcol("TIME")
+        last_spw = spw_ids == np.max(spw_ids)
+        drop = np.nonzero(last_spw & (times == np.min(times[last_spw])))[0]
+        tb.removerows(drop)
+
+    # With no way to line the windows up, each window keeps its own time stamps.
+    uvcal = UVCal()
+    uvcal.read(testfile)
+    assert uvcal.Ntimes == (sma_pcal.Nspws * sma_pcal.Ntimes) - 1
+
+
 def test_ms_close_spaced_times(tmp_path):
 
     uvobj = UVCal()
