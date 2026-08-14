@@ -822,7 +822,7 @@ def _quantized_group(arr, tols, force=False):
         # matters - the check is about 100x faster than running the code below (and
         # about 10x faster that the code above), so it's a relatively trivial check.
         group_arr = np.zeros(len(arr), dtype=int)
-        check_val = sort_arr[0]
+        check_val = (sort_arr[0] + atol) * (1 + rtol)
         count = 0
         # Note that the tolist call helps to speed up the line below by ~10-20%
         for val, idx in zip(sort_arr.tolist(), np.argsort(arr).tolist(), strict=True):

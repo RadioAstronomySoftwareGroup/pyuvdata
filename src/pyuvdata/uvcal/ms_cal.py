@@ -47,6 +47,60 @@ DEFAULT_CAT_DICT = {
 }
 
 
+def _map_times(time_vals, *, rtol, atol):
+    """
+    Map a list of time stamps to a set of unique, time-ordered entries.
+
+    Parameters
+    ----------
+    time_vals : ndarray of float
+        Time stamps to map, of shape (Nrows,). Units are arbitrary, although they must
+        match those used for `atol`.
+    rtol : float
+        Relative tolerance to use for determining whether two time stamps match.
+    atol : float
+        Absolute tolerance to use for determining whether two time stamps match, in the
+        same units as `time_vals`.
+
+    Returns
+    -------
+    unique_times : ndarray of float
+        Sorted array of unique time stamps, of shape (Ntimes,).
+    index_map : ndarray of int
+        Index of `unique_times` that each entry in `time_vals` maps to, of shape
+        (Nrows,).
+    """
+    time_dict = {}
+    time_list = []
+    index_map = np.zeros(len(time_vals), dtype=int)
+    for idx, time in enumerate(time_vals):
+        try:
+            index_map[idx] = time_dict[time]
+            continue
+        except KeyError:
+            pass
+        # Check to see if there are any nearby entries, since time stamps that agree
+        # to within the tolerances are considered to be the same solution interval.
+        close_check = np.isclose(time_list, time, rtol=rtol, atol=atol)
+        if any(close_check):
+            # Fill in the first closest entry matched
+            time_dict[time] = np.where(close_check)[0][0]
+        else:
+            # Otherwise, plug in a new entry
+            time_dict[time] = len(time_list)
+            time_list.append(time)
+        index_map[idx] = time_dict[time]
+
+    # Rows are usually recorded in time order, but that's not guaranteed, so sort the
+    # unique entries here and remap the indices accordingly.
+    unique_times = np.array(time_list, dtype=float)
+    sort_idx = np.argsort(unique_times)
+    inv_idx = np.empty_like(sort_idx)
+    inv_idx[sort_idx] = np.arange(len(sort_idx))
+
+    return unique_times[sort_idx], inv_idx[index_map]
+
+
 class MSCal(UVCal):
     """
     Defines an MS-specific subclass of UVCal for reading MS calibration tables.
@@ -263,37 +317,14 @@ class MSCal(UVCal):
             self.sky_catalog = "CASA (import)"
             self._set_sky()
 
-        time_dict = {}
-        row_timeidx_map = []
-        time_count = 0
-        for time in tb_main.getcol("TIME"):
-            try:
-                row_timeidx_map.append(time_dict[time])
-            except KeyError:
-                # Check to see if there are any nearby entries, accounting for the fact
-                # that MS stores times in seconds and time_array tolerances are
-                # specified in days.
-                close_check = np.isclose(
-                    list(time_dict),
-                    time,
-                    rtol=self._time_array.tols[0] * 86400,
-                    atol=self._time_array.tols[1] * 86400,
-                )
-                if any(close_check):
-                    # Fill in the first closest entry matched
-                    time_dict[time] = time_dict[
-                        list(time_dict)[np.where(close_check)[0][0]]
-                    ]
-                else:
-                    # Otherwise, plug in a new entry
-                    time_dict[time] = time_count
-                    time_count += 1
-                # Finally, update the row_map with the correct value
-                row_timeidx_map.append(time_dict[time])
-
-        self.time_array = np.zeros(time_count, dtype=float)
-        self.integration_time = np.zeros(time_count, dtype=float)
-        self.Ntimes = time_count
+        time_col = tb_main.getcol("TIME")
+        row_time_idx = utils.tools._quantized_group(
+            time_col / 86400.0, self._time_array.tols, force=True
+        )
+        self.time_array = np.zeros(1 + row_time_idx.max(), dtype=float)
+        self.time_array[row_time_idx] = time_col
+        self.Ntimes = len(self.time_array)
+        self.integration_time = np.zeros(self.Ntimes, dtype=float)
 
         # Make a map to things.
         ant_dict = {ant: idx for idx, ant in enumerate(self.telescope.antenna_numbers)}
@@ -312,11 +343,10 @@ class MSCal(UVCal):
         exp_time = 0.0  # Default value if no exposure stored
         int_arr = np.zeros_like(self.time_array, dtype=float)
 
-        for row_idx, time_idx in enumerate(row_timeidx_map):
+        for row_idx, time_idx in enumerate(row_time_idx):
             try:
                 ant_idx = ant_dict[tb_main.getcell("ANTENNA1", row_idx)]
                 ref_ant = tb_main.getcell("ANTENNA2", row_idx)
-                time_val = tb_main.getcell("TIME", row_idx)
                 cal_soln = tb_main.getcell(cal_column, row_idx)
                 cal_qual = tb_main.getcell("PARAMERR", row_idx)
                 cal_flag = tb_main.getcell("FLAG", row_idx)
@@ -336,7 +366,6 @@ class MSCal(UVCal):
                 # and thus no flip is necessary for gains solns.
                 # TODO: Verify this is the case for delay solns as well.
                 ms_cal_soln[ant_idx, spw_slice, time_idx, :] = cal_soln
-                self.time_array[time_idx] = time_val
                 self.integration_time[time_idx] = exp_time
                 int_arr[time_idx] = int_time
                 self.quality_array[ant_idx, spw_slice, time_idx, :] = cal_qual
