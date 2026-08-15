@@ -9,6 +9,9 @@ were calibrated when a selection was used, whether the rest were flagged, and ho
 solutions were interpolated if `interpolate` was set.
 - Updating code to no longer set shapes directly on ndarrays (deprecated in NumPy 2.5)
 - Require lunarsky>1.0 to drop spiceypy requirement
+- Refactored `UVData.frequency_average` and `UVData.downsample_in_time` to use the new
+numba-based `utils.averaging.mapped_average` routine, which is significantly faster and
+uses less memory (substantially so for `UVData.frequency_average`).
 
 ### Added
 - A new method `UVCal.interpolate_in_time`, which allows for UVCal calibration tables
@@ -33,6 +36,15 @@ and feed_aligned_projection beams which result from an E-field beam decompositio
 used in some analysis codes.
 - Added more options for controlling labels on beam plots.
 - Support for MWA Average Embedded Element beams in UVBeam.
+- A new utility function `utils.averaging.mapped_average`, which performs a weighted
+average of an array along a single axis using an arbitrary map of input to output
+positions.
+- A `chan_map` keyword to `UVData.frequency_average`, which allows for mapping input to
+output channels, allowing for more sophisiticated averaging schemes (e.g., unevenly
+sized bins).
+- The keywords `weight_by_nsample` and `sum_nsample` to `UVData.frequency_average`,
+which control whether channels are weighted by `nsample_array` in the average, and
+whether `nsample_array` records the summed or the fractional number of samples.
 
 ### Fixed
 - A bug where `UVCal.pol_convention` was not being properly set when reading in
@@ -45,6 +57,9 @@ were resampled in time.
 were added or concatenated. The fix involved a major refactoring that should prevent
 similar bugs in the future by using UVParameter forms to detect which attributes
 to update on UVData objects.
+- A bug where `UVData.frequency_average` would either raise an IndexError or zero out
+fully-flagged channels in all spectral windows but the first, rather than recording
+the average of the flagged values.
 
 ### Removed
 - Spiceypy error catching in tests
