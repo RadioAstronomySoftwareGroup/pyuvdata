@@ -9327,6 +9327,180 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert uvobj.nsample_array.dtype.type is np.float16
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_frequency_average_chan_map_uneven_bins(casa_uvfits):
+    """A map can make bins of differing widths, and drop channels outright."""
+    uvobj = casa_uvfits
+    uvobj_orig = uvobj.copy()
+
+    # First output channel takes 2 input channels, second takes 6, and everything
+    # past that is dropped.
+    chan_map = np.full(uvobj.Nfreqs, -1, dtype=int)
+    chan_map[0:2] = 0
+    chan_map[2:8] = 1
+    uvobj.frequency_average(chan_map=chan_map)
+
+    assert uvobj.Nfreqs == 2
+    np.testing.assert_allclose(
+        uvobj.freq_array,
+        [np.mean(uvobj_orig.freq_array[0:2]), np.mean(uvobj_orig.freq_array[2:8])],
+    )
+    np.testing.assert_allclose(
+        uvobj.channel_width,
+        [np.sum(uvobj_orig.channel_width[0:2]), np.sum(uvobj_orig.channel_width[2:8])],
+    )
+
+    data = uvobj_orig.data_array
+    nsample = uvobj_orig.nsample_array.astype(np.float64)
+    for out_chan, sel in enumerate([slice(0, 2), slice(2, 8)]):
+        expected = np.sum(data[:, sel] * nsample[:, sel], axis=1) / np.sum(
+            nsample[:, sel], axis=1
+        )
+        np.testing.assert_allclose(
+            uvobj.data_array[:, out_chan],
+            expected,
+            rtol=uvobj._data_array.tols[0],
+            atol=uvobj._data_array.tols[1],
+        )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_frequency_average_chan_map_multi_spw(casa_uvfits):
+    """A map may not merge windows unless respect_spws says the windows are gone."""
+    uvobj = casa_uvfits
+    spw_nchan = uvobj.Nfreqs // 2
+    uvobj.flex_spw_id_array = np.concatenate(
+        (np.zeros(spw_nchan, dtype=int), np.ones(uvobj.Nfreqs - spw_nchan, dtype=int))
+    )
+    uvobj.spw_array = np.arange(2)
+    uvobj.Nspws = 2
+    uvobj2 = uvobj.copy()
+
+    # This map puts the last channel of spw 0 in with the first of spw 1.
+    chan_map = np.arange(uvobj.Nfreqs) // 4
+    chan_map[spw_nchan - 2 :] = np.arange(uvobj.Nfreqs - spw_nchan + 2) // 4 + (
+        chan_map[spw_nchan - 3] + 1
+    )
+
+    with pytest.raises(
+        ValueError, match="chan_map combines channels from different spectral windows"
+    ):
+        uvobj.frequency_average(chan_map=chan_map)
+
+    # With respect_spws False the windows are collapsed first, so this is allowed.
+    uvobj2.frequency_average(chan_map=chan_map, respect_spws=False)
+    assert uvobj2.Nspws == 1
+    assert uvobj2.Nfreqs == chan_map.max() + 1
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{}, "Exactly one of n_chan_to_avg and chan_map must be provided"],
+        [
+            {"n_chan_to_avg": 2, "chan_map": np.zeros(64, dtype=int)},
+            "Exactly one of n_chan_to_avg and chan_map must be provided",
+        ],
+        [{"chan_map": np.zeros(64, dtype=float)}, "chan_map must be an array of int"],
+        [{"chan_map": np.zeros(63, dtype=int)}, "chan_map must have shape"],
+        [{"chan_map": np.full(64, -1, dtype=int)}, "chan_map drops every channel"],
+        [{"chan_map": np.array([2] + [0] * 63)}, "contiguous set of output channels"],
+    ],
+)
+def test_frequency_average_chan_map_errors(casa_uvfits, kwargs, err_msg):
+    # n.b. casa_uvfits has Nfreqs of 64
+    uvobj = casa_uvfits
+    with pytest.raises(ValueError, match=err_msg):
+        uvobj.frequency_average(**kwargs)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_frequency_average_weight_by_nsample(casa_uvfits):
+    # Check that flag averages behave as expected
+    uvobj = casa_uvfits
+    n_chan_to_avg = 2
+    assert uvobj.Nfreqs % n_chan_to_avg == 0
+    assert np.nonzero(uvobj.flag_array)[0].size == 0
+
+    uvobj.nsample_array[:] = 1.0
+    uvobj.nsample_array[:, 0::2] = 3.0
+    uvobj2 = uvobj.copy()
+    uvobj3 = uvobj.copy()
+
+    shape = (uvobj.Nblts, uvobj.Nfreqs // n_chan_to_avg, n_chan_to_avg, uvobj.Npols)
+    data = uvobj.data_array.reshape(shape)
+    nsample = uvobj.nsample_array.reshape(shape).astype(np.float64)
+
+    uvobj.frequency_average(n_chan_to_avg)
+    expected_weighted = np.sum(data * nsample, axis=2) / np.sum(nsample, axis=2)
+
+    uvobj2.frequency_average(n_chan_to_avg, weight_by_nsample=False)
+    expected_flat = np.mean(data, axis=2)
+
+    uvobj3.frequency_average(
+        n_chan_to_avg, summing_correlator_mode=True, weight_by_nsample=True
+    )
+    expected_sum = np.sum(data, axis=2)
+
+    tols = {"rtol": uvobj._data_array.tols[0], "atol": uvobj._data_array.tols[1]}
+    np.testing.assert_allclose(uvobj.data_array, expected_weighted, **tols)
+    np.testing.assert_allclose(uvobj2.data_array, expected_flat, **tols)
+    np.testing.assert_allclose(uvobj3.data_array, expected_sum, **tols)
+    assert not np.allclose(uvobj.data_array, uvobj2.data_array)
+
+    # How the data get weighted should not change anything else about the result.
+    np.testing.assert_allclose(uvobj.nsample_array, uvobj2.nsample_array)
+    np.testing.assert_array_equal(uvobj.flag_array, uvobj2.flag_array)
+    np.testing.assert_allclose(uvobj.freq_array, uvobj2.freq_array)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("propagate_flags", [True, False])
+def test_frequency_average_flagging_multi_spw(casa_uvfits, propagate_flags):
+    # Catching a bug where a fully flagged output channel in any SPW after the
+    # first was either zeroed out or raised an IndexError with multi-spw datasets.
+    uvobj = casa_uvfits
+    n_chan_to_avg = 4
+    spw_nchan = uvobj.Nfreqs // 2
+    uvobj.flex_spw_id_array = np.concatenate(
+        (np.zeros(spw_nchan, dtype=int), np.ones(uvobj.Nfreqs - spw_nchan, dtype=int))
+    )
+    uvobj.spw_array = np.arange(2)
+    uvobj.Nspws = 2
+
+    # Fully flag the first output channel of each spw, so that both windows exercise
+    # the "everything that went into this channel is flagged" path.
+    flag_chans = [0, spw_nchan]
+    for chan in flag_chans:
+        uvobj.flag_array[:, chan : chan + n_chan_to_avg] = True
+
+    # Averaging each spw on its own cannot hit any cross-window index confusion, so
+    # use that as the reference for what the combined result should be.
+    refs = [
+        uvobj.select(spws=[spw], inplace=False, run_check=False) for spw in range(2)
+    ]
+    for ref in refs:
+        ref.frequency_average(n_chan_to_avg, propagate_flags=propagate_flags)
+
+    uvobj.frequency_average(n_chan_to_avg, propagate_flags=propagate_flags)
+
+    expected_data = np.concatenate([ref.data_array for ref in refs], axis=1)
+    expected_flags = np.concatenate([ref.flag_array for ref in refs], axis=1)
+    np.testing.assert_allclose(
+        uvobj.data_array,
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
+    np.testing.assert_array_equal(uvobj.flag_array, expected_flags)
+
+    # The fully flagged channels are flagged, but must not have been zeroed out.
+    out_chans = [0, spw_nchan // n_chan_to_avg]
+    assert np.all(uvobj.flag_array[:, out_chans])
+    assert np.all(uvobj.data_array[:, out_chans] != 0)
+
+
 def test_frequency_average_warnings(casa_uvfits):
     # test errors with varying freq spacing but with one spw
     uvd = casa_uvfits.copy()

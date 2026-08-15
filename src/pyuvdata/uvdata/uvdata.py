@@ -7445,10 +7445,23 @@ class UVData(UVBase):
         else:
             bls_to_downsample = np.unique(self.baseline_array)
 
+        # Group the blt axis by baseline in one shot (and preserve the indexing) so
+        # that we're not constantly parsing through each individual baseline.
+        bl_order = np.argsort(self.baseline_array, kind="stable")
+        sorted_bls = self.baseline_array[bl_order]
+        bl_dict = {
+            bl: bl_order[start:stop]
+            for bl, start, stop in zip(
+                bls_to_downsample,
+                np.searchsorted(sorted_bls, bls_to_downsample, side="left"),
+                np.searchsorted(sorted_bls, bls_to_downsample, side="right"),
+                strict=True,
+            )
+        }
+
         # figure out how many baseline times we'll end up with at the end
         n_new_samples = 0
-        for bl in bls_to_downsample:
-            bl_inds = np.nonzero(self.baseline_array == bl)[0]
+        for bl, bl_inds in bl_dict.items():
             int_times = self.integration_time[bl_inds]
 
             if min_int_time is not None:
@@ -7564,16 +7577,12 @@ class UVData(UVBase):
             temp_unprojected_blts = np.zeros((temp_Nblts,), dtype=bool)
         else:
             temp_unprojected_blts = None
-        if not self.metadata_only:
-            new_data_shape = (temp_Nblts, self.Nfreqs, self.Npols)
-            for param in ["data_array", "flag_array", "nsample_array"]:
-                update_dict[param] = np.zeros(
-                    new_data_shape, dtype=getattr(self, param).dtype
-                )
+        # Map each input-blt to the output blt, as though we're making the best
+        # sandwich factory ever. Note that the -1 here drops the blt from the object.
+        blt_map = np.full(self.Nblts, -1, dtype=np.int64)
 
         temp_idx = 0
-        for bl in bls_to_downsample:
-            bl_inds = np.nonzero(self.baseline_array == bl)[0]
+        for bl, bl_inds in bl_dict.items():
             running_int_time = 0.0
             summing_idx = 0
             n_sum = 0
@@ -7650,73 +7659,9 @@ class UVData(UVBase):
                         * self.integration_time[averaging_idx]
                     ) / np.sum(self.integration_time[averaging_idx])
                     update_dict["integration_time"][temp_idx] = running_int_time
-                    if not self.metadata_only:
-                        # if all inputs are flagged, the flag array should be True,
-                        # otherwise it should be False.
-                        # The sum below will be zero if it's all flagged and
-                        # greater than zero otherwise
-                        # Then we use a test against 0 to turn it into a Boolean
-                        update_dict["flag_array"][temp_idx] = (
-                            np.sum(~self.flag_array[averaging_idx], axis=0) == 0
-                        )
-
-                        mask = self.flag_array[averaging_idx]
-                        # need to update mask if a downsampled visibility will
-                        # be flagged so that we don't set it to zero
-                        if (update_dict["flag_array"][temp_idx]).any():
-                            ax1_inds, ax2_inds = np.nonzero(
-                                update_dict["flag_array"][temp_idx]
-                            )
-                            mask[:, ax1_inds, ax2_inds] = False
-
-                        masked_data = np.ma.masked_array(
-                            self.data_array[averaging_idx], mask=mask
-                        )
-
-                        # nsample array is the fraction of data that we actually kept,
-                        # relative to the amount that went into the sum or average
-                        nsample_dtype = self.nsample_array.dtype.type
-                        # promote nsample dtype if half-precision
-                        if nsample_dtype is np.float16:
-                            masked_nsample_dtype = np.float32
-                        else:
-                            masked_nsample_dtype = nsample_dtype
-                        masked_nsample = np.ma.masked_array(
-                            self.nsample_array[averaging_idx],
-                            mask=mask,
-                            dtype=masked_nsample_dtype,
-                        )
-
-                        int_time_arr = self.integration_time[
-                            averaging_idx, np.newaxis, np.newaxis
-                        ]
-                        masked_int_time = np.ma.masked_array(
-                            np.ones_like(
-                                self.data_array[averaging_idx],
-                                dtype=self.integration_time.dtype,
-                            )
-                            * int_time_arr,
-                            mask=mask,
-                        )
-                        if summing_correlator_mode:
-                            update_dict["data_array"][temp_idx] = np.sum(
-                                masked_data, axis=0
-                            )
-                        else:
-                            # take potential non-uniformity of integration_time
-                            # and nsamples into account
-                            weights = masked_nsample * masked_int_time
-                            weighted_data = masked_data * weights
-                            update_dict["data_array"][temp_idx] = np.sum(
-                                weighted_data, axis=0
-                            ) / np.sum(weights, axis=0)
-
-                        # output of masked array calculation should be coerced
-                        # to the datatype of update_dict["nsample_array"]
-                        # (which has the same precision as the original nsample_array)
-                        update_dict["nsample_array"][temp_idx] = np.sum(
-                            masked_nsample * masked_int_time, axis=0
-                        ) / np.sum(self.integration_time[averaging_idx])
+                    # Record which output sample these integrations feed into, so that
+                    # the data can all be averaged together in one shot below.
+                    blt_map[averaging_idx] = temp_idx
                     # increment counters and reset values
                     temp_idx += 1
                     summing_idx += n_sum
@@ -7732,6 +7677,23 @@ class UVData(UVBase):
                 f" Developer info: Wrong number of baselines. Got {temp_idx:d}, "
                 f"expected {temp_Nblts:d}."
             )
+
+        if not self.metadata_only:
+            data_array, flag_array, nsample_array = utils.averaging.mapped_average(
+                self.data_array,
+                index_map=blt_map,
+                flags=self.flag_array,
+                weights=self.nsample_array,
+                axis_weights=self.integration_time,
+                axis=0,
+                n_bins=temp_Nblts,
+                weighted=not summing_correlator_mode,
+                sum_mode=summing_correlator_mode,
+                weights_norm=update_dict["integration_time"][:, None, None],
+            )
+            update_dict["data_array"] = data_array
+            update_dict["flag_array"] = flag_array
+            update_dict["nsample_array"] = nsample_array
 
         # harmonize temporary arrays with existing ones
         if min_int_time is not None:
@@ -7919,9 +7881,12 @@ class UVData(UVBase):
 
     def frequency_average(
         self,
-        n_chan_to_avg,
+        n_chan_to_avg=None,
         *,
+        chan_map=None,
         summing_correlator_mode=False,
+        weight_by_nsample=True,
+        sum_nsample=False,
         propagate_flags=False,
         respect_spws=True,
         keep_ragged=True,
@@ -7941,11 +7906,29 @@ class UVData(UVBase):
         n_chan_to_avg : int
             Number of channels to average together. See the keep_ragged parameter for
             the handling if the number of frequencies per spectral window does not
-            divide evenly by this number.
+            divide evenly by this number. Either n_chan_to_avg or chan_map can be
+            provided (though not both).
+        chan_map : array_like of int
+            Optional map between the existing channels along the frequency axis of the
+            UVData object to the new frequency axis, using values in this parameter as
+            the index position of the new frequency axis. Must have shape (Nfreqs,),
+            containing all values between 0 and Nchan_new - 1 (where Nchan_new is the
+            number of channels after averaging). Negative values demark channels to
+            drop from the averaging operation.
         summing_correlator_mode : bool
             Option to integrate the flux from the original samples rather than average
             the flux from the original samples to emulate the behavior in some
-            correlators (e.g. HERA).
+            correlators (e.g. HERA). Note that this is an unweighted sum, and so is
+            unaffected by the weight_by_nsample parameter.
+        weight_by_nsample : bool
+            Option to weight each channel going into the average by its entry in the
+            nsample_array, so that the result is the noise-optimal combination of the
+            input channels. Set to False to instead give every (unflagged) channel
+            equal weight. Default is True. Has no effect if summing_correlator_mode is
+            set to True.
+        sum_nsample : bool
+            Option to record the summed values from nsample_array rather than the
+            average for each output channel. Default is False.
         propagate_flags: bool
             Option to flag an averaged entry even if some of its contributors
             are not flagged. The averaged result will still leave the flagged
@@ -7961,8 +7944,22 @@ class UVData(UVBase):
             option controls whether the frequencies at the end of the spectral window
             will be dropped to make it evenly divisable (keep_ragged=False) or will be
             combined into a smaller frequency bin (keep_ragged=True). Default is True.
+            Has no effect if chan_map is provided.
+
+        Raises
+        ------
+        ValueError
+            If neither or both of `n_chan_to_avg` and `chan_map` are set.
+            If `chan_map` is the wrong length, is not of integer type, drops every
+            channel, leaves gaps in the output channels, or merges channels from
+            different spectral windows (when `respect_spws=True`).
 
         """
+        if (n_chan_to_avg is None) == (chan_map is None):
+            raise ValueError(
+                "Exactly one of n_chan_to_avg and chan_map must be provided."
+            )
+
         if self.Nspws > 1 and not respect_spws:
             # Put everything in one spectral window.
             self.Nspws = 1
@@ -7991,240 +7988,129 @@ class UVData(UVBase):
                     "before frequency averaging."
                 )
 
-        # Figure out how many channels are in each spw so we can tell if we have a
-        # ragged situation (indicated by the some_uneven variable).
-        # While we're at it, build up some useful dicts for later, keyed on spw
-        nchans_spw = np.zeros(self.Nspws, dtype=int)
-        # final_nchan will hold the number of Nfreqs after averaging.
-        final_nchan = 0
-        # spw_chans will hold the original channel indices for each spw
-        spw_chans = {}
-        # final_spw_chans will hold the final channel indices for each spw
-        final_spw_chans = {}
-        for spw_ind, spw in enumerate(self.spw_array):
-            these_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
-            spw_chans[spw] = these_inds
-            nchans_spw[spw_ind] = these_inds.size
-            if keep_ragged:
-                this_final_nchan = int(np.ceil(nchans_spw[spw_ind] / n_chan_to_avg))
-            else:
-                this_final_nchan = int(np.floor(nchans_spw[spw_ind] / n_chan_to_avg))
-            final_spw_chans[spw] = np.arange(
-                final_nchan, final_nchan + this_final_nchan
-            )
-            final_nchan += this_final_nchan
+        # Everything downstream is driven by a map from each input channel to the
+        # output channel. If not passed by the user, build it now.
+        if chan_map is None:
+            chan_map = np.full(self.Nfreqs, -1, dtype=np.int64)
+            # final_nchan will hold the number of Nfreqs after averaging.
+            final_nchan = 0
+            for spw in self.spw_array:
+                these_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                # n_chan_reg is the number of regular (non-ragged) channels after
+                # averaging in this spw -- leftovers land in one final, smaller bin.
+                n_chan_reg = these_inds.size // n_chan_to_avg
+                spw_map = np.arange(these_inds.size, dtype=np.int64) // n_chan_to_avg
+                this_final_nchan = n_chan_reg
+                if these_inds.size % n_chan_to_avg != 0:
+                    if keep_ragged:
+                        this_final_nchan += 1
+                    else:
+                        spw_map[n_chan_reg * n_chan_to_avg :] = -1
+                spw_valid = spw_map >= 0
+                chan_map[these_inds[spw_valid]] = spw_map[spw_valid] + final_nchan
+                final_nchan += this_final_nchan
+            valid_chans = chan_map >= 0
+            valid_map = chan_map[valid_chans]
+        else:
+            chan_map = np.asarray(chan_map)
+            if not np.issubdtype(chan_map.dtype, np.integer):
+                raise ValueError("chan_map must be an array of integers.")
+            if chan_map.shape != (self.Nfreqs,):
+                raise ValueError(
+                    f"chan_map must have shape (Nfreqs,), i.e. ({self.Nfreqs},), but "
+                    f"has shape {chan_map.shape}."
+                )
+            chan_map = chan_map.astype(np.int64)
 
-        # Since we have to loop through the spws, we cannot do the averaging with a
-        # simple reshape and average. So we need to create arrays to hold the
-        # various metadata & data after averaging
-        final_freq_array = np.zeros(final_nchan, dtype=float)
-        final_channel_width = np.zeros(final_nchan, dtype=float)
+            valid_chans = chan_map >= 0
+            valid_map = chan_map[valid_chans]
+            if valid_map.size == 0:
+                raise ValueError("chan_map drops every channel, nothing to average.")
+            # n.b. the +1 here since the map is zero-indexed
+            final_nchan = valid_map.max() + 1
+
+            # Gaps would leave output channels with no contributors, which have no
+            # sensible frequency or channel width to report. Note that since the values
+            # all sit between 0 and final_nchan - 1, counting the unique entries is
+            # enough to catch both gaps and a map that does not start at 0.
+            if len(np.unique(valid_map)) != final_nchan:
+                raise ValueError(
+                    "chan_map must map to a contiguous set of output channels starting "
+                    "at 0, but the set of output channels it maps to has gaps in it."
+                )
+
+            if self.Nspws > 1:
+                # A single output channel spanning more than one window has no one
+                # window it can be assigned to on the other side. This pairs the output
+                # channel to the spw-of-origin, wihch when you run `unique` on _should_
+                # give you exactly the number of channels you put in, unless a channel
+                # belongs to multiple SPWs.
+                chan_spw_pairs = np.vstack(
+                    (valid_map, self.flex_spw_id_array[valid_chans])
+                )
+                if np.unique(chan_spw_pairs, axis=1).shape[1] != final_nchan:
+                    raise ValueError(
+                        "chan_map combines channels from different spectral windows, "
+                        "which is not allowed unless respect_spws is set to False."
+                    )
+
+        # Number of input channels contributing to each output channel, which is
+        # n_chan_to_avg everywhere except in any ragged or caller-specified bins.
+        # Note that the use of
+        n_contrib = np.bincount(valid_map, minlength=final_nchan)
+
+        # Average the metadata down onto the new channels. Note that channel widths
+        # get summed rather than averaged, since the new channel spans all of them.
+        final_freq_array = (
+            np.bincount(
+                valid_map, weights=self.freq_array[valid_chans], minlength=final_nchan
+            )
+            / n_contrib
+        )
+        final_channel_width = np.bincount(
+            valid_map, weights=self.channel_width[valid_chans], minlength=final_nchan
+        )
         final_flex_spw_id_array = np.zeros(final_nchan, dtype=int)
+        final_flex_spw_id_array[valid_map] = self.flex_spw_id_array[valid_chans]
+
+        final_eq_coeffs = None
         if self.eq_coeffs is not None:
-            final_eq_coeffs = np.zeros((self.telescope.Nants, final_nchan), dtype=float)
+            nants_tel = self.eq_coeffs.shape[0]
+            final_eq_coeffs = np.empty_like(
+                self.eq_coeffs, shape=(nants_tel, final_nchan)
+            )
+            for idx in range(nants_tel):
+                final_eq_coeffs[idx] = (
+                    np.bincount(
+                        valid_map,
+                        weights=self.eq_coeffs[idx, valid_chans],
+                        minlength=final_nchan,
+                    )
+                    / n_contrib
+                )
 
         if not self.metadata_only:
-            final_shape_tuple = (self.Nblts, final_nchan, self.Npols)
-            final_flag_array = np.full(final_shape_tuple, False, dtype=bool)
-            final_data_array = np.zeros(final_shape_tuple, dtype=self.data_array.dtype)
-            final_nsample_array = np.zeros(
-                final_shape_tuple, dtype=self.nsample_array.dtype
+            data_array, flag_array, nsample_array = utils.averaging.mapped_average(
+                self.data_array,
+                index_map=chan_map,
+                flags=self.flag_array,
+                weights=self.nsample_array,
+                axis=1,
+                n_bins=final_nchan,
+                weighted=weight_by_nsample and not summing_correlator_mode,
+                sum_mode=summing_correlator_mode,
+                propagate_flags=propagate_flags,
+                weights_norm=None if sum_nsample else n_contrib[:, np.newaxis],
             )
+            self.data_array = data_array
+            self.flag_array = flag_array
+            self.nsample_array = nsample_array
 
-        # Now loop through the spws to actually do the averaging
-        for spw_ind, spw in enumerate(self.spw_array):
-            # n_final_chan_reg is the number of regular (non-ragged) channels after
-            # averaging in this spw.
-            # For the regular channels, we can average more quickly by reshaping the
-            # frequency axis into two axes of lengths (n_final_chan_reg, n_chan_to_avg)
-            # followed by an average (or sum) over the axis of length n_chan_to_avg.
-            # Then we just have to do one more calculation for the remaining input
-            # channels if there are ragged channels.
-            n_final_chan_reg = int(np.floor(nchans_spw[spw_ind] / n_chan_to_avg))
-            nfreq_mod_navg = nchans_spw[spw_ind] % n_chan_to_avg
-            these_inds = spw_chans[spw]
-            this_ragged = False
-            regular_inds = these_inds
-            irregular_inds = np.array([])
-            this_final_reg_inds = final_spw_chans[spw]
-            if nfreq_mod_navg != 0:
-                # not an even number of final channels
-                regular_inds = these_inds[0 : n_final_chan_reg * n_chan_to_avg]
-                if not keep_ragged:
-                    # only use the non-ragged inds
-                    these_inds = regular_inds
-                else:
-                    # find the irregular inds for this spw
-                    this_ragged = True
-                    irregular_inds = these_inds[n_final_chan_reg * n_chan_to_avg :]
-                    this_final_reg_inds = this_final_reg_inds[:-1]
-
-            # Now do the reshaping and combining across the n_chan_to_avg length axis
-            final_freq_array[this_final_reg_inds] = (
-                self.freq_array[regular_inds]
-                .reshape((n_final_chan_reg, n_chan_to_avg))
-                .mean(axis=1)
-            )
-            # take a sum here rather to get final channel width
-            final_channel_width[this_final_reg_inds] = (
-                self.channel_width[regular_inds]
-                .reshape((n_final_chan_reg, n_chan_to_avg))
-                .sum(axis=1)
-            )
-            if this_ragged:
-                # deal with the final ragged channel
-                final_freq_array[final_spw_chans[spw][-1]] = np.mean(
-                    self.freq_array[irregular_inds]
-                )
-                final_channel_width[final_spw_chans[spw][-1]] = np.sum(
-                    self.channel_width[irregular_inds]
-                )
-
-            final_flex_spw_id_array[final_spw_chans[spw]] = spw
-
-            if self.eq_coeffs is not None:
-                final_eq_coeffs[:, this_final_reg_inds] = (
-                    self.eq_coeffs[:, regular_inds]
-                    .reshape((self.telescope.Nants, n_final_chan_reg, n_chan_to_avg))
-                    .mean(axis=2)
-                )
-                if this_ragged:
-                    final_eq_coeffs[:, final_spw_chans[spw][-1]] = np.mean(
-                        self.eq_coeffs[:, irregular_inds], axis=1
-                    )
-
-            if not self.metadata_only:
-                shape_tuple = (self.Nblts, n_final_chan_reg, n_chan_to_avg, self.Npols)
-
-                reg_mask = self.flag_array[:, regular_inds].reshape(shape_tuple)
-                if this_ragged:
-                    irreg_mask = self.flag_array[:, irregular_inds]
-
-                if propagate_flags:
-                    # if any contributors are flagged, the result should be flagged
-                    final_flag_array[:, this_final_reg_inds] = np.any(
-                        self.flag_array[:, regular_inds].reshape(shape_tuple), axis=2
-                    )
-                    if this_ragged:
-                        final_flag_array[:, final_spw_chans[spw][-1]] = np.any(
-                            self.flag_array[:, irregular_inds], axis=1
-                        )
-                else:
-                    # if all inputs are flagged, the flag array should be True,
-                    # otherwise it should be False.
-                    final_flag_array[:, this_final_reg_inds] = np.all(
-                        self.flag_array[:, regular_inds].reshape(shape_tuple), axis=2
-                    )
-                    if this_ragged:
-                        final_flag_array[:, final_spw_chans[spw][-1]] = np.all(
-                            self.flag_array[:, irregular_inds], axis=1
-                        )
-
-                # need to update mask if a downsampled visibility will be flagged
-                # so that we don't set it to zero
-                # This is a common radio astronomy convention that when averaging over
-                # entirely flagged channels, you include the flagged channels in the
-                # result (so it's not zero) whereas you exclude flagged channels if
-                # there are any unflagged channels in the average.
-                for chan_ind in np.arange(n_final_chan_reg):
-                    this_chan = final_spw_chans[spw][chan_ind]
-                    if (final_flag_array[:, this_chan]).any():
-                        ax0_inds, ax2_inds = np.nonzero(
-                            final_flag_array[:, this_chan, :]
-                        )
-                        # Only if all entries are masked
-                        # May not happen due to propagate_flags keyword
-                        # mask should be left alone otherwise
-                        fully_flagged = np.all(
-                            reg_mask[ax0_inds, this_chan, :, ax2_inds], axis=1
-                        )
-                        ff_inds = np.nonzero(fully_flagged)
-                        reg_mask[ax0_inds[ff_inds], this_chan, :, ax2_inds[ff_inds]] = (
-                            False
-                        )
-                if this_ragged:
-                    ax0_inds, ax2_inds = np.nonzero(
-                        final_flag_array[:, final_spw_chans[spw][-1], :]
-                    )
-                    fully_flagged = np.all(irreg_mask[ax0_inds, :, ax2_inds], axis=1)
-                    ff_inds = np.nonzero(fully_flagged)
-                    irreg_mask[ax0_inds[ff_inds], :, ax2_inds[ff_inds]] = False
-
-                # create a masked data array from the data_array and mask_array
-                # (based on the flag_array).
-                # This lets numpy handle the averaging with flags.
-                masked_reg_data = np.ma.masked_array(
-                    self.data_array[:, regular_inds].reshape(shape_tuple), mask=reg_mask
-                )
-                if this_ragged:
-                    masked_irreg_data = np.ma.masked_array(
-                        self.data_array[:, irregular_inds], mask=irreg_mask
-                    )
-
-                # promote nsample dtype if half-precision
-                nsample_dtype = self.nsample_array.dtype.type
-                if nsample_dtype is np.float16:
-                    masked_nsample_dtype = np.float32
-                else:
-                    masked_nsample_dtype = nsample_dtype
-                # create a masked nsample array from the data_array and mask_array
-                masked_reg_nsample = np.ma.masked_array(
-                    self.nsample_array[:, regular_inds].reshape(shape_tuple),
-                    mask=reg_mask,
-                    dtype=masked_nsample_dtype,
-                )
-                if this_ragged:
-                    masked_irreg_nsample = np.ma.masked_array(
-                        self.nsample_array[:, irregular_inds],
-                        mask=irreg_mask,
-                        dtype=masked_nsample_dtype,
-                    )
-
-                if summing_correlator_mode:
-                    # sum rather than average
-                    final_data_array[:, this_final_reg_inds] = np.sum(
-                        masked_reg_data, axis=2
-                    ).data
-                    if this_ragged:
-                        final_data_array[:, final_spw_chans[spw][-1]] = np.sum(
-                            masked_irreg_data, axis=1
-                        ).data
-                else:
-                    # do a weighted average with the weights given by the nsample_array
-                    final_data_array[:, this_final_reg_inds] = (
-                        np.sum(masked_reg_data * masked_reg_nsample, axis=2)
-                        / np.sum(masked_reg_nsample, axis=2)
-                    ).data
-                    if this_ragged:
-                        final_data_array[:, final_spw_chans[spw][-1]] = (
-                            np.sum(masked_irreg_data * masked_irreg_nsample, axis=1)
-                            / np.sum(masked_irreg_nsample, axis=1)
-                        ).data
-
-                # nsample array is the fraction of data that we actually kept,
-                # relative to the amount that went into the sum or average.
-                # So it's a sum over the averaged channels divided by the number of
-                # averaged channels
-                # Need to take care to return precision back to original value.
-                final_nsample_array[:, this_final_reg_inds] = (
-                    np.sum(masked_reg_nsample, axis=2) / float(n_chan_to_avg)
-                ).data.astype(nsample_dtype)
-                if this_ragged:
-                    final_nsample_array[:, final_spw_chans[spw][-1]] = (
-                        np.sum(masked_irreg_nsample, axis=1) / irregular_inds.size
-                    ).data.astype(nsample_dtype)
-
-        # Put the final arrays on the object
+        # Put the final metadata on the object
         self.freq_array = final_freq_array
         self.channel_width = final_channel_width
         self.flex_spw_id_array = final_flex_spw_id_array
-        if self.eq_coeffs is not None:
-            self.eq_coeffs = final_eq_coeffs
-
-        if not self.metadata_only:
-            self.flag_array = final_flag_array
-            self.data_array = final_data_array
-            self.nsample_array = final_nsample_array
+        self.eq_coeffs = final_eq_coeffs
 
         # update Nfreqs
         self.Nfreqs = final_nchan
