@@ -4436,12 +4436,18 @@ class UVCal(UVBase):
         (the default) or real and imaginary, since amplitude and phase can vary on
         different timescales. Several keywords therefore have "amp" and "pha"
         counterparts, which override the shared value when interpolating amplitude and
-        phase respectively.
+        phase respectively. Note this is only applicable for objects where `cal_type`
+        is "gain" -- for "delay" objects, these arguments are ignored.
 
         Note that quantities which cannot be meaningfully interpolated are either
         carried over from the nearest old time (`integration_time`,
         `ref_antenna_array`) or dropped entirely (`quality_array`,
         `total_quality_array`, `phase_center_id_array`, `scan_number_array`).
+
+        UVCal objects with `time_range` set rather than `time_array` are
+        interpolated from the midpoint of each range. Since the result is evaluated at
+        discrete times, the returned object carries `time_array` (and `lst_array`) in
+        place of `time_range` and `lst_range`.
 
         Parameters
         ----------
@@ -4449,7 +4455,7 @@ class UVCal(UVBase):
             The new times to interpolate to, shape (Ntimes,), units are Julian days.
         kind : str
             The type of interpolation to use. Options are "nearest", "linear", "cubic",
-            and "poly" (polynomial fit using Chebyshev polynomials). Default is
+            and "chebyshev" (polynomial fit using Chebyshev polynomials). Default is
             "linear".
         amp_kind : str or None
             If set, the interpolation kind used for amplitude. Default is None, which
@@ -4458,7 +4464,8 @@ class UVCal(UVBase):
             If set, the interpolation kind used for phase. Default is None, which uses
             the value set for `kind`.
         poly_order : int or sequence of int
-            Polynomial order to use when the interpolation kind is "poly". Default is 3.
+            Polynomial order to use when the interpolation kind is "chebyshev". Default
+            is 3.
         amp_poly_order : int or None
             If set, the polynomial order used for amplitude. Default is None, which
             uses the value set for `poly_order`.
@@ -4495,7 +4502,7 @@ class UVCal(UVBase):
             If set, the gap limit used for phase. Default is None, which uses the value
             set for `max_time_delta`.
         old_var : ndarray of float or None
-            Additional variables to fit against when the kind is "poly", shape
+            Additional variables to fit against when the kind is "chebyshev", shape
             (Nvar, Ntimes). Note that time is always included as a fit variable, and
             does not need to be supplied here. Default is None.
         new_var : ndarray of float or None
@@ -4522,14 +4529,14 @@ class UVCal(UVBase):
         Raises
         ------
         ValueError
-            If the object records time_range rather than time_array, since
-            interpolation needs discrete times to work from.
+            If the object has neither time_array nor time_range set, since there are
+            then no times to interpolate from.
 
         """
-        if self.time_array is None or self.time_range is not None:
+        if self.time_array is None and self.time_range is None:
             raise ValueError(
-                "Cannot interpolate an object that records time_range rather than "
-                "time_array, since there are no discrete times to interpolate from."
+                "Cannot interpolate an object with neither time_array nor time_range "
+                "set, since there are no times to interpolate from."
             )
 
         # Check if the refant changes in time, and if so, throw a warning (since it may
@@ -4548,7 +4555,12 @@ class UVCal(UVBase):
         is_gain = cal_object.cal_type == "gain"
 
         new_times = np.asarray(new_times, dtype=float)
-        old_times = cal_object.time_array
+
+        if cal_object.time_array is None:
+            # Take the midpoint if using time_range
+            old_times = np.mean(cal_object.time_range, axis=1)
+        else:
+            old_times = cal_object.time_array
 
         if is_gain:
             interp_mode = "complex" if use_complex_interp else "ampphase"
@@ -4585,6 +4597,9 @@ class UVCal(UVBase):
         cal_object.time_array = new_times
         cal_object.Ntimes = len(new_times)
         cal_object.flag_array = new_flags
+        # The interpolated solutions sit at discrete times, so discard any time ranges.
+        cal_object.time_range = None
+        cal_object.lst_range = None
         if is_gain:
             cal_object.gain_array = new_cal
         else:
@@ -4611,6 +4626,33 @@ class UVCal(UVBase):
 
         # Set LSTs directly rather than interpolating
         cal_object.set_lsts_from_time_array()
+
+        # Record what was done, since the interpolation is not otherwise recoverable
+        # from the object once the original solutions have been replaced.
+        kind_str = kind + (f" (poly_order={poly_order})" if kind == "chebyshev" else "")
+        if is_gain:
+            if use_complex_interp:
+                kind_desc = f"real={kind_str}, imaginary={kind_str}"
+            else:
+                amp_str = amp_kind if amp_kind is not None else kind
+                pha_str = pha_kind if pha_kind is not None else kind
+                if amp_str == "chebyshev":
+                    amp_order = poly_order if amp_poly_order is None else amp_poly_order
+                    amp_str += f" (poly_order={amp_order})"
+                if pha_str == "chebyshev":
+                    pha_order = poly_order if pha_poly_order is None else pha_poly_order
+                    pha_str += f" (poly_order={pha_order})"
+                kind_desc = f"amplitude={amp_str}, phase={pha_str}"
+        else:
+            # Delays are real-valued, so there is only the one component to describe.
+            kind_desc = f"delay={kind_str}"
+
+        history_update_string = (
+            f"  Interpolated from {len(old_times)} to {len(new_times)} times using "
+            f"pyuvdata, with kind ({kind_desc}). Extrapolation beyond the original "
+            f"time range was {'allowed' if allow_extrapolation else 'not allowed'}."
+        )
+        cal_object.history += history_update_string
 
         if run_check:
             cal_object.check(

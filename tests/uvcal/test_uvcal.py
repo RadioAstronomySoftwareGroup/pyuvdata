@@ -4732,7 +4732,7 @@ def test_interpolate_in_time(caltype, kind, gain_data, delay_data):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic", "poly"])
+@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic", "chebyshev"])
 def test_interpolate_in_time_upsample(caltype, kind, gain_data, delay_data):
     # Check that upsampling the solns actually returns something
     if caltype == "gain":
@@ -4785,6 +4785,58 @@ def test_interpolate_in_time_metadata(caltype, gain_data, delay_data):
     assert len(calobj2.lst_array) == len(new_times)
 
 
+@pytest.mark.parametrize(
+    "kwargs,expected",
+    [
+        [{}, "kind (amplitude=linear, phase=linear)"],
+        [{"amp_kind": "cubic"}, "kind (amplitude=cubic, phase=linear)"],
+        [{"use_complex_interp": True}, "kind (real=linear, imaginary=linear)"],
+        [
+            {"kind": "chebyshev"},
+            "kind (amplitude=chebyshev (poly_order=3), phase=chebyshev (poly_order=3))",
+        ],
+        [
+            # The per-component orders have to follow the kind they belong to.
+            {"kind": "chebyshev", "amp_poly_order": 4},
+            "kind (amplitude=chebyshev (poly_order=4), phase=chebyshev (poly_order=3))",
+        ],
+        [{"allow_extrapolation": True}, "Extrapolation beyond the original time"],
+    ],
+)
+def test_interpolate_in_time_history(gain_data, kwargs, expected):
+    """The interpolation is recorded, since the object no longer shows what was done."""
+    calobj = gain_data
+    new_times = calobj.time_array[:3]
+
+    calobj2 = calobj.interpolate_in_time(new_times, max_time_delta=0.0, **kwargs)
+
+    added = calobj2.history[len(calobj.history) :]
+    assert f"Interpolated from {calobj.Ntimes} to 3 times using pyuvdata" in added
+    assert expected in added
+    allowed = kwargs.get("allow_extrapolation", False)
+    assert ("was allowed" in added) == allowed
+
+
+@pytest.mark.parametrize(
+    "kwargs,expected",
+    [
+        [{}, "kind (delay=linear)"],
+        [
+            {"kind": "chebyshev", "poly_order": 2},
+            "kind (delay=chebyshev (poly_order=2))",
+        ],
+    ],
+)
+def test_interpolate_in_time_history_delay(delay_data, kwargs, expected):
+    """Delays are real-valued, so there is only the one component to describe."""
+    calobj = delay_data
+    new_times = calobj.time_array[:3]
+
+    calobj2 = calobj.interpolate_in_time(new_times, max_time_delta=0.0, **kwargs)
+
+    assert expected in calobj2.history[len(calobj.history) :]
+
+
 def test_interpolate_in_time_refant_warning(gain_data):
     calobj = gain_data
     calobj.ref_antenna_array = np.arange(calobj.Ntimes)
@@ -4828,7 +4880,7 @@ def test_interpolate_in_time_complex(use_complex_interp, gain_data):
     "interp_kwargs",
     [
         {"amp_kind": "cubic", "pha_kind": "linear"},
-        {"kind": "poly", "amp_poly_order": 2, "pha_poly_order": 1},
+        {"kind": "chebyshev", "amp_poly_order": 2, "pha_poly_order": 1},
         {"amp_flag_delta": 0.5, "pha_flag_delta": 0.5},
         {"amp_max_time_delta": 100.0, "pha_max_time_delta": 100.0},
     ],
@@ -4864,7 +4916,7 @@ def test_interpolate_in_time_var(gain_data):
 
     calobj2 = calobj.interpolate_in_time(
         new_times,
-        kind="poly",
+        kind="chebyshev",
         poly_order=[2, 1],
         old_var=np.vstack([np.sin(old_times)]),
         new_var=np.vstack([np.sin(new_times)]),
@@ -4876,9 +4928,29 @@ def test_interpolate_in_time_var(gain_data):
 
 
 @pytest.mark.parametrize("keep_time_array", [True, False])
-def test_interpolate_in_time_errs(gain_data, keep_time_array):
+def test_interpolate_in_time_time_range(gain_data, keep_time_array):
+    """Solutions recorded against time ranges interpolate from the range midpoints."""
     new_times = gain_data.time_array[:3]
     calobj = time_array_to_time_range(gain_data, keep_time_array=keep_time_array)
 
-    with pytest.raises(ValueError, match="Cannot interpolate an object that records"):
-        calobj.interpolate_in_time(new_times)
+    calobj2 = calobj.interpolate_in_time(new_times, max_time_delta=0.0)
+
+    # Whichever way the input recorded its times, the result sits at discrete ones.
+    np.testing.assert_allclose(calobj2.time_array, new_times)
+    assert calobj2.time_range is None
+    assert calobj2.lst_range is None
+    assert calobj2.lst_array is not None
+    calobj2.check()
+
+    ref = gain_data.interpolate_in_time(new_times, max_time_delta=0.0)
+    np.testing.assert_allclose(calobj2.gain_array, ref.gain_array)
+    np.testing.assert_array_equal(calobj2.flag_array, ref.flag_array)
+
+
+def test_interpolate_in_time_no_times_err(gain_data):
+    calobj = gain_data
+    calobj.time_array = None
+    calobj.lst_array = None
+
+    with pytest.raises(ValueError, match="Cannot interpolate an object with neither"):
+        calobj.interpolate_in_time(np.array([2457698.4]))

@@ -17,11 +17,7 @@ class CosPowerTest(UnpolarizedAnalyticBeam):
     width: float
 
     def _power_eval(
-        self,
-        *,
-        az_grid: FloatArray,
-        za_grid: FloatArray,
-        f_grid: FloatArray,
+        self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
     ) -> FloatArray:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
@@ -41,11 +37,7 @@ class CosEfieldTest(UnpolarizedAnalyticBeam):
     width: float
 
     def _efield_eval(
-        self,
-        *,
-        az_grid: FloatArray,
-        za_grid: FloatArray,
-        f_grid: FloatArray,
+        self, *, az_grid: FloatArray, za_grid: FloatArray, f_grid: FloatArray
     ) -> FloatArray:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_grid.shape)

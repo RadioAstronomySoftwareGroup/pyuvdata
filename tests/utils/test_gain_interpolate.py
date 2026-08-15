@@ -449,12 +449,44 @@ def test_interp_cubic_cal_flags(delay_array, old_times, new_times):
 
 def test_interp_cubic_cal_no_clean_solns(delay_array, old_times, new_times):
     """With no clean solution, the batched pass is skipped entirely."""
+    # Flag a different time for every solution, so that no solution is left clean while
+    # no single time is dead across the whole array (which would just get dropped).
+    flags = np.zeros((NANTS, NFREQS, NTIMES, NJONES), dtype=bool)
+    for idx, (ant, freq, jones) in enumerate(np.ndindex(NANTS, NFREQS, NJONES)):
+        flags[ant, freq, idx % NTIMES, jones] = True
+
+    assert not np.any(np.all(flags, axis=(0, 1, 3)))  # No time dead array-wide
+    assert not np.any(np.sum(~flags, axis=2) == NTIMES)  # No solution left clean
+
+    new_cal = gi_utils._interp_cubic_cal(old_times, delay_array, flags, new_times)
+
+    # Every solution has to be refit off the blank (NaN-filled) array.
+    assert np.isfinite(new_cal).all()
+
+    # Dropping one of twelve knots leaves the fit close to, but not exactly on, the
+    # smooth function the solutions were built from.
+    truth = np.broadcast_to(
+        (2.0 - (3.0 * new_times) + (5.0 * new_times**2))[None, None, :, None],
+        new_cal.shape,
+    )
+    np.testing.assert_allclose(new_cal, truth, rtol=0.05)
+
+
+def test_interp_cubic_cal_drops_dead_times(delay_array, old_times, new_times):
+    """Times that are flagged array-wide drop out without changing the result."""
     flags = np.zeros((NANTS, NFREQS, NTIMES, NJONES), dtype=bool)
     flags[:, :, 0, :] = True
 
     new_cal = gi_utils._interp_cubic_cal(old_times, delay_array, flags, new_times)
 
+    # Dropping the dead time is an optimization, so the answer has to match what comes
+    # back when that time was never handed over in the first place.
+    ref_cal = gi_utils._interp_cubic_cal(
+        old_times[1:], delay_array[:, :, 1:, :], flags[:, :, 1:, :], new_times
+    )
+
     assert np.isfinite(new_cal).all()
+    np.testing.assert_allclose(new_cal, ref_cal)
 
 
 def test_interp_cubic_cal_starved(delay_array, old_times, new_times):
@@ -659,7 +691,7 @@ def test_interp_dispatcher_errs(gain_array, blank_flags, old_times, new_times):
         gi_utils._interp_dispatcher(mode="amp", kind="foo", **disp_kwargs)
 
 
-@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic", "poly"])
+@pytest.mark.parametrize("kind", ["nearest", "linear", "cubic", "chebyshev"])
 @pytest.mark.parametrize("interp_mode", ["ampphase", "complex", "amp", "phase"])
 def test_time_interp_cal(
     gain_array, blank_flags, old_times, new_times, kind, interp_mode
@@ -720,7 +752,8 @@ def test_time_interp_cal_two_pass(gain_array, blank_flags, old_times, interp_mod
 
 
 @pytest.mark.parametrize(
-    "amp_kind,pha_kind", [["cubic", "linear"], ["poly", "nearest"], [None, "poly"]]
+    "amp_kind,pha_kind",
+    [["cubic", "linear"], ["chebyshev", "nearest"], [None, "chebyshev"]],
 )
 def test_time_interp_cal_split_kind(
     gain_array, blank_flags, old_times, new_times, amp_kind, pha_kind
@@ -751,7 +784,7 @@ def test_time_interp_cal_split_kwargs(
 ):
     """Test the amp and phase overrides of the shared keywords."""
     new_cal, new_flags = gi_utils.time_interp_cal(
-        old_times, gain_array, blank_flags, new_times, kind="poly", **split_kwargs
+        old_times, gain_array, blank_flags, new_times, kind="chebyshev", **split_kwargs
     )
 
     assert new_cal.shape == (NANTS, NFREQS, NNEW, NJONES)
@@ -765,7 +798,7 @@ def test_time_interp_cal_var(gain_array, blank_flags, old_times, new_times):
         gain_array,
         blank_flags,
         new_times,
-        kind="poly",
+        kind="chebyshev",
         old_var=np.vstack([np.sin(3 * old_times)]),
         new_var=np.vstack([np.sin(3 * new_times)]),
         poly_order=[3, 1],
@@ -855,7 +888,12 @@ def test_time_interp_cal_lone_var_errs(
 
     with pytest.raises(ValueError, match="must either both be set or both be left"):
         gi_utils.time_interp_cal(
-            old_times, gain_array, blank_flags, new_times, kind="poly", **var_kwargs
+            old_times,
+            gain_array,
+            blank_flags,
+            new_times,
+            kind="chebyshev",
+            **var_kwargs,
         )
 
 
@@ -902,11 +940,18 @@ def test_time_interp_cal_var_errs(
 
     with pytest.raises(ValueError, match=err_msg):
         gi_utils.time_interp_cal(
-            old_times, gain_array, blank_flags, new_times, kind="poly", **var_kwargs
+            old_times,
+            gain_array,
+            blank_flags,
+            new_times,
+            kind="chebyshev",
+            **var_kwargs,
         )
 
 
-@pytest.mark.parametrize("kind,kwargs", [["cubic", {}], ["poly", {"poly_order": 3}]])
+@pytest.mark.parametrize(
+    "kind,kwargs", [["cubic", {}], ["chebyshev", {"poly_order": 3}]]
+)
 def test_time_interp_cal_undersupplied_flags_nans(
     gain_array, blank_flags, old_times, new_times, kind, kwargs
 ):

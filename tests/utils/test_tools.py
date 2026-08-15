@@ -41,6 +41,28 @@ def test_slicify():
     assert utils.tools.slicify([0, 1, 2, 7]) == [0, 1, 2, 7]
 
 
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize(
+    "mask,keep_result,drop_result",
+    [
+        [[False, True, True, True], slice(1, 4, 1), slice(0, 1, 1)],  # Contiguous
+        [[True, False, True, False, True], slice(0, 6, 2), slice(1, 5, 2)],  # Strided
+        [[False, True, False], slice(1, 2, 1), slice(0, 4, 2)],  # Single entry
+        [[True] * 3 + [False] * 4 + [True], [0, 1, 2, 7], slice(3, 7, 1)],  # No slice
+        [[True, True, True], slice(0, 3, 1), slice(0, 0, 1)],  # All marked
+        [[False, False, False], slice(0, 0, 1), slice(0, 3, 1)],  # None marked
+        [[], slice(0, 0, 1), slice(0, 0, 1)],  # Empty
+    ],
+)
+def test_mask_slicify(mask, keep_result, drop_result, invert):
+    result = utils.tools.mask_slicify(np.array(mask, dtype=bool), invert=invert)
+    answer = drop_result if invert else keep_result
+    if isinstance(answer, slice):
+        assert result == answer
+    else:
+        assert np.array_equal(result, answer)
+
+
 @pytest.mark.parametrize(
     "obj1,obj2,union_result,interset_result,diff_result",
     [

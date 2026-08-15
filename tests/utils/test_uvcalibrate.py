@@ -976,7 +976,7 @@ def test_uvcalibrate_interpolated_gains(uvcalibrate_data):
     # Down-select the solns to test the interpolation
     uvc2 = uvc.select(times=uvc.time_array[::3], inplace=False)
     uvc3 = uvc2.interpolate_in_time(
-        uvc.time_array, amp_kind="poly", amp_poly_order=3, pha_kind="linear"
+        uvc.time_array, amp_kind="chebyshev", amp_poly_order=3, pha_kind="linear"
     )
 
     assert uvc3.Ntimes == uvc.Ntimes
@@ -1069,6 +1069,7 @@ def test_uvcalibrate_apply_to_weights_delay(uvcalibrate_data):
     np.testing.assert_array_equal(uvd_weight.nsample_array, 1.0)
 
 
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 def test_uvcalibrate_select_blt_inds(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1093,6 +1094,7 @@ def test_uvcalibrate_select_blt_inds(uvcalibrate_data):
     np.testing.assert_array_equal(part.nsample_array[~mask], uvd.nsample_array[~mask])
 
 
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 def test_uvcalibrate_catalog_names(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1127,6 +1129,7 @@ def test_uvcalibrate_catalog_names(uvcalibrate_data):
     np.testing.assert_array_equal(both.data_array, full.data_array)
 
 
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 def test_uvcalibrate_select_polarizations(uvcalibrate_data):
     """Selecting a polarization should leave the others exactly as they were."""
     uvd, uvc = uvcalibrate_data
@@ -1142,6 +1145,7 @@ def test_uvcalibrate_select_polarizations(uvcalibrate_data):
     np.testing.assert_array_equal(part.flag_array[:, :, 1:], uvd.flag_array[:, :, 1:])
 
 
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 @pytest.mark.parametrize("by_chans", [True, False])
 def test_uvcalibrate_select_frequencies(uvcalibrate_data, by_chans):
     """Selecting channels should leave the rest of the band exactly as it was."""
@@ -1160,6 +1164,7 @@ def test_uvcalibrate_select_frequencies(uvcalibrate_data, by_chans):
     np.testing.assert_array_equal(part.flag_array[:, rest], uvd.flag_array[:, rest])
 
 
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 def test_uvcalibrate_select_frequencies_with_blts(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
@@ -1184,6 +1189,196 @@ def test_uvcalibrate_select_frequencies_with_blts(uvcalibrate_data):
         part.data_array[np.ix_(~mask, keep_f)], uvd.data_array[np.ix_(~mask, keep_f)]
     )
     np.testing.assert_array_equal(part.data_array[:, rest_f], uvd.data_array[:, rest_f])
+
+
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
+@pytest.mark.parametrize("axis", ["blt", "freq", "pol"])
+def test_uvcalibrate_flag_unselected(uvcalibrate_data, axis):
+    """Records left out of the selection get flagged rather than left alone."""
+    uvd, uvc = uvcalibrate_data
+
+    if axis == "blt":
+        keep = np.zeros(uvd.Nblts, dtype=bool)
+        keep[: uvd.Nblts // 3] = True
+        sel = {"blt_inds": np.nonzero(keep)[0]}
+        inside, outside = np.s_[keep], np.s_[~keep]
+    elif axis == "freq":
+        keep = np.zeros(uvd.Nfreqs, dtype=bool)
+        keep[: uvd.Nfreqs // 3] = True
+        sel = {"freq_chans": np.nonzero(keep)[0]}
+        inside, outside = np.s_[:, keep], np.s_[:, ~keep]
+    else:
+        keep = np.zeros(uvd.Npols, dtype=bool)
+        keep[0] = True
+        sel = {"polarizations": uvd.polarization_array[keep]}
+        inside, outside = np.s_[:, :, keep], np.s_[:, :, ~keep]
+
+    part = utils.uvcalibrate(uvd, uvc, inplace=False, uvd_select_kwargs=sel)
+    flagged = utils.uvcalibrate(
+        uvd, uvc, inplace=False, uvd_select_kwargs=sel, flag_unselected=True
+    )
+
+    # Everything outside the selection is flagged, where by default it is not.
+    assert flagged.flag_array[outside].all()
+    assert not part.flag_array[outside].all()
+    # The selection itself is unaffected by the option, as are the data.
+    np.testing.assert_array_equal(flagged.flag_array[inside], part.flag_array[inside])
+    np.testing.assert_array_equal(flagged.data_array, part.data_array)
+
+
+@pytest.mark.parametrize("flag_unselected", [None, True, False])
+def test_uvcalibrate_flag_unselected_warning(uvcalibrate_data, flag_unselected):
+    """Only the default warns -- setting it either way is an explicit choice."""
+    uvd, uvc = uvcalibrate_data
+
+    keep = np.zeros(uvd.Nblts, dtype=bool)
+    keep[: uvd.Nblts // 3] = True
+
+    with check_warnings(
+        UserWarning if flag_unselected is None else None,
+        match="Calibrating a subset of the data",
+    ):
+        part = utils.uvcalibrate(
+            uvd,
+            uvc,
+            inplace=False,
+            uvd_select_kwargs={"blt_inds": np.nonzero(keep)[0]},
+            flag_unselected=flag_unselected,
+        )
+
+    # None behaves as False, i.e. the unselected records are left alone.
+    assert part.flag_array[~keep].all() == bool(flag_unselected)
+
+
+def test_uvcalibrate_flag_unselected_no_selection(uvcalibrate_data):
+    """With nothing selected out, the option has nothing to flag."""
+    uvd, uvc = uvcalibrate_data
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    flagged = utils.uvcalibrate(uvd, uvc, inplace=False, flag_unselected=True)
+
+    assert full == flagged
+
+
+def test_uvcalibrate_flag_unselected_multi_axis(uvcalibrate_data):
+    """Anything outside the selection on any axis gets flagged, not just the corner."""
+    uvd, uvc = uvcalibrate_data
+
+    blt_good = np.zeros(uvd.Nblts, dtype=bool)
+    blt_good[::2] = True
+    freq_good = np.zeros(uvd.Nfreqs, dtype=bool)
+    freq_good[: uvd.Nfreqs // 3] = True
+
+    flagged = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        uvd_select_kwargs={
+            "blt_inds": np.nonzero(blt_good)[0],
+            "freq_chans": np.nonzero(freq_good)[0],
+        },
+        flag_unselected=True,
+    )
+
+    assert flagged.flag_array[~blt_good].all()
+    assert flagged.flag_array[:, ~freq_good].all()
+    # Only the intersection of the two selections escapes being flagged outright.
+    assert not flagged.flag_array[np.ix_(blt_good, freq_good)].all()
+
+
+@pytest.mark.parametrize("flag_unselected", [None, True, False])
+def test_uvcalibrate_history_selection(uvcalibrate_data, flag_unselected):
+    uvd, uvc = uvcalibrate_data
+
+    f_keep = np.arange(uvd.Nfreqs // 3)
+
+    # Only the default (None) raises a warning
+    with check_warnings(
+        UserWarning if flag_unselected is None else None,
+        match="Calibrating a subset of the data",
+    ):
+        part = utils.uvcalibrate(
+            uvd,
+            uvc,
+            inplace=False,
+            uvd_select_kwargs={"freq_chans": f_keep},
+            uvc_select_kwargs={"times": uvc.time_array},
+            flag_unselected=flag_unselected,
+        )
+
+    added = part.history[len(uvd.history) :]
+    assert "Applied to a subset of the data, selected on freq_chans" in added
+    assert f"({f_keep.size} of {uvd.Nfreqs} frequencies)" in added
+    assert ("have been flagged" in added) != ("have NOT been flagged" in added)
+    assert ("have been flagged" in added) == bool(flag_unselected)
+    assert "Calibration solutions were selected on times" in added
+
+
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
+def test_uvcalibrate_history_no_selection(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+
+    added = full.history[len(uvd.history) :]
+    assert "Calibrated with pyuvdata.utils.uvcalibrate." in added
+    assert "subset of the data" not in added
+    assert "flagged" not in added
+
+
+def test_uvcalibrate_history_interpolation(uvcalibrate_data):
+    """Interpolation done inside uvcalibrate is recorded on the calibrated data."""
+    uvd, uvc = uvcalibrate_data
+
+    out = utils.uvcalibrate(
+        uvd, uvc, inplace=False, interpolate=True, interp_kwargs={"kind": "nearest"}
+    )
+
+    assert "Interpolated from" in out.history
+    assert "kind (amplitude=nearest, phase=nearest)" in out.history
+
+
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
+def test_uvcalibrate_uvc_select_jones_paired(uvcalibrate_data):
+    """Dropping a Jones term is allowed if the matching polarization is dropped too."""
+    uvd, uvc = uvcalibrate_data
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False)
+    part = utils.uvcalibrate(
+        uvd,
+        uvc,
+        inplace=False,
+        uvd_select_kwargs={"polarizations": uvd.polarization_array[:1]},
+        uvc_select_kwargs={"jones": uvc.jones_array[:1]},
+        flag_unselected=True,
+    )
+
+    # The calibrated polarization has to match what the full run produced, and the
+    # one left out has to come back flagged.
+    np.testing.assert_allclose(part.data_array[:, :, 0], full.data_array[:, :, 0])
+    assert part.flag_array[:, :, 1:].all()
+
+
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
+@pytest.mark.parametrize("pol_slice", [slice(None), slice(1, None)])
+def test_uvcalibrate_uvc_select_jones_unpaired_err(uvcalibrate_data, pol_slice):
+    """Dropping a Jones term without dropping its polarization is an error."""
+    uvd, uvc = uvcalibrate_data
+
+    uvd_select_kwargs = None
+    if pol_slice != slice(None):
+        uvd_select_kwargs = {"polarizations": uvd.polarization_array[pol_slice]}
+
+    with pytest.raises(
+        ValueError, match="Feed polarization . exists on UVData but not on UVCal"
+    ):
+        utils.uvcalibrate(
+            uvd,
+            uvc,
+            inplace=False,
+            uvd_select_kwargs=uvd_select_kwargs,
+            uvc_select_kwargs={"jones": uvc.jones_array[:1]},
+        )
 
 
 def test_uvcalibrate_select_errs(uvcalibrate_data):
@@ -1226,6 +1421,26 @@ def test_uvcalibrate_interpolate(uvcalibrate_data, kind):
     assert uvc_copy.Ntimes == uvc.Ntimes // 2 + uvc.Ntimes % 2
 
 
+def test_uvcalibrate_interpolate_time_range(uvcalibrate_data):
+    """Solutions on time ranges interpolate from the midpoints of those ranges."""
+    from ..uvcal import time_array_to_time_range
+
+    uvd, uvc = uvcalibrate_data
+    uvc_range = time_array_to_time_range(uvc, keep_time_array=False)
+
+    expected = utils.uvcalibrate(uvd, uvc, inplace=False, interpolate=True)
+    got = utils.uvcalibrate(uvd, uvc_range, inplace=False, interpolate=True)
+
+    # The helper centers each range on the original time, so the midpoints are those
+    # times and the two paths have to agree.
+    np.testing.assert_allclose(got.data_array, expected.data_array)
+    np.testing.assert_array_equal(got.flag_array, expected.flag_array)
+    # The object handed in must not be modified.
+    assert uvc_range.time_array is None
+    assert uvc_range.time_range is not None
+
+
+@pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
 def test_uvcalibrate_interpolate_with_select(uvcalibrate_data):
     """Interpolation and record selection should compose."""
     uvd, uvc = uvcalibrate_data
@@ -1255,23 +1470,26 @@ def test_uvcalibrate_interpolate_with_select(uvcalibrate_data):
 def test_uvcalibrate_uvc_select_kwargs(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    # Drop an antenna from the solutions -- a selection that leaves the time axis
-    # alone, so it does not need interpolating back to match the data.
+    # Drop the last antenna from the solutions, verify that we can still interpolate
+    # the others.
     keep = uvc.ant_array[:-1]
-    manual = uvc.select(antenna_nums=keep, inplace=False)
-    expected = utils.uvcalibrate(uvd, manual, inplace=False, ant_check=False)
-    got = utils.uvcalibrate(
+    drop_ant = uvc.ant_array[-1]
+    uvc_copy = uvc.select(antenna_nums=keep, inplace=False)
+    uvd_copy = utils.uvcalibrate(uvd, uvc_copy, inplace=False, ant_check=False)
+    _ = utils.uvcalibrate(
         uvd,
         uvc,
-        inplace=False,
+        inplace=True,
         ant_check=False,
         uvc_select_kwargs={"antenna_nums": keep},
     )
 
-    np.testing.assert_array_equal(got.data_array, expected.data_array)
-    np.testing.assert_array_equal(got.flag_array, expected.flag_array)
-    # Dropping the antenna has to actually change the result, or this proves nothing.
-    full = utils.uvcalibrate(uvd, uvc, inplace=False, ant_check=False)
-    assert not np.array_equal(got.flag_array, full.flag_array)
+    np.testing.assert_array_equal(uvd.data_array, uvd_copy.data_array)
+    np.testing.assert_array_equal(uvd.flag_array, uvd_copy.flag_array)
+
+    # Verify that the dropped antenna is flagged in the output.
+    mask = (uvd.ant_1_array == drop_ant) | (uvd.ant_2_array == drop_ant)
+    assert np.all(uvd.flag_array[mask])
+
     # The UVCal handed in must be untouched.
     assert len(uvc.ant_array) == len(keep) + 1
