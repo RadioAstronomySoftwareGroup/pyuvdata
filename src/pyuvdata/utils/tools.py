@@ -9,7 +9,7 @@ from collections.abc import Iterable, Iterable as IterableType
 
 import numpy as np
 
-from .types import FloatArray, IntArray, StrArray
+from .types import BoolArray, FloatArray, IntArray, StrArray
 
 
 def _get_iterable(x):
@@ -202,6 +202,30 @@ def slicify(
     else:
         # can't slicify
         return ind
+
+
+def mask_slicify(mask: BoolArray, invert: bool = False):
+    """
+    Convert a boolean mask to a slice or array of index positions.
+
+    Parameters
+    ----------
+    mask : ndarray of bool
+        Boolean mask marking the array positions to index.
+    invert : bool
+        If False, then positions in `mask` marked as True are used to build the
+        slice or index array. If True, then positions where `mask` is marked as
+        True are discarded instead (e.g., `mask` is treated as "flagged" positions
+        rather than those to be preserved). Default is False.
+
+    Returns
+    -------
+    index_obj : slice or ndarray of np.int64
+        If the list of indices can be represented by a slice, a slice is returned,
+        otherwise the list of indices is returned.
+    """
+    ind_arr = np.nonzero(~mask if invert else mask)[0]
+    return slicify(ind_arr, allow_empty=True)
 
 
 def _multidim_ind2sub(dims_dict, dims):

@@ -7,6 +7,7 @@ from typing import Literal
 import numba as nb
 import numpy as np
 
+from .tools import mask_slicify
 from .types import BoolArray, ComplexArray, FloatArray, IntArray
 
 _MIN_CUBIC_SAMPLES = 4
@@ -161,12 +162,14 @@ def build_interp_flags(
     # Capture any NaN values in cal_array and flag them.
     flag_array = flag_array | np.isnan(cal_array)
 
-    # If this is a gain amplitude array, also flag any zero values (which are invalid).
     if is_gain_amp or is_gain_pha:
         if not np.issubdtype(cal_array.dtype, np.complexfloating):
             raise ValueError(
                 "cal_array must be complex if is_gain_amp or is_gain_pha is True."
             )
+        # Treat complex gain entries that are zero as being implicitly flagged, since
+        # either multiplying or dividing by them will produce visibilities that are
+        # either zero or inf.
         flag_array |= cal_array == 0.0
 
     if len(old_times) < 2:
@@ -644,6 +647,15 @@ def _interp_cubic_cal(
         Interpolated solutions, shape (Nants, Nfreqs, Nnew, Njones), dtype is float.
         Entries where too few unflagged samples were available are set to NaN.
     """
+    good_time_slice = mask_slicify(
+        np.all(np.all(np.all(old_flags, axis=3), axis=1), axis=0), invert=True
+    )
+    # If all entries in a given time index are bad, drop those now, since it will
+    # potentially lead to a lot of wasted effort downstream
+    old_times = old_times[good_time_slice]
+    old_cal = old_cal[:, :, good_time_slice, :]
+    old_flags = old_flags[:, :, good_time_slice, :]
+
     n_old_times = len(old_times)
 
     if n_old_times < _MIN_CUBIC_SAMPLES:
@@ -659,7 +671,7 @@ def _interp_cubic_cal(
 
     # Every unflagged solution shares the same time grid, so the whole array can be
     # fit in one pass, which is typically 1-2 orders of magnitude faster than going
-    # slice by slice. Worst case, this adds a ~10% overhead of all solutions are flagged
+    # slice by slice. Worst case, this adds a ~10% overhead if all solutions are flagged
     # (though the logic check below traps this worst case scenario).
     if np.any(n_good_times == n_old_times):
         new_cal = np.asarray(
@@ -674,12 +686,18 @@ def _interp_cubic_cal(
             dtype=old_cal.dtype,
         )
 
-    if np.any(n_good_times != n_old_times):
+    if np.any((n_good_times != n_old_times) & (n_good_times >= _MIN_CUBIC_SAMPLES)):
         # If anything is flagged, we need to step through the solutions individually to
         # refit them.
         _interp_cubic_slices(
             old_times, old_cal, old_flags, new_times, new_cal, n_good_times
         )
+    elif np.any(n_good_times < _MIN_CUBIC_SAMPLES):
+        # If any solution has too few unflagged samples (but went through batch
+        # processing), blank it out.
+        mask = n_good_times < _MIN_CUBIC_SAMPLES
+        for idx in range(len(new_times)):
+            new_cal[:, :, idx, :] = np.where(mask, np.nan, new_cal[:, :, idx, :])
 
     return new_cal
 
@@ -912,9 +930,9 @@ def _interp_dispatcher(
     new_times: FloatArray,
     new_cal: FloatArray | ComplexArray | None = None,
     new_flags: BoolArray | None = None,
-    kind: Literal["nearest", "linear", "cubic", "poly"],
-    amp_kind: Literal["nearest", "linear", "cubic", "poly"] | None = None,
-    pha_kind: Literal["nearest", "linear", "cubic", "poly"] | None = None,
+    kind: Literal["nearest", "linear", "cubic", "chebyshev"],
+    amp_kind: Literal["nearest", "linear", "cubic", "chebyshev"] | None = None,
+    pha_kind: Literal["nearest", "linear", "cubic", "chebyshev"] | None = None,
     poly_order: int | None = None,
     amp_poly_order: int | None = None,
     pha_poly_order: int | None = None,
@@ -990,7 +1008,7 @@ def _interp_dispatcher(
         interp_cal = _interp_linear_cal(old_times, old_cal, old_flags, new_times)
     elif kind == "cubic":
         interp_cal = _interp_cubic_cal(old_times, old_cal, old_flags, new_times)
-    elif kind == "poly":
+    elif kind == "chebyshev":
         interp_cal = _interp_poly_cal(old_cal, old_flags, old_var, new_var, poly_order)
     else:
         raise ValueError(f"Unrecognised interpolation kind '{kind}'.")
@@ -1030,9 +1048,9 @@ def time_interp_cal(
     interp_mode: Literal[
         "real", "imag", "amp", "phase", "ampphase", "complex"
     ] = "ampphase",
-    kind: Literal["nearest", "linear", "cubic", "poly"] = "linear",
-    amp_kind: Literal["nearest", "linear", "cubic", "poly"] | None = None,
-    pha_kind: Literal["nearest", "linear", "cubic", "poly"] | None = None,
+    kind: Literal["nearest", "linear", "cubic", "chebyshev"] = "linear",
+    amp_kind: Literal["nearest", "linear", "cubic", "chebyshev"] | None = None,
+    pha_kind: Literal["nearest", "linear", "cubic", "chebyshev"] | None = None,
     poly_order: int = 3,
     amp_poly_order: int | None = None,
     pha_poly_order: int | None = None,
@@ -1079,8 +1097,8 @@ def time_interp_cal(
         separately), "real" (real-values only), "imag" (imaginary values only), "amp"
         (amplitude only), and "phase" (phase only). Default is "ampphase".
     kind : str
-        The type of interpolation to use. Options are "nearest", "linear", "cubic",
-        and "poly" (polynomial fit using Chebyshev polynomials). Default is "linear".
+        The type of interpolation to use. Options are "nearest", "linear", "cubic", and
+        "chebyshev" (polynomial fit using Chebyshev polynomials). Default is "linear".
     amp_kind : str or None
         If set, allows the interpolation kind to be set for amplitude separately.
         Default is None, which uses the value set for `kind` for interpolating
@@ -1089,11 +1107,11 @@ def time_interp_cal(
         If set, allows the interpolation kind to be set for phase separately. Default is
         None, which uses the value set for `kind` for interpolating phase.
     poly_order : int or sequence of int
-        Polynomial order to use when `kind` is "poly". May be provided as a single int,
-        or sequence of length Nvar + 1, which allows a different order polynomial to be
-        fit against variables provided via `old_var` and `new_var` (with the first entry
-        corresponding to the polynomial used for time). Note that basis set used for
-        fitting are Chebyshev polynomials. Default is 3 for all variables (including
+        Polynomial order to use when `kind` is "chebyshev". May be provided as a single
+        int, or sequence of length Nvar + 1, which allows a different order polynomial
+        to be fit against variables provided via `old_var` and `new_var` (with the first
+        entry corresponding to the polynomial used for time). Note that basis set used
+        for fitting are Chebyshev polynomials. Default is 3 for all variables (including
         time).
     amp_poly_order : int or None
         If set, allows the polynomial order to be set for amplitude separately. Default
@@ -1140,13 +1158,13 @@ def time_interp_cal(
         Only used when `interp_mode` is either "phase" or "ampphase". Default is None,
         which uses the value set for `max_time_delta`.
     old_var : ndarray of float or None
-        Additional variables to fit against when `kind="poly"`, shape (Nvar, Ntimes),
-        dtype is float. Note that time is always included as a fit variable, and do not
-        need to also be supplied here (and will in fact result in a degenerate fit).
-        Default is None, which causes to fit to be against time alone.
+        Additional variables to fit against when `kind="chebyshev"`, shape
+        (Nvar, Ntimes), dtype is float. Note that time is always included as a fit
+        variable, and do not need to also be supplied here (and will in fact result in a
+        degenerate fit). Default is None, which causes to fit to be against time alone.
     new_var : ndarray of float
-        Values of those variables at `new_times`, shape (Nvar, Nnew), dtype is
-        float. Required if `old_var` is set.
+        Values of those variables at `new_times`, shape (Nvar, Nnew), dtype is float.
+        Required if `old_var` is set.
 
     Returns
     -------
@@ -1171,12 +1189,16 @@ def time_interp_cal(
             f"Unrecognised interp_mode '{interp_mode}'. Choose from {valid_modes}."
         )
 
+    # If the calibration are solutions, then any interp_mode can be used. If they are
+    # real-valued, then only the "real" mode is compatible. Check that either the
+    # calibration solutions are complex or that "real" mode is being used, otherwise
+    # raise an error.
     if not (np.issubdtype(old_cal.dtype, np.complexfloating) or interp_mode == "real"):
         raise ValueError(
             f"interp_mode '{interp_mode}' is not compatible with real-valued old_cal."
         )
 
-    valid_kinds = {"nearest", "linear", "cubic", "poly"}
+    valid_kinds = {"nearest", "linear", "cubic", "chebyshev"}
     if kind not in valid_kinds:
         raise ValueError(
             f"Unrecognised interpolation kind '{kind}'. Choose from {valid_kinds}."
@@ -1204,7 +1226,7 @@ def time_interp_cal(
 
     # Note that amp_kind and pha_kind can each select a polynomial fit on their own,
     # so the fit variables have to be built whenever any of the three asks for one.
-    if "poly" in (kind, amp_kind, pha_kind):
+    if "chebyshev" in (kind, amp_kind, pha_kind):
         if (old_var is None) != (new_var is None):
             raise ValueError(
                 "old_var and new_var must either both be set or both be left as None."
@@ -1286,8 +1308,8 @@ def time_interp_cal(
     else:
         new_cal, new_flags = _interp_dispatcher(mode=interp_mode, **interp_kwargs)
 
-    # Some schemes, e.g., "cubic" and "poly", will return NaN if no interpolation can
-    # be generated b/c of a lack of enough data points to interpolate/fit to -- make
+    # Some schemes, e.g., "cubic" and "chebyshev", will return NaN if no interpolation
+    # can be generated b/c of a lack of enough data points to interpolate/fit to -- make
     # sure those are flagged now in the returned solns.
     bad_vals = ~np.isfinite(new_cal)
     if np.any(bad_vals):

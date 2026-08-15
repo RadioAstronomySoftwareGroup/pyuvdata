@@ -4,18 +4,30 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- `uvcalibrate` now records more detail in `UVData.history`, including which records
+were calibrated when a selection was used, whether the rest were flagged, and how the
+solutions were interpolated if `interpolate` was set.
 - Updating code to no longer set shapes directly on ndarrays (deprecated in NumPy 2.5)
 - Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Added
 - A new method `UVCal.interpolate_in_time`, which allows for UVCal calibration tables
 to be "upsampled" in time.
-- A new module (`gains_interpolate.py`) for performing time-based interpolation of
+- A new module (`gain_interpolate.py`) for performing time-based interpolation of
 calibration solutions.
 - A new option for `uvcalibrate`, called `apply_to_weights`, which allows for the values
 in `UVData.nsample_array` to be adjusted in a manner consistent with the expected
 inverse variance (e.g., if the visibilities are scaled up by a factor of 2 in amplitude,
 `nsample_array` is scaled down by a factor of 4).
+- The options `interpolate` and `interp_kwargs` were added to `uvcalibrate`, which allow
+the solutions to be interpolated onto the times of the data being calibrated (via
+`UVCal.interpolate_in_time`), rather than requiring the two to already match.
+- The options `uvd_select_kwargs` and `uvc_select_kwargs` were added to `uvcalibrate`,
+which allow the calibration to be applied to a subset of the data, and with a subset of
+the solutions, respectively. An additional option, `flag_unselected`, allows users to
+specify whether to flag unselected records in the `UVData` object.
+- A new function `utils.tools.mask_slicify`, which converts a boolean mask into a slice
+if possible, otherwise into an array of index positions.
 - Support for two new types of beams in UVBeam and AnalyticBeam: feed_aligned_response
 and feed_aligned_projection beams which result from an E-field beam decomposition
 used in some analysis codes.
