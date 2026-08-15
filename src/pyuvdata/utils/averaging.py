@@ -154,7 +154,7 @@ def mapped_average(
 
     # In testing, 4x the number of threads was about the best performance seen in terms
     # of the number of blocks to break things into. First try to break things up along
-    # the outer-most axis, then resor
+    # the outer-most axis, then resort to breaking up the inner-most axis.
     target_blocks = 4 * numba.get_num_threads()
     n_row_blocks = max(min(n_rows, target_blocks), 1)
     n_col_blocks = max(min(n_cols, -(-target_blocks // n_row_blocks)), 1)
