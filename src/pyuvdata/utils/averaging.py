@@ -155,9 +155,15 @@ def mapped_average(
     # In testing, 4x the number of threads was about the best performance seen in terms
     # of the number of blocks to break things into. First try to break things up along
     # the outer-most axis, then resort to breaking up the inner-most axis.
-    target_blocks = 4 * numba.get_num_threads()
+    target_blocks = min(4 * numba.get_num_threads(), n_rows * n_cols)
     n_row_blocks = max(min(n_rows, target_blocks), 1)
+    # blocks have a discrete number of rows, so adjust the number of blocks accounting
+    # for the minimum step needed to cover all rows (e.g., 24 rows w/ 16 target blocks
+    # need 2 rows per block to cover the span, so n_row_blocks should be 12).
+    n_row_blocks = -(-n_rows // -(-n_rows // n_row_blocks))
+    # Note the double negative sign here allows this to act like a ceil operation
     n_col_blocks = max(min(n_cols, -(-target_blocks // n_row_blocks)), 1)
+    n_col_blocks = -(-n_cols // -(-n_cols // n_col_blocks))
 
     _mapped_average(
         data=data,
