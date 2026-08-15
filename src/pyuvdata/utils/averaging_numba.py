@@ -85,7 +85,9 @@ def _mapped_average(
         row_stop = min(row_start + row_step, n_rows)
         col_start = (block % n_col_blocks) * col_step
         col_stop = min(col_start + col_step, n_cols)
-        n_chunks = col_stop - col_start
+        # Make sure that n_chunks is positive (can be negative if too many blocks get
+        # requested such that col_start > col_stop due to the min operation above)
+        n_chunks = max(col_stop - col_start, 0)
 
         # Set up working arrays per-thread
         good_vals = np.zeros((n_bins, n_chunks), dtype=out_data.dtype)
