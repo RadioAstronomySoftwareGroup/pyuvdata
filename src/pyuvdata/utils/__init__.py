@@ -19,6 +19,7 @@ LST_RAD_TOL = 2 * np.pi * 5e-3 / (86400.0)
 from . import antenna  # noqa
 from . import apply_uvflag  # noqa
 from . import array_collapse  # noqa
+from . import averaging  # noqa
 from . import bls  # noqa
 from . import bltaxis  # noqa
 from . import coordinates  # noqa
