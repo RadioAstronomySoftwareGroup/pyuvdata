@@ -13,6 +13,7 @@ used by pyuvdata are ``uv_selector`` and ``UV``.
 __all__ = ["uv_selector", "UV"]
 
 import contextlib
+import os
 import re
 
 import numpy as np
@@ -256,10 +257,12 @@ itemtable = {
     "ntau": "i",
     "nsols": "i",
     "interval": "d",
-    "leakage": "c",
+    "leakage": "?",
+    "gains": "?",
     "freq0": "d",
     "freqs": "?",
-    "bandpass": "c",
+    "bandpass": "?",
+    "nbpsols": "i",
     "nspect0": "i",
     "nchan0": "i",
     "stopt": "d",
@@ -306,7 +309,7 @@ class UV(_miriad.UV):
             )
         # when reading mutliple files we may get a numpy array of file names
         # numpy casts arrays as np.str_ and cython does not like this
-        _miriad.UV.__init__(self, str(filename), status, corrmode)
+        _miriad.UV.__init__(self, self.filename, status, corrmode)
 
         self.status = status
         self.nchan = _miriad.MAXCHAN
@@ -504,8 +507,70 @@ class UV(_miriad.UV):
 
             _miriad.hdaccess(h)
             return rv
+        elif name == "gains":
+            h = self.haccess(name, "read")
+            offset = 8
+            nsolns = self["nsols"]
+            ngains = self["ngains"]
+            nants = self["nants"]
+            ntau = self["ntau"]
+            nfeeds = self["nfeeds"]
+            timestamps = np.empty(nsolns, dtype=float)
+            soln_arr = np.empty((nsolns, ngains), dtype=np.complex64)
+
+            for idx in range(nsolns):
+                timestamps[idx], o = _miriad.hread(h, offset, "d")
+                offset += o
+                for jdx in range(ngains):
+                    soln_arr[idx, jdx], o = _miriad.hread(h, offset, "c")
+                    offset += o
+            _miriad.hdaccess(h)
+            soln_arr = np.reshape(soln_arr, (nsolns, nants, nfeeds + ntau))
+            gain_arr = None if (nfeeds == 0) else soln_arr[:, :, :nfeeds]
+            delay_arr = None if (ntau == 0) else soln_arr[:, :, nfeeds:].imag
+
+            return timestamps, gain_arr, delay_arr
+        elif name == "bandpass":
+            h = self.haccess(name, "read")
+            offset = 8
+            nvals = self["nchan0"] * self["nfeeds"] * self["nants"]
+            nsolns = self["nbpsols"]
+            timestamps = np.empty(nsolns, dtype=np.float64)
+            soln_arr = np.empty((nsolns, nvals), dtype=np.complex64)
+            for idx in range(nsolns):
+                for jdx in range(nvals):
+                    soln_arr[idx, jdx], o = _miriad.hread(h, offset, "c")
+                    offset += o
+                timestamps[idx], o = _miriad.hread(h, offset, "d")
+                offset += o
+            _miriad.hdaccess(h)
+            soln_arr = np.reshape(
+                soln_arr, (nsolns, self["nants"], self["nfeeds"], self["nchan0"])
+            )
+            return timestamps, soln_arr
+        elif name == "leakage":
+            h = self.haccess(name, "read")
+            offset = 8
+            nvals = self["nants"] * self["nfeeds"]
+            soln_arr = np.empty(nvals, dtype=np.complex64)
+            for idx in range(nvals):
+                soln_arr[idx], o = _miriad.hread(h, offset, "c")
+                offset += o
+            _miriad.hdaccess(h)
+            soln_arr = np.reshape(soln_arr, (self["nants"], self["nfeeds"]))
+            return soln_arr
         else:
             raise ValueError("Unknown special header: " + name)
+
+    def _hinit_special(self, name):
+        """Initialize a special header table."""
+        if name not in ["gains", "bandpass", "leakage"]:
+            pass
+        # Initialize an 8-byte entry so that uvio can "latch"
+        np.int64(0).tofile(os.path.join(self.filename, name))
+        handle = self.haccess(name, "append")
+        offset = 8
+        return handle, offset
 
     def _wrhd_special(self, name, val):
         """Provide write access to special header items of type '?' to _wrhd."""
@@ -522,6 +587,54 @@ class UV(_miriad.UV):
                 offset += 8
 
             _miriad.hdaccess(h)
+        elif name == "leakage":
+            # Initialize the leakage table
+            handle, offset = self._hinit_special(name)
+            for item in val.flat:
+                _miriad.hwrite(handle, offset, item, "c")
+                offset += 8
+            _miriad.hdaccess(handle)
+        elif name == "bandpass":
+            handle, offset = self._hinit_special(name)
+            timestamps, soln_arr = val
+            nsolns = soln_arr.shape[0]
+            for idx in range(nsolns):
+                for item in soln_arr[idx].flat:
+                    _miriad.hwrite(handle, offset, item, "c")
+                    offset += 8
+                _miriad.hwrite(handle, offset, timestamps[idx], "d")
+                offset += 8
+            self["nbpsols"] = nsolns
+            _miriad.hdaccess(handle)
+        elif name == "gains":
+            handle, offset = self._hinit_special(name)
+            timestamps, gain_arr, delay_arr = val
+            nfeeds = ntau = val_arr = 0
+            if gain_arr is not None:
+                nfeeds = gain_arr.shape[2]
+                val_arr = gain_arr
+            if delay_arr is not None:
+                temp_arr = np.zeros_like(delay_arr, dtype=np.complex64)
+                temp_arr.imag[:] = delay_arr
+                delay_arr = temp_arr
+                ntau = delay_arr.shape[2]
+                val_arr = delay_arr
+            if gain_arr is not None and delay_arr is not None:
+                val_arr = np.concatenate((gain_arr, delay_arr))
+
+            nsolns = len(timestamps)
+            for idx in range(nsolns):
+                _miriad.hwrite(handle, offset, timestamps[idx], "d")
+                offset += 8
+                for item in val_arr[idx].flat:
+                    _miriad.hwrite(handle, offset, item, "c")
+                    offset += 8
+
+            self["ngains"] = val_arr.size // nsolns
+            self["nfeeds"] = nfeeds
+            self["ntau"] = ntau
+            self["nsols"] = nsolns
+            _miriad.hdaccess(handle)
         else:
             raise ValueError("Unknown special header: " + name)
 

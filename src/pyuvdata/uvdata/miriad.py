@@ -122,6 +122,7 @@ class Miriad(UVData):
             "freq",
             "freqs",
             "leakage",
+            "gains",
             "bandpass",
             "tscale",
             "coord",
