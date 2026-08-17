@@ -2084,3 +2084,57 @@ def test_miriad_read_xorient(tmp_path):
     assert uv.telescope.Nfeeds == 1
     assert np.array_equal(uv.telescope.feed_array, [["x"]] * nants)
     assert np.array_equal(uv.telescope.feed_angle, [[np.pi / 2]] * nants)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:writing default values for restfreq")
+@pytest.mark.parametrize(
+    "varying,per_pol,err_type,err_msg",
+    [
+        ("uvw", True, ValueError, "uvw values are different"),
+        ("phsframe", True, ValueError, "phsframe values are different"),
+        ("ra", True, ValueError, "ra values are different"),
+        ("dec", True, ValueError, "dec values are different"),
+        ("ra", False, ValueError, "different RA values"),
+        ("dec", False, ValueError, "different Dec values"),
+        ("epoch", False, UserWarning, "Epoch values are varying within a single"),
+    ],
+)
+def test_inconsistent_record_values(
+    casa_uvfits: UVData, tmp_path, varying, per_pol, err_type, err_msg
+):
+    """Values that pyuvdata cannot describe as varying by pol or by baseline."""
+    uv_in = casa_uvfits
+    orig_file = os.path.join(tmp_path, "record_orig.uv")
+    test_file = os.path.join(tmp_path, "record_vary.uv")
+
+    uv_in.select(times=np.unique(uv_in.time_array)[:2])
+    npols = uv_in.Npols
+    uv_in.write_miriad(orig_file)
+
+    uv_read = aipy_extracts.UV(orig_file)
+    uv_out = aipy_extracts.UV(test_file, status="new")
+    uv_out.init_from_uv(uv_read)
+    for idx, (preamble, data, flags) in enumerate(uv_read.all_data(raw=True)):
+        # copyvr first, so anything set below is not overwritten by it
+        uv_out.copyvr(uv_read)
+        # per_pol varies the value inside a baseline-time, so the difference falls
+        # across polarizations. Otherwise it is held fixed across the pols of a
+        # baseline and varied between them, which the pol check has to not catch.
+        offset = (idx % npols) if per_pol else ((idx // npols) % 2)
+        if varying == "uvw":
+            preamble = (preamble[0] + offset, preamble[1], preamble[2])
+        elif varying == "phsframe":
+            uv_out[varying] = "icrs" if offset else "fk5 "
+        else:
+            uv_out[varying] = uv_read[varying] + 0.1 * offset
+        uv_out.write(preamble, data, flags)
+    uv_read.close()
+    uv_out.close()
+
+    if issubclass(err_type, UserWarning):
+        with check_warnings(UserWarning, [err_msg, warn_dict["uvw_mismatch"]]):
+            UVData.from_file(test_file)
+    else:
+        with pytest.raises(err_type, match=err_msg):
+            UVData.from_file(test_file)
