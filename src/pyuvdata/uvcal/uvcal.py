@@ -4974,6 +4974,62 @@ class UVCal(UVBase):
         self._convert_from_filetype(ms_cal_obj)
         del ms_cal_obj
 
+    def read_miriad_cal(self, filepath, **kwargs):
+        """
+        Read in calibration solutions from a Miriad data set.
+
+        Miriad stores calibration solutions alongside the visibilities rather than in
+        a standalone table, so this reads the calibration items out of a Miriad data
+        set and uses the visibility header for the antenna and frequency metadata.
+
+        Parameters
+        ----------
+        filepath : str
+            The Miriad data set to read from.
+        soln_type : str
+            Which calibration table to read, one of "gains", "delays", "bandpass" or
+            "leakage". Each is returned as an independent UVCal object: "gains" and
+            "delays" are wide band (the latter being the tau terms stored alongside
+            the gains), "bandpass" is frequency resolved, and "leakage" is carried as
+            the cross-handed Jones terms. If left unset, the table is selected
+            automatically, which requires that the data set contain exactly one.
+        default_mount_type : str
+            If not recorded in the data set or telescope is unknown to pyuvdata, the
+            `Telescope.mount_type` parameter is automatically set to "other". However,
+            users can specify a different default by passing an argument here.
+        default_x_orientation : str
+            By default, if not found on read, the x_orientation parameter will be
+            set to "east" and a warning will be raised. However, if a value for
+            default_x_orientation is provided, it will be used instead and the
+            warning will be suppressed.
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which
+            uses the pyERFA), 'novas' (which uses the python-novas library), and
+            'astropy' (which uses the astropy utilities). Default is erfa unless
+            the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
+
+        """
+        from . import miriad_cal
+
+        if isinstance(filepath, list | tuple):
+            raise ValueError(
+                "Use the generic `UVCal.read` method to read multiple files."
+            )
+
+        miriad_obj = miriad_cal.MiriadCal()
+        miriad_obj.read_miriad_cal(filepath, **kwargs)
+        self._convert_from_filetype(miriad_obj)
+        del miriad_obj
+
     def read(
         self,
         filename,
