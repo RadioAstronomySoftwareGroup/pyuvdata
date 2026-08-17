@@ -371,3 +371,62 @@ def test_uv_selector(polstr, antstr, ants_exp, nrec_exp):
 
     assert nrec == nrec_exp
     aipy_uv.close()
+
+
+def test_get_freq_axis():
+    """Check the frequency axis against the values recorded in the file."""
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
+    freq_array, channel_width, flex_spw_id_array, spw_array = aipy_uv.get_freq_axis()
+
+    nchan = aipy_uv["nchan"]
+    # sdf and sfreq are both recorded in GHz
+    assert np.allclose(
+        freq_array, 1e9 * (aipy_uv["sfreq"] + np.arange(nchan) * aipy_uv["sdf"])
+    )
+    assert np.allclose(channel_width, 1e9 * np.abs(aipy_uv["sdf"]))
+    assert np.array_equal(flex_spw_id_array, np.zeros(nchan, dtype=int))
+    assert np.array_equal(spw_array, np.arange(aipy_uv["nspect"]))
+    aipy_uv.close()
+
+
+@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file")
+@pytest.mark.filterwarnings("ignore:antenna number")
+def test_get_telescope():
+    """Check that the telescope is built out of the file metadata."""
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
+    telescope = aipy_uv.get_telescope()
+
+    assert telescope.name == aipy_uv["telescop"].replace("\x00", "")
+    # instrument falls back to the telescope name when it is not recorded
+    assert telescope.instrument == telescope.name
+    assert telescope.location is not None
+    assert telescope.Nants == telescope.antenna_numbers.size
+    assert telescope.antenna_positions.shape == (telescope.Nants, 3)
+    assert len(telescope.antenna_names) == telescope.Nants
+
+    # antennas with a zeroed position are only kept if they turn up in the data,
+    # so handing one of the dropped antennas back adds it to the list
+    dropped = sorted(set(range(aipy_uv["nants"])) - set(telescope.antenna_numbers))
+    assert len(dropped) > 0
+    more_ants = aipy_uv.get_telescope(sorted_unique_ants=dropped[:1])
+    assert more_ants.Nants == telescope.Nants + 1
+    aipy_uv.close()
+
+
+def test_get_data_antennas():
+    """Check that the antennas carrying data are found, and the position restored."""
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
+    ants = aipy_uv.get_data_antennas()
+
+    # cross-check against a plain scan of the records
+    expected = set()
+    while True:
+        try:
+            expected.update(aipy_uv.read(raw=True)[0][2])
+        except OSError:
+            break
+    aipy_uv.rewind()
+    assert ants == sorted(expected)
+    # the scan must leave the data set readable from the top
+    assert aipy_uv.read(raw=True)[0][2] is not None
+    aipy_uv.close()
