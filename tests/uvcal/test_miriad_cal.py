@@ -88,7 +88,6 @@ def delay_path(tmp_path, atca_path):
     [
         ("gains", "gain", True, [-5, -6]),
         ("bandpass", "gain", False, [-5, -6]),
-        # leakages are carried as the cross-handed Jones terms
         ("leakage", "gain", True, [-7, -8]),
     ],
 )
@@ -301,7 +300,6 @@ def test_x_orientation_from_default(atca_path):
     [({"pol": 1}, "unrecognized pol code"), ({"npol": 3}, "expected only 1 or 2")],
 )
 def test_feed_errors(tmp_path, atca_path, override, msg):
-    """Pol codes and feed counts that cannot describe a Jones vector."""
     uv = aipy_extracts.UV(atca_path)
     times, gains, _ = uv["gains"]
     uv.close()
@@ -318,7 +316,6 @@ def test_feed_errors(tmp_path, atca_path, override, msg):
 
 
 def test_soln_type_autodetect(tmp_path, atca_path):
-    """With only one table present, soln_type does not have to be given."""
     testfile = _copy_with(
         tmp_path, atca_path, "gains_only.uv", exclude=_DROP_BANDPASS + _DROP_LEAKAGE
     )
@@ -329,7 +326,6 @@ def test_soln_type_autodetect(tmp_path, atca_path):
 
 
 def test_leakage_time_fallback(tmp_path, atca_path):
-    """With no gains or bandpass to date it against, leakage uses the data time."""
     testfile = _copy_with(
         tmp_path, atca_path, "leakage_only.uv", exclude=_DROP_GAINS + _DROP_BANDPASS
     )
@@ -345,7 +341,6 @@ def test_leakage_time_fallback(tmp_path, atca_path):
 
 
 def test_x_orientation_from_file(tmp_path, atca_path):
-    """A recorded xorient is used in preference to the default."""
     testfile = _copy_with(tmp_path, atca_path, "xorient.uv", items={"xorient": "north"})
     uvc = UVCal()
     with check_warnings(UserWarning, match="Altitude is not present in file"):
@@ -354,7 +349,6 @@ def test_x_orientation_from_file(tmp_path, atca_path):
 
 
 def test_suspect_interval_warning(tmp_path, atca_path):
-    """mfcal hardcodes the interval, so flag it when it dwarfs the cadence."""
     uv = aipy_extracts.UV(atca_path)
     _, gains, _ = uv["gains"]
     uv.close()
