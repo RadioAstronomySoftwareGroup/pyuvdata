@@ -558,7 +558,11 @@ class Miriad(UVData):
             if len(d.shape) == 1:
                 d = np.reshape(d, (1, *d.shape))
 
-            if np.size(d) != self.Nfreqs:
+            if np.size(d) != self.Nfreqs:  # pragma: no cover
+                # N.b. (Karto): UV.read always asks for the nchan recorded when the
+                # file was opened, which is the same value Nfreqs is taken from, so the
+                # two cannot disagree no matter what the individual records hold, at
+                # least not with a valid reader.
                 raise ValueError("Number of channels in spectrum has changed!")
             try:
                 cnt = uv["cnt"]
@@ -1065,7 +1069,7 @@ class Miriad(UVData):
                                 lat_use[inverse == t_ind], tols=radian_tols
                             ):
                                 raise ValueError(
-                                    f"Source {name} has different RA values for "
+                                    f"Source {name} has different Dec values for "
                                     "different baselines at the same time."
                                     + reporting_request
                                 )
