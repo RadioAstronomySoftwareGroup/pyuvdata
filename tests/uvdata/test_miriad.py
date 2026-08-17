@@ -31,9 +31,8 @@ from astropy.time import Time, TimeDelta
 
 from pyuvdata import UVData, utils
 from pyuvdata.datasets import fetch_data
-from pyuvdata.telescopes import known_telescope_location
+from pyuvdata.telescopes import Telescope, known_telescope_location
 from pyuvdata.testing import check_warnings
-from pyuvdata.uvdata.miriad import Miriad
 
 aipy_extracts = pytest.importorskip(
     "pyuvdata.uvdata.aipy_extracts", exc_type=ImportError
@@ -468,11 +467,7 @@ def test_wronglatlon(tmp_path, override_dict, correct_lat_lon):
 
     if "telescop" in override_dict:
         warn_list.extend(
-            [
-                warn_dict["altitude_missing_foo"],
-                warn_dict["altitude_missing_foo"],
-                warn_dict["telescope_at_sealevel"],
-            ]
+            [warn_dict["altitude_missing_foo"], warn_dict["telescope_at_sealevel"]]
         )
     elif "latitud" in override_dict and "longitu" in override_dict:
         warn_list.append(warn_dict["altitude_missing_lat_long"])
@@ -531,7 +526,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
         UserWarning,
         [
             warn_dict["altitude_missing_foo"],
-            warn_dict["altitude_missing_foo"],  # raised twice
             warn_dict["no_telescope_loc"],
             warn_dict["uvw_mismatch"],
         ],
@@ -554,7 +548,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
         UserWarning,
         match=[
             warn_dict["altitude_missing_foo"],
-            warn_dict["altitude_missing_foo"],  # raised twice
             "Antenna positions are not present in the file.",
             "Antenna positions are not present in the file.",  # raised twice
             "Telescope location is set at sealevel at the file lat/lon "
@@ -586,7 +579,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
         UserWarning,
         [
             warn_dict["altitude_missing_foo"],
-            warn_dict["altitude_missing_foo"],
             warn_dict["telescope_at_sealevel_foo"],
             warn_dict["projection_false_offset"],
             warn_dict["uvw_mismatch"],
@@ -616,7 +608,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with check_warnings(
         UserWarning,
         [
-            warn_dict["altitude_missing_foo"],
             warn_dict["altitude_missing_foo"],
             (
                 "Telescope location is set at sealevel at the "
@@ -656,7 +647,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with check_warnings(
         UserWarning,
         [
-            warn_dict["altitude_missing_foo"],
             warn_dict["altitude_missing_foo"],
             warn_dict["telescope_at_sealevel_lat_long"],
             warn_dict["projection_false_offset"],
@@ -700,7 +690,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with check_warnings(
         UserWarning,
         [
-            warn_dict["altitude_missing_foo"],
             warn_dict["altitude_missing_foo"],
             (
                 "Telescope location is set at sealevel at the "
@@ -1335,17 +1324,44 @@ def test_miriad_and_aipy_reads(uv_in_paper):
 
 
 def test_miriad_telescope_locations():
-    # test load_telescope_coords w/ blank Miriad
-    uv_in = Miriad()
+    # test load_telescope_coords w/ blank Telescope
     uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
-    uv_in._load_telescope_coords(uv)
-    assert uv_in.telescope.location is not None
+    telescope = Telescope()
+    telescope.name = uv["telescop"].replace("\x00", "")
+    uv._load_telescope_coords(telescope)
+    assert telescope.location is not None
     uv.close()
-    # test load_antpos w/ blank Miriad
-    uv_in = Miriad()
+    # test load_antpos w/ blank Telescope
     uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
-    uv_in._load_antpos(uv)
-    assert uv_in.telescope.antenna_positions is not None
+    telescope = Telescope()
+    telescope.name = uv["telescop"].replace("\x00", "")
+    uv._load_telescope_coords(telescope)
+    uv._load_antpos(telescope)
+    assert telescope.antenna_positions is not None
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "written,expected",
+    [("a test string", "a test string"), ("True", True), ("False", False)],
+)
+def test_miriad_string_header_item(tmp_path, monkeypatch, written, expected):
+    """Check that string header items land in extra_keywords, booleans decoded."""
+    # Every string-valued entry in the default itemtable is one that is read
+    # elsewhere, so a new one has to be registered to exercise this at all.
+    monkeypatch.setitem(aipy_extracts.itemtable, "tstitem", "a")
+
+    test_file = os.path.join(tmp_path, "miriad_string_item.uv")
+    aipy_uv = aipy_extracts.UV(fetch_data("paper_2014_miriad"))
+    aipy_uv2 = aipy_extracts.UV(test_file, status="new")
+    aipy_uv2["tstitem"] = written
+    aipy_uv2.init_from_uv(aipy_uv)
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv.close()
+    aipy_uv2.close()
+
+    uv_in = UVData.from_file(test_file)
+    assert uv_in.extra_keywords["tstitem"] == expected
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
