@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Moved the miriad telescope, antenna and frequency axis handling on to the
+`aipy_extracts.UV` object so that it is shared between the `UVData` and `UVCal` readers,
+adding `UV.get_telescope`, `UV.get_freq_axis` and `UV.get_data_antennas` methods.
 - Changed how `UVCal.read_ms_cal` groups together calibration solutions based on time.
 Previously solution timestamps needed to be within the default tolerance for
 `UVCal.time_array` (1 millisecond), but testing suggests that CASA-based processes
@@ -20,6 +23,8 @@ solutions were interpolated if `interpolate` was set.
 - Require lunarsky>1.0 to drop spiceypy requirement
 
 ### Added
+- Support for reading Miriad bandpass, gains, delays, and leakage calibration tables
+into `UVCal` via `UVCal.read_miriad_cal`.
 - A new utility function `utils.averaging.mapped_average`, which performs a weighted
 average of an array along a single axis using an arbitrary map of input to output
 positions.
