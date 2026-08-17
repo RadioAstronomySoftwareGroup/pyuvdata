@@ -10,14 +10,13 @@ import warnings
 
 import numpy as np
 import scipy
-from astropy import constants as const, units
+from astropy import constants as const
 from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..telescopes import known_telescope_location
 from . import UVData
 from .uvdata import reporting_request
 
@@ -176,42 +175,13 @@ class Miriad(UVData):
             header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
 
-        self.telescope.name = uv["telescop"].replace("\x00", "")
-
         # Deal with the spectral axis now
-        if self.Nspws > 1:
-            # Channel widths are described per spw, just need to expand it out to be
-            # for each frequency channel.
-            self.channel_width = np.concatenate(
-                tuple(
-                    np.full(nchan, 1e9 * np.abs(chan_width), dtype=np.float64)
-                    for chan_width, nchan in zip(uv["sdf"], uv["nschan"], strict=True)
-                )
-            )
-            # Now setup frequency array
-            self.freq_array = np.concatenate(
-                tuple(
-                    (chan_width * np.arange(nchan, dtype=np.float64) + sfreq) * 1e9
-                    for chan_width, nchan, sfreq in zip(
-                        uv["sdf"], uv["nschan"], uv["sfreq"], strict=True
-                    )
-                )
-            )
-            # TODO: Fix this to capture unsorted spectra
-            self.flex_spw_id_array = np.concatenate(
-                tuple(
-                    np.full(nchan, idx, dtype=int)
-                    for idx, nchan in zip(range(self.Nspws), uv["nschan"], strict=True)
-                )
-            )
-        else:
-            # sdf (delta freq) and sfreq (chan0 freq) are both in GHz
-            self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
-            self.freq_array = 1e9 * (np.arange(self.Nfreqs) * uv["sdf"] + uv["sfreq"])
-            # Do the units and potential sign conversion for channel_width
-            self.channel_width = np.full(self.Nfreqs, np.abs(uv["sdf"] * 1e9))
-
-        self.spw_array = np.arange(self.Nspws)
+        (
+            self.freq_array,
+            self.channel_width,
+            self.flex_spw_id_array,
+            self.spw_array,
+        ) = uv.get_freq_axis()
 
         self.history = uv["history"]
         if not utils.history._check_history_version(
@@ -224,12 +194,6 @@ class Miriad(UVData):
             self.vis_units = uv["visunits"].replace("\x00", "")
         else:
             self.vis_units = "uncalib"  # assume no calibration
-        if "instrume" in uv.vartable:
-            self.telescope.instrument = uv["instrume"].replace("\x00", "")
-        else:
-            # set instrument = telescope name
-            self.telescope.instrument = self.telescope.name
-
         if "dut1" in uv.vartable:
             self.dut1 = uv["dut1"]
         if "degpdy" in uv.vartable:
@@ -247,409 +211,7 @@ class Miriad(UVData):
             self.blt_order = tuple(blt_order_str.split(", "))
             if self.blt_order == ("bda",):
                 self._blt_order.form = (1,)
-        if "mount" in uv.vartable:
-            mount = uv["mount"]
-            if not isinstance(mount, np.ndarray):
-                mount = np.full(uv["nants"], mount)
-            self.telescope.mount_type = [
-                utils.antenna.MOUNT_NUM2STR_DICT[item] for item in mount
-            ]
-        if all(item in uv.vartable for item in ["nfeeds", "feedarr", "feedang"]):
-            self.telescope.Nfeeds = uv["nfeeds"]
-            self.telescope.feed_array = np.array(
-                [
-                    item.strip()
-                    for item in uv["feedarr"].replace("\x00", "")[1:-1].split(",")
-                ],
-                dtype=np.object_,
-            ).reshape(-1, self.telescope.Nfeeds)
-            self.telescope.feed_angle = uv["feedang"].reshape(-1, self.telescope.Nfeeds)
-
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
-
-    def _load_telescope_coords(self, uv, *, correct_lat_lon=True):
-        """
-        Load telescope lat, lon, alt coordinates from aipy.miriad UV descriptor.
-
-        Parameters
-        ----------
-        uv : aipy.miriad.UV
-            aipy object to load lat, lon, alt coordinates from.
-        correct_lat_lon : bool
-            Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
-
-        """
-        # check if telescope name is present
-        if self.telescope.name is None:
-            self._load_miriad_variables(uv)
-
-        latitude = uv["latitud"]  # in units of radians
-        longitude = uv["longitu"]
-
-        # Catch a weird case where where sometimes long is wrapped like RA (0 -> 2pi
-        # instead of -pi -> pi)
-        if longitude > np.pi:
-            longitude -= 2 * np.pi
-        try:
-            altitude = uv["altitude"]
-            self.telescope.location = EarthLocation.from_geodetic(
-                lat=latitude * units.rad,
-                lon=longitude * units.rad,
-                height=altitude * units.m,
-            )
-        except KeyError:
-            # get info from known telescopes.
-            # Check to make sure the lat/lon values match reasonably well
-            try:
-                telescope_loc = known_telescope_location(self.telescope.name)
-            except ValueError:
-                telescope_loc = None
-            if telescope_loc is not None:
-                tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
-                lat_close = np.isclose(
-                    telescope_loc.lat.rad, latitude, rtol=0, atol=tol
-                )
-                lon_close = np.isclose(
-                    telescope_loc.lon.rad, longitude, rtol=0, atol=tol
-                )
-                if correct_lat_lon:
-                    self.telescope.location = telescope_loc
-                else:
-                    self.telescope.location = EarthLocation.from_geodetic(
-                        lat=latitude * units.rad,
-                        lon=longitude * units.rad,
-                        height=telescope_loc.height,
-                    )
-                if lat_close and lon_close:
-                    if correct_lat_lon:
-                        warnings.warn(
-                            "Altitude is not present in Miriad file, "
-                            "using known location values for "
-                            f"{self.telescope.name}."
-                        )
-                    else:
-                        warnings.warn(
-                            "Altitude is not present in Miriad file, "
-                            "using known location altitude value "
-                            f"for {self.telescope.name} and lat/lon from "
-                            "file."
-                        )
-                else:
-                    warn_string = "Altitude is not present in file "
-                    if not lat_close and not lon_close:
-                        warn_string = (
-                            warn_string
-                            + "and latitude and longitude values do not match values "
-                        )
-                    else:
-                        if not lat_close:
-                            warn_string = (
-                                warn_string + "and latitude value does not match value "
-                            )
-                        else:
-                            warn_string = (
-                                warn_string
-                                + "and longitude value does not match value "
-                            )
-                    if correct_lat_lon:
-                        warn_string = (
-                            warn_string + f"for {self.telescope.name} in known "
-                            "telescopes. Using values from known telescopes."
-                        )
-                        warnings.warn(warn_string)
-                    else:
-                        warn_string = (
-                            warn_string + f"for {self.telescope.name} in known "
-                            "telescopes. Using altitude value from known "
-                            "telescopes and lat/lon from file."
-                        )
-                        warnings.warn(warn_string)
-            else:
-                warnings.warn(
-                    "Altitude is not present in Miriad file, and "
-                    f"telescope {self.telescope.name} is not in "
-                    "known_telescopes. Telescope location will be "
-                    "set using antenna positions."
-                )
-
-    def _load_antpos(self, uv, *, sorted_unique_ants=None, correct_lat_lon=True):
-        """
-        Load antennas and their positions from a Miriad UV descriptor.
-
-        Parameters
-        ----------
-        uv : aipy.miriad.UV
-            aipy object to antennas and positions from.
-        sorted_unique_ants : list of ints, optional
-            List of unique antennas.
-        correct_lat_lon : bool
-            Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
-
-        """
-        # check if telescope coords exist
-        if self.telescope.location is None:
-            self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
-
-        latitude = uv["latitud"]  # in units of radians
-        longitude = uv["longitu"]
-
-        # Miriad has no way to keep track of antenna numbers, so the antenna
-        # numbers are simply the index for each antenna in any array that
-        # describes antenna attributes (e.g. antpos for the antenna_positions).
-        # Therefore on write, nants (which gives the size of the antpos array)
-        # needs to be increased to be the max value of antenna_numbers+1 and the
-        # antpos array needs to be inflated with zeros at locations where we
-        # don't have antenna information. These inflations need to be undone at
-        # read. If the file was written by pyuvdata, then the variable antnums
-        # will be present and we can use it, otherwise we need to test for zeros
-        # in the antpos array and/or antennas with no visibilities.
-        try:
-            # The antnums variable will only exist if the file was written with
-            # pyuvdata.
-            # For some reason Miriad doesn't handle an array of integers properly,
-            # so we convert to floats on write and back here
-            self.telescope.antenna_numbers = uv["antnums"].astype(int)
-            self.telescope.Nants = len(self.telescope.antenna_numbers)
-        except KeyError:
-            self.telescope.antenna_numbers = None
-            self.telescope.Nants = None
-
-        nants = uv["nants"]
-        try:
-            # Miriad stores antpos values in units of ns, pyuvdata uses meters.
-            antpos = uv["antpos"].reshape(3, nants).T * const.c.to_value("m/ns")
-
-            # first figure out what are good antenna positions so we can only
-            # use the non-zero ones to evaluate position information
-            antpos_length = np.sqrt(np.sum(np.abs(antpos) ** 2, axis=1))
-            good_antpos = np.where(antpos_length > 0)[0]
-            absolute_positions = False
-            if any(good_antpos):
-                mean_antpos_length = np.mean(antpos_length[good_antpos])
-                if mean_antpos_length > 6.35e6 and mean_antpos_length < 6.39e6:
-                    absolute_positions = True
-
-            # Miriad stores antpos values in a rotated ECEF coordinate system
-            # where the x-axis goes through the local meridan. Need to convert
-            # these positions back to standard ECEF and if they are absolute
-            # positions, subtract off the telescope position to make them
-            # relative to the array center.
-            ecef_antpos = utils.ECEF_from_rotECEF(antpos, longitude)
-
-            if self.telescope.location is not None:
-                if absolute_positions:
-                    rel_ecef_antpos = ecef_antpos - self.telescope._location.xyz()
-                    # maintain zeros because they mark missing data
-                    rel_ecef_antpos[np.where(antpos_length == 0)[0]] = ecef_antpos[
-                        np.where(antpos_length == 0)[0]
-                    ]
-                else:
-                    rel_ecef_antpos = ecef_antpos
-            else:
-                self.telescope.location = EarthLocation.from_geocentric(
-                    *np.mean(ecef_antpos[good_antpos, :], axis=0) * units.m
-                )
-                valid_location = utils.coordinates.check_surface_based_positions(
-                    telescope_loc=self.telescope.location,
-                    raise_error=False,
-                    raise_warning=False,
-                )
-
-                # check to see if this could be a valid telescope location
-                if valid_location:
-                    mean_lon, mean_lat, mean_alt = self.telescope.location.geodetic
-                    mean_lat = mean_lat.rad
-                    mean_lon = mean_lon.rad
-                    mean_alt = mean_alt.to_value("m")
-                    tol = 2 * np.pi / (60.0 * 60.0 * 24.0)  # 1 arcsecond in radians
-                    mean_lat_close = np.isclose(mean_lat, latitude, rtol=0, atol=tol)
-                    mean_lon_close = np.isclose(mean_lon, longitude, rtol=0, atol=tol)
-
-                    if mean_lat_close and mean_lon_close:
-                        # this looks like a valid telescope location, and the
-                        # mean antenna lat & lon values are close. Set the
-                        # telescope location using the file lat/lons and the mean alt.
-                        # Then subtract it off of the antenna positions
-                        warnings.warn(
-                            "Telescope location is not set, but antenna "
-                            "positions are present. Mean antenna latitude and "
-                            "longitude values match file values, so "
-                            "telescope_position will be set using the "
-                            "mean of the antenna altitudes"
-                        )
-                        self.telescope.location = EarthLocation.from_geodetic(
-                            lat=latitude * units.rad,
-                            lon=longitude * units.rad,
-                            height=mean_alt * units.m,
-                        )
-                        rel_ecef_antpos = ecef_antpos - self.telescope._location.xyz()
-
-                    else:
-                        # this looks like a valid telescope location, but the
-                        # mean antenna lat & lon values are not close. Set the
-                        # telescope location using the file lat/lons at sea level.
-                        # Then subtract it off of the antenna positions
-                        self.telescope.location = EarthLocation.from_geodetic(
-                            lat=latitude * units.rad, lon=longitude * units.rad
-                        )
-                        warn_string = (
-                            "Telescope location is set at sealevel at "
-                            "the file lat/lon coordinates. Antenna "
-                            "positions are present, but the mean "
-                            "antenna "
-                        )
-                        rel_ecef_antpos = ecef_antpos - self.telescope._location.xyz()
-
-                        if not mean_lat_close and not mean_lon_close:
-                            warn_string += (
-                                "latitude and longitude values do not "
-                                "match file values so they are not used "
-                                "for altitude."
-                            )
-                        elif not mean_lat_close:
-                            warn_string += (
-                                "latitude value does not "
-                                "match file values so they are not used "
-                                "for altitude."
-                            )
-                        else:
-                            warn_string += (
-                                "longitude value does not "
-                                "match file values so they are not used "
-                                "for altitude."
-                            )
-                        warnings.warn(warn_string)
-
-                else:
-                    # This does not give a valid telescope location. Instead
-                    # calculate it from the file lat/lon and sea level for altitude
-                    self.telescope.location = EarthLocation.from_geodetic(
-                        lat=latitude * units.rad, lon=longitude * units.rad
-                    )
-                    warn_string = (
-                        "Telescope location is set at sealevel at the file lat/lon "
-                        "coordinates. Antenna positions are present, but the mean "
-                        "antenna position does not give a telescope location on the "
-                        "surface of the earth."
-                    )
-                    if absolute_positions:
-                        rel_ecef_antpos = ecef_antpos - self.telescope._location.xyz()
-                    else:
-                        warn_string += (
-                            " Antenna positions do not appear to be "
-                            "on the surface of the earth and will be treated "
-                            "as relative."
-                        )
-                        rel_ecef_antpos = ecef_antpos
-
-                    warnings.warn(warn_string)
-
-            if self.telescope.Nants is not None:
-                # in this case there is an antnums variable
-                # (meaning that the file was written with pyuvdata), so we'll use it
-                if nants == self.telescope.Nants:
-                    # no inflation, so just use the positions
-                    self.telescope.antenna_positions = rel_ecef_antpos
-                else:
-                    # there is some inflation, just use the ones that appear in antnums
-                    self.telescope.antenna_positions = np.zeros(
-                        (self.telescope.Nants, 3), dtype=antpos.dtype
-                    )
-                    for ai, num in enumerate(self.telescope.antenna_numbers):
-                        self.telescope.antenna_positions[ai, :] = rel_ecef_antpos[
-                            num, :
-                        ]
-            else:
-                # there is no antnums variable (meaning that this file was not
-                # written by pyuvdata), so we test for antennas with non-zero
-                # positions and/or that appear in the visibility data
-                # (meaning that they have entries in ant_1_array or ant_2_array)
-                antpos_length = np.sqrt(np.sum(np.abs(antpos) ** 2, axis=1))
-                good_antpos = np.where(antpos_length > 0)[0]
-                # take the union of the antennas with good positions (good_antpos)
-                # and the antennas that have visisbilities (sorted_unique_ants)
-                # if there are antennas with visibilities but zeroed positions
-                # we issue a warning below
-                if sorted_unique_ants is not None:
-                    ants_use = set(good_antpos).union(sorted_unique_ants)
-                else:
-                    ants_use = set(good_antpos)
-                # ants_use are the antennas we'll keep track of in the UVData
-                # object, so they dictate Nants_telescope
-                self.telescope.Nants = len(ants_use)
-                self.telescope.antenna_numbers = np.array(list(ants_use))
-                self.telescope.antenna_positions = np.zeros(
-                    (self.telescope.Nants, 3), dtype=rel_ecef_antpos.dtype
-                )
-                for ai, num in enumerate(self.telescope.antenna_numbers):
-                    if antpos_length[num] == 0:
-                        warnings.warn(
-                            f"antenna number {num} has visibilities "
-                            "associated with it, but it has a position"
-                            " of (0,0,0)"
-                        )
-                    else:
-                        # leave bad locations as zeros to make them obvious
-                        self.telescope.antenna_positions[ai, :] = rel_ecef_antpos[
-                            num, :
-                        ]
-
-        except KeyError:
-            # there is no antpos variable
-            warnings.warn("Antenna positions are not present in the file.")
-            self.telescope.antenna_positions = None
-
-            if self.telescope.location is None:
-                self.telescope.location = EarthLocation.from_geodetic(
-                    lat=latitude * units.rad, lon=longitude * units.rad
-                )
-                warnings.warn(
-                    "Telescope location is set at sealevel at the file lat/lon "
-                    "coordinates because neither altitude nor antenna positions "
-                    "are present in the file."
-                )
-
-        if self.telescope.antenna_numbers is None and sorted_unique_ants is not None:
-            # there are no antenna_numbers or antenna_positions, so just use
-            # the antennas present in the visibilities
-            # (Nants_data will therefore match Nants_telescope)
-            self.telescope.antenna_numbers = np.array(sorted_unique_ants)
-            self.telescope.Nants = len(self.telescope.antenna_numbers)
-
-        # antenna names is a foreign concept in miriad but required in other formats.
-        try:
-            # Here we deal with the way pyuvdata tacks it on to keep the
-            # name information if we have it:
-            # make it into one long comma-separated string
-            ant_name_var = uv["antnames"]
-            ant_name_str = ant_name_var.replace("\x00", "")
-            ant_name_list = ant_name_str[1:-1].split(", ")
-            self.telescope.antenna_names = ant_name_list
-        except KeyError:
-            if self.telescope.antenna_numbers is not None:
-                self.telescope.antenna_names = self.telescope.antenna_numbers.astype(
-                    str
-                ).tolist()
-
-        # check for antenna diameters
-        try:
-            self.telescope.antenna_diameters = uv["antdiam"]
-        except KeyError:
-            # backwards compatibility for when keyword was 'diameter'
-            try:
-                self.telescope.antenna_diameters = uv["diameter"]
-                # if we find it, we need to remove it from extra_keywords to
-                # keep from writing it out
-                self.extra_keywords.pop("diameter")
-            except KeyError:
-                pass
-        if self.telescope.antenna_diameters is not None:
-            self.telescope.antenna_diameters = (
-                self.telescope.antenna_diameters
-                * np.ones(self.telescope.Nants, dtype=np.float64)
-            )
 
     def _read_miriad_metadata(self, uv, *, correct_lat_lon=True):
         """
@@ -718,11 +280,13 @@ class Miriad(UVData):
                 else:
                     self.extra_keywords[key] = uv[key]
 
-        # load telescope coords
-        self._load_telescope_coords(uv, correct_lat_lon=correct_lat_lon)
+        # load the telescope object
+        uv.get_telescope(telescope=self.telescope, correct_lat_lon=correct_lat_lon)
 
-        # load antenna positions
-        self._load_antpos(uv)
+        if "antdiam" not in uv.vartable and "diameter" in uv.vartable:
+            # the diameters came from the legacy 'diameter' keyword, so drop it from
+            # extra_keywords to keep from writing it out
+            self.extra_keywords.pop("diameter", None)
 
         return (
             default_miriad_variables,
@@ -770,7 +334,9 @@ class Miriad(UVData):
             other_miriad_variables,
             extra_miriad_variables,
             check_variables,
-        ) = self._read_miriad_metadata(uv, correct_lat_lon=correct_lat_lon)
+        ) = self._read_miriad_metadata(
+            uv, correct_lat_lon=correct_lat_lon, read_data=read_data
+        )
 
         # update filename attribute
         basename = filepath.rstrip("/")
@@ -1135,8 +701,11 @@ class Miriad(UVData):
         reverse_inds = dict(zip(unique_blts, range(len(unique_blts)), strict=True))
         self.Nants_data = len(sorted_unique_ants)
 
-        # load antennas and antenna positions using sorted unique ants list
-        self._load_antpos(uv, sorted_unique_ants=sorted_unique_ants)
+        # load antennas and antenna positions using sorted unique ants list. The
+        # metadata pass only had the antennas with non-zero positions to go on, so the
+        # feeds have to be reloaded alongside them to stay aligned.
+        uv._load_antpos(self.telescope, sorted_unique_ants=sorted_unique_ants)
+        uv._load_feeds(self.telescope)
 
         # form up a grid which indexes time and baselines along the 'long'
         # axis of the visdata array
