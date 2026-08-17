@@ -213,7 +213,7 @@ class Miriad(UVData):
                 self._blt_order.form = (1,)
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 
-    def _read_miriad_metadata(self, uv, *, correct_lat_lon=True):
+    def _read_miriad_metadata(self, uv, *, correct_lat_lon=True, read_data=True):
         """
         Read in metadata (parameter info) but not data from a miriad file.
 
@@ -224,6 +224,10 @@ class Miriad(UVData):
         correct_lat_lon : bool
             Option to update the latitude and longitude from the known_telescopes
             list if the altitude is missing.
+        read_data : bool
+            Whether the caller goes on to read the visibilities. If it does, the
+            antennas carrying data are identified during that pass and loaded then,
+            so the scan for them is skipped here.
 
         Returns
         -------
@@ -281,7 +285,13 @@ class Miriad(UVData):
                     self.extra_keywords[key] = uv[key]
 
         # load the telescope object
-        uv.get_telescope(telescope=self.telescope, correct_lat_lon=correct_lat_lon)
+        # A full read works the antennas out from the data it is about to load and
+        # hands them to _load_antpos below, so skip scanning for them here.
+        uv.get_telescope(
+            telescope=self.telescope,
+            correct_lat_lon=correct_lat_lon,
+            sorted_unique_ants=[] if read_data else None,
+        )
 
         if "antdiam" not in uv.vartable and "diameter" in uv.vartable:
             # the diameters came from the legacy 'diameter' keyword, so drop it from
