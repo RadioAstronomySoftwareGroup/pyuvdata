@@ -58,14 +58,7 @@ other_attributes = [
     "telescope_location_lat_lon_alt_degrees",
     "pyuvdata_version_str",
 ]
-astropy_sites = EarthLocation.get_site_names()
-while "" in astropy_sites:
-    astropy_sites.remove("")
-
-# Using set here is a quick way to drop duplicate entries
-expected_known_telescopes = list(
-    set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA", "ATA"])
-)
+pyuvdata_sites = ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA", "ATA"]
 
 
 @pytest.fixture(scope="function")
@@ -155,6 +148,14 @@ def test_properties():
 
 def test_known_telescopes():
     """Test known_telescopes function returns expected results."""
+    # Note the astropy site list is fetched here rather than at import, because what
+    # `EarthLocation.get_site_names` returns depends on whether the site registry has
+    # been downloaded yet, which appears to be setting up something of a minor race
+    # condition when setup at the import step.
+    astropy_sites = [site for site in EarthLocation.get_site_names() if site != ""]
+    # Using set here is a quick way to drop duplicate entries
+    expected_known_telescopes = set(astropy_sites) | set(pyuvdata_sites)
+
     assert sorted(pyuvdata.telescopes.known_telescopes()) == sorted(
         expected_known_telescopes
     )
