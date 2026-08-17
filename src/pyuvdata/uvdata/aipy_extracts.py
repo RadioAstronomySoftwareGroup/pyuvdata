@@ -568,8 +568,6 @@ class UV(_miriad.UV):
 
     def _hinit_special(self, name):
         """Initialize a special header table."""
-        if name not in ["gains", "bandpass", "leakage"]:
-            pass
         # Initialize an 8-byte entry so that uvio can "latch"
         np.int64(0).tofile(os.path.join(self.filename, name))
         handle = self.haccess(name, "append")
@@ -624,7 +622,9 @@ class UV(_miriad.UV):
                 ntau = delay_arr.shape[2]
                 val_arr = delay_arr
             if gain_arr is not None and delay_arr is not None:
-                val_arr = np.concatenate((gain_arr, delay_arr))
+                # Miriad stores the tau term alongside the gains for each antenna, so
+                # the two have to be interleaved along the feed axis.
+                val_arr = np.concatenate((gain_arr, delay_arr), axis=2)
 
             nsolns = len(timestamps)
             for idx in range(nsolns):
