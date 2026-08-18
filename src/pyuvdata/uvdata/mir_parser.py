@@ -3502,7 +3502,9 @@ class MirParser:
                 # the weights "should" be in the nominal Jy**-2 units.
                 # variance of each channel (without accounting for)
                 temp_weights = np.sum(
-                    np.where(good_mask, np.reciprocal(weight_arr, where=good_mask), 0),
+                    np.reciprocal(
+                        weight_arr, where=good_mask, out=np.zeros_like(weight_arr)
+                    ),
                     axis=1,
                 )
                 temp_weights = np.reciprocal(
