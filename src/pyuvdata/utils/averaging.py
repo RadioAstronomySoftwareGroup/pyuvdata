@@ -40,7 +40,9 @@ def mapped_average(
         Array of values to average, shape (..., Naxis, ....).
     index_map : ndarray of int
         Array of shape (Naxis,), giving the index of the bin that each element along
-        the middle axis that each value contributes to.
+        that axis which each value contributes to (e.g., [0, 0, 1, 1] would indicate
+        that the first two elements contribute to bin 0 and the last two elements
+        contribute to bin 1). Positions marked with a negative index are discarded.
     flags : ndarray of bool
         Flags of data, shape (..., Naxis, ...).
     weights : ndarray of float
