@@ -3416,7 +3416,8 @@ def test_read_errors():
 
     with pytest.raises(
         ValueError,
-        match="The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'.",
+        match="The only supported file_types are 'calfits', 'calh5', 'fhd', "
+        "'ms', and 'miriad'.",
     ):
         UVCal.from_file(gainfile, file_type="foo")
 
