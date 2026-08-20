@@ -47,60 +47,6 @@ DEFAULT_CAT_DICT = {
 }
 
 
-def _map_times(time_vals, *, rtol, atol):
-    """
-    Map a list of time stamps to a set of unique, time-ordered entries.
-
-    Parameters
-    ----------
-    time_vals : ndarray of float
-        Time stamps to map, of shape (Nrows,). Units are arbitrary, although they must
-        match those used for `atol`.
-    rtol : float
-        Relative tolerance to use for determining whether two time stamps match.
-    atol : float
-        Absolute tolerance to use for determining whether two time stamps match, in the
-        same units as `time_vals`.
-
-    Returns
-    -------
-    unique_times : ndarray of float
-        Sorted array of unique time stamps, of shape (Ntimes,).
-    index_map : ndarray of int
-        Index of `unique_times` that each entry in `time_vals` maps to, of shape
-        (Nrows,).
-    """
-    time_dict = {}
-    time_list = []
-    index_map = np.zeros(len(time_vals), dtype=int)
-    for idx, time in enumerate(time_vals):
-        try:
-            index_map[idx] = time_dict[time]
-            continue
-        except KeyError:
-            pass
-        # Check to see if there are any nearby entries, since time stamps that agree
-        # to within the tolerances are considered to be the same solution interval.
-        close_check = np.isclose(time_list, time, rtol=rtol, atol=atol)
-        if any(close_check):
-            # Fill in the first closest entry matched
-            time_dict[time] = np.where(close_check)[0][0]
-        else:
-            # Otherwise, plug in a new entry
-            time_dict[time] = len(time_list)
-            time_list.append(time)
-        index_map[idx] = time_dict[time]
-
-    # Rows are usually recorded in time order, but that's not guaranteed, so sort the
-    # unique entries here and remap the indices accordingly.
-    unique_times = np.array(time_list, dtype=float)
-    sort_idx = np.argsort(unique_times)
-    inv_idx = np.empty_like(sort_idx)
-    inv_idx[sort_idx] = np.arange(len(sort_idx))
-
-    return unique_times[sort_idx], inv_idx[index_map]
-
-
 class MSCal(UVCal):
     """
     Defines an MS-specific subclass of UVCal for reading MS calibration tables.
@@ -117,6 +63,7 @@ class MSCal(UVCal):
         default_x_orientation=None,
         default_jones_array=None,
         default_mount_type="other",
+        time_atol=0.25,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -319,7 +266,9 @@ class MSCal(UVCal):
 
         time_col = tb_main.getcol("TIME")
         row_time_idx = utils.tools._quantized_group(
-            time_col / 86400.0, self._time_array.tols, force=True
+            time_col / 86400.0,
+            self._time_array.tols if time_atol is None else (0.0, time_atol / 86400.0),
+            force=True,
         )
         self.time_array = np.zeros(1 + row_time_idx.max(), dtype=float)
         self.time_array[row_time_idx] = time_col
