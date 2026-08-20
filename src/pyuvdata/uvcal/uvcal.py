@@ -4944,6 +4944,12 @@ class UVCal(UVBase):
             If not recorded in the data set or telescope is unknown to pyuvdata, the
             `Telescope.mount_type` parameter is automatically set to "other". However,
             users can specify a different default by passing an argument here.
+        time_atol : float or None
+            Absolute tolerance for time comparisons, in units of seconds. Can be used
+            to adjust the strictness of time matching during read in of calibration
+            solutions (since some operations can introduce small time offsets larger
+            than the `UVCal` default tolerance of 1 millisecond). Default is 0.25,
+            based on emperical measurements form CASA-derived calibration tables.
         check_extra : bool
             Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
@@ -5005,6 +5011,7 @@ class UVCal(UVBase):
         # MSCal
         default_x_orientation=None,
         default_jones_array=None,
+        time_atol=0.25,
     ):
         """
         Read a generic file into a UVCal object.
@@ -5142,6 +5149,12 @@ class UVCal(UVBase):
             set to [-5, -6] (linear pols) and a warning will be raised. However,
             if a value for default_jones_array is provided, it will be used instead
             and the warning will be suppressed.
+        time_atol : float
+            Absolute tolerance for time comparisons, in units of seconds. Can be used
+            to adjust the strictness of time matching during read in of calibration
+            solutions (since some operations can introduce small time offsets larger
+            than the `UVCal` default tolerance of 1 millisecond). Default is 0.25,
+            based on emperical measurements form CASA-derived calibration tables.
 
         """
         if isinstance(filename, list | tuple | np.ndarray):
@@ -5269,6 +5282,7 @@ class UVCal(UVBase):
                 # MSCal
                 default_x_orientation=default_x_orientation,
                 default_jones_array=default_jones_array,
+                time_atol=time_atol,
             )
             uv_list = []
             for ind, file in enumerate(filename[1:]):
@@ -5315,6 +5329,7 @@ class UVCal(UVBase):
                     # MSCal
                     default_x_orientation=default_x_orientation,
                     default_jones_array=default_jones_array,
+                    time_atol=time_atol,
                 )
                 uv_list.append(uvcal2)
             # Concatenate once at end
@@ -5449,6 +5464,7 @@ class UVCal(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     astrometry_library=astrometry_library,
+                    time_atol=time_atol,
                 )
 
             if select:

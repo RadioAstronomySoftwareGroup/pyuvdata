@@ -450,7 +450,7 @@ def test_ms_cal_uneven_spw_times(sma_pcal, tmp_path):
 
     with tables.table(testfile, ack=False, readonly=False) as tb:
         spw_ids = tb.getcol("SPECTRAL_WINDOW_ID")
-        tb.putcol("TIME", tb.getcol("TIME") + (10.0 * spw_ids))
+        tb.putcol("TIME", tb.getcol("TIME") + (1.0 * spw_ids))
 
     # Drop the first solution of the last window, so that the two windows no longer
     # agree on how many solutions they have.
@@ -465,6 +465,11 @@ def test_ms_cal_uneven_spw_times(sma_pcal, tmp_path):
     uvcal = UVCal()
     uvcal.read(testfile)
     assert uvcal.Ntimes == (sma_pcal.Nspws * sma_pcal.Ntimes) - 1
+
+    # Now make the time comparison less strict by using a large time_atol.
+    uvcal = UVCal()
+    uvcal.read(testfile, time_atol=30.0)
+    assert uvcal.Ntimes == sma_pcal.Ntimes
 
 
 def test_ms_close_spaced_times(tmp_path):
