@@ -5064,10 +5064,13 @@ class UVCal(UVBase):
         settings_file=None,
         raw=True,
         extra_history=None,
-        # MSCal
+        # MSCal 
+        time_atol=0.25,
+        # MSCal and MiriadCal
         default_x_orientation=None,
         default_jones_array=None,
-        time_atol=0.25,
+        # MiriadCal
+        soln_type=None,
     ):
         """
         Read a generic file into a UVCal object.
@@ -5083,10 +5086,11 @@ class UVCal(UVBase):
         filename : str or array_like of str
             The file(s) or list(s) (or array(s)) of files to read from.
         file_type : str
-            One of ['calfits', 'fhd'] or None. If None, the code attempts to guess what
-            the file type is based on file extensions (FHD: .sav, .txt;
-            uvfits: .calfits). Note that if a list of datasets is passed, the file type
-            is determined from the first dataset.
+            One of ['calfits', 'fhd', 'ms', 'miriad'] or None. If None, the code
+            attempts to guess what the file type is based on file extensions
+            (FHD: .sav, .txt; uvfits: .calfits) or contents (MIRIAD: presence of
+            vartable, MS: presence of the OBSERVATION table). Note that if a list of
+            datasets is passed, the file type is determined from the first dataset.
         axis : str
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
@@ -5195,6 +5199,15 @@ class UVCal(UVBase):
 
         MSCal
         -----
+        time_atol : float
+            Absolute tolerance for time comparisons, in units of seconds. Can be used
+            to adjust the strictness of time matching during read in of calibration
+            solutions (since some operations can introduce small time offsets larger
+            than the `UVCal` default tolerance of 1 millisecond). Default is 0.25,
+            based on emperical measurements form CASA-derived calibration tables.
+
+        MSCal and MiriadCal
+        -----
         default_x_orientation : str
             By default, if not found on read, the x_orientation parameter will be
             set to "east" and a warning will be raised. However, if a value for
@@ -5205,12 +5218,13 @@ class UVCal(UVBase):
             set to [-5, -6] (linear pols) and a warning will be raised. However,
             if a value for default_jones_array is provided, it will be used instead
             and the warning will be suppressed.
-        time_atol : float
-            Absolute tolerance for time comparisons, in units of seconds. Can be used
-            to adjust the strictness of time matching during read in of calibration
-            solutions (since some operations can introduce small time offsets larger
-            than the `UVCal` default tolerance of 1 millisecond). Default is 0.25,
-            based on emperical measurements form CASA-derived calibration tables.
+
+        MiriadCal
+        ---------
+        soln_type : str or None
+            The type of solution used in the MiriadCal file. Must be one of "bandpass",
+            "gain", "delay", or "leakage". Default is None, which will look at the file
+            and attempt to infer the solution type from the file contents.
 
         """
         if isinstance(filename, list | tuple | np.ndarray):
@@ -5251,6 +5265,9 @@ class UVCal(UVBase):
             ):
                 # It's a measurement set.
                 file_type = "ms"
+            elif os.path.exists(os.path.join(file_test, "vartable")):
+                # It's miriad.
+                file_type = "miriad"
 
         if file_type is None:
             raise ValueError(
@@ -5258,9 +5275,10 @@ class UVCal(UVBase):
                 "file_type keyword to specify the type."
             )
 
-        if file_type not in ["calfits", "fhd", "calh5", "ms"]:
+        if file_type not in ["calfits", "fhd", "calh5", "ms", "miriad"]:
             raise ValueError(
-                "The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'."
+                "The only supported file_types are 'calfits', 'calh5', 'fhd', "
+                "'ms', and 'miriad'."
             )
 
         obs_file_use = None
@@ -5418,7 +5436,7 @@ class UVCal(UVBase):
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
         else:
-            if file_type in ["fhd", "calfits", "ms"]:
+            if file_type in ["fhd", "calfits", "ms", "miriad"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -5521,6 +5539,17 @@ class UVCal(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     astrometry_library=astrometry_library,
                     time_atol=time_atol,
+                )
+            elif file_type == "miriad":
+                self.read_miriad_cal(
+                    filename,
+                    soln_type=soln_type,
+                    default_x_orientation=default_x_orientation,
+                    default_mount_type=default_mount_type,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    astrometry_library=astrometry_library,
                 )
 
             if select:
