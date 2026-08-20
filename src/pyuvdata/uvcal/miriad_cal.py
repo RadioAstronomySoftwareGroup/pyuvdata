@@ -167,6 +167,11 @@ class MiriadCal(UVCal):
             "leakage": ("leakage", self._read_leakage_table),
         }
 
+        if (soln_type is not None) and (soln_type not in _SOLN_TYPES):
+            raise ValueError(
+                f"soln_type must be one of {list(_SOLN_TYPES)}, got {soln_type}."
+            )
+
         found = []
         for item, (probe, _) in _SOLN_TYPES.items():
             try:
@@ -190,10 +195,6 @@ class MiriadCal(UVCal):
                 )
             soln_type = found[0]
 
-        if soln_type not in _SOLN_TYPES:
-            raise ValueError(
-                f"soln_type must be one of {list(_SOLN_TYPES)}, got {soln_type}."
-            )
         if soln_type not in found:
             raise ValueError(
                 f"This Miriad data set has no {soln_type} table, it contains {listing}."
