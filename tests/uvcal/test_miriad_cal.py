@@ -94,7 +94,7 @@ def delay_path(tmp_path, atca_path):
 def test_read_atca(atca_path, soln_type, cal_type, wide_band, jones):
     """Check each table this data set carries comes back with the right shape."""
     uvc = UVCal()
-    uvc.read_miriad_cal(atca_path, soln_type=soln_type)
+    uvc.read(atca_path, soln_type=soln_type)
 
     assert uvc.cal_type == cal_type
     assert uvc.wide_band == wide_band
@@ -118,7 +118,7 @@ def test_values_match_low_level(atca_path):
     uv.close()
 
     uvc = UVCal()
-    uvc.read_miriad_cal(atca_path, soln_type="gains")
+    uvc.read(atca_path, soln_type="gains")
     # (Ntimes, Nants, Njones) -> (Nants, Nspws, Ntimes, Njones), replicated over spws
     assert np.array_equal(uvc.gain_array[:, 0], np.transpose(gains, (1, 0, 2)))
 
@@ -126,7 +126,7 @@ def test_values_match_low_level(atca_path):
 def test_freq_range_covers_data(atca_path):
     """Each wide band window must span the channels it is meant to apply to."""
     uvc = UVCal()
-    uvc.read_miriad_cal(atca_path, soln_type="gains")
+    uvc.read(atca_path, soln_type="gains")
 
     uv = aipy_extracts.UV(atca_path)
     freq_array, _, flex_spw_id_array, spw_array = uv.get_freq_axis()
@@ -145,7 +145,7 @@ def test_bandpass_uses_own_freq_axis(atca_path):
     uv.close()
 
     uvc = UVCal()
-    uvc.read_miriad_cal(atca_path, soln_type="bandpass")
+    uvc.read(atca_path, soln_type="bandpass")
     assert uvc.Nfreqs == nchan0
     assert uvc.freq_array.size == nchan0
 
@@ -153,7 +153,7 @@ def test_bandpass_uses_own_freq_axis(atca_path):
 def test_reference_antenna(atca_path):
     """Miriad pins the reference antenna to zero phase, which is recoverable."""
     uvc = UVCal()
-    uvc.read_miriad_cal(atca_path, soln_type="gains")
+    uvc.read(atca_path, soln_type="gains")
     ant_num = uvc.telescope.antenna_numbers[
         list(uvc.telescope.antenna_names).index(uvc.ref_antenna_name)
     ]
@@ -178,7 +178,7 @@ def test_antennas_from_solutions(tmp_path, atca_path):
 
     testfile = _copy_with(tmp_path, atca_path, "refpad.uv", override={"antpos": antpos})
     uvc = UVCal()
-    uvc.read_miriad_cal(testfile, soln_type="gains")
+    uvc.read(testfile, soln_type="gains")
     assert uvc.Nants_data == nants
     assert 0 in uvc.ant_array
 
@@ -194,7 +194,7 @@ def test_unpopulated_antenna_dropped(tmp_path, atca_path):
 
     testfile = _copy_with(tmp_path, atca_path, "deadant.uv", gains=(times, gains, None))
     uvc = UVCal()
-    uvc.read_miriad_cal(testfile, soln_type="gains")
+    uvc.read(testfile, soln_type="gains")
     assert uvc.Nants_data == nants - 1
     assert 3 not in uvc.ant_array
 
@@ -247,9 +247,9 @@ def test_read_delays(delay_path):
 def test_delays_and_gains_agree(delay_path):
     """The gains and delays tables describe the same antennas and times."""
     gain_obj = UVCal()
-    gain_obj.read_miriad_cal(delay_path, soln_type="gains")
+    gain_obj.read(delay_path, soln_type="gains")
     delay_obj = UVCal()
-    delay_obj.read_miriad_cal(delay_path, soln_type="delays")
+    delay_obj.read(delay_path, soln_type="delays")
 
     assert np.array_equal(gain_obj.ant_array, delay_obj.ant_array)
     assert np.array_equal(gain_obj.time_array, delay_obj.time_array)
@@ -282,7 +282,7 @@ def test_two_feed_circular(tmp_path, atca_path, leakage):
     """Circular data gets circular Jones codes, cross-handed for leakages."""
     testfile = _copy_with(tmp_path, atca_path, "atca_circ.uv", override={"pol": -2})
     uvc = UVCal()
-    uvc.read_miriad_cal(testfile, soln_type="leakage" if leakage else "gains")
+    uvc.read(testfile, soln_type="leakage" if leakage else "gains")
     assert np.array_equal(uvc.jones_array, [-3, -4] if leakage else [-1, -2])
 
 
@@ -320,7 +320,7 @@ def test_soln_type_autodetect(tmp_path, atca_path):
         tmp_path, atca_path, "gains_only.uv", exclude=_DROP_BANDPASS + _DROP_LEAKAGE
     )
     uvc = UVCal()
-    uvc.read_miriad_cal(testfile)
+    uvc.read(testfile)
     assert uvc.cal_type == "gain"
     assert uvc.wide_band
 
@@ -330,7 +330,7 @@ def test_leakage_time_fallback(tmp_path, atca_path):
         tmp_path, atca_path, "leakage_only.uv", exclude=_DROP_GAINS + _DROP_BANDPASS
     )
     uvc = UVCal()
-    uvc.read_miriad_cal(testfile, soln_type="leakage")
+    uvc.read(testfile, soln_type="leakage")
 
     uv = aipy_extracts.UV(testfile)
     uv.read(raw=True)
