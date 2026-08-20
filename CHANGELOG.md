@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Changed how `UVCal.read_ms_cal` groups together calibration solutions based on time.
+Previously solution timestamps needed to be within the default tolerance for
+`UVCal.time_array` (1 millisecond), but testing suggests that CASA-based processes
+have some "slop" in them on the order of tens of milliseconds, and therefore the
+time tolerance was increased to 250 ms. This can be controlled through the keyword
+`time_atol` (specified in seconds).
 - Refactored `UVData.frequency_average` and `UVData.downsample_in_time` to use the new
 numba-based `utils.averaging.mapped_average` routine, which is significantly faster and
 uses less memory (substantially so for `UVData.frequency_average`).
