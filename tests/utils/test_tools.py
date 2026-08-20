@@ -260,3 +260,29 @@ def test_convert_to_slices(kwargs, exp_output):
 
     assert isinstance(slice_list[0], slice) == check
     assert slice_list == exp_output
+
+
+@pytest.mark.parametrize(
+    "arr,tols,force,expected",
+    [
+        # no tolerances and not forced, so the values can already group themselves
+        ([3.0, 1.0, 2.0], (0.0, 0.0), False, [3.0, 1.0, 2.0]),
+        # nothing lands within the tolerance, so again the values are handed back
+        ([1.0, 10.0, 20.0], (0.0, 0.5), False, [1.0, 10.0, 20.0]),
+        # grouping is maximally exclusive, giving [1, 2] and [3] rather than one group
+        ([1.0, 2.0, 3.0], (0.0, 1.5), False, [0, 0, 1]),
+        # relative tolerance on its own
+        ([1.0, 1.05, 2.0], (0.1, 0.0), False, [0, 0, 1]),
+        # relative and absolute tolerances together
+        ([1.0, 1.05, 2.0], (0.05, 0.02), False, [0, 0, 1]),
+        # forced, so groups come back even though nothing is within tolerance
+        ([1.0, 2.0, 3.0], (0.0, 0.0), True, [0, 1, 2]),
+        # forced, with identical values sharing a group
+        ([2.0, 1.0, 1.0], (0.0, 0.0), True, [1, 0, 0]),
+        # groups are numbered by ascending value, indexed by position in arr
+        ([3.0, 1.0, 1.2], (0.0, 0.5), False, [1, 0, 0]),
+    ],
+)
+def test_quantized_group(arr, tols, force, expected):
+    result = utils.tools._quantized_group(np.array(arr), tols, force=force)
+    assert np.array_equal(result, expected)
