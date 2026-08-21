@@ -5064,7 +5064,7 @@ class UVCal(UVBase):
         settings_file=None,
         raw=True,
         extra_history=None,
-        # MSCal 
+        # MSCal
         time_atol=0.25,
         # MSCal and MiriadCal
         default_x_orientation=None,
