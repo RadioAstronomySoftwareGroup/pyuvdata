@@ -84,3 +84,6 @@ src/pyuvdata/uvdata/corr_fits.c
 src/pyuvdata/uvdata/src/miriad_wrap.cpp
 
 .vscode/
+
+# test data cache populated by ci/prefetch_test_data.py
+pooch_cache/
