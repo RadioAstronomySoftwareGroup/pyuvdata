@@ -16,6 +16,8 @@ jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
+    env:
+      PYUVDATA_DATA_DIR: ${{ github.workspace }}/pooch_cache
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +37,29 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Only for the prefetch step below
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: pyproject.toml
+
+      # Suppress the cache-poisoning audit for this step, since the only way to fix it
+      # is to allow for lookup-only , which would stop the cache from being restored.
+      # Known issue: https://github.com/zizmorcore/zizmor/issues/2071 -- the ignore can
+      # get removed once the issue is implemented in zizmor.
+      - name: Restore cached test data
+        if: github.event_name != 'release'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning]
+        with:
+          path: pooch_cache
+          key: pooch-${{ runner.os }}-${{ hashFiles('src/pyuvdata/datasets.py') }}
+
+      - name: Download any test data not already cached
+        shell: bash
+        run: |
+          python -m pip install pooch pyyaml
+          python ci/prefetch_test_data.py "$PYUVDATA_DATA_DIR"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
         env:
@@ -42,6 +67,8 @@ jobs:
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: "-r ci/test_requirements.txt"
           CIBW_TEST_COMMAND: "pytest {project}/tests -n auto"
+          CIBW_ENVIRONMENT: PYUVDATA_DATA_DIR='${{ env.PYUVDATA_DATA_DIR }}'
+          CIBW_ENVIRONMENT_LINUX: PYUVDATA_DATA_DIR=/project/pooch_cache
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

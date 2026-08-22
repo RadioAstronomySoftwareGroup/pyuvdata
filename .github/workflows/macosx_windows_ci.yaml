@@ -62,17 +62,11 @@ jobs:
             exit 1;
           fi
 
-      - name: Get the test data version
-        id: data-version
-        run: |
-          version=$(python -c "import re, pathlib; print(re.search(r'^data_version = \"(.+)\"', pathlib.Path('src/pyuvdata/datasets.py').read_text(), re.M).group(1))")
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
       - name: Restore cached test data
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: pooch_cache
-          key: pooch-${{ runner.os }}-${{ steps.data-version.outputs.version }}
+          key: pooch-${{ runner.os }}-${{ hashFiles('src/pyuvdata/datasets.py') }}
 
       - name: Download any test data not already cached
         run: |
