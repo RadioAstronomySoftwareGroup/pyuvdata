@@ -52,7 +52,7 @@ def setup_and_teardown_package():
             iers.conf.auto_max_age = None
 
     # Also ensure that we're downloading the site data from astropy
-    with contextlib.suppress(FileNotFoundError):
+    with contextlib.suppress(OSError):
         # this sometimes errors on windows, unclear why, but most of the time the
         # registry hasn't changed, so just move on with our testing if it errors
         if Version(astropy.__version__) < Version("7.2.1"):
