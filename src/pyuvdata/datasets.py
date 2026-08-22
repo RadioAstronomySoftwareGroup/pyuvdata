@@ -22,6 +22,8 @@ pup = pooch.create(
     version=data_version,
     # If this is a development version, get the data from the "main" branch
     version_dev="main",
+    env="PYUVDATA_DATA_DIR",
+    retry_if_failed=3,
     registry=None,
 )
 

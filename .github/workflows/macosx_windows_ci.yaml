@@ -19,6 +19,9 @@ jobs:
     name: Run Tests
     env:
       PYTHON: ${{ matrix.python-version }}
+      # Keep the test data in the workspace rather than the per-OS default cache
+      # location, so it can be cached with a single path on every runner.
+      PYUVDATA_DATA_DIR: ${{ github.workspace }}/pooch_cache
     runs-on: ${{ matrix.os }}
     defaults:
      run:
@@ -58,6 +61,22 @@ jobs:
           if [[ $PYVER != $PYTHON ]]; then
             exit 1;
           fi
+
+      - name: Get the test data version
+        id: data-version
+        run: |
+          version=$(python -c "import re, pathlib; print(re.search(r'^data_version = \"(.+)\"', pathlib.Path('src/pyuvdata/datasets.py').read_text(), re.M).group(1))")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached test data
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: pooch_cache
+          key: pooch-${{ runner.os }}-${{ steps.data-version.outputs.version }}
+
+      - name: Download any test data not already cached
+        run: |
+          python ci/prefetch_test_data.py "$PYUVDATA_DATA_DIR"
 
       - name: Install
         run: |
