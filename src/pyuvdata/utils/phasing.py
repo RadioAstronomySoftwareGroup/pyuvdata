@@ -2528,7 +2528,7 @@ def uvw_track_generator(
     }
 
 
-def resolve_near_field_focus(*, phase_dict, time_array):
+def _resolve_near_field_focus(*, phase_dict, time_array):
     """
     Resolve the focal point of a near-field phase center for a set of times.
 

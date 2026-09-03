@@ -26,7 +26,11 @@ from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
-from ..utils.phasing import _get_focus_xyz, _get_nearfield_delay
+from ..utils.phasing import (
+    _get_focus_xyz,
+    _get_nearfield_delay,
+    _resolve_near_field_focus,
+)
 from ..utils.types import StrArray
 from ..uvbase import UVBase
 from .initializers import new_uvdata
@@ -4992,7 +4996,7 @@ class UVData(UVBase):
 
         # Lastly, apply near-field corrections if specified
         if cat_type == "near_field":
-            focus_lon, focus_lat, focus_dist = phs_utils.resolve_near_field_focus(
+            focus_lon, focus_lat, focus_dist = _resolve_near_field_focus(
                 phase_dict=phase_dict, time_array=time_array
             )
             self._apply_near_field_corrections(
@@ -5162,7 +5166,7 @@ class UVData(UVBase):
             select_mask = self.phase_center_id_array == cat_id
             if not np.any(select_mask):
                 continue
-            focus_lon, focus_lat, focus_dist = phs_utils.resolve_near_field_focus(
+            focus_lon, focus_lat, focus_dist = _resolve_near_field_focus(
                 phase_dict=cat_dict, time_array=self.time_array[select_mask]
             )
             self._apply_near_field_corrections(
