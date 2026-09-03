@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
+near-field correction to every record, overwriting the w-coordinate and rotating the
+visibilities of records belonging to other phase centers.
+
 ## [3.2.7] - 2025-08-20
 
 ### Added

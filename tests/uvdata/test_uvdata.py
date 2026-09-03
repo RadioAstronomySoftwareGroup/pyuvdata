@@ -12620,6 +12620,85 @@ def test_near_field_err():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_select_mask():
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    phase_kwargs = {
+        "ra": np.radians(30),
+        "dec": np.radians(-20),
+        "cat_name": "foo",
+        "dist": 10000,
+        "cat_type": "near_field",
+    }
+
+    # Focus the second integration only, leaving the first on its original sidereal
+    # phase center. The selection has fewer unique times than the object does, which
+    # is the time axis the focal point has to be calculated on.
+    times = np.unique(uvd.time_array)
+    select_mask = uvd.time_array == times[1]
+
+    uvd_masked = uvd.copy()
+    uvd_masked.phase(**phase_kwargs, select_mask=select_mask)
+
+    # Records outside the selection belong to a different phase center, so they must
+    # keep their uvws, their visibilities and their phase center assignment.
+    assert np.array_equal(
+        uvd_masked.uvw_array[~select_mask], uvd.uvw_array[~select_mask]
+    )
+    assert np.array_equal(
+        uvd_masked.data_array[~select_mask], uvd.data_array[~select_mask]
+    )
+    assert np.array_equal(
+        uvd_masked.phase_center_id_array[~select_mask],
+        uvd.phase_center_id_array[~select_mask],
+    )
+
+    # The focused records should match phasing the same records on their own.
+    uvd_sub = uvd.select(times=[times[1]], inplace=False)
+    uvd_sub.phase(**phase_kwargs)
+
+    assert np.allclose(uvd_sub.uvw_array, uvd_masked.uvw_array[select_mask])
+    assert np.allclose(uvd_sub.data_array, uvd_masked.data_array[select_mask])
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("update_vis", [True, False])
+def test_near_field_update_vis(update_vis):
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+    uvd.phase(
+        ra=np.radians(30),
+        dec=np.radians(-20),
+        cat_name="foo",
+        dist=10000,
+        cat_type="near_field",
+    )
+
+    # Move the focal point closer. The w's follow it either way, but the visibilities
+    # should only be rotated to match when update_vis is set.
+    uvd_refocused = uvd.copy()
+    uvd_refocused._apply_near_field_corrections(
+        focus=1000 * units.m,
+        ra=np.radians(30),
+        dec=np.radians(-20),
+        update_vis=update_vis,
+    )
+
+    cross = uvd.ant_1_array != uvd.ant_2_array
+    assert not np.allclose(uvd_refocused.uvw_array[cross, -1], uvd.uvw_array[cross, -1])
+
+    if update_vis:
+        assert not np.allclose(uvd_refocused.data_array, uvd.data_array)
+    else:
+        assert np.array_equal(uvd_refocused.data_array, uvd.data_array)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "file_format, import_check, error_message",
     [
