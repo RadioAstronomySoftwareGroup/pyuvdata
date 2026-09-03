@@ -4717,7 +4717,7 @@ class UVData(UVBase):
         cleanup_old_sources=True,
     ):
         """
-        Phase data to a new direction, supports sidereal, ephemeris and driftscan types.
+        Phase data to a new direction, supports sidereal, ephem, driftscan, near_field.
 
         Can be used to phase all or a subset of the baseline-times. Types of phase
         centers (`cat_type`) that are supported include:
@@ -4725,6 +4725,7 @@ class UVData(UVBase):
             - sidereal (fixed RA/Dec)
             - ephem (RA/Dec that moves with time)
             - driftscan (fixed az/el position)
+            - near_field (a focal point at a finite distance, fixed or moving)
 
         See the phasing memo under docs/references for more documentation.
 
@@ -4732,10 +4733,14 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        lon : float
+        lon : float or ndarray of float
             The longitude coordinate (e.g. RA or Azimuth) to phase to in radians.
-        lat : float
-            The latitude coordinate (e.g. Dec or Altitude) to phase to in radians.
+            Expected to be a float, except for ephem phase centers and near-field
+            phase centers with a moving focal point, where it is an ndarray of floats
+            of shape (Npts,) giving the value at each of the `ephem_times`.
+        lat : float or ndarray of float
+            The latitude coordinate (e.g. Dec or Altitude) to phase to in radians,
+            with the same shape requirements as `lon`.
         epoch : astropy.time.Time object or str
             The epoch to use for phasing. Either an astropy Time object or the
             string "J2000" (which is the default).
@@ -4757,10 +4762,16 @@ class UVData(UVBase):
             "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
             "driftscan" (fixed az/el position), "near_field" (first applies far-field
             phasing assuming sidereal phase center, then applies near-field
-            corrections to the specified dist). Default is "sidereal".
+            corrections to the specified dist). Default is "sidereal". The focal point
+            of a "near_field" phase center is fixed unless `ephem_times` is supplied,
+            in which case it moves along the given track.
         ephem_times : ndarray of float
-            Only used when `cat_type="ephem"`. Describes the time for which the values
-            of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
+            Only used when `cat_type="ephem"`, or when `cat_type="near_field"` and the
+            focal point moves during the observation. Describes the time for which the
+            values of `cat_lon` and `cat_lat` (and, for near-field, `dist`) are
+            calculated, in units of JD. Shape is (Npts,). These are interpolated onto
+            the times of the data being phased, which must fall within the range
+            spanned by `ephem_times`.
         pm_ra : float
             Proper motion in RA, in units of mas/year. Only used for sidereal phase
             centers.
@@ -4771,7 +4782,8 @@ class UVData(UVBase):
             Distance to the source. Used for sidereal and ephem phase centers,
             and for applying near-field corrections. If passed either as a float
             (for sidereal phase centers) or as an ndarray of floats of shape (Npts,)
-            (for ephem phase centers), will be interpreted in units of parsec for all
+            (for ephem phase centers, and for near-field phase centers with a moving
+            focal point), will be interpreted in units of parsec for all
             cat_types except near_field; in the latter case it will be interpreted
             in meters. Alternatively, an astropy.units.Quantity object may be passed
             instead, in which case the units will be infered automatically.
