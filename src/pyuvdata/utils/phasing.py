@@ -2521,7 +2521,7 @@ def uvw_track_generator(
     }
 
 
-def _get_focus_xyz(uvd, focus, ra, dec):
+def _get_focus_xyz(uvd, focus, ra, dec, select_mask=None):
     """
     Return the x,y,z coordinates of the focal point.
 
@@ -2535,19 +2535,25 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     uvd : UVData object
         UVData object
     focus : float
-        Focal distance of the array (km)
+        Focal distance of the array (km). Either a single value, or one value per
+        unique time of the selected records (shape (Ntimes,)).
     ra : float
         Right ascension of the focal point ie phase center (deg; shape (Ntimes,))
     dec : float
         Declination of the focal point ie phase center (deg; shape (Ntimes,))
+    select_mask : ndarray of bool
+        Array of shape (Nblts,), which identifies which records to focus. Times are
+        taken from the selected records only, so that `Ntimes` counts the unique times
+        of the selection. Default is to use all records.
 
     Returns
     -------
     x, y, z: ndarray, ndarray, ndarray
         ENU-frame coordinates of the focal point (meters) (shape (Ntimes,))
     """
-    # Obtain timesteps
-    timesteps = Time(np.unique(uvd.time_array), format="jd")
+    # Obtain timesteps, which are those of the selected records only
+    time_array = uvd.time_array if select_mask is None else uvd.time_array[select_mask]
+    timesteps = Time(np.unique(time_array), format="jd")
 
     # Initialize sky-based coordinates using right ascension and declination
     obj = SkyCoord(ra * units.deg, dec * units.deg)
@@ -2573,7 +2579,7 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     return x, y, z
 
 
-def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
+def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z, select_mask=None):
     """
     Calculate near-field phase/delay along the Nblts axis.
 
@@ -2582,7 +2588,11 @@ def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
     uvd : UVData object
         UVData object
     focus_x, focus_y, focus_z : ndarray, ndarray, ndarray
-        ENU-frame coordinates of focal point (Each of shape (Ntimes,))
+        ENU-frame coordinates of focal point (Each of shape (Ntimes,), counting the
+        unique times of the selected records)
+    select_mask : ndarray of bool
+        Array of shape (Nblts,), which identifies which records to focus. Unselected
+        records keep their existing w-coordinate. Default is to focus all records.
 
     Returns
     -------
@@ -2598,16 +2608,18 @@ def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
         uvd.telescope.get_enu_antpos(), axis=0
     )
 
-    # Get tile positions for each baseline
-    tile1 = antpos[ind1]  # Shape (Nblts, 3)
-    tile2 = antpos[ind2]  # Shape (Nblts, 3)
+    sel = slice(None) if select_mask is None else select_mask
 
-    # Focus points have shape (Ntimes,); convert to shape (Nblts,)
-    t_inds = _ntimes_to_nblts(uvd)
+    # Get tile positions for each selected baseline
+    tile1 = antpos[ind1[sel]]  # Shape (Nselect, 3)
+    tile2 = antpos[ind2[sel]]  # Shape (Nselect, 3)
+
+    # Focus points have shape (Ntimes,); convert to shape (Nselect,)
+    t_inds = _ntimes_to_nblts(uvd, select_mask=select_mask)
     (focus_x, focus_y, focus_z) = (focus_x[t_inds], focus_y[t_inds], focus_z[t_inds])
 
     # Calculate distance from antennas to focal point
-    # for each visibility along the Nblts axis
+    # for each selected visibility
     r1 = np.sqrt(
         (tile1[:, 0] - focus_x) ** 2
         + (tile1[:, 1] - focus_y) ** 2
@@ -2619,14 +2631,11 @@ def _get_nearfield_delay(uvd, focus_x, focus_y, focus_z):
         + (tile2[:, 2] - focus_z) ** 2
     )
 
-    # Get the uvw array along the Nblts axis; select only the w's
-    old_w = uvd.uvw_array[:, -1]
+    # Start from the existing w's, so that unselected records are left untouched
+    new_w = uvd.uvw_array[:, -1].copy()
 
-    # Calculate near-field delay
-    new_w = r1 - r2
-
-    # Mask autocorrelations
-    mask = np.not_equal(uvd.ant_1_array, uvd.ant_2_array)
-    new_w = np.where(mask, new_w, old_w)
+    # Calculate near-field delay, masking autocorrelations
+    mask = np.not_equal(uvd.ant_1_array[sel], uvd.ant_2_array[sel])
+    new_w[sel] = np.where(mask, r1 - r2, new_w[sel])
 
     return new_w  # Shape (Nblts,)

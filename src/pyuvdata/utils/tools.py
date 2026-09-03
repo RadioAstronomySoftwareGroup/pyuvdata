@@ -690,7 +690,7 @@ def _nants_to_nblts(uvd):
     return np.asarray(ind1), np.asarray(ind2)
 
 
-def _ntimes_to_nblts(uvd):
+def _ntimes_to_nblts(uvd, select_mask=None):
     """
     Obtain indices to convert (Ntimes,) to (Nblts,).
 
@@ -698,6 +698,11 @@ def _ntimes_to_nblts(uvd):
     ----------
     uvd : UVData object
         UVData object
+    select_mask : ndarray of bool
+        Array of shape (Nblts,), which identifies which records to consider. If set,
+        the returned indices run over the unique times of the selected records only,
+        and are of length equal to the number of selected records. Default is to use
+        all records.
 
     Returns
     -------
@@ -705,14 +710,9 @@ def _ntimes_to_nblts(uvd):
         Indices that, when applied to an array of shape (Ntimes,),
         correctly convert it to shape (Nblts,)
     """
-    unique_t = np.unique(uvd.time_array)
-    t = uvd.time_array
+    time_array = uvd.time_array if select_mask is None else uvd.time_array[select_mask]
 
-    inds = []
-    for i in t:
-        inds.append(np.where(unique_t == i)[0][0])
-
-    return np.asarray(inds)
+    return np.unique(time_array, return_inverse=True)[1]
 
 
 def float_int_to_str_array(
