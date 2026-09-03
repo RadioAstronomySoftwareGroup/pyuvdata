@@ -5081,6 +5081,10 @@ class UVData(UVBase):
         """
         Calculate UVWs based on antenna_positions.
 
+        Records belonging to a near-field phase center have the near-field correction
+        re-applied afterwards, since the antenna-position calculation is a far-field
+        one.
+
         Parameters
         ----------
         update_vis : bool
@@ -5148,6 +5152,26 @@ class UVData(UVBase):
         # If the data are phased, we've already adjusted the phases. Now we just
         # need to update the uvw's and we are home free.
         self.uvw_array = new_uvw
+
+        # calc_uvw only knows far-field geometry, so the near-field w has to be put
+        # back on top, one focus at a time. This keeps the same two-stage order that
+        # phase() uses: ordinary UVWs first, then the near-field correction.
+        for cat_id, cat_dict in self.phase_center_catalog.items():
+            if cat_dict["cat_type"] != "near_field":
+                continue
+            select_mask = self.phase_center_id_array == cat_id
+            if not np.any(select_mask):
+                continue
+            focus_lon, focus_lat, focus_dist = phs_utils.resolve_near_field_focus(
+                phase_dict=cat_dict, time_array=self.time_array[select_mask]
+            )
+            self._apply_near_field_corrections(
+                focus=focus_dist,
+                ra=focus_lon,
+                dec=focus_lat,
+                update_vis=update_vis,
+                select_mask=select_mask,
+            )
         return
 
     def update_antenna_positions(
