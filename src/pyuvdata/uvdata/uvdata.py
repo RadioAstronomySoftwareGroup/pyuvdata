@@ -4635,18 +4635,29 @@ class UVData(UVBase):
                 phase_dict[key] = float(phase_dict[key])
         return phase_dict
 
-    def _apply_near_field_corrections(self, focus, ra, dec):
+    def _apply_near_field_corrections(
+        self, focus, ra, dec, *, update_vis=True, select_mask=None
+    ):
         """
         Apply near-field corrections by focusing the array to the specified focal point.
 
         Parameters
         ----------
         focus : astropy.units.Quantity object
-            Focal point of the array
+            Focal point of the array. Either a single distance, or one distance per
+            unique time of the selected records (shape (Ntimes,)).
         ra : ndarray
             Right ascension of the focal point ie phase center (rad; shape (Ntimes,))
         dec : ndarray
             Declination of the focal point ie phase center (rad; shape (Ntimes,))
+        update_vis : bool
+            Option to update the visibilities to account for the change in the
+            w-coordinate. Setting this to False assigns the near-field w-coordinate
+            without modifying the data, which is only appropriate if the data have not
+            already been phased to the focal point. Default is True.
+        select_mask : ndarray of bool
+            Array of shape (Nblts,), which identifies which records to focus.
+            Unselected records are left unchanged. Default is to focus all records.
 
         Returns
         -------
@@ -4659,15 +4670,25 @@ class UVData(UVBase):
         ra, dec = np.degrees(ra), np.degrees(dec)
 
         # Calculate the x, y, z coordinates of the focal point
-        # in ENU frame for each vis along Nblts axis
-        focus_x, focus_y, focus_z = _get_focus_xyz(self, focus, ra, dec)
+        # in ENU frame for each selected vis
+        focus_x, focus_y, focus_z = _get_focus_xyz(
+            self, focus, ra, dec, select_mask=select_mask
+        )
 
         # Calculate near-field correction at the specified timestep
-        # for each vis along Nblts axis
-        new_w = _get_nearfield_delay(self, focus_x, focus_y, focus_z)
+        # for each vis along Nblts axis. Unselected records come back unchanged,
+        # so the w assignment below leaves them alone.
+        new_w = _get_nearfield_delay(
+            self, focus_x, focus_y, focus_z, select_mask=select_mask
+        )
 
         # Update phase and w
-        self._apply_w_proj(new_w_vals=new_w, old_w_vals=self.uvw_array[:, -1])
+        if update_vis:
+            self._apply_w_proj(
+                new_w_vals=new_w,
+                old_w_vals=self.uvw_array[:, -1],
+                select_mask=select_mask,
+            )
         self.uvw_array[:, -1] = new_w
 
     def phase(
@@ -4967,7 +4988,10 @@ class UVData(UVBase):
         # Lastly, apply near-field corrections if specified
         if cat_type == "near_field":
             self._apply_near_field_corrections(
-                focus=dist_qt, ra=phase_dict["cat_lon"], dec=phase_dict["cat_lat"]
+                focus=dist_qt,
+                ra=phase_dict["cat_lon"],
+                dec=phase_dict["cat_lat"],
+                select_mask=select_mask,
             )
 
     def phase_to_time(
