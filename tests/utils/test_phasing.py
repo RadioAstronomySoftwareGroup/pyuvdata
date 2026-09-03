@@ -1268,6 +1268,59 @@ def test_ephem_interp_one_point():
     assert np.all(vel_vals0 == 4.0)
 
 
+def test_resolve_near_field_focus_fixed():
+    """A fixed focal point passes through, converted from parsecs to metres."""
+    phase_dict = {
+        "cat_lon": 0.4,
+        "cat_lat": -0.3,
+        "cat_dist": (10 * units.km).to_value(units.parsec),
+        "cat_times": None,
+    }
+
+    lon, lat, focus = phs_utils.resolve_near_field_focus(
+        phase_dict=phase_dict, time_array=np.array([0.0, 1.0])
+    )
+
+    assert lon == 0.4
+    assert lat == -0.3
+    np.testing.assert_allclose(focus.to_value(units.m), 1e4, rtol=1e-12)
+
+
+def test_resolve_near_field_focus_moving():
+    """A moving focal point is interpolated onto the unique times supplied."""
+    cat_times = np.array([0.0, 1.0, 2.0])
+    phase_dict = {
+        "cat_lon": np.array([0.4, 0.5, 0.6]),
+        "cat_lat": np.array([-0.3, -0.2, -0.1]),
+        "cat_dist": (np.array([10.0, 9.0, 8.0]) * units.km).to_value(units.parsec),
+        "cat_times": cat_times,
+    }
+
+    # Times landing exactly on the track samples reproduce them.
+    lon, lat, focus = phs_utils.resolve_near_field_focus(
+        phase_dict=phase_dict, time_array=cat_times
+    )
+
+    np.testing.assert_allclose(lon, phase_dict["cat_lon"], rtol=1e-12)
+    np.testing.assert_allclose(lat, phase_dict["cat_lat"], rtol=1e-12)
+    np.testing.assert_allclose(focus.to_value(units.m), [1e4, 9e3, 8e3], rtol=1e-12)
+
+    # A time between samples is interpolated rather than snapped to a neighbour.
+    lon, lat, focus = phs_utils.resolve_near_field_focus(
+        phase_dict=phase_dict, time_array=np.array([0.5])
+    )
+
+    np.testing.assert_allclose(lon, [0.45], rtol=1e-12)
+    np.testing.assert_allclose(lat, [-0.25], rtol=1e-12)
+    np.testing.assert_allclose(focus.to_value(units.m), [9.5e3], rtol=1e-12)
+
+    # Times outside the track raise rather than extrapolating.
+    with pytest.raises(ValueError, match="above the interpolation range"):
+        phs_utils.resolve_near_field_focus(
+            phase_dict=phase_dict, time_array=np.array([3.0])
+        )
+
+
 def test_ephem_interp_multi_point():
     """
     Test that ephem coords are interpolated correctly when supplying more than a

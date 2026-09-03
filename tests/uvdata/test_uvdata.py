@@ -12704,6 +12704,275 @@ def test_near_field_update_vis(update_vis):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_moving_focus():
+    """A focus sampled at the integration times matches phasing them one by one."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+    lon = np.radians([30.0, 31.0])
+    lat = np.radians([-20.0, -19.0])
+    dist = np.array([10000.0, 9000.0])
+
+    uvd_moving = uvd.copy()
+    uvd_moving.phase(
+        lon=lon,
+        lat=lat,
+        dist=dist,
+        ephem_times=times,
+        cat_name="some_sat",
+        cat_type="near_field",
+    )
+
+    # The focus moved, so the two integrations cannot share a solution.
+    assert not np.allclose(
+        uvd_moving.uvw_array[uvd_moving.time_array == times[0], -1],
+        uvd_moving.uvw_array[uvd_moving.time_array == times[1], -1],
+    )
+
+    # cat_times land exactly on the integration times, so each integration should come
+    # out the same as focusing it on its own to the matching fixed point.
+    for idx, time in enumerate(times):
+        uvd_single = uvd.select(times=[time], inplace=False)
+        uvd_single.phase(
+            lon=lon[idx],
+            lat=lat[idx],
+            dist=dist[idx],
+            cat_name="tower",
+            cat_type="near_field",
+        )
+
+        select_mask = uvd_moving.time_array == time
+        np.testing.assert_allclose(
+            uvd_single.uvw_array[:, -1],
+            uvd_moving.uvw_array[select_mask, -1],
+            rtol=0,
+            atol=1e-9,
+        )
+        # These visibilities are complex64, so allow float32 round-off from the phase
+        # rotation. A focus that actually disagreed would be off by order unity.
+        np.testing.assert_allclose(
+            uvd_single.data_array, uvd_moving.data_array[select_mask], rtol=1e-5
+        )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_moving_focus_interp():
+    """A track sampled off the integration times is genuinely interpolated.
+
+    test_near_field_moving_focus uses cat_times equal to the integration times, which
+    on its own cannot tell interpolation apart from using the track samples as-is.
+    """
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+    step = times[1] - times[0]
+
+    # Three samples bracketing the data, none of them on an integration time.
+    cat_times = np.array([times[0] - step, times[0] + 0.5 * step, times[1] + step])
+    cat_lon = np.radians([30.0, 33.0, 39.0])
+    cat_lat = np.radians([-20.0, -18.0, -14.0])
+    cat_dist = np.array([10000.0, 9500.0, 8500.0])
+
+    uvd_moving = uvd.copy()
+    uvd_moving.phase(
+        lon=cat_lon,
+        lat=cat_lat,
+        dist=cat_dist,
+        ephem_times=cat_times,
+        cat_name="some_sat",
+        cat_type="near_field",
+    )
+
+    # Three samples means linear interpolation, so np.interp is an exact and
+    # independent reference for where the focus should be at each integration.
+    for time in times:
+        uvd_single = uvd.select(times=[time], inplace=False)
+        uvd_single.phase(
+            lon=np.interp(time, cat_times, cat_lon),
+            lat=np.interp(time, cat_times, cat_lat),
+            dist=np.interp(time, cat_times, cat_dist),
+            cat_name="tower",
+            cat_type="near_field",
+        )
+
+        select_mask = uvd_moving.time_array == time
+        np.testing.assert_allclose(
+            uvd_single.uvw_array[:, -1],
+            uvd_moving.uvw_array[select_mask, -1],
+            rtol=0,
+            atol=1e-9,
+        )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_moving_focus_time_range_err():
+    """A track that does not span the data raises rather than extrapolating."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+
+    with pytest.raises(ValueError, match="above the interpolation range"):
+        uvd.phase(
+            lon=np.radians([30.0, 31.0]),
+            lat=np.radians([-20.0, -19.0]),
+            dist=np.array([10000.0, 9000.0]),
+            ephem_times=times - (times[1] - times[0]),
+            cat_name="some_sat",
+            cat_type="near_field",
+        )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("moving", [True, False])
+def test_near_field_recalc_uvws(moving):
+    """Recalculating uvws from antenna positions preserves the near-field focus."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+    if moving:
+        phase_kwargs = {
+            "lon": np.radians([30.0, 31.0]),
+            "lat": np.radians([-20.0, -19.0]),
+            "dist": np.array([10000.0, 9000.0]),
+            "ephem_times": times,
+        }
+    else:
+        phase_kwargs = {"lon": np.radians(30), "lat": np.radians(-20), "dist": 10000}
+
+    uvd.phase(cat_name="some_sat", cat_type="near_field", **phase_kwargs)
+
+    # calc_uvw only knows far-field geometry, so without the near-field correction
+    # being re-applied this would overwrite the w's and rotate the visibilities.
+    uvd_recalc = uvd.copy()
+    uvd_recalc.set_uvws_from_antenna_positions()
+
+    np.testing.assert_allclose(
+        uvd_recalc.uvw_array[:, -1], uvd.uvw_array[:, -1], rtol=0, atol=1e-9
+    )
+    # The visibilities are rotated to the far-field w and back, so allow float32
+    # round-off. Dropping the correction entirely would change them by order unity.
+    np.testing.assert_allclose(uvd_recalc.data_array, uvd.data_array, rtol=1e-5)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_moving_focus_uvh5_roundtrip(tmp_path):
+    """A timed near-field entry survives a write/read cycle."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+    testfile = os.path.join(tmp_path, "outtest_moving_near_field.uvh5")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+    uvd.phase(
+        lon=np.radians([30.0, 31.0]),
+        lat=np.radians([-20.0, -19.0]),
+        dist=np.array([10000.0, 9000.0]),
+        ephem_times=times,
+        cat_name="some_sat",
+        cat_type="near_field",
+    )
+
+    uvd.write_uvh5(testfile)
+    uvd2 = UVData.from_file(testfile)
+
+    assert uvd == uvd2
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("moving", [True, False])
+def test_near_field_rephase_to_sidereal(moving):
+    """Rephasing off a near-field focus leaves no residue from the correction."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    times = np.unique(uvd.time_array)
+    if moving:
+        near_field_kwargs = {
+            "lon": np.radians([30.0, 31.0]),
+            "lat": np.radians([-20.0, -19.0]),
+            "dist": np.array([10000.0, 9000.0]),
+            "ephem_times": times,
+        }
+    else:
+        near_field_kwargs = {
+            "lon": np.radians(30),
+            "lat": np.radians(-20),
+            "dist": 10000,
+        }
+
+    sidereal_kwargs = {
+        "lon": np.radians(45),
+        "lat": np.radians(-25),
+        "cat_name": "sky",
+        "cat_type": "sidereal",
+    }
+
+    # Detour through the focus, then rephase to the sky. phase() has to pick up the
+    # near-field w as its starting point for this to come out clean.
+    uvd_detour = uvd.copy()
+    uvd_detour.phase(cat_name="some_sat", cat_type="near_field", **near_field_kwargs)
+    uvd_detour.phase(**sidereal_kwargs)
+
+    # Compare against going straight there, which is an independent route rather than
+    # a round trip back through the same transform.
+    uvd_direct = uvd.copy()
+    uvd_direct.phase(**sidereal_kwargs)
+
+    np.testing.assert_allclose(
+        uvd_detour.uvw_array, uvd_direct.uvw_array, rtol=0, atol=1e-9
+    )
+    # complex64 data, so allow float32 round-off from the extra rotations.
+    np.testing.assert_allclose(uvd_detour.data_array, uvd_direct.data_array, rtol=1e-5)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_refocus():
+    """Moving the focus in two steps matches focusing there directly.
+
+    This is the only case where both the old and the new w are near-field ones.
+    """
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    phase_kwargs = {
+        "lon": np.radians(30),
+        "lat": np.radians(-20),
+        "cat_type": "near_field",
+    }
+
+    uvd_two_step = uvd.copy()
+    uvd_two_step.phase(dist=10000, cat_name="far", **phase_kwargs)
+    uvd_two_step.phase(dist=5000, cat_name="near", **phase_kwargs)
+
+    uvd_direct = uvd.copy()
+    uvd_direct.phase(dist=5000, cat_name="near", **phase_kwargs)
+
+    np.testing.assert_allclose(
+        uvd_two_step.uvw_array, uvd_direct.uvw_array, rtol=0, atol=1e-9
+    )
+    np.testing.assert_allclose(
+        uvd_two_step.data_array, uvd_direct.data_array, rtol=1e-5
+    )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "file_format, import_check, error_message",
     [
