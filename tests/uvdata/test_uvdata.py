@@ -10287,7 +10287,12 @@ def test_look_in_catalog_phase_dict(sma_mir):
         ],
         ["test", "sidereal", {"pm_ra": 0}, "Must supply values for either both or"],
         ["test", "sidereal", {"pm_dec": 0}, "Must supply values for either both or"],
-        ["test", "sidereal", {"times": 0}, "cat_times cannot be used for non-ephem"],
+        [
+            "test",
+            "sidereal",
+            {"times": 0},
+            "cat_times can only be used for ephem and near_field",
+        ],
         [
             "test",
             "sidereal",
