@@ -1969,6 +1969,10 @@ def interpolate_ephem(
         if ephem_vel is not None:
             vel_vals += ephem_vel
     else:
+        # TODO: RA samples that cross the 0/2pi branch cut look like a 2pi jump to the
+        # interpolant, which sends the target the long way around the sky. With a cubic
+        # spline this corrupts the whole track, not just the crossing. To be fixed
+        # separately, since it affects ephem phase centers too.
         if len(ephem_times) > 3:
             interp_kind = "cubic"
         else:
@@ -2141,7 +2145,7 @@ def calc_app_coords(
         else:
             unique_lst = lst_array[unique_mask]
 
-    if coord_type == "sidereal" or coord_type == "near_field":
+    if coord_type == "sidereal" or (coord_type == "near_field" and coord_times is None):
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
@@ -2176,7 +2180,10 @@ def calc_app_coords(
         # the LST to get back app RA and Dec
         unique_app_ra = np.mod(unique_app_ha + unique_lst, 2 * np.pi)
         unique_app_dec = unique_app_dec + np.zeros_like(unique_app_ra)
-    elif coord_type == "ephem":
+    elif coord_type in ["ephem", "near_field"]:
+        # A near_field entry only reaches here if it has coord_times, in which case
+        # the focal point moves and its direction is interpolated just like an
+        # ephemeris.
         interp_ra, interp_dec, _, _ = interpolate_ephem(
             time_array=unique_time_array,
             ephem_times=coord_times,
@@ -2519,6 +2526,50 @@ def uvw_track_generator(
         "lst": lst_array,
         "site_loc": site_loc,
     }
+
+
+def resolve_near_field_focus(*, phase_dict, time_array):
+    """
+    Resolve the focal point of a near-field phase center for a set of times.
+
+    A near-field entry without `cat_times` describes a focal point fixed at scalar
+    coordinates, which are returned as-is. An entry with `cat_times` describes a focal
+    point moving along a sampled track, which is interpolated onto the unique times of
+    `time_array`.
+
+    Parameters
+    ----------
+    phase_dict : dict
+        Phase center catalog entry, whose `cat_type` must be "near_field".
+    time_array : ndarray of float
+        Times of the records being focused, in units of JD. Only the unique values
+        matter, and they must lie within the range spanned by `cat_times`.
+
+    Returns
+    -------
+    lon : float or ndarray of float
+        Longitude of the focal point, in radians. A single value for a fixed focal
+        point, or one value per unique time in `time_array` for a moving one.
+    lat : float or ndarray of float
+        Latitude of the focal point, in radians, with the same shape as `lon`.
+    focus : astropy.units.Quantity
+        Distance to the focal point, in units of m, with the same shape as `lon`.
+    """
+    lon = phase_dict["cat_lon"]
+    lat = phase_dict["cat_lat"]
+    dist = phase_dict["cat_dist"]
+
+    if phase_dict["cat_times"] is not None:
+        lon, lat, dist, _ = interpolate_ephem(
+            time_array=np.unique(time_array),
+            ephem_times=phase_dict["cat_times"],
+            ephem_ra=lon,
+            ephem_dec=lat,
+            ephem_dist=dist,
+        )
+
+    # cat_dist is stored in parsecs, but the focal point geometry works in meters
+    return lon, lat, (dist * units.parsec).to(units.m)
 
 
 def _get_focus_xyz(uvd, focus, ra, dec, select_mask=None):

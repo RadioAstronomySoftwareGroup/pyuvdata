@@ -4847,7 +4847,12 @@ class UVData(UVBase):
             time_array=self.time_array,
         )
 
-        if phase_dict["cat_type"] not in ["ephem", "unprojected"]:
+        # A near_field entry with cat_times describes a track, so it takes arrays of
+        # coordinates just like an ephem entry does.
+        if (
+            phase_dict["cat_type"] not in ["ephem", "unprojected"]
+            and phase_dict["cat_times"] is None
+        ):
             if np.array(lon).size > 1:
                 raise ValueError(
                     "lon parameter must be a single value for cat_type "
@@ -4987,11 +4992,11 @@ class UVData(UVBase):
 
         # Lastly, apply near-field corrections if specified
         if cat_type == "near_field":
+            focus_lon, focus_lat, focus_dist = phs_utils.resolve_near_field_focus(
+                phase_dict=phase_dict, time_array=time_array
+            )
             self._apply_near_field_corrections(
-                focus=dist_qt,
-                ra=phase_dict["cat_lon"],
-                dec=phase_dict["cat_lat"],
-                select_mask=select_mask,
+                focus=focus_dist, ra=focus_lon, dec=focus_lat, select_mask=select_mask
             )
 
     def phase_to_time(
