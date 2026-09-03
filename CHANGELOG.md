@@ -3,10 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for a moving near-field focus, via `cat_times` on `near_field` phase center
+entries. When `cat_times` is set, equal-length `cat_lon`, `cat_lat` and `cat_dist`
+arrays describe a track that is interpolated onto the integration times.
+
 ### Fixed
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
+- A bug in `UVData.set_uvws_from_antenna_positions` where the near-field correction was
+not re-applied after the uvw-coordinates were recalculated, so near-field phased data
+silently lost its focus: the w-coordinate was replaced by the far-field one and the
+visibilities were rotated to match. This also affected `UVData.new` and
+`UVData.update_antenna_positions` (except when using `delta_antpos`, which does not go
+through that method), both of which call it.
 
 ## [3.2.7] - 2025-08-20
 
