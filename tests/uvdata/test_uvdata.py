@@ -12867,6 +12867,57 @@ def test_near_field_recalc_uvws(moving):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_recalc_uvws_stale_entry():
+    """A near-field entry that no record points to is skipped when recalculating."""
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    near_field_kwargs = {
+        "lon": np.radians(30),
+        "lat": np.radians(-20),
+        "dist": 10000,
+        "cat_name": "tower",
+        "cat_type": "near_field",
+    }
+    sidereal_kwargs = {
+        "lon": np.radians(45),
+        "lat": np.radians(-25),
+        "cat_name": "sky",
+        "cat_type": "sidereal",
+    }
+
+    # Keeping the old source strands the near-field entry in the catalog with no
+    # records left pointing at it.
+    uvd_stale = uvd.copy()
+    uvd_stale.phase(**near_field_kwargs)
+    uvd_stale.phase(**sidereal_kwargs, cleanup_old_sources=False)
+
+    assert not any(
+        np.any(uvd_stale.phase_center_id_array == cat_id)
+        for cat_id, cat_dict in uvd_stale.phase_center_catalog.items()
+        if cat_dict["cat_type"] == "near_field"
+    )
+
+    # The default cleanup drops that entry, which makes the reference.
+    uvd_clean = uvd.copy()
+    uvd_clean.phase(**near_field_kwargs)
+    uvd_clean.phase(**sidereal_kwargs)
+
+    assert not any(
+        cat_dict["cat_type"] == "near_field"
+        for cat_dict in uvd_clean.phase_center_catalog.values()
+    )
+
+    uvd_stale.set_uvws_from_antenna_positions()
+    uvd_clean.set_uvws_from_antenna_positions()
+
+    np.testing.assert_array_equal(uvd_stale.uvw_array, uvd_clean.uvw_array)
+    np.testing.assert_array_equal(uvd_stale.data_array, uvd_clean.data_array)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_near_field_moving_focus_uvh5_roundtrip(tmp_path):
     """A timed near-field entry survives a write/read cycle."""
     uvfits_sample = fetch_data("mwa_2013_uvfits")
