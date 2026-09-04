@@ -720,16 +720,17 @@ def generate_phase_center_cat_entry(
             "cat_times can only be used for ephem and near_field phase centers."
         )
 
-    # A moving near-field focus needs both a direction and a range at every sample
-    if (
-        (cat_type == "near_field")
-        and (cat_times is not None)
-        and ((cat_lon is None) or (cat_lat is None) or (cat_dist is None))
-    ):
-        raise ValueError(
-            "cat_lon, cat_lat and cat_dist must all be set for near_field phase "
-            "centers with cat_times."
-        )
+    # A near-field focus needs a direction, a frame and a range, whether or not it
+    # moves. phase() already requires these of its own callers, but an entry can be
+    # built directly, and UVData.new() will apply the correction to whatever it finds.
+    if cat_type == "near_field":
+        if (cat_lon is None) or (cat_lat is None) or (cat_dist is None):
+            raise ValueError(
+                "cat_lon, cat_lat and cat_dist must all be set for near_field phase "
+                "centers."
+            )
+        if cat_frame is None:
+            raise ValueError("cat_frame cannot be None for near_field phase centers.")
 
     if (cat_lon is None) and (cat_type in ["sidereal", "ephem"]):
         raise ValueError("cat_lon cannot be None for sidereal or ephem phase centers.")
@@ -777,6 +778,11 @@ def generate_phase_center_cat_entry(
     if cat_times is not None:
         cat_times = np.array(cat_times, dtype=float).reshape(-1)
         cshape = cat_times.shape
+        # A non-finite sample time silently defeats the range check that keeps a
+        # track from being extrapolated, since comparisons against NaN are all False
+        if (cat_type == "near_field") and not np.all(np.isfinite(cat_times)):
+            raise ValueError("cat_times must be finite for near_field phase centers.")
+
         # Duplicate times make the interpolation of a moving focus ambiguous
         if (cat_type == "near_field") and (np.unique(cat_times).size != cat_times.size):
             raise ValueError(

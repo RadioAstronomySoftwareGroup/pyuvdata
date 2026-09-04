@@ -17,6 +17,7 @@ def test_near_field_cat_times():
         cat_lat=[-0.3, -0.2, -0.1],
         cat_dist=[1e-13, 2e-13, 3e-13],
         cat_times=[0.0, 1.0, 2.0],
+        cat_frame="icrs",
     )
 
     for key in ["cat_times", "cat_lon", "cat_lat", "cat_dist"]:
@@ -73,11 +74,39 @@ def test_near_field_cat_times():
             {"cat_lon": 0.4, "cat_lat": -0.3, "cat_dist": -1e-13, "cat_times": None},
             "cat_dist must be positive",
         ],
+        # A non-finite sample time defeats the range check that stops a track being
+        # extrapolated, since every comparison against NaN is False.
+        [
+            {
+                "cat_lon": [0.4, 0.5],
+                "cat_lat": [-0.3, -0.2],
+                "cat_dist": [1e-13, 2e-13],
+                "cat_times": [0.0, np.nan],
+            },
+            "cat_times must be finite",
+        ],
+        # A fixed focus is required to be complete too, since it is applied without
+        # ever going through phase().
+        [
+            {"cat_lon": 0.4, "cat_lat": -0.3, "cat_times": None},
+            "cat_lon, cat_lat and cat_dist must all be set",
+        ],
+        [
+            {
+                "cat_lon": 0.4,
+                "cat_lat": -0.3,
+                "cat_dist": 1e-13,
+                "cat_frame": None,
+                "cat_times": None,
+            },
+            "cat_frame cannot be None for near_field",
+        ],
     ),
 )
 def test_near_field_cat_times_errs(kwargs, msg):
     """A moving near-field focus needs a complete, unambiguous track."""
     kwargs.setdefault("cat_times", [0.0, 1.0])
+    kwargs.setdefault("cat_frame", "icrs")
 
     with pytest.raises(ValueError, match=msg):
         ps_cat_utils.generate_phase_center_cat_entry(

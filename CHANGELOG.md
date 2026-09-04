@@ -18,9 +18,8 @@ silently lost its focus: the w-coordinate was replaced by the far-field one and 
 visibilities were rotated to match. This also affected `UVData.new` and
 `UVData.update_antenna_positions` (except when using `delta_antpos`, which does not go
 through that method), both of which call it.
-- Near-field phase centers no longer accept a non-finite or non-positive `cat_dist`. A
-non-finite range previously put NaNs into the w-coordinate and the visibilities without
-complaint, and a non-positive one has no geometric meaning.
+- Near-field phasing no longer accepts a non-finite or non-positive `cat_dist`. A NaN
+range previously put NaNs into the w-coordinate and the visibilities without complaint.
 - A bug in `UVData.phase` where a phase center reached via `lookup_name=True` was
 handled using the caller's `cat_type` rather than the type resolved from the phase
 center catalog. A looked-up `near_field` entry received only far-field phasing, and a
