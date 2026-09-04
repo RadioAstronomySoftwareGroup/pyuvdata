@@ -18,6 +18,11 @@ silently lost its focus: the w-coordinate was replaced by the far-field one and 
 visibilities were rotated to match. This also affected `UVData.new` and
 `UVData.update_antenna_positions` (except when using `delta_antpos`, which does not go
 through that method), both of which call it.
+- A bug in `UVData.phase` where a phase center reached via `lookup_name=True` was
+handled using the caller's `cat_type` rather than the type resolved from the phase
+center catalog. A looked-up `near_field` entry received only far-field phasing, and a
+looked-up `unprojected` entry had its visibilities rotated by the w-projection instead
+of being left unprojected.
 
 ## [3.2.7] - 2025-08-20
 

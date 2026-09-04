@@ -13024,6 +13024,92 @@ def test_near_field_refocus():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_near_field_lookup_name():
+    """A near-field entry reached by lookup_name still gets its correction.
+
+    The caller's cat_type is None on a lookup, so the correction has to be keyed off
+    the type resolved from the catalog instead.
+    """
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    near_field_kwargs = {
+        "lon": np.radians(30),
+        "lat": np.radians(-20),
+        "dist": 10000,
+        "cat_name": "some_sat",
+        "cat_type": "near_field",
+    }
+
+    uvd_direct = uvd.copy()
+    uvd_direct.phase(**near_field_kwargs)
+
+    # Detour to a sidereal target and come back by name, keeping the near-field entry
+    # in the catalog so there is something to look up.
+    uvd_lookup = uvd.copy()
+    uvd_lookup.phase(**near_field_kwargs)
+    uvd_lookup.phase(
+        lon=np.radians(45),
+        lat=np.radians(-25),
+        cat_name="sky",
+        cat_type="sidereal",
+        cleanup_old_sources=False,
+    )
+    # lon and lat are required by the signature but ignored in favor of the catalog.
+    uvd_lookup.phase(lon=0.0, lat=0.0, cat_name="some_sat", lookup_name=True)
+
+    np.testing.assert_allclose(
+        uvd_lookup.uvw_array, uvd_direct.uvw_array, rtol=0, atol=1e-9
+    )
+    np.testing.assert_allclose(uvd_lookup.data_array, uvd_direct.data_array, rtol=1e-5)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_unprojected_lookup_name():
+    """An unprojected entry reached by lookup_name is still treated as unprojected.
+
+    Same resolved-versus-caller cat_type issue as the near-field case above: the
+    w-projection has to zero the w-values for an unprojected target, which it only
+    does if it sees the type resolved from the catalog.
+    """
+    uvfits_sample = fetch_data("mwa_2013_uvfits")
+
+    uvd = UVData()
+    uvd.read(uvfits_sample)
+
+    # Put an unprojected entry in the catalog, then phase away from it while keeping
+    # the entry, so that there is something to look up.
+    staged = uvd.copy()
+    staged.unproject_phase()
+    unproj_name = next(
+        cat_dict["cat_name"]
+        for cat_dict in staged.phase_center_catalog.values()
+        if cat_dict["cat_type"] == "unprojected"
+    )
+    staged.phase(
+        lon=np.radians(45),
+        lat=np.radians(-25),
+        cat_name="sky",
+        cat_type="sidereal",
+        cleanup_old_sources=False,
+    )
+
+    # Naming the type explicitly is the same request by a different route, so the two
+    # have to agree. Comparing against unproject_phase() instead would fold in an
+    # unrelated difference in how the two routes arrive at u and v.
+    ref = staged.copy()
+    ref.phase(cat_name=unproj_name, cat_type="unprojected", lookup_name=True)
+
+    lookup = staged.copy()
+    lookup.phase(lon=0.0, lat=0.0, cat_name=unproj_name, lookup_name=True)
+
+    np.testing.assert_allclose(lookup.uvw_array, ref.uvw_array, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(lookup.data_array, ref.data_array, rtol=1e-5)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "file_format, import_check, error_message",
     [

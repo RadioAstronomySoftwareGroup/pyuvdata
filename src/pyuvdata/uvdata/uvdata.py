@@ -4979,8 +4979,10 @@ class UVData(UVBase):
             force_update=True,
         )
 
-        # Extract out information for applying w-projection
-        if cat_type == "unprojected":
+        # Extract out information for applying w-projection. As with the near-field
+        # correction below, this has to test the resolved type rather than the
+        # caller's cat_type, which is None when the entry came from lookup_name.
+        if phase_dict["cat_type"] == "unprojected":
             new_w_vals = 0.0
         else:
             # Create a blank array and fill in w-vals based on the selection mask, so
@@ -5006,8 +5008,10 @@ class UVData(UVBase):
         if cleanup_old_sources:
             self._clear_unused_phase_centers()
 
-        # Lastly, apply near-field corrections if specified
-        if cat_type == "near_field":
+        # Lastly, apply near-field corrections if specified. This has to test the
+        # resolved type rather than the caller's cat_type, which is None when the
+        # entry came from lookup_name.
+        if phase_dict["cat_type"] == "near_field":
             focus_lon, focus_lat, focus_dist = _resolve_near_field_focus(
                 phase_dict=phase_dict, time_array=time_array
             )
