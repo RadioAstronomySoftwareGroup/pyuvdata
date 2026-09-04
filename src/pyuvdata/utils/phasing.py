@@ -2560,9 +2560,23 @@ def _resolve_near_field_focus(*, phase_dict, time_array):
     dist = phase_dict["cat_dist"]
 
     if phase_dict["cat_times"] is not None:
+        cat_times = phase_dict["cat_times"]
+        unique_times = np.unique(time_array)
+        # interpolate_ephem raises on out-of-range times, but not for a single-sample
+        # track, which it short-circuits. Check here so that every track is held to
+        # the same requirement, and so the error names the parameter at fault.
+        if (np.min(unique_times) < np.min(cat_times)) or (
+            np.max(unique_times) > np.max(cat_times)
+        ):
+            raise ValueError(
+                "cat_times does not cover the entirety of the time range being "
+                "phased. Please supply a track that spans it, with matching "
+                "cat_lon, cat_lat and cat_dist values."
+            )
+
         lon, lat, dist, _ = interpolate_ephem(
-            time_array=np.unique(time_array),
-            ephem_times=phase_dict["cat_times"],
+            time_array=unique_times,
+            ephem_times=cat_times,
             ephem_ra=lon,
             ephem_dec=lat,
             ephem_dist=dist,

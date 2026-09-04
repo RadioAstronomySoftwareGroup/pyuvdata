@@ -12811,7 +12811,17 @@ def test_near_field_moving_focus_interp():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_near_field_moving_focus_time_range_err():
+@pytest.mark.parametrize(
+    "nsamples,err_msg",
+    [
+        (2, "above the interpolation range"),
+        # A one-sample track needs its own check: interpolate_ephem short-circuits
+        # that case rather than interpolating, so it never sees a range to be outside
+        # of and would otherwise apply the sample to every time.
+        (1, "cat_times does not cover the entirety of the time range"),
+    ],
+)
+def test_near_field_moving_focus_time_range_err(nsamples, err_msg):
     """A track that does not span the data raises rather than extrapolating."""
     uvfits_sample = fetch_data("mwa_2013_uvfits")
 
@@ -12820,12 +12830,12 @@ def test_near_field_moving_focus_time_range_err():
 
     times = np.unique(uvd.time_array)
 
-    with pytest.raises(ValueError, match="above the interpolation range"):
+    with pytest.raises(ValueError, match=err_msg):
         uvd.phase(
-            lon=np.radians([30.0, 31.0]),
-            lat=np.radians([-20.0, -19.0]),
-            dist=np.array([10000.0, 9000.0]),
-            ephem_times=times - (times[1] - times[0]),
+            lon=np.radians([30.0, 31.0][:nsamples]),
+            lat=np.radians([-20.0, -19.0][:nsamples]),
+            dist=np.array([10000.0, 9000.0][:nsamples]),
+            ephem_times=times[:nsamples] - (times[1] - times[0]),
             cat_name="some_sat",
             cat_type="near_field",
         )

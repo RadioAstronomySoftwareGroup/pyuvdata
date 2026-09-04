@@ -1315,9 +1315,26 @@ def test_resolve_near_field_focus_moving():
     np.testing.assert_allclose(focus.to_value(units.m), [9.5e3], rtol=1e-12)
 
     # Times outside the track raise rather than extrapolating.
-    with pytest.raises(ValueError, match="above the interpolation range"):
+    with pytest.raises(
+        ValueError, match="cat_times does not cover the entirety of the time range"
+    ):
         phs_utils._resolve_near_field_focus(
             phase_dict=phase_dict, time_array=np.array([3.0])
+        )
+
+    # A single-sample track cannot describe a range of times, and is caught by the
+    # same guard rather than being applied to all of them.
+    with pytest.raises(
+        ValueError, match="cat_times does not cover the entirety of the time range"
+    ):
+        phs_utils._resolve_near_field_focus(
+            phase_dict={
+                "cat_lon": np.array([0.4]),
+                "cat_lat": np.array([-0.3]),
+                "cat_dist": np.array([1.0]),
+                "cat_times": np.array([0.0]),
+            },
+            time_array=cat_times,
         )
 
 
