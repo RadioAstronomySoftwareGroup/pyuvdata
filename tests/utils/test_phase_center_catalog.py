@@ -53,6 +53,26 @@ def test_near_field_cat_times():
             {"cat_lon": [0.4], "cat_lat": [-0.3, -0.2], "cat_dist": [1e-13, 2e-13]},
             "Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad",
         ],
+        # A non-finite range would otherwise put NaNs in the w-coordinate and the
+        # visibilities without complaint.
+        [
+            {
+                "cat_lon": [0.4, 0.5],
+                "cat_lat": [-0.3, -0.2],
+                "cat_dist": [1e-13, np.nan],
+            },
+            "cat_dist must be finite",
+        ],
+        [
+            {"cat_lon": [0.4, 0.5], "cat_lat": [-0.3, -0.2], "cat_dist": [1e-13, 0.0]},
+            "cat_dist must be positive",
+        ],
+        # The range is checked for a fixed focus too, which astropy only catches for
+        # negative values and only via a confusing message about parallax.
+        [
+            {"cat_lon": 0.4, "cat_lat": -0.3, "cat_dist": -1e-13, "cat_times": None},
+            "cat_dist must be positive",
+        ],
     ),
 )
 def test_near_field_cat_times_errs(kwargs, msg):

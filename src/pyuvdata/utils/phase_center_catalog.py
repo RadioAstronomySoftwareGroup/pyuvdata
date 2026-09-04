@@ -805,6 +805,15 @@ def generate_phase_center_cat_entry(
         cat_dist = None if cat_dist is None else float(cat_dist)
         cat_vrad = None if cat_vrad is None else float(cat_vrad)
 
+    # A focal point has to sit at a real, positive range. A non-finite distance
+    # propagates NaNs into the w-coordinate and the visibilities without complaint,
+    # and a non-positive one has no geometric meaning.
+    if (cat_type == "near_field") and (cat_dist is not None):
+        if not np.all(np.isfinite(cat_dist)):
+            raise ValueError("cat_dist must be finite for near_field phase centers.")
+        if np.any(np.asarray(cat_dist) <= 0):
+            raise ValueError("cat_dist must be positive for near_field phase centers.")
+
     cat_entry = {
         "cat_name": cat_name,
         "cat_type": cat_type,
