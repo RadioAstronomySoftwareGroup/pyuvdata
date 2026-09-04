@@ -610,18 +610,20 @@ def generate_phase_center_cat_entry(
             "driftscan" (fixed az/el position),
             "unprojected" (no w-projection, equivalent to the old
             `phase_type` == "drift").
-            "near-field" (equivalent to sidereal with the addition
+            "near_field" (equivalent to sidereal with the addition
             of near-field corrections)
     cat_lon : float or ndarray
         Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
         phase center. No default unless `cat_type="unprojected"`, in which case the
         default is zero. Expected to be a float for sidereal and driftscan phase
-        centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        centers, and an ndarray of floats of shape (Npts,) for ephem phase centers
+        and for near_field phase centers with `cat_times` set.
     cat_lat : float or ndarray
         Value of the latitudinal coordinate (e.g., Dec, El, b) in radians of the
         phase center. No default unless `cat_type="unprojected"`, in which case the
         default is pi/2. Expected to be a float for sidereal and driftscan phase
-        centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        centers, and an ndarray of floats of shape (Npts,) for ephem phase centers
+        and for near_field phase centers with `cat_times` set.
     cat_frame : str
         Coordinate frame that cat_lon and cat_lat are given in. Only used
         for sidereal and ephem targets. Can be any of the several supported frames
@@ -631,8 +633,11 @@ def generate_phase_center_cat_entry(
         in units of fractional years, either as a float or as a string with the
         epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
     cat_times : ndarray of floats
-        Only used when `cat_type="ephem"`. Describes the time for which the values
-        of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
+        Only used when `cat_type` is "ephem" or "near_field". Describes the time for
+        which the values of `cat_lon` and `cat_lat` are calculated, in units of JD.
+        Shape is (Npts,). Required for ephem phase centers. Optional for near_field
+        phase centers, where setting it describes a focal point that moves along the
+        sampled track, and leaving it unset describes a fixed focal point.
     cat_pm_ra : float
         Proper motion in RA, in units of mas/year. Only used for sidereal phase
         centers.
@@ -640,9 +645,10 @@ def generate_phase_center_cat_entry(
         Proper motion in Dec, in units of mas/year. Only used for sidereal phase
         centers.
     cat_dist : float or ndarray of float
-        Distance of the source, in units of pc. Only used for sidereal and ephem
-        phase centers. Expected to be a float for sidereal and driftscan phase
-        centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        Distance of the source, in units of pc. Only used for sidereal, ephem and
+        near_field phase centers. Expected to be a float for sidereal and driftscan
+        phase centers, and an ndarray of floats of shape (Npts,) for ephem phase
+        centers and for near_field phase centers with `cat_times` set.
     cat_vrad : float or ndarray of float
         Radial velocity of the source, in units of km/s. Only used for sidereal and
         ephem phase centers. Expected to be a float for sidereal and driftscan phase
@@ -709,8 +715,22 @@ def generate_phase_center_cat_entry(
     # check some case-specific things and make sure all the entries are acceptable
     if (cat_times is None) and (cat_type == "ephem"):
         raise ValueError("cat_times cannot be None for ephem object.")
-    elif (cat_times is not None) and (cat_type != "ephem"):
-        raise ValueError("cat_times cannot be used for non-ephem phase centers.")
+    elif (cat_times is not None) and (cat_type not in ["ephem", "near_field"]):
+        raise ValueError(
+            "cat_times can only be used for ephem and near_field phase centers."
+        )
+
+    # A near-field focus needs a direction, a frame and a range, whether or not it
+    # moves. phase() already requires these of its own callers, but an entry can be
+    # built directly, and UVData.new() will apply the correction to whatever it finds.
+    if cat_type == "near_field":
+        if (cat_lon is None) or (cat_lat is None) or (cat_dist is None):
+            raise ValueError(
+                "cat_lon, cat_lat and cat_dist must all be set for near_field phase "
+                "centers."
+            )
+        if cat_frame is None:
+            raise ValueError("cat_frame cannot be None for near_field phase centers.")
 
     if (cat_lon is None) and (cat_type in ["sidereal", "ephem"]):
         raise ValueError("cat_lon cannot be None for sidereal or ephem phase centers.")
@@ -755,9 +775,20 @@ def generate_phase_center_cat_entry(
     elif cat_epoch is not None:
         cat_epoch = float(cat_epoch)
 
-    if cat_type == "ephem":
+    if cat_times is not None:
         cat_times = np.array(cat_times, dtype=float).reshape(-1)
         cshape = cat_times.shape
+        # A non-finite sample time silently defeats the range check that keeps a
+        # track from being extrapolated, since comparisons against NaN are all False
+        if (cat_type == "near_field") and not np.all(np.isfinite(cat_times)):
+            raise ValueError("cat_times must be finite for near_field phase centers.")
+
+        # Duplicate times make the interpolation of a moving focus ambiguous
+        if (cat_type == "near_field") and (np.unique(cat_times).size != cat_times.size):
+            raise ValueError(
+                "cat_times cannot contain duplicate values for near_field phase "
+                "centers."
+            )
         try:
             cat_lon = np.array(cat_lon, dtype=float).reshape(cshape)
             cat_lat = np.array(cat_lat, dtype=float).reshape(cshape)
@@ -768,7 +799,7 @@ def generate_phase_center_cat_entry(
         except ValueError as err:
             raise ValueError(
                 "Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad -- must "
-                "be of the same size as cat_times for ephem phase centers."
+                "be of the same size as cat_times."
             ) from err
     else:
         if cat_lon is not None:
@@ -779,6 +810,15 @@ def generate_phase_center_cat_entry(
         cat_pm_dec = None if cat_pm_dec is None else float(cat_pm_dec)
         cat_dist = None if cat_dist is None else float(cat_dist)
         cat_vrad = None if cat_vrad is None else float(cat_vrad)
+
+    # A focal point has to sit at a real, positive range. A non-finite distance
+    # propagates NaNs into the w-coordinate and the visibilities without complaint,
+    # and a non-positive one has no geometric meaning.
+    if (cat_type == "near_field") and (cat_dist is not None):
+        if not np.all(np.isfinite(cat_dist)):
+            raise ValueError("cat_dist must be finite for near_field phase centers.")
+        if np.any(np.asarray(cat_dist) <= 0):
+            raise ValueError("cat_dist must be positive for near_field phase centers.")
 
     cat_entry = {
         "cat_name": cat_name,
