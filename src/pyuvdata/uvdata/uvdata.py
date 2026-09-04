@@ -4666,8 +4666,10 @@ class UVData(UVBase):
         update_vis : bool
             Option to update the visibilities to account for the change in the
             w-coordinate. Setting this to False assigns the near-field w-coordinate
-            without modifying the data, which is only appropriate if the data have not
-            already been phased to the focal point. Default is True.
+            without modifying the data, which is only appropriate when there are no
+            visibilities to rotate (a metadata-only object), or when the data have
+            already been phased consistently with the focal point upstream. Default
+            is True.
         select_mask : ndarray of bool
             Array of shape (Nblts,), which identifies which records to focus.
             Unselected records are left unchanged. Default is to focus all records.
