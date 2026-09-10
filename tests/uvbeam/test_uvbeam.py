@@ -1166,6 +1166,72 @@ def test_spatial_interpolation_everyother(
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize("spline_opts", [None, {"kx": 2, "ky": 4}])
+def test_batched_rect_spline(beam_type, spline_opts):
+    """Test batched tensor-product splines against RectBivariateSpline."""
+    rng = np.random.default_rng(0)
+    axis1_array = np.linspace(0.2, 6.0, 18)
+    axis2_array = np.linspace(0.1, 1.0, 12)
+    freq_array = np.array([100e6, 110e6])
+
+    if beam_type == "efield":
+        data_shape = (2, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape) + 1j * rng.normal(size=data_shape)
+        beam_type_kwargs = {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0.0]}
+    else:
+        data_shape = (1, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape)
+        beam_type_kwargs = {
+            "polarization_array": ["xx", "yy"],
+            "feed_array": ["x", "y"],
+            "feed_angle": [np.pi / 2, 0.0],
+        }
+
+    beam = UVBeam.new(
+        telescope_name="test",
+        data_normalization="physical",
+        freq_array=freq_array,
+        axis1_array=axis1_array,
+        axis2_array=axis2_array,
+        data_array=data_array,
+        **beam_type_kwargs,
+    )
+
+    # Include points just outside the domain to check that the batched path retains
+    # RectBivariateSpline's boundary-value behavior.
+    az_array = np.concatenate(
+        (
+            [axis1_array[0] - 0.5 * np.diff(axis1_array)[0]],
+            rng.uniform(axis1_array[0], axis1_array[-1], 100),
+            [axis1_array[-1] + 0.5 * np.diff(axis1_array)[0]],
+        )
+    )
+    za_array = np.concatenate(
+        (
+            [axis2_array[0] - 0.5 * np.diff(axis2_array)[0]],
+            rng.uniform(axis2_array[0], axis2_array[-1], 100),
+            [axis2_array[-1] + 0.5 * np.diff(axis2_array)[0]],
+        )
+    )
+
+    interp_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts=spline_opts,
+        return_basis_vector=False,
+    )
+    reference_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts=spline_opts,
+        reuse_spline=True,
+        return_basis_vector=False,
+    )
+
+    np.testing.assert_allclose(interp_data, reference_data, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_cut):
     """
     Test that when the beam doesn't cover the full sky it still works.

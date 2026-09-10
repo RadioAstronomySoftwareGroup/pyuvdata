@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
+tensor-product basis across beam data slices and using vectorized domain checks.
+
 ### Fixed
 - A bug where the longitudinal coordinate (e.g., RA) of "ephem" phase centers was not
 unwrapped, leading to potential discontinuities when performing interpolation.
