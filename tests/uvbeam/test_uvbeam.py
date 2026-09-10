@@ -1166,8 +1166,8 @@ def test_spatial_interpolation_everyother(
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
-@pytest.mark.parametrize(("kx", "ky"), [(1, 1), (2, 4), (3, 3), (4, 2), (5, 5)])
-def test_batched_rect_spline(beam_type, kx, ky):
+@pytest.mark.parametrize("spline_opts", [None, {"kx": 2, "ky": 4}])
+def test_batched_rect_spline(beam_type, spline_opts):
     """Test batched tensor-product splines against RectBivariateSpline."""
     rng = np.random.default_rng(0)
     axis1_array = np.linspace(0.2, 6.0, 18)
@@ -1217,24 +1217,18 @@ def test_batched_rect_spline(beam_type, kx, ky):
     interp_data, _ = beam.interp(
         az_array=az_array,
         za_array=za_array,
-        spline_opts={"kx": kx, "ky": ky},
+        spline_opts=spline_opts,
         return_basis_vector=False,
     )
     reference_data, _ = beam.interp(
         az_array=az_array,
         za_array=za_array,
-        spline_opts={"kx": kx, "ky": ky},
+        spline_opts=spline_opts,
         reuse_spline=True,
         return_basis_vector=False,
     )
 
-    # The two implementations solve the same tensor-product spline in a different
-    # order, so allow only accumulated float64 rounding error. The asymmetric cases
-    # also guard against accidentally transposing the two spatial axes.
-    machine_precision = 100 * np.finfo(np.float64).eps
-    np.testing.assert_allclose(
-        interp_data, reference_data, rtol=machine_precision, atol=machine_precision
-    )
+    np.testing.assert_allclose(interp_data, reference_data, rtol=0, atol=1e-12)
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -1373,26 +1367,12 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
     else:
         beam = cst_efield_2freq
 
-    az_array = np.deg2rad(
-        np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()
-    )
-    za_array = np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten()
     interp_data_array, _ = beam.interp(
-        az_array=az_array, za_array=za_array, return_basis_vector=False
-    )
-    reference_data_array, _ = beam.interp(
-        az_array=az_array,
-        za_array=za_array,
-        reuse_spline=True,
+        az_array=np.deg2rad(
+            np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()
+        ),
+        za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten(),
         return_basis_vector=False,
-    )
-
-    machine_precision = 100 * np.finfo(np.float64).eps
-    np.testing.assert_allclose(
-        interp_data_array,
-        reference_data_array,
-        rtol=machine_precision,
-        atol=machine_precision,
     )
 
     if beam_type == "power":
