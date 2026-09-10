@@ -1839,24 +1839,20 @@ class UVBeam(UVBase):
     def _check_interpolation_domain(self, az_array, za_array, phi_use, theta_use):
         """Check if the interpolation domain is covered by the intrinsic data array."""
         max_axis_diff = max(np.diff(self.axis1_array)[0], np.diff(self.axis2_array)[0])
-        za_sq_dist = np.full(len(za_array), np.inf)
-        az_sq_dist = np.full(len(az_array), np.inf)
-        if (len(theta_use) + len(phi_use)) > len(za_array):
-            # If there are fewer interpolation points than grid points, go
-            # through the grid points one-by-one to spot any outliers
-            for idx in range(az_array.size):
-                za_sq_dist[idx] = np.min((theta_use - za_array[idx]) ** 2.0)
-                az_sq_dist[idx] = np.min((phi_use - az_array[idx]) ** 2.0)
-        else:
-            # Otherwise, if we have lots of interpolation points, then it's faster
-            # to evaluate the grid steps one-by-one.
-            for theta_val in theta_use:
-                temp_arr = np.square(za_array - theta_val)
-                za_sq_dist = np.where(za_sq_dist > temp_arr, temp_arr, za_sq_dist)
 
-            for phi_val in phi_use:
-                temp_arr = np.square(az_array - phi_val)
-                az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
+        def get_nearest_sq_dist(grid_array, interp_array):
+            """Get distance to the nearest sorted grid point without a large array."""
+            upper_inds = np.searchsorted(grid_array, interp_array)
+            lower_inds = np.clip(upper_inds - 1, 0, grid_array.size - 1)
+            upper_inds = np.clip(upper_inds, 0, grid_array.size - 1)
+
+            return np.minimum(
+                np.square(interp_array - grid_array[lower_inds]),
+                np.square(interp_array - grid_array[upper_inds]),
+            )
+
+        za_sq_dist = get_nearest_sq_dist(theta_use, za_array)
+        az_sq_dist = get_nearest_sq_dist(phi_use, az_array)
 
         if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
             if np.any(np.sqrt(za_sq_dist) > (max_axis_diff * 2.0)):
@@ -2071,66 +2067,126 @@ class UVBeam(UVBase):
         if check_azza_domain:
             self._check_interpolation_domain(az_array, za_array, phi_use, theta_use)
 
-        interp_data = np.zeros(
-            (self.Naxes_vec, Npol_feeds, input_nfreqs, az_array.size), dtype=data_type
-        )
-
-        def get_lambda(real_lut, imag_lut=None, **kwargs):
-            # Returns function objects for interpolation reuse
-            if imag_lut is None:
-                return lambda za, az: real_lut(za, az, **kwargs)
-            else:
-                return lambda za, az: (
-                    real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
-                )
-
         if spline_opts is None or not isinstance(spline_opts, dict):
             spline_opts = {}
         if reuse_spline and not hasattr(self, "saved_interp_functions"):
             int_dict = {}
             self.saved_interp_functions = int_dict
 
-        for index3 in range(input_nfreqs):
-            freq = freq_array[index3]
-            for index0 in range(self.Naxes_vec):
-                for pol_return_ind, index2 in enumerate(pol_inds):
-                    do_interp = True
-                    key = (freq, index2, index0)
+        # For interpolating splines, the knots only depend on the coordinate grids.
+        # Building the tensor-product coefficients one axis at a time and evaluating
+        # every data slice together avoids repeatedly calculating the same basis at
+        # every requested point. NdBSpline was not public in older supported SciPy
+        # versions, so retain the RectBivariateSpline path as a compatibility fallback.
+        use_nd_spline = (
+            not reuse_spline
+            and spline_opts.get("s", 0) == 0
+            and not set(spline_opts).difference({"kx", "ky", "s"})
+            and hasattr(interpolate, "NdBSpline")
+        )
 
-                    if reuse_spline and key in self.saved_interp_functions:
-                        do_interp = False
-                        lut = self.saved_interp_functions[key]
+        if use_nd_spline:
+            kx = spline_opts.get("kx", 3)
+            ky = spline_opts.get("ky", 3)
+            spline_coeffs = np.empty(
+                (
+                    theta_use.size,
+                    phi_use.size,
+                    self.Naxes_vec,
+                    Npol_feeds,
+                    input_nfreqs,
+                ),
+                dtype=data_type,
+            )
 
-                    if do_interp:
-                        data_inds = (index0, index2, index3)
+            for index3 in range(input_nfreqs):
+                for index0 in range(self.Naxes_vec):
+                    for pol_return_ind, index2 in enumerate(pol_inds):
+                        theta_spline = interpolate.make_interp_spline(
+                            theta_use,
+                            data_use[index0, index2, index3],
+                            k=kx,
+                            axis=0,
+                            check_finite=False,
+                        )
+                        phi_spline = interpolate.make_interp_spline(
+                            phi_use, theta_spline.c, k=ky, axis=1, check_finite=False
+                        )
+                        spline_coeffs[:, :, index0, pol_return_ind, index3] = (
+                            phi_spline.c.T
+                        )
 
-                        if np.iscomplexobj(data_use):
-                            # interpolate real and imaginary parts separately
-                            real_lut = interpolate.RectBivariateSpline(
-                                theta_use,
-                                phi_use,
-                                data_use[data_inds].real,
-                                **spline_opts,
-                            )
-                            imag_lut = interpolate.RectBivariateSpline(
-                                theta_use,
-                                phi_use,
-                                data_use[data_inds].imag,
-                                **spline_opts,
-                            )
-                            lut = get_lambda(real_lut, imag_lut, grid=False)
-                        else:
-                            lut = interpolate.RectBivariateSpline(
-                                theta_use, phi_use, data_use[data_inds], **spline_opts
-                            )
-                            lut = get_lambda(lut, grid=False)
+            # RectBivariateSpline uses boundary values outside of its input domain.
+            # Clip here to retain that behavior because NdBSpline extrapolates.
+            interp_points = np.column_stack(
+                (
+                    np.clip(za_array, theta_use[0], theta_use[-1]),
+                    np.clip(az_array, phi_use[0], phi_use[-1]),
+                )
+            )
+            lut = interpolate.NdBSpline(
+                (theta_spline.t, phi_spline.t), spline_coeffs, (kx, ky)
+            )
+            interp_data = np.moveaxis(lut(interp_points), 0, -1)
+        else:
+            interp_data = np.zeros(
+                (self.Naxes_vec, Npol_feeds, input_nfreqs, az_array.size),
+                dtype=data_type,
+            )
 
-                        if reuse_spline:
-                            self.saved_interp_functions[key] = lut
-
-                    interp_data[index0, pol_return_ind, index3, :] = lut(
-                        za_array, az_array
+            def get_lambda(real_lut, imag_lut=None, **kwargs):
+                # Returns function objects for interpolation reuse
+                if imag_lut is None:
+                    return lambda za, az: real_lut(za, az, **kwargs)
+                else:
+                    return lambda za, az: (
+                        real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
                     )
+
+            for index3 in range(input_nfreqs):
+                freq = freq_array[index3]
+                for index0 in range(self.Naxes_vec):
+                    for pol_return_ind, index2 in enumerate(pol_inds):
+                        do_interp = True
+                        key = (freq, index2, index0)
+
+                        if reuse_spline and key in self.saved_interp_functions:
+                            do_interp = False
+                            lut = self.saved_interp_functions[key]
+
+                        if do_interp:
+                            data_inds = (index0, index2, index3)
+
+                            if np.iscomplexobj(data_use):
+                                # interpolate real and imaginary parts separately
+                                real_lut = interpolate.RectBivariateSpline(
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds].real,
+                                    **spline_opts,
+                                )
+                                imag_lut = interpolate.RectBivariateSpline(
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds].imag,
+                                    **spline_opts,
+                                )
+                                lut = get_lambda(real_lut, imag_lut, grid=False)
+                            else:
+                                lut = interpolate.RectBivariateSpline(
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds],
+                                    **spline_opts,
+                                )
+                                lut = get_lambda(lut, grid=False)
+
+                            if reuse_spline:
+                                self.saved_interp_functions[key] = lut
+
+                        interp_data[index0, pol_return_ind, index3, :] = lut(
+                            za_array, az_array
+                        )
 
         interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
         if self.antenna_type == "phased_array":
