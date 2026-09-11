@@ -8589,8 +8589,10 @@ class UVData(UVBase):
         other : object that inherits from UVData
             File type specific object to convert to UVData
         """
-        for p in other:
-            param = getattr(other, p)
+        # Only copy attributes that exist on self, since other may have extras that are
+        # neither needed/supported for UVData.
+        for p in self:
+            param = getattr(other, p, getattr(self, p))
             setattr(self, p, param)
 
     def _convert_to_filetype(self, filetype):
