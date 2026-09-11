@@ -548,6 +548,16 @@ def test_ms_phasing(sma_mir, tmp_path):
     )
 
 
+@pytest.mark.parametrize("data_column", ["model_data", "corrected_data"])
+def test_ms_force_phase_alt_data_columns_err(sma_mir, tmp_path, data_column):
+    testfile = os.path.join(tmp_path, "out_ms_force_phase_alt_cols.ms")
+    sma_mir.unproject_phase()
+
+    kwargs = {data_column: np.full(sma_mir.data_array.shape, 1.0 + 1.0j)}
+    with pytest.raises(ValueError, match="Cannot phase unprojected data on write"):
+        sma_mir.write_ms(testfile, force_phase=True, **kwargs)
+
+
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 def test_ms_single_chan(sma_mir, tmp_path):
     """
