@@ -1120,6 +1120,22 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     assert sma_mir == ms_uv
 
 
+def test_ms_vis_units_list(sma_mir, tmp_path):
+    from casacore import tables
+
+    testfile = os.path.join(tmp_path, "vis_units_list.ms")
+    sma_mir.write_ms(testfile)
+
+    # casacore will silently collapse a single-element list to a string if the
+    # keyword already exists as a string, so remove it first to force a list.
+    with tables.table(testfile, ack=False, readonly=False) as tb_main:
+        tb_main.removecolkeyword("DATA", "QuantumUnits")
+        tb_main.putcolkeyword("DATA", "QuantumUnits", ["Jy"])
+
+    ms_uv = UVData.from_file(testfile)
+    assert ms_uv.vis_units == "Jy"
+
+
 @pytest.mark.parametrize("data_column", ["MODEL_DATA", "CORRECTED_DATA"])
 def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
     # Fix the app coords since CASA reader calculates them on the fly
