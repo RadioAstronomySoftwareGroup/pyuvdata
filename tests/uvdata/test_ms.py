@@ -1217,3 +1217,38 @@ def test_write_ms_baseline_conj_warning(nrao_ms, tmp_path):
     uvd2 = UVData.from_file(testfile)
     assert uvd == uvd2
     assert all(uvd.ant_1_array >= uvd.ant_2_array)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:UVData object contains a mix of baseline conj")
+def test_write_ms_baseline_conj_extra_columns(nrao_ms, tmp_path):
+    # The extra data columns need to be conjugated along with data_array when
+    # write_ms forces a uniform baseline conjugation.
+    testfile = os.path.join(tmp_path, "mix_bl_conj_extra.ms")
+
+    uvd = nrao_ms
+    uvd.vis_units = "Jy"
+    uvd.pol_convention = "sum"
+    uvd.conjugate_bls(convention="u>0")
+
+    model_data = (
+        uvd.data_array
+        * np.where(uvd.ant_1_array > uvd.ant_2_array, 2.0 + 3j, 2.0 - 3j)[:, None, None]
+    )
+    corrected_data = (
+        uvd.data_array
+        * np.where(uvd.ant_1_array > uvd.ant_2_array, 4.0 + 5j, 4.0 - 5j)[:, None, None]
+    )
+    model_copy = model_data.copy()
+    uvd.write_ms(
+        testfile, model_data=model_data, corrected_data=corrected_data, clobber=True
+    )
+
+    # The arrays handed in should be left alone (the object itself gets conjugated)
+    assert np.array_equal(model_data, model_copy)
+
+    uvd_data = UVData.from_file(testfile)
+    uvd_model = UVData.from_file(testfile, data_column="MODEL_DATA")
+    uvd_corr = UVData.from_file(testfile, data_column="CORRECTED_DATA")
+    assert np.allclose(uvd_model.data_array, (2.0 + 3j) * uvd_data.data_array)
+    assert np.allclose(uvd_corr.data_array, (4.0 + 5j) * uvd_data.data_array)

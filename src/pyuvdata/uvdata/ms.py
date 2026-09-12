@@ -159,7 +159,20 @@ class MS(UVData):
                     "which is not uniformly supported in CASA -- forcing conjugation "
                     'to be "ant2<ant1" on object.'
                 )
+                # Check which inds need to be flipped
+                conj_inds = np.nonzero(self.ant_2_array > self.ant_1_array)[0]
                 self.conjugate_bls("ant2<ant1")
+                if conj_inds.size > 0:
+                    # Handle cross-pols in the extra data columns
+                    pol_inds = utils.pol.reorder_conj_pols(self.polarization_array)
+                    for name in ("model_data", "corrected_data"):
+                        if getattr(self, name) is None:
+                            continue
+                        extra_data = getattr(self, name).copy()
+                        conj_data = np.conj(extra_data[conj_inds])
+                        for cnt, idx in enumerate(pol_inds):
+                            extra_data[conj_inds, :, idx] = conj_data[:, :, cnt]
+                        setattr(self, name, extra_data)
 
         # Initialize a skelton measurement set
         ms = ms_utils.init_ms_file(
