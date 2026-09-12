@@ -976,7 +976,8 @@ def _interp_dispatcher(
     elif mode == "imag":
         old_cal = old_cal.imag
     elif mode == "phase":
-        old_cal = np.unwrap(np.angle(old_cal))
+        # Unwrap along the time axis (axis 2)
+        old_cal = np.unwrap(np.angle(old_cal), axis=2)
         if pha_kind is not None:
             kind = pha_kind
         if pha_poly_order is not None:

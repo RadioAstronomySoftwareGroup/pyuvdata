@@ -15,6 +15,8 @@ conjugation schemes was present.
 being conjugated correctly.
 - A bug where the Jones array stored in calibration tables generated ny `UVCal.write_ms_cal`
 could be incorrectly ordered.
+- A bug where `utils.gain_interpolate.time_interp_cal` was not unwrapping phase gains
+along the time axis correctly (mistakenly was using the Jones axis instead).
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
