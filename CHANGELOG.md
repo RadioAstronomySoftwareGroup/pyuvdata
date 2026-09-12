@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 a MeasurementSet as a singleton entry/list.
 - A bug in `UVData.write_ms` which caused `corrected_data` and `model_data` not to be
 reordered in the same way that, e.g., `UVData.data_array` was on write.
+- A bug in `UVData.write_ms` which caused `corrected_data` and `model_data` not to be
+conjugated (and inconsistent with `UVData.data_array`) when a mixture of baseline
+conjugation schemes was present.
 - A bug in `UVData.read_ms_cal` and `UVData.write_ms_cal` where gains tables where not
 being conjugated correctly.
 - A bug where the Jones array stored in calibration tables generated ny `UVCal.write_ms_cal`
