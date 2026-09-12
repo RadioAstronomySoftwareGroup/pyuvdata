@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- A bug in `UVData.read_ms` where visibility units could not be parsed when stored in
+a MeasurementSet as a singleton entry/list.
+- A bug in `UVData.write_ms` which caused `corrected_data` and `model_data` not to be
+reordered in the same way that, e.g., `UVData.data_array` was on write.
+- A bug in `UVData.read_ms_cal` and `UVData.write_ms_cal` where gains tables where not
+being conjugated correctly.
+- A bug where the Jones array stored in calibration tables generated ny `UVCal.write_ms_cal`
+could be incorrectly ordered.
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
