@@ -2,9 +2,116 @@
 # Licensed under the 2-clause BSD License
 """Tests for phase center catalog utility functions."""
 
+import numpy as np
 import pytest
 
 import pyuvdata.utils.phase_center_catalog as ps_cat_utils
+
+
+def test_near_field_cat_times():
+    """A timed near-field entry keeps its track as (Npts,) arrays."""
+    entry = ps_cat_utils.generate_phase_center_cat_entry(
+        cat_name="some_sat",
+        cat_type="near_field",
+        cat_lon=[0.4, 0.5, 0.6],
+        cat_lat=[-0.3, -0.2, -0.1],
+        cat_dist=[1e-13, 2e-13, 3e-13],
+        cat_times=[0.0, 1.0, 2.0],
+        cat_frame="icrs",
+    )
+
+    for key in ["cat_times", "cat_lon", "cat_lat", "cat_dist"]:
+        assert entry[key].shape == (3,)
+
+    np.testing.assert_allclose(entry["cat_lon"], [0.4, 0.5, 0.6], rtol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "kwargs,msg",
+    (
+        [
+            {"cat_lat": -0.3, "cat_dist": 1e-13},
+            "cat_lon, cat_lat and cat_dist must all be set",
+        ],
+        [
+            {"cat_lon": 0.4, "cat_dist": 1e-13},
+            "cat_lon, cat_lat and cat_dist must all be set",
+        ],
+        [
+            {"cat_lon": 0.4, "cat_lat": -0.3},
+            "cat_lon, cat_lat and cat_dist must all be set",
+        ],
+        [
+            {
+                "cat_lon": [0.4, 0.5],
+                "cat_lat": [-0.3, -0.2],
+                "cat_dist": [1e-13, 2e-13],
+                "cat_times": [0.0, 0.0],
+            },
+            "cat_times cannot contain duplicate values",
+        ],
+        [
+            {"cat_lon": [0.4], "cat_lat": [-0.3, -0.2], "cat_dist": [1e-13, 2e-13]},
+            "Object properties -- lon, lat, pm_ra, pm_dec, dist, vrad",
+        ],
+        # A non-finite range would otherwise put NaNs in the w-coordinate and the
+        # visibilities without complaint.
+        [
+            {
+                "cat_lon": [0.4, 0.5],
+                "cat_lat": [-0.3, -0.2],
+                "cat_dist": [1e-13, np.nan],
+            },
+            "cat_dist must be finite",
+        ],
+        [
+            {"cat_lon": [0.4, 0.5], "cat_lat": [-0.3, -0.2], "cat_dist": [1e-13, 0.0]},
+            "cat_dist must be positive",
+        ],
+        # The range is checked for a fixed focus too, which astropy only catches for
+        # negative values and only via a confusing message about parallax.
+        [
+            {"cat_lon": 0.4, "cat_lat": -0.3, "cat_dist": -1e-13, "cat_times": None},
+            "cat_dist must be positive",
+        ],
+        # A non-finite sample time defeats the range check that stops a track being
+        # extrapolated, since every comparison against NaN is False.
+        [
+            {
+                "cat_lon": [0.4, 0.5],
+                "cat_lat": [-0.3, -0.2],
+                "cat_dist": [1e-13, 2e-13],
+                "cat_times": [0.0, np.nan],
+            },
+            "cat_times must be finite",
+        ],
+        # A fixed focus is required to be complete too, since it is applied without
+        # ever going through phase().
+        [
+            {"cat_lon": 0.4, "cat_lat": -0.3, "cat_times": None},
+            "cat_lon, cat_lat and cat_dist must all be set",
+        ],
+        [
+            {
+                "cat_lon": 0.4,
+                "cat_lat": -0.3,
+                "cat_dist": 1e-13,
+                "cat_frame": None,
+                "cat_times": None,
+            },
+            "cat_frame cannot be None for near_field",
+        ],
+    ),
+)
+def test_near_field_cat_times_errs(kwargs, msg):
+    """A moving near-field focus needs a complete, unambiguous track."""
+    kwargs.setdefault("cat_times", [0.0, 1.0])
+    kwargs.setdefault("cat_frame", "icrs")
+
+    with pytest.raises(ValueError, match=msg):
+        ps_cat_utils.generate_phase_center_cat_entry(
+            cat_name="some_sat", cat_type="near_field", **kwargs
+        )
 
 
 def test_generate_new_phase_center_id_errs():

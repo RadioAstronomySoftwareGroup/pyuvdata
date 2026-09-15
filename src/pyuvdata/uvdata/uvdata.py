@@ -26,7 +26,11 @@ from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
-from ..utils.phasing import _get_focus_xyz, _get_nearfield_delay
+from ..utils.phasing import (
+    _get_focus_xyz,
+    _get_nearfield_delay,
+    _resolve_near_field_focus,
+)
 from ..utils.types import StrArray
 from ..uvbase import UVBase
 from .initializers import new_uvdata
@@ -332,27 +336,36 @@ class UVData(UVBase):
             "up a mosaic observation), "
             "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
             "(position in RA/Dec which moves with time), 'driftscan' (fixed position "
-            "in Az/El, NOT the same as the old ``phase_type`` = 'drift') or "
+            "in Az/El, NOT the same as the old ``phase_type`` = 'drift'), "
             "'unprojected' (baseline coordinates in ENU, but data are not phased, "
-            "similar to the old ``phase_type`` = 'drift') "
+            "similar to the old ``phase_type`` = 'drift') or 'near_field' (a focal "
+            "point at a finite distance, fixed or moving, which adds a correction "
+            "for the curvature of the wavefront), "
             "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
-            "for ephem type phase centers), "
+            "for ephem type phase centers and for near_field ones with 'cat_times' "
+            "set), "
             "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
-            "for ephem type phase centers), "
+            "for ephem type phase centers and for near_field ones with 'cat_times' "
+            "set), "
             "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
             "astropy). "
             "Other optional keys include "
             "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
             "frames without an epoch (e.g. ICRS) unless there is proper motion), "
-            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
+            "'cat_times' (times for the coordinates, required for 'ephem' types and "
+            "optional for 'near_field' ones, where setting it describes a focal point "
+            "moving along the sampled track and leaving it unset describes a fixed "
+            "focal point), "
             "'cat_pm_ra' (proper motion in RA), "
             "'cat_pm_dec' (proper motion in Dec), "
             "'cat_dist' (physical distance to the source in parsec, useful if parallax "
-            "is important, either a single value or a one dimensional array of length "
-            "Npts --the number of ephemeris data points-- for ephem type phase "
-            "centers.), "
+            "is important, and giving the range to the focal point for near_field "
+            "types, where it must be finite and positive, either a single value or a "
+            "one dimensional array of length Npts --the number of ephemeris data "
+            "points-- for ephem type phase centers and for near_field ones with "
+            "'cat_times' set.), "
             "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
             "for ephem type phase centers.), and "
@@ -4653,8 +4666,10 @@ class UVData(UVBase):
         update_vis : bool
             Option to update the visibilities to account for the change in the
             w-coordinate. Setting this to False assigns the near-field w-coordinate
-            without modifying the data, which is only appropriate if the data have not
-            already been phased to the focal point. Default is True.
+            without modifying the data, which is only appropriate when there are no
+            visibilities to rotate (a metadata-only object), or when the data have
+            already been phased consistently with the focal point upstream. Default
+            is True.
         select_mask : ndarray of bool
             Array of shape (Nblts,), which identifies which records to focus.
             Unselected records are left unchanged. Default is to focus all records.
@@ -4713,7 +4728,7 @@ class UVData(UVBase):
         cleanup_old_sources=True,
     ):
         """
-        Phase data to a new direction, supports sidereal, ephemeris and driftscan types.
+        Phase data to a new direction, supports sidereal, ephem, driftscan, near_field.
 
         Can be used to phase all or a subset of the baseline-times. Types of phase
         centers (`cat_type`) that are supported include:
@@ -4721,6 +4736,7 @@ class UVData(UVBase):
             - sidereal (fixed RA/Dec)
             - ephem (RA/Dec that moves with time)
             - driftscan (fixed az/el position)
+            - near_field (a focal point at a finite distance, fixed or moving)
 
         See the phasing memo under docs/references for more documentation.
 
@@ -4728,10 +4744,14 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        lon : float
+        lon : float or ndarray of float
             The longitude coordinate (e.g. RA or Azimuth) to phase to in radians.
-        lat : float
-            The latitude coordinate (e.g. Dec or Altitude) to phase to in radians.
+            Expected to be a float, except for ephem phase centers and near-field
+            phase centers with a moving focal point, where it is an ndarray of floats
+            of shape (Npts,) giving the value at each of the `ephem_times`.
+        lat : float or ndarray of float
+            The latitude coordinate (e.g. Dec or Altitude) to phase to in radians,
+            with the same shape requirements as `lon`.
         epoch : astropy.time.Time object or str
             The epoch to use for phasing. Either an astropy Time object or the
             string "J2000" (which is the default).
@@ -4753,10 +4773,16 @@ class UVData(UVBase):
             "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
             "driftscan" (fixed az/el position), "near_field" (first applies far-field
             phasing assuming sidereal phase center, then applies near-field
-            corrections to the specified dist). Default is "sidereal".
+            corrections to the specified dist). Default is "sidereal". The focal point
+            of a "near_field" phase center is fixed unless `ephem_times` is supplied,
+            in which case it moves along the given track.
         ephem_times : ndarray of float
-            Only used when `cat_type="ephem"`. Describes the time for which the values
-            of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
+            Only used when `cat_type="ephem"`, or when `cat_type="near_field"` and the
+            focal point moves during the observation. Describes the time for which the
+            values of `cat_lon` and `cat_lat` (and, for near-field, `dist`) are
+            calculated, in units of JD. Shape is (Npts,). These are interpolated onto
+            the times of the data being phased, which must fall within the range
+            spanned by `ephem_times`.
         pm_ra : float
             Proper motion in RA, in units of mas/year. Only used for sidereal phase
             centers.
@@ -4767,7 +4793,8 @@ class UVData(UVBase):
             Distance to the source. Used for sidereal and ephem phase centers,
             and for applying near-field corrections. If passed either as a float
             (for sidereal phase centers) or as an ndarray of floats of shape (Npts,)
-            (for ephem phase centers), will be interpreted in units of parsec for all
+            (for ephem phase centers, and for near-field phase centers with a moving
+            focal point), will be interpreted in units of parsec for all
             cat_types except near_field; in the latter case it will be interpreted
             in meters. Alternatively, an astropy.units.Quantity object may be passed
             instead, in which case the units will be infered automatically.
@@ -4847,7 +4874,12 @@ class UVData(UVBase):
             time_array=self.time_array,
         )
 
-        if phase_dict["cat_type"] not in ["ephem", "unprojected"]:
+        # A near_field entry with cat_times describes a track, so it takes arrays of
+        # coordinates just like an ephem entry does.
+        if (
+            phase_dict["cat_type"] not in ["ephem", "unprojected"]
+            and phase_dict["cat_times"] is None
+        ):
             if np.array(lon).size > 1:
                 raise ValueError(
                     "lon parameter must be a single value for cat_type "
@@ -4958,8 +4990,10 @@ class UVData(UVBase):
             force_update=True,
         )
 
-        # Extract out information for applying w-projection
-        if cat_type == "unprojected":
+        # Extract out information for applying w-projection. As with the near-field
+        # correction below, this has to test the resolved type rather than the
+        # caller's cat_type, which is None when the entry came from lookup_name.
+        if phase_dict["cat_type"] == "unprojected":
             new_w_vals = 0.0
         else:
             # Create a blank array and fill in w-vals based on the selection mask, so
@@ -4985,13 +5019,15 @@ class UVData(UVBase):
         if cleanup_old_sources:
             self._clear_unused_phase_centers()
 
-        # Lastly, apply near-field corrections if specified
-        if cat_type == "near_field":
+        # Lastly, apply near-field corrections if specified. This has to test the
+        # resolved type rather than the caller's cat_type, which is None when the
+        # entry came from lookup_name.
+        if phase_dict["cat_type"] == "near_field":
+            focus_lon, focus_lat, focus_dist = _resolve_near_field_focus(
+                phase_dict=phase_dict, time_array=time_array
+            )
             self._apply_near_field_corrections(
-                focus=dist_qt,
-                ra=phase_dict["cat_lon"],
-                dec=phase_dict["cat_lat"],
-                select_mask=select_mask,
+                focus=focus_dist, ra=focus_lon, dec=focus_lat, select_mask=select_mask
             )
 
     def phase_to_time(
@@ -5076,6 +5112,10 @@ class UVData(UVBase):
         """
         Calculate UVWs based on antenna_positions.
 
+        Records belonging to a near-field phase center have the near-field correction
+        re-applied afterwards, since the antenna-position calculation is a far-field
+        one.
+
         Parameters
         ----------
         update_vis : bool
@@ -5143,6 +5183,26 @@ class UVData(UVBase):
         # If the data are phased, we've already adjusted the phases. Now we just
         # need to update the uvw's and we are home free.
         self.uvw_array = new_uvw
+
+        # calc_uvw only knows far-field geometry, so the near-field w has to be put
+        # back on top, one focus at a time. This keeps the same two-stage order that
+        # phase() uses: ordinary UVWs first, then the near-field correction.
+        for cat_id, cat_dict in self.phase_center_catalog.items():
+            if cat_dict["cat_type"] != "near_field":
+                continue
+            select_mask = self.phase_center_id_array == cat_id
+            if not np.any(select_mask):
+                continue
+            focus_lon, focus_lat, focus_dist = _resolve_near_field_focus(
+                phase_dict=cat_dict, time_array=self.time_array[select_mask]
+            )
+            self._apply_near_field_corrections(
+                focus=focus_dist,
+                ra=focus_lon,
+                dec=focus_lat,
+                update_vis=update_vis,
+                select_mask=select_mask,
+            )
         return
 
     def update_antenna_positions(
