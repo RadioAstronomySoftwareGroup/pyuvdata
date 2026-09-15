@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
+tensor-product basis across beam data slices and using vectorized domain checks.
+
 ### Fixed
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the

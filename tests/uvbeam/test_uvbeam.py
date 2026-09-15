@@ -1165,6 +1165,148 @@ def test_spatial_interpolation_everyother(
     )
 
 
+@pytest.mark.parametrize("npoints", [8, 40])
+@pytest.mark.parametrize(
+    "outside_axis", [None, "az", "za"], ids=["covered", "az-outside", "za-outside"]
+)
+def test_interpolation_domain_matches_legacy(npoints, outside_axis):
+    """Test the optimized domain check against the legacy implementation."""
+    phi_use = np.linspace(0.0, 1.0, 11)
+    theta_use = np.linspace(0.0, 0.5, 6)
+    beam = UVBeam()
+    beam.axis1_array = phi_use
+    beam.axis2_array = theta_use
+
+    rng = np.random.default_rng(npoints)
+    az_array = rng.uniform(phi_use[0], phi_use[-1], npoints)
+    za_array = rng.uniform(theta_use[0], theta_use[-1], npoints)
+    limit = 2 * max(np.diff(phi_use)[0], np.diff(theta_use)[0])
+
+    # Exercise the exact boundary and its neighboring floating-point values.
+    az_array[:4] = [
+        phi_use[0] - limit,
+        np.nextafter(phi_use[-1] + limit, phi_use[-1]),
+        phi_use[0],
+        phi_use[-1],
+    ]
+    za_array[:4] = [
+        theta_use[0],
+        theta_use[-1],
+        theta_use[0] - limit,
+        np.nextafter(theta_use[-1] + limit, theta_use[-1]),
+    ]
+    if outside_axis == "az":
+        az_array[0] = np.nextafter(phi_use[0] - limit, -np.inf)
+    elif outside_axis == "za":
+        az_array[0] = phi_use[0]
+        za_array[0] = np.nextafter(theta_use[0] - limit, -np.inf)
+
+    def legacy_check():
+        max_axis_diff = max(np.diff(beam.axis1_array)[0], np.diff(beam.axis2_array)[0])
+        za_sq_dist = np.full(len(za_array), np.inf)
+        az_sq_dist = np.full(len(az_array), np.inf)
+        if (len(theta_use) + len(phi_use)) > len(za_array):
+            for idx in range(az_array.size):
+                za_sq_dist[idx] = np.min((theta_use - za_array[idx]) ** 2.0)
+                az_sq_dist[idx] = np.min((phi_use - az_array[idx]) ** 2.0)
+        else:
+            for theta_val in theta_use:
+                temp_arr = np.square(za_array - theta_val)
+                za_sq_dist = np.where(za_sq_dist > temp_arr, temp_arr, za_sq_dist)
+            for phi_val in phi_use:
+                temp_arr = np.square(az_array - phi_val)
+                az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
+
+        if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
+            if np.any(np.sqrt(za_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The zenith angles values are outside UVBeam coverage."
+            elif np.any(np.sqrt(az_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The azimuth values are outside UVBeam coverage."
+            raise ValueError(
+                "at least one interpolation location "
+                "is outside of the UVBeam pixel coverage." + msg
+            )
+
+    def get_error(checker):
+        try:
+            checker()
+        except ValueError as err:
+            return str(err)
+        return None
+
+    legacy_error = get_error(legacy_check)
+    optimized_error = get_error(
+        lambda: beam._check_interpolation_domain(az_array, za_array, phi_use, theta_use)
+    )
+    assert optimized_error == legacy_error
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize("spline_opts", [None, {"kx": 2, "ky": 4}])
+def test_batched_rect_spline(beam_type, spline_opts):
+    """Test batched tensor-product splines against RectBivariateSpline."""
+    rng = np.random.default_rng(0)
+    axis1_array = np.linspace(0.2, 6.0, 18)
+    axis2_array = np.linspace(0.1, 1.0, 12)
+    freq_array = np.array([100e6, 110e6])
+
+    if beam_type == "efield":
+        data_shape = (2, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape) + 1j * rng.normal(size=data_shape)
+        beam_type_kwargs = {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0.0]}
+    else:
+        data_shape = (1, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape)
+        beam_type_kwargs = {
+            "polarization_array": ["xx", "yy"],
+            "feed_array": ["x", "y"],
+            "feed_angle": [np.pi / 2, 0.0],
+        }
+
+    beam = UVBeam.new(
+        telescope_name="test",
+        data_normalization="physical",
+        freq_array=freq_array,
+        axis1_array=axis1_array,
+        axis2_array=axis2_array,
+        data_array=data_array,
+        **beam_type_kwargs,
+    )
+
+    # Include points just outside the domain to check that the batched path retains
+    # RectBivariateSpline's boundary-value behavior.
+    az_array = np.concatenate(
+        (
+            [axis1_array[0] - 0.5 * np.diff(axis1_array)[0]],
+            rng.uniform(axis1_array[0], axis1_array[-1], 100),
+            [axis1_array[-1] + 0.5 * np.diff(axis1_array)[0]],
+        )
+    )
+    za_array = np.concatenate(
+        (
+            [axis2_array[0] - 0.5 * np.diff(axis2_array)[0]],
+            rng.uniform(axis2_array[0], axis2_array[-1], 100),
+            [axis2_array[-1] + 0.5 * np.diff(axis2_array)[0]],
+        )
+    )
+
+    interp_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts=spline_opts,
+        return_basis_vector=False,
+    )
+    reference_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts=spline_opts,
+        reuse_spline=True,
+        return_basis_vector=False,
+    )
+
+    np.testing.assert_allclose(interp_data, reference_data, rtol=0, atol=1e-12)
+
+
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_cut):
     """
