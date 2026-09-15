@@ -17,6 +17,7 @@ from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
+from ..parameter import UVParameter
 from ..utils.io import ms as ms_utils
 from . import UVData
 
@@ -42,6 +43,26 @@ class MS(UVData):
     method on the UVData class.
 
     """
+
+    def __init__(self):
+        # Define these internal to MS so that the data can be ordered accordingly.
+        # Maybe at some point we can port these out to the UVData class more generally.
+        self._corrected_data = UVParameter(
+            name="corrected_data",
+            description="Calibrated/corrected visibility data.",
+            required=False,
+            form=("Nblts", "Nfreqs", "Npols"),
+            expected_type=complex,
+        )
+
+        self._model_data = UVParameter(
+            name="model_data",
+            description="Model visibility data.",
+            required=False,
+            form=("Nblts", "Nfreqs", "Npols"),
+            expected_type=complex,
+        )
+        super().__init__()
 
     @copy_replace_short_description(UVData.write_ms, style=DocstringStyle.NUMPYDOC)
     def write_ms(
@@ -73,6 +94,10 @@ class MS(UVData):
                 + "is not yet supported."
             )
 
+        # Plug these things into the UVParameter attributes.
+        self.model_data = model_data
+        self.corrected_data = corrected_data
+
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -101,6 +126,12 @@ class MS(UVData):
         unprojected_blts = self._check_for_cat_type("unprojected")
         if np.any(unprojected_blts):
             if force_phase:
+                if self.model_data is not None or self.corrected_data is not None:
+                    raise ValueError(
+                        "Cannot phase unprojected data on write when model_data or "
+                        "corrected_data are supplied, since those columns cannot be "
+                        "phased along with data_array. Phase the object first."
+                    )
                 print(
                     "The data are unprojected. Phasing to zenith of the first "
                     "timestamp."
@@ -128,29 +159,36 @@ class MS(UVData):
                     "which is not uniformly supported in CASA -- forcing conjugation "
                     'to be "ant2<ant1" on object.'
                 )
+                # Check which inds need to be flipped
+                conj_inds = np.nonzero(self.ant_2_array > self.ant_1_array)[0]
                 self.conjugate_bls("ant2<ant1")
+                if conj_inds.size > 0:
+                    # Handle cross-pols in the extra data columns
+                    pol_inds = utils.pol.reorder_conj_pols(self.polarization_array)
+                    for name in ("model_data", "corrected_data"):
+                        if getattr(self, name) is None:
+                            continue
+                        extra_data = getattr(self, name).copy()
+                        conj_data = np.conj(extra_data[conj_inds])
+                        for cnt, idx in enumerate(pol_inds):
+                            extra_data[conj_inds, :, idx] = conj_data[:, :, cnt]
+                        setattr(self, name, extra_data)
 
         # Initialize a skelton measurement set
         ms = ms_utils.init_ms_file(
             filepath,
-            make_model_col=model_data is not None,
-            make_corr_col=corrected_data is not None,
+            make_model_col=self.model_data is not None,
+            make_corr_col=self.corrected_data is not None,
         )
 
         arr_list = [self.data_array, self.nsample_array, self.flag_array]
         col_list = ["DATA", "WEIGHT_SPECTRUM", "FLAG"]
 
-        if model_data is not None:
-            if model_data.shape != self.data_array.shape:  # pragma: no cover
-                raise RuntimeError("model_data must have the same shape as data_array.")
-            arr_list.append(model_data)
+        if self.model_data is not None:
+            arr_list.append(self.model_data)
             col_list.append("MODEL_DATA")
-        if corrected_data is not None:
-            if corrected_data.shape != self.data_array.shape:  # pragma: no cover
-                raise RuntimeError(
-                    "corrected_data must have the same shape as data_array."
-                )
-            arr_list.append(corrected_data)
+        if self.corrected_data is not None:
+            arr_list.append(self.corrected_data)
             col_list.append("CORRECTED_DATA")
 
         # Some tasks in CASA require a band-representative (band-averaged?) value for
@@ -444,6 +482,8 @@ class MS(UVData):
         # set visibility units
         try:
             self.vis_units = tb_main.getcolkeywords(data_column)["QuantumUnits"]
+            if isinstance(self.vis_units, (list, tuple)):
+                self.vis_units = self.vis_units[0]
         except KeyError:
             self.vis_units = default_vis_units[data_column]
 

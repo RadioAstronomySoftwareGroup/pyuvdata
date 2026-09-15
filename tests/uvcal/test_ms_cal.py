@@ -91,12 +91,18 @@ def sma_bcal(sma_bcal_main):
     "write_func,filename",
     [["write_ms_cal", "ms_cal_loopback.ms"], ["write_calh5", "ms_cal_loopback.calh5"]],
 )
-def test_ms_cal_wideband_loopback(sma_pcal, tmp_path, write_func, filename):
+@pytest.mark.parametrize("jones_order", ["-number", "number"])
+def test_ms_cal_wideband_loopback(
+    sma_pcal, tmp_path, write_func, filename, jones_order
+):
     uvcal = UVCal()
     testfile = os.path.join(tmp_path, filename)
+    # Muck with the ordering -- n/b that -number is CASA order (and number is flipped)
+    sma_pcal.reorder_jones(order=jones_order)
     getattr(sma_pcal, write_func)(testfile, clobber=True)
 
     uvcal.read(testfile)
+    uvcal.reorder_jones(order=jones_order)
     # Check that the histories line up
     assert sma_pcal.history in uvcal.history
     assert sma_pcal.__eq__(uvcal, allowed_failures=allowed_failures)
