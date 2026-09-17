@@ -2769,6 +2769,46 @@ def test_select_not_inplace(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_conjugate_bls_moves_flags_and_nsamples(casa_uvfits):
+    # Conjugating a baseline swaps its cross-pols (e.g., RL <-> LR here), so make sure
+    # the flags and nsamples travel along with the data.
+    uv = casa_uvfits
+    assert np.array_equal(uv.polarization_array, [-1, -2, -3, -4])  # RR, LL, RL, LR
+    rl, lr = 2, 3
+    uv.flag_array[:] = False
+    uv.flag_array[:, :, rl] = True
+    uv.nsample_array[:] = 1.0
+    uv.nsample_array[:, :, lr] = 7.0
+    uv.data_array[:, :, rl] = 10 + 0j
+    uv.data_array[:, :, lr] = 20 + 0j
+    orig = uv.copy()
+
+    blts_conj = np.arange(uv.Nblts // 2)
+    blts_keep = np.arange(uv.Nblts // 2, uv.Nblts)
+    uv.conjugate_bls(blts_conj)
+
+    # on the conjugated rows everything about RL is now in the LR slot and vice versa
+    assert np.all(uv.data_array[blts_conj, :, rl] == 20)
+    assert not np.any(uv.flag_array[blts_conj, :, rl])
+    assert np.all(uv.nsample_array[blts_conj, :, rl] == 7.0)
+    assert np.all(uv.data_array[blts_conj, :, lr] == 10)
+    assert np.all(uv.flag_array[blts_conj, :, lr])
+    assert np.all(uv.nsample_array[blts_conj, :, lr] == 1.0)
+    # the parallel hands are untouched
+    assert not np.any(uv.flag_array[blts_conj, :, :2])
+    assert np.all(uv.nsample_array[blts_conj, :, :2] == 1.0)
+    # and nothing moved on the rows that were not conjugated
+    for name in ("data_array", "flag_array", "nsample_array"):
+        assert np.array_equal(
+            getattr(uv, name)[blts_keep], getattr(orig, name)[blts_keep]
+        )
+
+    uv.conjugate_bls(blts_conj)
+    assert uv == orig
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_conjugate_bls(casa_uvfits, metadata_only):
     testfile = fetch_data("vla_casa_tutorial_uvfits")

@@ -3719,9 +3719,13 @@ class UVData(UVBase):
                     uvw_array_use = copy.copy(self.uvw_array)
 
             if convention == "ant1<ant2":
-                index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()
+                index_array = np.asarray(self.ant_1_array > self.ant_2_array).nonzero()[
+                    0
+                ]
             elif convention == "ant2<ant1":
-                index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()
+                index_array = np.asarray(self.ant_2_array > self.ant_1_array).nonzero()[
+                    0
+                ]
             elif convention == "u<0":
                 index_array = np.asarray(
                     (uvw_array_use[:, 0] > uvw_tol)
@@ -3730,7 +3734,7 @@ class UVData(UVBase):
                     | (uvw_array_use[:, 2] > uvw_tol)
                     & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
                     & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
-                ).nonzero()
+                ).nonzero()[0]
             elif convention == "u>0":
                 index_array = np.asarray(
                     (uvw_array_use[:, 0] < -uvw_tol)
@@ -3743,7 +3747,7 @@ class UVData(UVBase):
                         & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
                         & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
                     )
-                ).nonzero()
+                ).nonzero()[0]
             elif convention == "v<0":
                 index_array = np.asarray(
                     (uvw_array_use[:, 1] > uvw_tol)
@@ -3752,7 +3756,7 @@ class UVData(UVBase):
                     | (uvw_array_use[:, 2] > uvw_tol)
                     & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
                     & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
-                ).nonzero()
+                ).nonzero()[0]
             elif convention == "v>0":
                 index_array = np.asarray(
                     (uvw_array_use[:, 1] < -uvw_tol)
@@ -3761,21 +3765,23 @@ class UVData(UVBase):
                     | (uvw_array_use[:, 2] < -uvw_tol)
                     & np.isclose(uvw_array_use[:, 0], 0, atol=uvw_tol)
                     & np.isclose(uvw_array_use[:, 1], 0, atol=uvw_tol)
-                ).nonzero()
+                ).nonzero()[0]
         else:
-            index_array = convention
+            index_array = np.asarray(convention)
 
-        if index_array[0].size > 0:
-            new_pol_inds = utils.pol.reorder_conj_pols(self.polarization_array)
-
+        if index_array.size > 0:
             self.uvw_array[index_array] *= -1
 
-            if not self.metadata_only:
-                orig_data_array = copy.copy(self.data_array)
-                for pol_ind in np.arange(self.Npols):
-                    self.data_array[index_array, :, new_pol_inds[pol_ind]] = np.conj(
-                        orig_data_array[index_array, :, pol_ind]
-                    )
+            conj_pol_inds = utils.pol.reorder_conj_pols(self.polarization_array)
+            form_dict = {"Nblts": index_array, "Npols": np.argsort(conj_pol_inds)}
+            for item in self._data_params:
+                param = getattr(self, "_" + item)
+                if param.value is None:
+                    continue
+                vals = param.get_from_form(form_dict)  # copy of just the affected rows
+                if np.iscomplexobj(vals):
+                    vals = np.conj(vals)
+                param.set_from_form({"Nblts": index_array}, vals)
 
             ant_1_vals = self.ant_1_array[index_array]
             ant_2_vals = self.ant_2_array[index_array]
@@ -11106,6 +11112,9 @@ class UVData(UVBase):
             fix_autos=fix_autos,
         )
         del miriad_obj
+        # The writer works on this object's parameters (unless it made a copy above)
+        # and reorders baselines in place, so drop any cached antpair/key lookups.
+        self._clear_antpair2ind_cache(self)
 
     def write_mir(self, filepath):
         """
@@ -11138,7 +11147,7 @@ class UVData(UVBase):
         force_phase=False,
         model_data=None,
         corrected_data=None,
-        flip_conj=None,
+        flip_conj=True,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -11167,15 +11176,13 @@ class UVData(UVBase):
             column of the measurement set (along with the data, which is written into
             the DATA column). Must contain the same dimensions as `data_array`.
         flip_conj : bool
-            If set to True, and the UVW coordinates are flipped (i.e., multiplied by
-            -1) and the visibilities are complex conjugated prior to write, such that
+            If set to True, the UVW coordinates are flipped (i.e., multiplied by -1) and
+            the visibilities are complex conjugated prior to write, such that
             the data are written with the "opposite" conjugation scheme to what UVData
-            normally uses. If set to False, no baseline conjugation is performed. By
-            default, the conjugation scheme is automatically determined by baseline
-            conjugation (e.g., "ant1>ant2" or "ant1<ant2"), see UVData.conjugate_bls for
-            further details). Note that this is only needed for specific subset of
-            applications that read MS-formatted data, and should only be modified by
-            expert users.
+            normally uses. If set to False, no baseline conjugation is performed.
+            Default is True, which is consistent with the nominal CASA conjugation
+            scheme. Note that this is only needed for specific subset of applications
+            that read MS-formatted data, and should only be modified by expert users.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
