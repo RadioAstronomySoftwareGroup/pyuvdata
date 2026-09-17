@@ -17,7 +17,11 @@ import pytest
 from pyuvdata import UVData, utils
 from pyuvdata.datasets import fetch_data
 from pyuvdata.testing import check_warnings
-from pyuvdata.uvdata.mir import Mir, generate_sma_antpos_dict
+from pyuvdata.uvdata.mir import (
+    Mir,
+    calc_delta_uvw_from_offset_illum,
+    generate_sma_antpos_dict,
+)
 from pyuvdata.uvdata.mir_parser import MirParser
 
 
@@ -809,3 +813,292 @@ def test_spw_consistency_warning(mir_data):
         match=["Discrepancy in fres", "> 25 ms errors detected reading in LST values"],
     ):
         mir_uv._init_from_mir_parser(mir_data)
+
+
+SMA_LAT = np.deg2rad(19.8242)
+
+
+def _illum_offsets(*, ant_1_array, ant_2_array, ha, dec, illum_dict, frame_pa=None):
+    """Convenience wrapper: app_ra = 0 so that lst = hour angle."""
+    n_blts = len(ant_1_array)
+    return calc_delta_uvw_from_offset_illum(
+        illum_dict=illum_dict,
+        ant_1_array=np.asarray(ant_1_array),
+        ant_2_array=np.asarray(ant_2_array),
+        app_ra=np.zeros(n_blts),
+        app_dec=np.full(n_blts, dec),
+        frame_pa=frame_pa,
+        lst_array=np.full(n_blts, ha),
+        telescope_lat=SMA_LAT,
+    )
+
+
+def test_illum_offset_transit_geometry():
+    """
+    At transit for a source south of the zenith, +El points north and +Az points west,
+    so a y-offset on ant 2 gives +v (north) and an x-offset gives -u (west).
+    """
+    dec = SMA_LAT - np.deg2rad(30.0)
+    d_y = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=0.0,
+        dec=dec,
+        illum_dict={2: {"x0": 0.0, "y0": 1.0, "x1": 0.0, "y1": 0.0}},
+    )
+    np.testing.assert_allclose(d_y, [[0.0, 1.0, 0.0]], atol=1e-12)
+    d_x = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=0.0,
+        dec=dec,
+        illum_dict={2: {"x0": 1.0, "y0": 0.0, "x1": 0.0, "y1": 0.0}},
+    )
+    np.testing.assert_allclose(d_x, [[-1.0, 0.0, 0.0]], atol=1e-12)
+
+    # For a source transiting north of the zenith the whole frame is flipped
+    dec = SMA_LAT + np.deg2rad(30.0)
+    d_y = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=0.0,
+        dec=dec,
+        illum_dict={2: {"x0": 0.0, "y0": 1.0, "x1": 0.0, "y1": 0.0}},
+    )
+    np.testing.assert_allclose(d_y, [[0.0, -1.0, 0.0]], atol=1e-12)
+    d_x = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=0.0,
+        dec=dec,
+        illum_dict={2: {"x0": 1.0, "y0": 0.0, "x1": 0.0, "y1": 0.0}},
+    )
+    np.testing.assert_allclose(d_x, [[1.0, 0.0, 0.0]], atol=1e-12)
+
+
+def test_illum_offset_parallactic_rotation():
+    """
+    Away from transit the dish frame is rotated by the parallactic angle: check the
+    reflection + rotation against an independent evaluation, and the sign of the
+    rotation using a setting source (zenith due east of the source -> +El maps to +E).
+    """
+    import erfa
+
+    dec = np.deg2rad(-5.0)
+    ha = np.deg2rad(45.0)
+    x_off, y_off = 0.3, -0.7
+    d = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=ha,
+        dec=dec,
+        illum_dict={2: {"x0": x_off, "y0": y_off, "x1": 0.0, "y1": 0.0}},
+    )
+    q = erfa.pas(0.0, dec, ha, SMA_LAT)
+    expected = [
+        -x_off * np.cos(q) + y_off * np.sin(q),
+        x_off * np.sin(q) + y_off * np.cos(q),
+        0.0,
+    ]
+    np.testing.assert_allclose(d[0], expected, atol=1e-12)
+    assert d[0, 2] == 0.0
+
+    # A source that crosses the prime vertical (dec > latitude) reaches a parallactic
+    # angle of +90 deg, where the zenith is due east of the source and an offset toward
+    # +El must therefore map to +East (a pure rotation by +q would give -East).
+    from scipy.optimize import brentq
+
+    dec = SMA_LAT + np.deg2rad(20.0)
+    ha_grid = np.linspace(0.05, np.pi / 2, 200)
+    q_grid = np.array([erfa.pas(0.0, dec, h, SMA_LAT) for h in ha_grid])
+    idx = np.argmax((q_grid[:-1] - np.pi / 2) * (q_grid[1:] - np.pi / 2) < 0)
+    ha_90 = brentq(
+        lambda h: erfa.pas(0.0, dec, h, SMA_LAT) - np.pi / 2,
+        ha_grid[idx],
+        ha_grid[idx + 1],
+    )
+    d = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=ha_90,
+        dec=dec,
+        illum_dict={2: {"x0": 0.0, "y0": 1.0, "x1": 0.0, "y1": 0.0}},
+    )
+    np.testing.assert_allclose(d[0], [1.0, 0.0, 0.0], atol=1e-9)
+
+
+def test_illum_offset_antisymmetry_and_autos():
+    dec = np.deg2rad(10.0)
+    ha = np.deg2rad(-20.0)
+    illum_dict = {
+        1: {"x0": 0.1, "y0": 0.2, "x1": -0.3, "y1": 0.4},
+        2: {"x0": -0.5, "y0": 0.6, "x1": 0.7, "y1": -0.8},
+    }
+    d12 = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[2], ha=ha, dec=dec, illum_dict=illum_dict
+    )
+    d21 = _illum_offsets(
+        ant_1_array=[2], ant_2_array=[1], ha=ha, dec=dec, illum_dict=illum_dict
+    )
+    d11 = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[1], ha=ha, dec=dec, illum_dict=illum_dict
+    )
+    np.testing.assert_allclose(d12, -d21, atol=1e-12)
+    np.testing.assert_allclose(d11, 0.0, atol=1e-12)
+    # Antennas absent from the dict have no offset
+    d13 = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[3], ha=ha, dec=dec, illum_dict=illum_dict
+    )
+    d10 = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[3], ha=ha, dec=dec, illum_dict={1: illum_dict[1]}
+    )
+    np.testing.assert_allclose(d13, d10, atol=1e-12)
+
+
+def test_illum_offset_elevation_dependence():
+    """Cabin-fixed (x1, y1) terms rotate with elevation, primary-fixed ones do not."""
+    dec = SMA_LAT  # transits through the zenith, so el = 90 deg at ha = 0
+    illum_dict = {2: {"x0": 0.0, "y0": 0.0, "x1": 1.0, "y1": 0.0}}
+    # At el = 90 deg: X = x0 + y1 = 0, Y = y0 - x1 = -1 (in the dish frame)
+    d = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[2], ha=0.0, dec=dec, illum_dict=illum_dict
+    )
+    np.testing.assert_allclose(np.linalg.norm(d[0]), 1.0, atol=1e-9)
+    # Near the horizon (el -> 0): X = x0 + x1 = 1, Y = y0 + y1 = 0
+    import erfa
+
+    for ha in np.deg2rad([-89.0, 89.0]):
+        _, el = erfa.hd2ae(ha, dec, SMA_LAT)
+        d = _illum_offsets(
+            ant_1_array=[1], ant_2_array=[2], ha=ha, dec=dec, illum_dict=illum_dict
+        )
+        q = erfa.pas(0.0, dec, ha, SMA_LAT)
+        X, Y = np.cos(el), -np.sin(el)
+        np.testing.assert_allclose(
+            d[0],
+            [-X * np.cos(q) + Y * np.sin(q), X * np.sin(q) + Y * np.cos(q), 0.0],
+            atol=1e-12,
+        )
+
+
+def test_illum_offset_frame_pa():
+    """The frame rotation follows calc_uvw (a rotation of (u, v) by +frame_pa)."""
+    dec = np.deg2rad(-5.0)
+    ha = np.deg2rad(30.0)
+    illum_dict = {2: {"x0": 0.4, "y0": 0.3, "x1": 0.0, "y1": 0.0}}
+    d0 = _illum_offsets(
+        ant_1_array=[1], ant_2_array=[2], ha=ha, dec=dec, illum_dict=illum_dict
+    )
+    d1 = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=ha,
+        dec=dec,
+        illum_dict=illum_dict,
+        frame_pa=np.array([np.pi / 2]),
+    )
+    np.testing.assert_allclose(d1[0], [-d0[0, 1], d0[0, 0], 0.0], atol=1e-12)
+    # Compare directly against calc_uvw's own frame rotation of a uvw vector
+    d_ref = utils.phasing.calc_uvw(
+        uvw_array=d0,
+        old_frame_pa=np.zeros(1),
+        frame_pa=np.array([0.3]),
+        use_ant_pos=False,
+    )
+    d2 = _illum_offsets(
+        ant_1_array=[1],
+        ant_2_array=[2],
+        ha=ha,
+        dec=dec,
+        illum_dict=illum_dict,
+        frame_pa=np.array([0.3]),
+    )
+    np.testing.assert_allclose(d2, d_ref, atol=1e-12)
+
+
+def test_illum_offset_errors():
+    with pytest.raises(KeyError, match="Invalid keys in illum_dict."):
+        _illum_offsets(
+            ant_1_array=[1],
+            ant_2_array=[2],
+            ha=0.0,
+            dec=0.0,
+            illum_dict={2: {"x0": 1.0}},
+        )
+    with pytest.raises(ValueError, match="Antenna numbers in illum_dict must be in"):
+        _illum_offsets(
+            ant_1_array=[1],
+            ant_2_array=[2],
+            ha=0.0,
+            dec=0.0,
+            illum_dict={42: {"x0": 1.0, "y0": 0.0, "x1": 0.0, "y1": 0.0}},
+        )
+    with pytest.raises(ValueError, match="Values in ant_2_array out of range"):
+        _illum_offsets(
+            ant_1_array=[1],
+            ant_2_array=[42],
+            ha=0.0,
+            dec=0.0,
+            illum_dict={2: {"x0": 1.0, "y0": 0.0, "x1": 0.0, "y1": 0.0}},
+        )
+
+
+def test_read_mir_illum_dict():
+    """Reading with illum_dict shifts the uvws as expected and notes it in history."""
+    warn_list = [
+        "> 25 ms errors detected reading in LST values from MIR data. ",
+        "The lst_array is not self-consistent with the time_array and telescope ",
+    ]
+    uv_plain = UVData()
+    with check_warnings(UserWarning, match=warn_list):
+        uv_plain.read(fetch_data("sma_mir"))
+
+    illum_dict = {
+        ant: {"x0": 0.05 * ant, "y0": -0.02 * ant, "x1": 0.1, "y1": -0.3}
+        for ant in uv_plain.telescope.antenna_numbers
+    }
+    uv_corr = UVData()
+    # The test file contains both receivers, so a single set of offsets being applied
+    # to both should be flagged.
+    with check_warnings(
+        UserWarning,
+        match=warn_list + ["Data from more than one receiver are present, but the uvw"],
+    ):
+        uv_corr.read(fetch_data("sma_mir"), illum_dict=illum_dict)
+
+    expected = calc_delta_uvw_from_offset_illum(
+        illum_dict=illum_dict,
+        ant_1_array=uv_plain.ant_1_array,
+        ant_2_array=uv_plain.ant_2_array,
+        app_ra=uv_plain.phase_center_app_ra,
+        app_dec=uv_plain.phase_center_app_dec,
+        frame_pa=uv_plain.phase_center_frame_pa,
+        lst_array=uv_plain.lst_array,
+        telescope_lat=uv_plain.telescope.location.lat.rad,
+    )
+    np.testing.assert_allclose(
+        uv_corr.uvw_array - uv_plain.uvw_array, expected, atol=1e-9
+    )
+    assert np.any(np.abs(expected[:, :2]) > 0.1)
+    assert np.all(expected[:, 2] == 0.0)
+    assert "illumination offset corrections to uvw coordinates" in uv_corr.history
+
+    # Everything other than the uvws and history should be untouched
+    uv_corr.uvw_array = uv_plain.uvw_array
+    uv_corr.history = uv_plain.history
+    assert uv_corr == uv_plain
+
+
+def test_read_mir_illum_dict_single_receiver():
+    """No receiver-mix warning when a single receiver is read."""
+    illum_dict = {1: {"x0": 0.1, "y0": 0.0, "x1": 0.0, "y1": 0.0}}
+    uv_corr = UVData()
+    with check_warnings(
+        UserWarning,
+        match=[
+            "> 25 ms errors detected reading in LST values from MIR data. ",
+            "The lst_array is not self-consistent with the time_array and telescope ",
+        ],
+    ):
+        uv_corr.read(fetch_data("sma_mir"), illum_dict=illum_dict, receivers=["230"])
+    assert "illumination offset corrections to uvw coordinates" in uv_corr.history

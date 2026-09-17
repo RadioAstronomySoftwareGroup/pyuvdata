@@ -8808,12 +8808,19 @@ class UVData(UVBase):
             during observations, and brought into the topocentric rest frame (default
             for UVData objects). Default is False.
         illum_dict : dict
-            Dictionary which defines the illumination offset constants for each antenna.
-            Keys are matched to antenna numbers, values are themselves dicts containing
-            four key/value pairs - "x0" (constant horizontal offset on the primary/after
-            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
-            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
-            in units of meters, as realized on the primary.
+            Dictionary which defines the illumination (antenna phase-center) offsets
+            for each antenna, used to correct the uvw coordinates for the displacement
+            of the effective antenna positions within the aperture plane (see
+            `calc_delta_uvw_from_offset_illum` for the model and conventions). Keys are
+            matched to antenna numbers, values are themselves dicts containing four
+            key/value pairs - "x0" (constant horizontal offset, fixed to the primary),
+            "y0" (constant vertical offset), "x1" (horizontal offset fixed to the
+            receiver cabin, i.e. before the Nasmyth mirror), "y1" (vertical offset fixed
+            to the receiver cabin). Values are in units of meters, as realized on the
+            primary (with +x and +y aligned to increasing azimuth and elevation,
+            respectively). Since uvw coordinates are shared across spectral windows,
+            data from receivers with different offsets should be read separately.
+            Default is None (no correction applied).
         pseudo_cont : boolean
             Read in only pseudo-continuum values. Default is false.
         rechunk : int
@@ -10128,12 +10135,19 @@ class UVData(UVBase):
             during observations, and brought into the topocentric rest frame (default
             for UVData objects). Default is False.
         illum_dict : dict
-            Dictionary which defines the illumination offset constants for each antenna.
-            Keys are matched to antenna numbers, values are themselves dicts containing
-            four key/value pairs - "x0" (constant horizontal offset on the primary/after
-            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
-            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
-            in units of meters, as realized on the primary.
+            Dictionary which defines the illumination (antenna phase-center) offsets
+            for each antenna, used to correct the uvw coordinates for the displacement
+            of the effective antenna positions within the aperture plane (see
+            `calc_delta_uvw_from_offset_illum` for the model and conventions). Keys are
+            matched to antenna numbers, values are themselves dicts containing four
+            key/value pairs - "x0" (constant horizontal offset, fixed to the primary),
+            "y0" (constant vertical offset), "x1" (horizontal offset fixed to the
+            receiver cabin, i.e. before the Nasmyth mirror), "y1" (vertical offset fixed
+            to the receiver cabin). Values are in units of meters, as realized on the
+            primary (with +x and +y aligned to increasing azimuth and elevation,
+            respectively). Since uvw coordinates are shared across spectral windows,
+            data from receivers with different offsets should be read separately.
+            Default is None (no correction applied).
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
