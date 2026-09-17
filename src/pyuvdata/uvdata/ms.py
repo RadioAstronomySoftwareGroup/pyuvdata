@@ -515,9 +515,9 @@ class MS(UVData):
 
         if flip_conj is None:
             # if we got to this point, it means that the conjugation scheme has not
-            # been encoded into the dataset, which is _either_ and old pyuvdata written
+            # been encoded into the dataset, which is _either_ an old pyuvdata written
             # file or written external to pyuvdata. If the former, it means that the
-            # conjugation scheme is pyuvddata's, so _don't_ flip the data.
+            # conjugation scheme is pyuvdata's, so _don't_ flip the data.
             flip_conj = not pyuvdata_written
 
         data_desc_count = np.sum(np.isin(list(data_desc_dict.keys()), unique_data_desc))
