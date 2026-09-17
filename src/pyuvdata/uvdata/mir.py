@@ -84,33 +84,63 @@ def calc_delta_uvw_from_offset_illum(
     telescope_lat,
 ):
     """
-    Calculate uvw offsets from illumination pattern offsets.
+    Calculate uvw offsets arising from antenna illumination (phase-centre) offsets.
+
+    When the illumination pattern of a dish is displaced on the primary, the effective
+    phase center of that antenna is displaced within the aperture plane (by the
+    voltage-weighted centroid of the illumination). To first-order, this produces
+    visibilities that are consistent with a baseline that is slightly offset from that
+    determined geometrically by the antenna positions -- solely showing up as a shift
+    in the apparent (u,v) coordinate (but producing no w-component offset).
+
+    The offset is described per antenna in the frame of the primary, with ``x`` along
+    the direction of increasing cross-elevation and ``y`` along increasing elevation,
+    with the elevation dependence appropriate for the SMA's Nasmyth optics:
+
+        X(el) = x0 + x1 cos(el) + y1 sin(el)
+        Y(el) = y0 - x1 sin(el) + y1 cos(el)
+
+    where ``(x0, y0)`` is fixed with respect to the primary and ``(x1, y1)`` is fixed
+    with respect to the receiver cabin (and therefore rotates with elevation as seen
+    on the primary). These are rotated by the parallactic angle and frame position angle
+    (`frame_pa`), to produce antenna-based offsets, which can then be used to update
+    the uvw coordinates for each baseline.
 
     Parameters
     ----------
     illum_dict : dict
         Dictionary which defines the illumination offset constants for each antenna.
-        Keys are matched to antenna numbers, values are themselves dicts containing
-        four key/value pairs - "x0" (constant horizontal offset on the primary/after the
-        Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset before the
-        Nasmyth), "y1" (vertical offset before the Nasmyth). Values are in units of
-        meters, as realized on the primary.
+        Keys are matched to antenna numbers, values are themselves dicts containing four
+        key/value pairs - "x0" (constant horizontal offset, fixed to the primary), "y0"
+        (constant vertical offset), "x1" (horizontal offset fixed to the receiver cabin,
+        i.e. before the Nasmyth mirror), "y1" (vertical offset fixed to the receiver
+        cabin). Values are in units of meters, as realized on the primary, in the
+        dish frame described above. Antennas not present in the dict are assumed to have
+        no offset.
     ant_1_array : ndarray of int
         Number of the first antenna in a given baseline pair. Shape (Nblts,).
     ant_2_array : ndarray of int
         Number of the second antenna in a given baseline pair. Shape (Nblts,).
     app_ra : ndarray of float
-        Apparent right ascension for each baseline record. Shape (Nblts,), units of
-        radians.
+        Apparent right ascension of the pointing center for each baseline record.
+        Shape (Nblts,), units of radians.
     app_dec : ndarray of float
-        Apparent declination for each baseline record. Shape (Nblts,), units of radians.
-    frame_pa : ndarray of float
-        Frame position angle for each baseline record. Shape (Nblts,), units of radians.
+        Apparent declination of the pointing center for each baseline record.
+        Shape (Nblts,), units of radians.
+    frame_pa : ndarray of float or None
+        Frame position angle for each baseline record (rotation between the apparent
+        frame and the frame of the sky coordinates), shape (Nblts,), units of radians.
+        If None, no frame rotation is applied.
     lst_array : ndarray of float
         LST value for each baseline-time record. Shape (Nblts,), units of radians.
     telescope_lat : float
         Telescope latitude. Units of radians.
 
+    Returns
+    -------
+    uvw_offsets : ndarray of float
+        Offsets to be added to the uvw coordinates, shape (Nblts, 3), units of meters.
+        The w-component is always zero.
     """
     import erfa
 
@@ -118,6 +148,8 @@ def calc_delta_uvw_from_offset_illum(
     fix_y = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
     rot_x = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
     rot_y = np.zeros(MAX_SMA_ANTENNA_NUMBER + 1)
+    ant_1_array = np.asarray(ant_1_array)
+    ant_2_array = np.asarray(ant_2_array)
 
     if np.any(ant_1_array < 0) or np.any(ant_1_array > MAX_SMA_ANTENNA_NUMBER):
         raise ValueError(
@@ -130,42 +162,51 @@ def calc_delta_uvw_from_offset_illum(
 
     try:
         for ant, indv_dict in illum_dict.items():
+            # Allow string keys, e.g. from a JSON-loaded dict
+            ant = int(ant)
             fix_x[ant] = indv_dict["x0"]
             fix_y[ant] = indv_dict["y0"]
             rot_x[ant] = indv_dict["x1"]
             rot_y[ant] = indv_dict["y1"]
     except KeyError as err:
         raise KeyError("Invalid keys in illum_dict.") from err
+    except (IndexError, ValueError) as err:
+        raise ValueError(
+            f"Antenna numbers in illum_dict must be in [0, {MAX_SMA_ANTENNA_NUMBER}]."
+        ) from err
 
-    # Add the things we need to rotate first
-    uvw_offsets = np.zeros((len(ant_1_array), 3, 1))
-    uvw_offsets[:, 0] = rot_x[ant_1_array] - rot_x[ant_2_array]
-    uvw_offsets[:, 1] = rot_y[ant_1_array] - rot_y[ant_2_array]
-
-    # Calculate the elevation angle, then start some rotations!
+    # Elevation of the pointing center, which sets how the cabin-fixed offsets appear
+    # on the primary, and the parallactic angle, which sets how the dish frame is
+    # oriented on the sky.
     _, el_arr = erfa.hd2ae(lst_array - app_ra, app_dec, telescope_lat)
-    uvw_offsets = utils.phasing._rotate_one_axis(
-        uvw_offsets[:, :, np.newaxis], rot_amount=el_arr, rot_axis=2
+
+    # Differential offset (ant2 - ant1) in the dish frame, evaluated on the primary
+    cos_el, sin_el = np.cos(el_arr), np.sin(el_arr)
+    del_x = (fix_x[ant_2_array] - fix_x[ant_1_array]) + (
+        (rot_x[ant_2_array] - rot_x[ant_1_array]) * cos_el
+        + (rot_y[ant_2_array] - rot_y[ant_1_array]) * sin_el
+    )
+    del_y = (fix_y[ant_2_array] - fix_y[ant_1_array]) + (
+        -(rot_x[ant_2_array] - rot_x[ant_1_array]) * sin_el
+        + (rot_y[ant_2_array] - rot_y[ant_1_array]) * cos_el
     )
 
-    # Add the static offsets - everything is now oriented in the frame of the antenna
-    # Note we need the extra axis here since nvec=1 for _rotate_one_axis
-    uvw_offsets[:, 0, 0] += fix_x[ant_1_array] - fix_x[ant_2_array]
-    uvw_offsets[:, 1, 0] += fix_y[ant_1_array] - fix_y[ant_2_array]
-
-    # Calculate the position angle, accounting for the frame PA as well
-    pa_array = frame_pa + utils.phasing.calc_parallactic_angle(
+    # Project onto (East, North) in the apparent frame. Note the reflection -- the
+    # (+Az, +El) frame is left-handed on the sky -- so this is not a pure rotation.
+    pa_array = utils.phasing.calc_parallactic_angle(
         app_ra=app_ra, app_dec=app_dec, lst_array=lst_array, telescope_lat=telescope_lat
     )
+    if frame_pa is not None:
+        # Note that the frame PA is defined on the sky, so the handedness is reversed.
+        pa_array -= frame_pa
 
-    # Rotate by the PA so that we get the UVWs in the right orientation
-    uvw_offsets = utils.phasing._rotate_one_axis(
-        uvw_offsets, rot_amount=pa_array, rot_axis=2
-    )
+    cos_pa, sin_pa = np.cos(pa_array), np.sin(pa_array)
+    uvw_offsets = np.zeros((len(ant_1_array), 3))
 
-    # This should be ready to straight-up add, striping out the extra axis that
-    # the _rotate functions add (since nvec=1)
-    return np.squeeze(uvw_offsets, axis=-1)
+    uvw_offsets[:, 0] = -del_x * cos_pa + del_y * sin_pa
+    uvw_offsets[:, 1] = del_x * sin_pa + del_y * cos_pa
+
+    return uvw_offsets
 
 
 class Mir(UVData):
@@ -417,12 +458,19 @@ class Mir(UVData):
         metadata_only : bool
             Read in only the metadata, ignore visibility data. Default is False.
         illum_dict : dict
-            Dictionary which defines the illumination offset constants for each antenna.
-            Keys are matched to antenna numbers, values are themselves dicts containing
-            four key/value pairs - "x0" (constant horizontal offset on the primary/after
-            the Nasmyth), "y0" (constant vertical offset), "x1" (horizontal offset
-            before the Nasmyth), "y1" (vertical offset before the Nasmyth). Values are
-            in units of meters, as realized on the primary.
+            Dictionary which defines the illumination (antenna phase-center) offsets
+            for each antenna, used to correct the uvw coordinates for the displacement
+            of the effective antenna positions within the aperture plane (see
+            `calc_delta_uvw_from_offset_illum` for the model and conventions). Keys are
+            matched to antenna numbers, values are themselves dicts containing four
+            key/value pairs - "x0" (constant horizontal offset, fixed to the primary),
+            "y0" (constant vertical offset), "x1" (horizontal offset fixed to the
+            receiver cabin, i.e. before the Nasmyth mirror), "y1" (vertical offset fixed
+            to the receiver cabin). Values are in units of meters, as realized on the
+            primary (with +x and +y aligned to increasing azimuth and elevation,
+            respectively). Since uvw coordinates are shared across polarizations in
+            UVData, data from receivers with different offsets should be read
+            separately. Default is None (no correction applied).
         """
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
@@ -1114,6 +1162,18 @@ class Mir(UVData):
                 self.phase_center_id_array[inhid_mask] = cat_id
 
         if illum_dict is not None:
+            # Correct the uvw coordinates for the displacement of the antenna phase
+            # centers caused by illumination offsets. This is done last so as to capture
+            # offsets from mosaicking/OTF. Note that re-deriving uvw values from the
+            # antenna positions afterwards will discard this correction, although it
+            # can be re-applied by adding the output of
+            # `calc_delta_uvw_from_offset_illum` back on to `uvw_array`.
+            if len(np.unique(mir_data.bl_data["ant1rx"])) > 1:
+                warnings.warn(
+                    "Data from more than one receiver are present, but the uvw "
+                    "coordinates are shared across all spectral windows, so a single "
+                    "set of illumination offsets is being applied to all receivers. "
+                )
             self.uvw_array += calc_delta_uvw_from_offset_illum(
                 illum_dict=illum_dict,
                 ant_1_array=self.ant_1_array,
@@ -1123,6 +1183,12 @@ class Mir(UVData):
                 frame_pa=self.phase_center_frame_pa,
                 lst_array=self.lst_array,
                 telescope_lat=self.telescope.location.lat.rad,
+            )
+            self.history += (
+                "  Applied antenna illumination offset corrections to uvw coordinates "
+                "for antennas "
+                + ", ".join(str(key) for key in sorted(int(key) for key in illum_dict))
+                + ".\n"
             )
 
     def write_mir(self, filename):
