@@ -17,9 +17,17 @@ being conjugated correctly.
 could be incorrectly ordered.
 - A bug where `utils.gain_interpolate.time_interp_cal` was not unwrapping phase gains
 along the time axis correctly (mistakenly was using the Jones axis instead).
+- A bug where calling `UVData.conjugate_bls` was not reordering `nsample_array` and
+`flag_array` cross-polarization entries.
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
+
+### Changed
+- `UVData.read_ms` and `UVData.write_ms` now always flip conjugation scheme on read and
+write for non-pyuvdata generated MeasurementSets (it was previously believed that when
+ant1 > ant2, the conjugation scheme may be flipped, but that was a misreading of CASA's
+codebase).
 
 ## [3.2.7] - 2025-08-20
 
