@@ -309,11 +309,10 @@ class MSCal(UVCal):
                 # Figure out which spectral slice this corresponds to
                 spw_slice = spw_slice_dict[spw_id]
 
-                # Finally, start plugging in solns to various parameters. Note that
-                # because of the conjugation scheme, normally we'd have to flip this for
-                # CASA, except that the Antenna1 entries appear to be "pre-conjugated",
-                # and thus no flip is necessary for gains solns.
-                # TODO: Verify this is the case for delay solns as well.
+                # Finally, start plugging in solns to various parameters. The values
+                # are stored as-is here; the conversion between CASA's and pyuvdata's
+                # conventions (a conjugation for gains, nothing for delays) is done
+                # once below.
                 ms_cal_soln[ant_idx, spw_slice, time_idx, :] = cal_soln
                 self.integration_time[time_idx] = exp_time
                 int_arr[time_idx] = int_time
@@ -392,7 +391,8 @@ class MSCal(UVCal):
             # applycal versus uvcalibrate.
             self.gain_array = np.conj(ms_cal_soln)
         elif self.cal_type == "delay":
-            # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
+            # Delays are stored in nanoseconds -- convert to seconds (std for UVCal).
+            # Note that CASA's K-Jones convention matches delay_convention="minus".
             self.delay_array = ms_cal_soln * 1e-9
 
         if casa_subtype == "T Jones":
@@ -508,7 +508,8 @@ class MSCal(UVCal):
         elif self.cal_type == "delay":
             casa_subtype = "K Jones"
             cal_column = "FPARAM"
-            # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds
+            # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds. Note that
+            # CASA's K-Jones convention matches delay_convention="minus".
             cal_array = self.delay_array * 1e9
 
         # Determine polarization order for writing out in CASA standard order, check
