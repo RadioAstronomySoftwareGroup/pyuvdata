@@ -16,6 +16,7 @@ import yaml
 from astropy import units
 from astropy.io import fits
 from astropy.utils.data import cache_contents, import_file_to_cache, is_url_in_cache
+from scipy import interpolate
 
 from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
@@ -1163,6 +1164,270 @@ def test_spatial_interpolation_everyother(
         rtol=uvbeam._data_array.tols[0],
         atol=uvbeam._data_array.tols[1],
     )
+
+
+@pytest.mark.parametrize("npoints", [8, 40])
+@pytest.mark.parametrize(
+    "outside_axis", [None, "az", "za"], ids=["covered", "az-outside", "za-outside"]
+)
+def test_interpolation_domain_matches_legacy(npoints, outside_axis):
+    """Test the optimized domain check against the legacy implementation."""
+    phi_use = np.linspace(0.0, 1.0, 11)
+    theta_use = np.linspace(0.0, 0.5, 6)
+    beam = UVBeam()
+    beam.axis1_array = phi_use
+    beam.axis2_array = theta_use
+
+    rng = np.random.default_rng(npoints)
+    az_array = rng.uniform(phi_use[0], phi_use[-1], npoints)
+    za_array = rng.uniform(theta_use[0], theta_use[-1], npoints)
+    limit = 2 * max(np.diff(phi_use)[0], np.diff(theta_use)[0])
+
+    # Exercise the exact boundary and its neighboring floating-point values.
+    az_array[:4] = [
+        phi_use[0] - limit,
+        np.nextafter(phi_use[-1] + limit, phi_use[-1]),
+        phi_use[0],
+        phi_use[-1],
+    ]
+    za_array[:4] = [
+        theta_use[0],
+        theta_use[-1],
+        theta_use[0] - limit,
+        np.nextafter(theta_use[-1] + limit, theta_use[-1]),
+    ]
+    if outside_axis == "az":
+        az_array[0] = np.nextafter(phi_use[0] - limit, -np.inf)
+    elif outside_axis == "za":
+        az_array[0] = phi_use[0]
+        za_array[0] = np.nextafter(theta_use[0] - limit, -np.inf)
+
+    def legacy_check():
+        max_axis_diff = max(np.diff(beam.axis1_array)[0], np.diff(beam.axis2_array)[0])
+        za_sq_dist = np.full(len(za_array), np.inf)
+        az_sq_dist = np.full(len(az_array), np.inf)
+        if (len(theta_use) + len(phi_use)) > len(za_array):
+            for idx in range(az_array.size):
+                za_sq_dist[idx] = np.min((theta_use - za_array[idx]) ** 2.0)
+                az_sq_dist[idx] = np.min((phi_use - az_array[idx]) ** 2.0)
+        else:
+            for theta_val in theta_use:
+                temp_arr = np.square(za_array - theta_val)
+                za_sq_dist = np.where(za_sq_dist > temp_arr, temp_arr, za_sq_dist)
+            for phi_val in phi_use:
+                temp_arr = np.square(az_array - phi_val)
+                az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
+
+        if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
+            if np.any(np.sqrt(za_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The zenith angles values are outside UVBeam coverage."
+            elif np.any(np.sqrt(az_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The azimuth values are outside UVBeam coverage."
+            raise ValueError(
+                "at least one interpolation location "
+                "is outside of the UVBeam pixel coverage." + msg
+            )
+
+    def get_error(checker):
+        try:
+            checker()
+        except ValueError as err:
+            return str(err)
+        return None
+
+    legacy_error = get_error(legacy_check)
+    optimized_error = get_error(
+        lambda: beam._check_interpolation_domain(az_array, za_array, phi_use, theta_use)
+    )
+    assert optimized_error == legacy_error
+
+
+def _batched_spline_beam(beam_type, seed=0):
+    """Build a small synthetic az_za beam for the spline engine tests."""
+    rng = np.random.default_rng(seed)
+    axis1_array = np.linspace(0.2, 6.0, 18)
+    axis2_array = np.linspace(0.1, 1.0, 12)
+    freq_array = np.array([100e6, 110e6])
+
+    if beam_type == "efield":
+        data_shape = (2, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape) + 1j * rng.normal(size=data_shape)
+        beam_type_kwargs = {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0.0]}
+    else:
+        data_shape = (1, 2, freq_array.size, axis2_array.size, axis1_array.size)
+        data_array = rng.normal(size=data_shape)
+        beam_type_kwargs = {
+            "polarization_array": ["xx", "yy"],
+            "feed_array": ["x", "y"],
+            "feed_angle": [np.pi / 2, 0.0],
+        }
+
+    beam = UVBeam.new(
+        telescope_name="test",
+        data_normalization="physical",
+        freq_array=freq_array,
+        axis1_array=axis1_array,
+        axis2_array=axis2_array,
+        data_array=data_array,
+        **beam_type_kwargs,
+    )
+
+    # Include points just outside the domain to check that the batched path retains
+    # RectBivariateSpline's boundary-value behavior.
+    az_array = np.concatenate(
+        (
+            [axis1_array[0] - 0.5 * np.diff(axis1_array)[0]],
+            rng.uniform(axis1_array[0], axis1_array[-1], 100),
+            [axis1_array[-1] + 0.5 * np.diff(axis1_array)[0]],
+        )
+    )
+    za_array = np.concatenate(
+        (
+            [axis2_array[0] - 0.5 * np.diff(axis2_array)[0]],
+            rng.uniform(axis2_array[0], axis2_array[-1], 100),
+            [axis2_array[-1] + 0.5 * np.diff(axis2_array)[0]],
+        )
+    )
+
+    return beam, az_array, za_array
+
+
+def _rect_bivariate_reference(beam, az_array, za_array, kx, ky):
+    """Interpolate a beam slice-by-slice with RectBivariateSpline.
+
+    Uses the object's own grid preparation so that only the spline math, and not
+    the azimuth wrap handling, differs from the code under test.
+    """
+    data_use, phi_use, theta_use = beam._prepare_coordinate_data(beam.data_array)
+
+    naxes_vec, npols = data_use.shape[:2]
+    nfreqs = data_use.shape[2]
+    complex_data = np.iscomplexobj(data_use)
+    reference = np.zeros(
+        (naxes_vec, npols, nfreqs, az_array.size),
+        dtype=np.complex128 if complex_data else np.float64,
+    )
+
+    for index0 in range(naxes_vec):
+        for index2 in range(npols):
+            for index3 in range(nfreqs):
+                data_slice = data_use[index0, index2, index3]
+                if complex_data:
+                    real_lut = interpolate.RectBivariateSpline(
+                        theta_use, phi_use, data_slice.real, kx=kx, ky=ky, s=0
+                    )
+                    imag_lut = interpolate.RectBivariateSpline(
+                        theta_use, phi_use, data_slice.imag, kx=kx, ky=ky, s=0
+                    )
+                    reference[index0, index2, index3] = real_lut.ev(
+                        za_array, az_array
+                    ) + 1j * imag_lut.ev(za_array, az_array)
+                else:
+                    lut = interpolate.RectBivariateSpline(
+                        theta_use, phi_use, data_slice, kx=kx, ky=ky, s=0
+                    )
+                    reference[index0, index2, index3] = lut.ev(za_array, az_array)
+
+    return reference
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize(("kx", "ky"), [(1, 1), (2, 4), (3, 3), (4, 2), (5, 5)])
+def test_batched_rect_spline(beam_type, kx, ky):
+    """Test batched tensor-product splines against RectBivariateSpline."""
+    beam, az_array, za_array = _batched_spline_beam(beam_type)
+
+    interp_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts={"kx": kx, "ky": ky},
+        return_basis_vector=False,
+    )
+    reference_data = _rect_bivariate_reference(beam, az_array, za_array, kx, ky)
+
+    # The two implementations solve the same tensor-product spline in a different
+    # order, so allow only accumulated float64 rounding error. The asymmetric cases
+    # also guard against accidentally transposing the two spatial axes.
+    machine_precision = 100 * np.finfo(np.float64).eps
+    np.testing.assert_allclose(
+        interp_data, reference_data, rtol=machine_precision, atol=machine_precision
+    )
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize(
+    "spline_opts",
+    [{"kx": 3, "ky": 3, "s": 0.5}, {"kx": 3, "ky": 3, "bbox": [-1.0, 3.0, -2.0, 8.0]}],
+)
+def test_rect_spline_fallback_opts(beam_type, spline_opts):
+    """Options NdBSpline cannot honor fall back to RectBivariateSpline."""
+    beam, az_array, za_array = _batched_spline_beam(beam_type)
+
+    fallback_data, _ = beam.interp(
+        az_array=az_array,
+        za_array=za_array,
+        spline_opts=spline_opts,
+        return_basis_vector=False,
+    )
+    reference_data = _rect_bivariate_reference(beam, az_array, za_array, 3, 3)
+
+    if "s" in spline_opts:
+        # Smoothing is only available on the fallback path, so the result must
+        # differ from the interpolating spline.
+        assert not np.allclose(fallback_data, reference_data)
+    else:
+        # A bbox does not change the fit inside the grid, only the engine used.
+        # It does extend the domain, so the first and last points -- which sit
+        # just outside the grid -- are extrapolated rather than clamped and are
+        # excluded here.
+        np.testing.assert_allclose(
+            fallback_data[..., 1:-1], reference_data[..., 1:-1], rtol=0, atol=1e-12
+        )
+        assert not np.allclose(fallback_data[..., 0], reference_data[..., 0])
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_batched_rect_spline_reuse(beam_type):
+    """The batched path caches its coefficients when reuse_spline is set."""
+    beam, az_array, za_array = _batched_spline_beam(beam_type)
+    interp_kwargs = {
+        "az_array": az_array,
+        "za_array": za_array,
+        "return_basis_vector": False,
+    }
+
+    no_reuse_data, _ = beam.interp(**interp_kwargs)
+
+    # A cold cached call must agree with the uncached one exactly, and a warm one
+    # must reproduce it from the cached spline.
+    cold_data, _ = beam.interp(reuse_spline=True, **interp_kwargs)
+    warm_data, _ = beam.interp(reuse_spline=True, **interp_kwargs)
+
+    assert np.array_equal(no_reuse_data, cold_data)
+    assert np.array_equal(cold_data, warm_data)
+
+    # One spline covers every data slice, so the two calls above share one entry.
+    assert len(beam.saved_interp_functions) == 1
+
+    # A different request gets its own entry rather than reusing the wrong spline.
+    subset_data, _ = beam.interp(
+        freq_array=beam.freq_array[:1], reuse_spline=True, **interp_kwargs
+    )
+    assert len(beam.saved_interp_functions) == 2
+    np.testing.assert_allclose(subset_data, no_reuse_data[:, :, :1], rtol=0, atol=1e-12)
+
+    # The fallback caches one entry per data slice in the same dict. Its cache must
+    # reproduce its own result, and the two key shapes must not collide.
+    smooth_kwargs = {"spline_opts": {"s": 0.5}, "reuse_spline": True, **interp_kwargs}
+    smooth_cold, _ = beam.interp(**smooth_kwargs)
+    smooth_warm, _ = beam.interp(**smooth_kwargs)
+
+    assert np.array_equal(smooth_cold, smooth_warm)
+    assert not np.array_equal(smooth_cold, cold_data)
+    assert len(beam.saved_interp_functions) > 2
+
+    recheck_data, _ = beam.interp(reuse_spline=True, **interp_kwargs)
+    assert np.array_equal(recheck_data, cold_data)
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])

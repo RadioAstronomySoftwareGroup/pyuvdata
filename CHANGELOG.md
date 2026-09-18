@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
+tensor-product basis across beam data slices and using vectorized domain checks.
+`scipy.interpolate.NdBSpline` is now used whenever `spline_opts` requests only the
+spline orders `kx`/`ky` (the default), independent of `reuse_spline`;
+`scipy.interpolate.RectBivariateSpline` remains in use for smoothing (`s != 0`) and
+for any other RectBivariateSpline-only option. Both engines solve the same
+interpolating spline for a given `kx`/`ky` with `s = 0`.
+- Minimum supported version of scipy is now 1.15, required for
+`scipy.interpolate.NdBSpline` (added in 1.12) and for interpolating splines of even
+order above 2 (added in 1.15), which `spline_opts` has always accepted.
+
 ### Fixed
 - A bug in `UVData.read_ms` where visibility units could not be parsed when stored in
 a MeasurementSet as a singleton entry/list.
