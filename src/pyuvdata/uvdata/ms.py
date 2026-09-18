@@ -8,6 +8,7 @@ Requires casacore.
 """
 
 import contextlib
+import copy
 import os
 import warnings
 
@@ -17,6 +18,7 @@ from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
+from ..parameter import UVParameter
 from ..utils.io import ms as ms_utils
 from . import UVData
 
@@ -43,6 +45,34 @@ class MS(UVData):
 
     """
 
+    @property
+    def _data_params(self):
+        params = super()._data_params
+        for name in ("_model_data", "_corrected_data"):
+            if getattr(self, name).value is not None:
+                params.append(name[1:])
+        return params
+
+    def __init__(self):
+        # Define these internal to MS so that the data can be ordered accordingly.
+        # Maybe at some point we can port these out to the UVData class more generally.
+        self._corrected_data = UVParameter(
+            name="corrected_data",
+            description="Calibrated/corrected visibility data.",
+            required=False,
+            form=("Nblts", "Nfreqs", "Npols"),
+            expected_type=complex,
+        )
+
+        self._model_data = UVParameter(
+            name="model_data",
+            description="Model visibility data.",
+            required=False,
+            form=("Nblts", "Nfreqs", "Npols"),
+            expected_type=complex,
+        )
+        super().__init__()
+
     @copy_replace_short_description(UVData.write_ms, style=DocstringStyle.NUMPYDOC)
     def write_ms(
         self,
@@ -51,7 +81,7 @@ class MS(UVData):
         force_phase=False,
         model_data=None,
         corrected_data=None,
-        flip_conj=None,
+        flip_conj=True,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -72,6 +102,10 @@ class MS(UVData):
                 "Writing near-field phased data to Measurement Set format "
                 + "is not yet supported."
             )
+
+        # Plug these things into the UVParameter attributes.
+        self.model_data = model_data
+        self.corrected_data = corrected_data
 
         if run_check:
             self.check(
@@ -95,12 +129,17 @@ class MS(UVData):
 
         # CASA does not have a way to handle "unprojected" data in the way that UVData
         # objects can, so we need to check here whether or not any such data exists
-        # (and if need be, fix it).
-        # TODO: I thought CASA could handle driftscan data. Are we sure it can't handle
-        # unprojected data?
+        # (and if need be, fix it). (N.b. [Karto]: confirmed as of MSv2.0, delays are
+        # assumed implemented based on position recorded in PHASE_DIR).
         unprojected_blts = self._check_for_cat_type("unprojected")
         if np.any(unprojected_blts):
             if force_phase:
+                if self.model_data is not None or self.corrected_data is not None:
+                    raise ValueError(
+                        "Cannot phase unprojected data on write when model_data or "
+                        "corrected_data are supplied, since those columns cannot be "
+                        "phased along with data_array. Phase the object first."
+                    )
                 print(
                     "The data are unprojected. Phasing to zenith of the first "
                     "timestamp."
@@ -120,37 +159,37 @@ class MS(UVData):
         if self.scan_number_array is None:
             self._set_scan_numbers()
 
-        if flip_conj is None:
-            flip_conj = np.all(self.ant_1_array <= self.ant_2_array)
-            if np.any(self.ant_1_array < self.ant_2_array) != flip_conj:
-                warnings.warn(
-                    "UVData object contains a mix of baseline conjugation states, "
-                    "which is not uniformly supported in CASA -- forcing conjugation "
-                    'to be "ant2<ant1" on object.'
-                )
-                self.conjugate_bls("ant2<ant1")
+        if np.any(self.ant_1_array < self.ant_2_array) and np.any(
+            self.ant_1_array > self.ant_2_array
+        ):
+            warnings.warn(
+                "UVData object contains a mix of baseline conjugation states, which "
+                "may produce some issues with tasks inside of CASA. Forcing "
+                'conjugation to be "ant1<ant2" in the written file.'
+            )
+            # Copy the attributes before modifying them in place, that way we preserve
+            # the original object/arrays without modifying them in place (and since
+            # this is something of a corner case, I think it's fine this is mildly
+            # suboptimal/expensive).
+            for attr in self:
+                setattr(self, attr, copy.deepcopy(getattr(self, attr)))
+            self.conjugate_bls("ant1<ant2")
 
         # Initialize a skelton measurement set
         ms = ms_utils.init_ms_file(
             filepath,
-            make_model_col=model_data is not None,
-            make_corr_col=corrected_data is not None,
+            make_model_col=self.model_data is not None,
+            make_corr_col=self.corrected_data is not None,
         )
 
         arr_list = [self.data_array, self.nsample_array, self.flag_array]
         col_list = ["DATA", "WEIGHT_SPECTRUM", "FLAG"]
 
-        if model_data is not None:
-            if model_data.shape != self.data_array.shape:  # pragma: no cover
-                raise RuntimeError("model_data must have the same shape as data_array.")
-            arr_list.append(model_data)
+        if self.model_data is not None:
+            arr_list.append(self.model_data)
             col_list.append("MODEL_DATA")
-        if corrected_data is not None:
-            if corrected_data.shape != self.data_array.shape:  # pragma: no cover
-                raise RuntimeError(
-                    "corrected_data must have the same shape as data_array."
-                )
-            arr_list.append(corrected_data)
+        if self.corrected_data is not None:
+            arr_list.append(self.corrected_data)
             col_list.append("CORRECTED_DATA")
 
         # Some tasks in CASA require a band-representative (band-averaged?) value for
@@ -444,6 +483,8 @@ class MS(UVData):
         # set visibility units
         try:
             self.vis_units = tb_main.getcolkeywords(data_column)["QuantumUnits"]
+            if isinstance(self.vis_units, (list, tuple)):
+                self.vis_units = self.vis_units[0]
         except KeyError:
             self.vis_units = default_vis_units[data_column]
 
@@ -474,14 +515,10 @@ class MS(UVData):
 
         if flip_conj is None:
             # if we got to this point, it means that the conjugation scheme has not
-            # been encoded into the dataset, which is _either_ and old pyuvdata written
-            # file or written external to pyuvdata. CASA's convention is not 100% clear,
-            # but testing of the code base reveals that CASA supports both conventions.
-            # Which convention is used is dependent on antenna numbering, i.e. whether
-            # ant1 >= ant2 or ant1 <= ant2 (flip_conj=False for the former and True for
-            # the latter). This seems to explain the apparent contradictions in the
-            # documentation, and the inconsistent results we have seen w/ importuvfits.
-            flip_conj = (not pyuvdata_written) and np.all(ant_1_arr <= ant_2_arr)
+            # been encoded into the dataset, which is _either_ an old pyuvdata written
+            # file or written external to pyuvdata. If the former, it means that the
+            # conjugation scheme is pyuvdata's, so _don't_ flip the data.
+            flip_conj = not pyuvdata_written
 
         data_desc_count = np.sum(np.isin(list(data_desc_dict.keys()), unique_data_desc))
 

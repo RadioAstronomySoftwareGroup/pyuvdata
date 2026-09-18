@@ -309,11 +309,10 @@ class MSCal(UVCal):
                 # Figure out which spectral slice this corresponds to
                 spw_slice = spw_slice_dict[spw_id]
 
-                # Finally, start plugging in solns to various parameters. Note that
-                # because of the conjugation scheme, normally we'd have to flip this for
-                # CASA, except that the Antenna1 entries appear to be "pre-conjugated",
-                # and thus no flip is necessary for gains solns.
-                # TODO: Verify this is the case for delay solns as well.
+                # Finally, start plugging in solns to various parameters. The values
+                # are stored as-is here; the conversion between CASA's and pyuvdata's
+                # conventions (a conjugation for gains, nothing for delays) is done
+                # once below.
                 ms_cal_soln[ant_idx, spw_slice, time_idx, :] = cal_soln
                 self.integration_time[time_idx] = exp_time
                 int_arr[time_idx] = int_time
@@ -387,9 +386,13 @@ class MSCal(UVCal):
 
         # Use if this is a delay soln
         if self.cal_type == "gain":
-            self.gain_array = ms_cal_soln
+            # CASA gains conjugation scheme is the opposite of pyuvdata's, so fix that
+            # now (N.b. [Karto], this came out of testing w/ some SMA data and checking
+            # applycal versus uvcalibrate.
+            self.gain_array = np.conj(ms_cal_soln)
         elif self.cal_type == "delay":
-            # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
+            # Delays are stored in nanoseconds -- convert to seconds (std for UVCal).
+            # Note that CASA's K-Jones convention matches delay_convention="minus".
             self.delay_array = ms_cal_soln * 1e-9
 
         if casa_subtype == "T Jones":
@@ -498,12 +501,21 @@ class MSCal(UVCal):
             else:
                 casa_subtype = "B Jones"
             cal_column = "CPARAM"
-            cal_array = self.gain_array
+            # CASA gains conjugation scheme is the opposite of pyuvdata's, so fix that
+            # now (N.b. [Karto], this came out of testing w/ some SMA data and checking
+            # applycal versus uvcalibrate.
+            cal_array = np.conj(self.gain_array)
         elif self.cal_type == "delay":
             casa_subtype = "K Jones"
             cal_column = "FPARAM"
-            # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds
+            # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds. Note that
+            # CASA's K-Jones convention matches delay_convention="minus".
             cal_array = self.delay_array * 1e9
+
+        # Determine polarization order for writing out in CASA standard order, check
+        # if this order can be represented by a single slice.
+        pol_order = utils.pol.determine_pol_order(self.jones_array, order="CASA")
+        pol_order = utils.tools.slicify(pol_order, allow_empty=True)
 
         with tables.table(filename, ack=False, readonly=False) as ms:
             # Update the top-level info with the correct gains subtype.
@@ -521,7 +533,7 @@ class MSCal(UVCal):
                 if len(extra_copy) != 0:
                     ms.putkeyword("pyuvdata_extra", extra_copy)
 
-            ms.putkeyword("pyuvdata_jones", self.jones_array)
+            ms.putkeyword("pyuvdata_jones", self.jones_array[pol_order])
             if has_flex_jones:
                 ms.putkeyword("pyuvdata_flex_jones", self.flex_jones_array)
 
@@ -659,11 +671,6 @@ class MSCal(UVCal):
             ms.putcol("EXPOSURE", exposure_array)
             ms.putcol("SCAN_NUMBER", scan_number_array)
             ms.putcol("OBSERVATION_ID", obs_id_array)
-
-            # Determine polarization order for writing out in CASA standard order, check
-            # if this order can be represented by a single slice.
-            pol_order = utils.pol.determine_pol_order(self.jones_array, order="CASA")
-            pol_order = utils.tools.slicify(pol_order, allow_empty=True)
 
             # Alright, all the easy stuff is over, time to move on to the heavy
             # lifting, which we'll do spectral window by spectral window.

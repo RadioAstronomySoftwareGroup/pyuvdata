@@ -17,9 +17,30 @@ requesting `reuse_spline=True` silently selected the slower RectBivariateSpline 
 `scipy.interpolate.NdBSpline`).
 
 ### Fixed
+- A bug in `UVData.read_ms` where visibility units could not be parsed when stored in
+a MeasurementSet as a singleton entry/list.
+- A bug in `UVData.write_ms` which caused `corrected_data` and `model_data` not to be
+reordered in the same way that, e.g., `UVData.data_array` was on write.
+- A bug in `UVData.write_ms` which caused `corrected_data` and `model_data` not to be
+conjugated (and inconsistent with `UVData.data_array`) when a mixture of baseline
+conjugation schemes was present.
+- A bug in `UVData.read_ms_cal` and `UVData.write_ms_cal` where gains tables where not
+being conjugated correctly.
+- A bug where the Jones array stored in calibration tables generated ny `UVCal.write_ms_cal`
+could be incorrectly ordered.
+- A bug where `utils.gain_interpolate.time_interp_cal` was not unwrapping phase gains
+along the time axis correctly (mistakenly was using the Jones axis instead).
+- A bug where calling `UVData.conjugate_bls` was not reordering `nsample_array` and
+`flag_array` cross-polarization entries.
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
+
+### Changed
+- `UVData.read_ms` and `UVData.write_ms` now always flip conjugation scheme on read and
+write for non-pyuvdata generated MeasurementSets (it was previously believed that when
+ant1 > ant2, the conjugation scheme may be flipped, but that was a misreading of CASA's
+codebase).
 
 ## [3.2.7] - 2025-08-20
 

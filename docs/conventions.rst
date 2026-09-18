@@ -23,13 +23,16 @@ the position of the first (after which various rotations are applied). The secon
 *ant1-ant2*, where :math:`\mathcal{V}_{12}=\langle V_{1} V_{2}^{*} \rangle`, and the
 *uvw*-coordinate is calculated by taking the position of the first antenna minus
 the second. The pyuvdata software package uses the *ant2-ant1* convention, as does
-MIRIAD; with UVFITS, FHD, and Mir formats use the opposite convention. MeasurementSet
-format (used within CASA) appears to support both conventions, with the convention
-selected based on the number of the antennas in the pair: when the antenna number of
-*ant1* is greater than that of *ant2*, then the *ant2-ant1* convention is used,
-otherwise the *ant1-ant2* convention is used (e.g., the 3-7 baseline would use the
-*ant1-ant2* convention within CASA, whereas the 7-3 baseline would use the *ant2-ant1*
-convention).
+MIRIAD; with UVFITS, FHD, Mir, and MeasurementSet (used within CASA) formats using the
+opposite convention. Note that this also applies to calibration solutions derived from
+the dataset, with the implication being that gains solved in the *ant2-ant1* convention
+are the complex conjugates of those solved in the *ant1-ant2* convention.
+
+Note that separately from the conjugation convention, some platforms have requirements
+for which antenna is listed first in the baseline (e.g., AIPS needs UVFITS files
+recorded with :math:`\text{ant1}<\text{ant2}`), separate from the conjugation
+convention. pyuvdata is able to support so-called "mixed" conventions in this respect,
+with the antenna ordering convention being independent of the conjugation convention.
 
 Phase Center Types
 ------------------

@@ -1799,6 +1799,26 @@ def test_read_ms_write_miriad_casa_history(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_write_miriad_clears_antpair_cache(casa_uvfits, tmp_path):
+    # write_miriad conjugates the object to ant1<ant2 in place (on the parameters it
+    # shares with the writer object), so any antpair2ind lookups cached on the
+    # original object before the write must not survive it.
+    uv_in = casa_uvfits
+    uv_in.conjugate_bls(convention="ant2<ant1")
+
+    ant1, ant2 = int(uv_in.ant_1_array[0]), int(uv_in.ant_2_array[0])
+    assert ant1 > ant2
+    assert len(uv_in.antpair2ind(ant1, ant2, ordered=True)) > 0  # populates the cache
+
+    _write_miriad(uv_in, os.path.join(tmp_path, "cache.uv"), clobber=True)
+
+    assert np.all(uv_in.ant_1_array < uv_in.ant_2_array)
+    assert uv_in.antpair2ind(ant1, ant2, ordered=True) is None
+    assert len(uv_in.antpair2ind(ant2, ant1, ordered=True)) > 0
+
+
 def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     """
     test warnings and errors associated with antenna position issues in Miriad files
