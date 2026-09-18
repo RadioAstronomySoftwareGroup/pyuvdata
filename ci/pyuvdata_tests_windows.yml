@@ -21,7 +21,7 @@ dependencies:
   - pytest-cov
   - pytest-xdist
   - pyyaml>=5.4.1
-  - scipy>=1.12
+  - scipy>=1.15
   - cython>=3.0
   - setuptools_scm>=8.1
   - sybil>=8.0
