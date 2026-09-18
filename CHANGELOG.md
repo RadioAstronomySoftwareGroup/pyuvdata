@@ -11,9 +11,7 @@ spline orders `kx`/`ky` (the default), independent of `reuse_spline`;
 `scipy.interpolate.RectBivariateSpline` remains in use for smoothing (`s != 0`) and
 for any other RectBivariateSpline-only option. Both engines solve the same
 interpolating spline for a given `kx`/`ky` with `s = 0`.
-- Minimum supported version of scipy is now 1.15, required for
-`scipy.interpolate.NdBSpline` (added in 1.12) and for interpolating splines of even
-order above 2 (added in 1.15), which `spline_opts` has always accepted.
+- Updated minimum dependency versions: scipy>=1.15
 
 ### Fixed
 - A bug where the longitudinal coordinate (e.g., RA) of "ephem" phase centers was not
