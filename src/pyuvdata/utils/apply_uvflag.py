@@ -38,6 +38,14 @@ def apply_uvflag(
         If not inplace, returns new UVData object with flags applied
 
     """
+    # TODO: multi-set support. Add a `flag_sets` keyword taking a list of flag set
+    # names to apply, defaulting to all of them, and OR together only the selected
+    # bits of the uvf.flag_array bit mask before applying them to uvd (this is what
+    # UVFlag.collapse_flag_sets is for, so call that rather than re-implementing the
+    # bit handling here). The uvf.flag_array indexing further down assumes a plain
+    # boolean array and will need to work off the collapsed result. Also decide how
+    # the names of the applied flag sets should be recorded in uvd.history.
+
     # assertions
     if uvf.mode != "flag":
         raise ValueError("UVFlag must be flag mode")

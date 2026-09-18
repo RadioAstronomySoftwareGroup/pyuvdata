@@ -128,6 +128,18 @@ class UVFlag(UVBase):
 
     Supports reading/writing, and stores all relevant information to combine
     flags and apply to data.
+
+    TODO: support multiple flag/metric sets with different provenance on a single
+    object, along a new "flag set" pseudo-axis. The agreed representation is a bit
+    mask for boolean flags (one bit of an integer ``flag_array`` per flag set) and a
+    numpy record array for metrics (one named field of ``metric_array`` per metric
+    set). A new ``flag_set_names`` parameter carries the ordered names of the sets
+    and must stay in sync with those bit positions / field names. Setting the names
+    should be possible (and encouraged) even for a single set, but objects and files
+    that predate this, which have one unnamed set, must keep working. ``__init__``
+    will need a ``flag_set_names`` keyword documented in the Parameters section
+    below and threaded through the ``from_uvdata``/``from_uvcal``/``read`` paths.
+
     Initialization of the UVFlag object requires some parameters. Metadata is
     copied from indata object. If indata is subclass of UVData or UVCal,
     the weights_array will be set to all ones.
@@ -263,6 +275,12 @@ class UVFlag(UVBase):
             "is (Nants_data, Nfreqs, Ntimes, Npols). For 'waterfall' type objects, the "
             "shape is (Ntimes, Nfreq, Npols)."
         )
+        # TODO: multi-set support. In metric mode metric_array should become a numpy
+        # record array with one named field per metric set (field names taken from
+        # flag_set_names), so metrics of different provenance can live on one object.
+        # The `form` below describes the shape of a single field; decide how the
+        # UVParameter shape/type checking should treat the record dtype, since
+        # expected_type will no longer be a plain float.
         self._metric_array = uvp.UVParameter(
             "metric_array",
             description=desc,
@@ -278,6 +296,14 @@ class UVFlag(UVBase):
             "is (Nants_data, Nfreqs, Ntimes, Npols). For 'waterfall' type objects, the "
             "shape is (Ntimes, Nfreq, Npols)."
         )
+        # TODO: multi-set support. In flag mode flag_array should become a bit mask:
+        # an unsigned integer array of the same shape, where bit i corresponds to the
+        # flag set named flag_set_names[i]. Decide whether the bit mask is always the
+        # internal representation (with a boolean view exposed for the single-set
+        # case) or whether a plain bool array is kept when there is only one set;
+        # either way expected_type=bool here and every place that does boolean
+        # operations on flag_array directly (__or__, to_metric, collapse_pol,
+        # to_waterfall, utils.apply_uvflag) has to be updated.
         self._flag_array = uvp.UVParameter(
             "flag_array",
             description=desc,
@@ -286,6 +312,16 @@ class UVFlag(UVBase):
             required=False,
         )
 
+        # TODO: multi-set support. Add a new `flag_set_names` UVParameter here holding
+        # the ordered names of the flag/metric sets, form=("Nflag_sets",),
+        # expected_type=str. Its ordering defines the bit positions in the flag_array
+        # bit mask and the field order in the metric_array record array, so the three
+        # must always be kept in sync. Make it required with a sensible default for a
+        # single set so provenance is always tracked, while still reading older
+        # objects/files that have no names. A companion `Nflag_sets` count parameter
+        # is probably needed so the existing UVParameter `form` machinery can check
+        # shapes; see the Nflag_sets property below for the alternative of deriving it.
+
         desc = (
             "Floating point weight information, only available in metric mode."
             "The shape depends on the `type` parameter. For 'baseline' type objects, "
@@ -293,6 +329,9 @@ class UVFlag(UVBase):
             "is (Nants_data, Nfreqs, Ntimes, Npols). For 'waterfall' type objects, the "
             "shape is (Ntimes, Nfreq, Npols)."
         )
+        # TODO: multi-set support. Decide whether weights are per metric set (making
+        # this a record array with the same fields as metric_array) or shared across
+        # all sets. The same question applies to weights_square_array below.
         self._weights_array = uvp.UVParameter(
             "weights_array",
             description=desc,
@@ -588,6 +627,10 @@ class UVFlag(UVBase):
     @property
     def _data_params(self):
         """List of strings giving the data-like parameters."""
+        # TODO: multi-set support. This drives select/add/copy over the data-like
+        # arrays. Decide whether each flag/metric set needs to be enumerated here
+        # or whether the bit mask / record array is still handled as a single
+        # parameter per mode.
         if not hasattr(self, "mode") or self.mode is None:
             return None
         elif self.mode == "flag":
@@ -615,6 +658,22 @@ class UVFlag(UVBase):
         """Determine if this object has had pols collapsed."""
         return bool(isinstance(self.polarization_array.item(0), str))
 
+    @property
+    def nflag_sets(self):
+        """Number of flag/metric sets present on this object.
+
+        TODO: implement. Return the number of flag/metric sets, derived rather than
+        stored wherever possible: the length of `flag_set_names`, the number of
+        fields in the metric_array record array (metric mode), or the number of
+        used bits in the flag_array bit mask (flag mode). Deriving it avoids a
+        separate boolean "has multiple sets" parameter that can fall out of sync,
+        and `Nflag_sets > 1` then answers that question directly. If the
+        UVParameter `form` machinery turns out to need a stored count in order to
+        check the shapes of flag_set_names and the data arrays, this will instead
+        have to become a real UVParameter set alongside the other N* counts.
+        """
+        pass
+
     def _check_pol_state(self):
         if self.pol_collapsed:
             # collapsed pol objects have a different type for
@@ -629,6 +688,11 @@ class UVFlag(UVBase):
 
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
+        # TODO: multi-set support. Set the `required` flag for the new
+        # flag_set_names (and Nflag_sets) parameter here and make sure the bit mask
+        # dtype is configured. Note this currently drops weights_square_array when
+        # switching to flag mode; work out the equivalent when several metric sets
+        # are thresholded at once.
         self.mode = "flag"
         self._flag_array.required = True
         self._metric_array.required = False
@@ -640,6 +704,9 @@ class UVFlag(UVBase):
 
     def _set_mode_metric(self):
         """Set the mode and required parameters consistent with a metric object."""
+        # TODO: multi-set support. The weights_array default below assumes a single
+        # plain metric array; it will need to build the matching record array (one
+        # field per metric set) instead.
         self.mode = "metric"
         self._flag_array.required = False
         self._metric_array.required = True
@@ -752,6 +819,11 @@ class UVFlag(UVBase):
             values (if run_check_acceptability is True)
 
         """
+        # TODO: multi-set support. Add checks that flag_set_names has no duplicates,
+        # that its length matches the number of bits used in the flag_array bit mask
+        # (flag mode) or the number of fields in the metric_array record array
+        # (metric mode), and that the names are ordered consistently with those
+        # bits/fields.
         self._set_telescope_requirements()
         self._check_pol_state()
 
@@ -837,6 +909,9 @@ class UVFlag(UVBase):
         extra_keywords, weights_square_array and filename.
 
         """
+        # TODO: multi-set support. flag_set_names carries provenance that must
+        # survive type and mode changes, so add it to optional_attrs_to_keep below
+        # if it ends up being an optional parameter.
         optional_attrs_to_keep = [
             "telescope_name",
             "telescope_location",
@@ -1206,6 +1281,10 @@ class UVFlag(UVBase):
             collapsing polarizations.
 
         """
+        # TODO: multi-set support. This reads flag_array/metric_array directly to
+        # collapse the pol axis; it needs to operate on every flag set (each bit of
+        # the bit mask, each field of the record array) independently, leaving
+        # flag_set_names unchanged.
         method = method.lower()
         if self.mode == "flag":
             darr = self.flag_array
@@ -1290,6 +1369,9 @@ class UVFlag(UVBase):
             baseline to begin with. Fills an optional parameter if so.
 
         """
+        # TODO: multi-set support. The collapse to a waterfall must be done per flag
+        # set, preserving flag_set_names and the bit/field ordering, and keeping the
+        # matching per-set weights and weights_square arrays.
         method = method.lower()
         if self.type == "waterfall" and (
             keep_pol or (len(self.polarization_array) == 1)
@@ -1454,6 +1536,8 @@ class UVFlag(UVBase):
             converting to baseline type.
 
         """
+        # TODO: multi-set support. Broadcasting flags/metrics onto the baseline axis
+        # must be done for every flag set, carrying flag_set_names through unchanged.
         if self.type == "baseline":
             return
         if not (
@@ -1682,6 +1766,8 @@ class UVFlag(UVBase):
             converting to antenna type.
 
         """
+        # TODO: multi-set support. Broadcasting flags/metrics onto the antenna axis
+        # must be done for every flag set, carrying flag_set_names through unchanged.
         if self.type == "antenna":
             return
         if not (
@@ -1841,6 +1927,10 @@ class UVFlag(UVBase):
             converting to flag mode.
 
         """
+        # TODO: multi-set support. Thresholding must produce one bit of the
+        # flag_array bit mask per metric set (per field of the metric_array record
+        # array), carrying flag_set_names through unchanged. Decide whether
+        # `threshold` may be given per set.
         if self.mode == "flag":
             return
         elif self.mode == "metric":
@@ -1894,6 +1984,10 @@ class UVFlag(UVBase):
             converting to metric mode.
 
         """
+        # TODO: multi-set support. This must turn each bit of the flag_array bit mask
+        # into its own field of the metric_array record array, carrying
+        # flag_set_names through unchanged. The convert_wgts branches below index
+        # flag_array/weights_array positionally and will need to loop over sets.
         if self.mode == "metric":
             return
         elif self.mode == "flag":
@@ -1973,6 +2067,12 @@ class UVFlag(UVBase):
             If inplace==False, return new UVFlag object.
 
         """
+        # TODO: multi-set support. Adding along the existing axes requires both
+        # objects to carry the same flag sets: add flag_set_names to
+        # compatibility_params below so mismatched sets raise, and make the
+        # concatenation operate on the bit mask / record array. Combining along the
+        # flag set pseudo-axis is deliberately not an option of `axis` here; that is
+        # what concat_flag_sets is for.
         # Handle in place
         if inplace:
             this = self
@@ -2259,6 +2359,10 @@ class UVFlag(UVBase):
             If inplace==False, return new UVFlag object.
 
         """
+        # TODO: multi-set support. `this.flag_array += other.flag_array` below is a
+        # boolean OR today; with a bit mask it must OR the bits of matching flag sets
+        # (matched by name, not by position) and decide whether to error or take the
+        # union when the two objects carry different sets.
         if (self.mode != "flag") or (other.mode != "flag"):
             raise ValueError(
                 'UVFlag object must be in "flag" mode to use "or" function.'
@@ -2340,6 +2444,11 @@ class UVFlag(UVBase):
             If inplace==False, return new UVFlag object with combined metrics.
 
         """
+        # TODO: multi-set support. Work out how this relates to the flag set
+        # pseudo-axis: collapsing metrics from several objects into one array is the
+        # lossy counterpart of concat_flag_sets, which keeps them separate. At
+        # minimum this must collapse each metric set (record array field)
+        # independently and require matching flag_set_names across `others`.
         # Ensure others is iterable (in case of single UVFlag object)
         # cannot use utils.tools._get_iterable because the object itself is iterable
         if not isinstance(others, list | tuple | np.ndarray):
@@ -2384,6 +2493,215 @@ class UVFlag(UVBase):
             )
         if not inplace:
             return this
+
+    def get_flag_set(self, name):
+        """Get the flags or metric for a single named flag set.
+
+        TODO: implement. In flag mode, unpack the bit of the flag_array bit mask
+        that corresponds to `name` and return a plain boolean array of the usual
+        data shape for this object's type. In metric mode, return the matching
+        field of the metric_array record array, and decide whether the matching
+        weights are returned alongside it. Should raise a clear error when `name`
+        is not in flag_set_names, and should work unchanged on backwards
+        compatible objects that carry a single unnamed set.
+
+        Parameters
+        ----------
+        name : str
+            Name of the flag set to get, as listed in `flag_set_names`.
+
+        """
+        pass
+
+    def set_flag_set(self, name, values, *, weights=None):
+        """Set the values of an existing named flag set.
+
+        TODO: implement. Replace the contents of the set named `name` in place: in
+        flag mode set or clear the corresponding bit of the flag_array bit mask
+        from a boolean array, in metric mode assign to the corresponding field of
+        the metric_array record array (and to the matching weights). Must validate
+        that `values` has the data shape expected for this object's type and mode,
+        and should error rather than silently create a new set when `name` is not
+        already in flag_set_names -- use `add_flag_set` for that.
+
+        Parameters
+        ----------
+        name : str
+            Name of the flag set to set, as listed in `flag_set_names`.
+        values : array_like
+            New flags (flag mode) or metric values (metric mode) for this set.
+        weights : array_like, optional
+            New weights for this set, only meaningful in metric mode.
+
+        """
+        pass
+
+    def add_flag_set(
+        self,
+        name,
+        values=None,
+        *,
+        weights=None,
+        history="",
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """Add a new flag or metric set to this object in place.
+
+        TODO: implement. Extend the flag set pseudo-axis without having to build a
+        second UVFlag object and combine it: append `name` to flag_set_names,
+        allocate a new bit in the flag_array bit mask (flag mode) or a new field in
+        the metric_array record array (metric mode), and fill it from `values`,
+        defaulting to unflagged / zero when `values` is not given. Must reject a
+        name that already exists, require `values` to match this object's type,
+        mode and data shape, and record the provenance of the new set in the
+        history.
+
+        Parameters
+        ----------
+        name : str
+            Name of the new flag set. Must not already be in `flag_set_names`.
+        values : array_like, optional
+            Flags (flag mode) or metric values (metric mode) for the new set.
+        weights : array_like, optional
+            Weights for the new set, only meaningful in metric mode.
+        history : str
+            History string describing the provenance of the new flag set.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after adding the flag set.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            adding the flag set.
+
+        """
+        pass
+
+    def remove_flag_set(
+        self, name, *, run_check=True, check_extra=True, run_check_acceptability=True
+    ):
+        """Remove a named flag or metric set from this object in place.
+
+        TODO: implement. Drop `name` from flag_set_names and remove the matching
+        bit from the flag_array bit mask or field from the metric_array record
+        array, keeping the remaining names, bit positions and record fields
+        consistently ordered -- the bits may need repacking so there are no gaps.
+        Decide what should happen when removing the last remaining set, and record
+        the removal in the history.
+
+        Parameters
+        ----------
+        name : str
+            Name of the flag set to remove, as listed in `flag_set_names`.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after removing the flag set.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            removing the flag set.
+
+        """
+        pass
+
+    def concat_flag_sets(
+        self,
+        others,
+        *,
+        inplace=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """Combine UVFlag objects along the flag set pseudo-axis.
+
+        TODO: implement. Take one or more other UVFlag objects that describe the
+        same data -- same type, mode, times, baselines/antennas, frequencies and
+        polarizations -- but carry flags or metrics of different provenance, and
+        produce a single object holding all of their flag sets: the union of the
+        bit masks (flag mode) or the concatenation of the record array fields
+        (metric mode), with flag_set_names concatenated in the same order. Points
+        to work out: reject duplicate set names across the inputs (or disambiguate
+        them), reuse the compatibility_params/warning_params checking in `__add__`
+        rather than duplicating it, and handle history and provenance coming from
+        several places -- per-set provenance is the whole point of this feature, so
+        a single concatenated history string is probably not enough and a per-set
+        history may need to be carried alongside flag_set_names.
+
+        Parameters
+        ----------
+        others : UVFlag or list of UVFlag
+            Other UVFlag objects whose flag sets should be combined with this one.
+        inplace : bool
+            Option to perform the combination directly on self or return a new
+            UVFlag object.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining the objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining the objects.
+
+        Returns
+        -------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
+        """
+        pass
+
+    def collapse_flag_sets(
+        self,
+        *,
+        flag_sets=None,
+        method="or",
+        inplace=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """Collapse a selection of flag sets down to a single boolean flag set.
+
+        TODO: implement. Combine the flag sets named in `flag_sets` (all of them by
+        default) into one boolean array along the flag set pseudo-axis -- the
+        common case being a logical OR of the selected bits of the bit mask -- and
+        return an object carrying a single flag set. Metric mode needs a defined
+        behavior: either require flag mode, or apply the same collapse methods used
+        by `collapse_pol` and `to_waterfall` (via utils.collapse) across the
+        selected record array fields. Record which sets were collapsed in the
+        history and in the resulting flag_set_names.
+
+        Parameters
+        ----------
+        flag_sets : array_like of str, optional
+            Names of the flag sets to collapse. Default is all of them.
+        method : str
+            How to combine the selected flag sets.
+        inplace : bool
+            Option to perform the collapse directly on self or return a new UVFlag
+            object.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after collapsing the flag sets.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            collapsing the flag sets.
+
+        Returns
+        -------
+        uvf : UVFlag
+            If inplace==False, return new UVFlag object.
+
+        """
+        pass
 
     def _select_preprocess(
         self,
@@ -2687,6 +3005,9 @@ class UVFlag(UVBase):
             Option to keep metadata for antennas that are no longer in the dataset.
 
         """
+        # TODO: multi-set support. Add a flag-set index entry to ind_dict below
+        # (keyed on Nflag_sets) once flag sets are a real axis, so selecting on flag
+        # sets goes through the same _select_along_param_axis machinery.
         # Create a dictionary to pass to _select_along_param_axis
         ind_dict = {
             "Ntimes": time_inds,
@@ -2847,6 +3168,11 @@ class UVFlag(UVBase):
             If any of the parameters are set to inappropriate values.
 
         """
+        # TODO: multi-set support. Add a `flag_sets` keyword to select a subset of
+        # the flag sets by name, dropping the unselected bits / record fields and the
+        # corresponding entries of flag_set_names. Since _select_along_param_axis
+        # keys off named count parameters, this probably needs Nflag_sets to be a
+        # real UVParameter to hook into it.
         if inplace:
             uv_object = self
         else:
@@ -2942,6 +3268,11 @@ class UVFlag(UVBase):
             reading data.
 
         """
+        # TODO: multi-set support. Bump the file format version and read
+        # flag_set_names from the header along with the bit mask / record array
+        # datasets. Must stay backwards compatible with version 1.0 files, which hold
+        # a single unnamed boolean flag_array or float metric_array: give those a
+        # default single flag set name on read.
         # make sure we have an empty object.
         self.__init__()
         if isinstance(filename, tuple | list):
@@ -3321,6 +3652,11 @@ class UVFlag(UVBase):
             If no compression is wanted, set to None.
 
         """
+        # TODO: multi-set support. Bump the "version" header below (currently 1.0),
+        # write flag_set_names into the header, and write the flag_array bit mask /
+        # metric_array record array. Check that the chosen representation still
+        # compresses sensibly with data_compression, and decide whether to keep
+        # writing a version-1.0-readable file when there is only one unnamed set.
         if os.path.exists(filename):
             if clobber:
                 print("File " + filename + " exists; clobbering")
@@ -3461,6 +3797,10 @@ class UVFlag(UVBase):
             creating UVFlag object.
 
         """
+        # TODO: multi-set support. Flags/metrics copied from a UVData object form a
+        # single set; give it a default name derived from the input (e.g. the label
+        # or filename) so provenance is tracked from the start, and let the caller
+        # pass a name in.
         if not issubclass(indata.__class__, UVData):
             raise ValueError(
                 "from_uvdata can only initialize a UVFlag object from an input "
@@ -3611,6 +3951,10 @@ class UVFlag(UVBase):
             creating UVFlag object.
 
         """
+        # TODO: multi-set support. Flags/metrics copied from a UVCal object form a
+        # single set; give it a default name derived from the input (e.g. the label
+        # or filename) so provenance is tracked from the start, and let the caller
+        # pass a name in.
         if not issubclass(indata.__class__, UVCal):
             raise ValueError(
                 "from_uvcal can only initialize a UVFlag object from an input "
