@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.8] - 2025-09-18
+
 ### Fixed
 - A bug in `UVData.read_ms` where visibility units could not be parsed when stored in
 a MeasurementSet as a singleton entry/list.
