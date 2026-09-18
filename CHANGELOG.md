@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
 tensor-product basis across beam data slices and using vectorized domain checks.
+`scipy.interpolate.NdBSpline` is now used whenever `spline_opts` requests only the
+spline orders `kx`/`ky` (the default), independent of `reuse_spline`;
+`scipy.interpolate.RectBivariateSpline` remains in use for smoothing (`s != 0`) and
+for any other RectBivariateSpline-only option. Both engines solve the same
+interpolating spline for a given `kx`/`ky` with `s = 0`.
+- `reuse_spline` now caches the fitted spline on both interpolation paths. Previously
+requesting `reuse_spline=True` silently selected the slower RectBivariateSpline path.
+- Minimum supported version of scipy is now 1.12 (required for
+`scipy.interpolate.NdBSpline`).
 
 ### Fixed
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the

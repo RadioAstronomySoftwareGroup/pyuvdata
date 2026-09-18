@@ -279,13 +279,33 @@ class BeamInterface:
             the specified tolerance then return the beam at each nearest neighbor,
             otherwise interpolate the beam. Only applies if beam is a UVBeam.
         reuse_spline : bool
-            Save the interpolation functions for reuse.  Only applies if beam is
-            a UVBeam and interpolation_function is "az_za_simple".
+            Save the fitted splines on the beam for reuse. Only applies if beam is
+            a UVBeam and interpolation_function is "az_za_simple", where it applies
+            to both of the engines described under `spline_opts`. The cache holds
+            spline coefficients, so it costs roughly as much memory as the beam
+            data it was fit to.
         spline_opts : dict
-            Provide options to numpy.RectBivariateSpline. This includes spline
-            order parameters `kx` and `ky`, and smoothing parameter `s`. Only
-            applies if beam is a UVBeam and interpolation_function is "az_za_simple"
-            or "az_za_map_coordinates".
+            Options for the spline fit: the spline orders `kx` (zenith angle axis)
+            and `ky` (azimuth axis), and the smoothing parameter `s`. Only applies
+            if beam is a UVBeam. For "az_za_simple" this dict is also what selects
+            the interpolation engine:
+
+            - **Default** (`spline_opts` is None, or contains only `kx`, `ky`
+              and/or `s=0`): :class:`scipy.interpolate.NdBSpline`. The
+              tensor-product basis is built once and every vector/feed/frequency
+              slice is evaluated against it together, which is substantially
+              faster.
+            - **Fallback** (`s` is nonzero, or any other
+              :class:`scipy.interpolate.RectBivariateSpline` keyword such as
+              `bbox` is given): RectBivariateSpline, fit and evaluated one slice
+              at a time. Smoothing is only available on this path.
+
+            For the same `kx` and `ky` with `s=0` the two engines solve the same
+            interpolating spline and agree to floating point rounding (of order
+            1e-15 relative), so this choice affects speed rather than results.
+
+            For "az_za_map_coordinates" this dict is instead passed to
+            :func:`scipy.ndimage.map_coordinates` (e.g. `order`, `mode`, `cval`).
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
