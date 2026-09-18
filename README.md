@@ -160,7 +160,7 @@ Required:
 * pyerfa >= 2.0.1.1
 * python >= 3.11
 * pyyaml >= 5.4.1
-* scipy >= 1.9
+* scipy >= 1.12
 * setuptools_scm >= 8.1
 
 Optional:

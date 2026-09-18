@@ -75,7 +75,7 @@ class UVBeam(UVBase):
 
     interpolation_function_dict = {
         "az_za_simple": {
-            "description": "scipy RectBivariate spline interpolation",
+            "description": "scipy tensor-product bivariate spline interpolation",
             "func": "_interp_az_za_rect_spline",
         },
         "az_za_map_coordinates": {
@@ -1969,10 +1969,13 @@ class UVBeam(UVBase):
         return_basis_vector: bool = False,
     ):
         """
-        Interpolate in az_za coordinate system using RectBivariateSpline.
+        Interpolate in az_za coordinate system using a tensor-product spline.
 
-        Uses the :func:`scipy.interpolate.RectBivariateSpline` function to perform
-        interpolation in the azimuth-zenith angle coordinate system.
+        Performs bivariate spline interpolation in the azimuth-zenith angle
+        coordinate system. Two SciPy engines are used, chosen from `spline_opts`
+        alone (see that parameter): :class:`scipy.interpolate.NdBSpline` by
+        default, and :class:`scipy.interpolate.RectBivariateSpline` when an
+        option is requested that NdBSpline cannot provide.
 
         Parameters
         ----------
@@ -1991,11 +1994,31 @@ class UVBeam(UVBase):
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
         reuse_spline : bool
-            Option to save the interpolation functions for reuse, default is False.
+            Option to save the fitted splines on this object for reuse, default is
+            False. Applies to both spline engines described under `spline_opts`.
+            The cache holds spline coefficients, so it costs roughly as much memory
+            as the beam data it was fit to.
         spline_opts : dict, optional
-            Option to specify (kx, ky, s) for numpy.RectBivariateSpline. Note that
-            this parameter is ignored if this function has been called previously
-            on this object instance and reuse_spline is True.
+            Options for the spline fit: the spline orders `kx` (zenith angle axis)
+            and `ky` (azimuth axis), and the smoothing parameter `s`. This dict is
+            also what selects the interpolation engine:
+
+            - **Default** (`spline_opts` is None, or contains only `kx`, `ky`
+              and/or `s=0`): :class:`scipy.interpolate.NdBSpline`. The
+              tensor-product basis is built once and every vector/feed/frequency
+              slice is evaluated against it together, which is substantially
+              faster.
+            - **Fallback** (`s` is nonzero, or any other
+              :class:`scipy.interpolate.RectBivariateSpline` keyword such as
+              `bbox` is given): RectBivariateSpline, fit and evaluated one slice
+              at a time. Smoothing is only available on this path.
+
+            For the same `kx` and `ky` with `s=0` the two engines solve the same
+            interpolating spline and agree to floating point rounding (of order
+            1e-15 relative), so this choice affects speed rather than results.
+
+            Note that this parameter is ignored if this function has been called
+            previously on this object instance and reuse_spline is True.
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
@@ -2073,48 +2096,66 @@ class UVBeam(UVBase):
             int_dict = {}
             self.saved_interp_functions = int_dict
 
-        # For interpolating splines, the knots only depend on the coordinate grids.
-        # Building the tensor-product coefficients one axis at a time and evaluating
-        # every data slice together avoids repeatedly calculating the same basis at
-        # every requested point. NdBSpline was not public in older supported SciPy
-        # versions, so retain the RectBivariateSpline path as a compatibility fallback.
+        # For an interpolating spline (i.e. no smoothing), the knots depend only on
+        # the coordinate grids, so the tensor-product basis can be built once and
+        # every data slice evaluated against it together, rather than fitting and
+        # evaluating one RectBivariateSpline per slice. NdBSpline cannot smooth, so
+        # any option beyond the spline orders falls back to the FITPACK path.
         use_nd_spline = (
-            not reuse_spline
-            and spline_opts.get("s", 0) == 0
-            and not set(spline_opts).difference({"kx", "ky", "s"})
-            and hasattr(interpolate, "NdBSpline")
+            set(spline_opts) <= {"kx", "ky", "s"} and spline_opts.get("s", 0) == 0
         )
 
         if use_nd_spline:
             kx = spline_opts.get("kx", 3)
             ky = spline_opts.get("ky", 3)
-            spline_coeffs = np.empty(
-                (
-                    theta_use.size,
-                    phi_use.size,
-                    self.Naxes_vec,
-                    Npol_feeds,
-                    input_nfreqs,
-                ),
-                dtype=data_type,
-            )
 
-            for index3 in range(input_nfreqs):
-                for index0 in range(self.Naxes_vec):
-                    for pol_return_ind, index2 in enumerate(pol_inds):
-                        theta_spline = interpolate.make_interp_spline(
-                            theta_use,
-                            data_use[index0, index2, index3],
-                            k=kx,
-                            axis=0,
-                            check_finite=False,
-                        )
-                        phi_spline = interpolate.make_interp_spline(
-                            phi_use, theta_spline.c, k=ky, axis=1, check_finite=False
-                        )
-                        spline_coeffs[:, :, index0, pol_return_ind, index3] = (
-                            phi_spline.c.T
-                        )
+            # A single spline covers every data slice, so it is cached under the
+            # whole request rather than one entry per slice like the
+            # RectBivariateSpline path below.
+            key = (tuple(freq_array), tuple(pol_inds))
+            lut = self.saved_interp_functions.get(key) if reuse_spline else None
+
+            if lut is None:
+                spline_coeffs = np.empty(
+                    (
+                        theta_use.size,
+                        phi_use.size,
+                        self.Naxes_vec,
+                        Npol_feeds,
+                        input_nfreqs,
+                    ),
+                    dtype=data_type,
+                )
+
+                for index3 in range(input_nfreqs):
+                    for index0 in range(self.Naxes_vec):
+                        for pol_return_ind, index2 in enumerate(pol_inds):
+                            theta_spline = interpolate.make_interp_spline(
+                                theta_use,
+                                data_use[index0, index2, index3],
+                                k=kx,
+                                axis=0,
+                                check_finite=False,
+                            )
+                            phi_spline = interpolate.make_interp_spline(
+                                phi_use,
+                                theta_spline.c,
+                                k=ky,
+                                axis=1,
+                                check_finite=False,
+                            )
+                            spline_coeffs[:, :, index0, pol_return_ind, index3] = (
+                                phi_spline.c.T
+                            )
+
+                # The knots depend only on the coordinate grids, so the ones from
+                # any slice describe all of them.
+                lut = interpolate.NdBSpline(
+                    (theta_spline.t, phi_spline.t), spline_coeffs, (kx, ky)
+                )
+
+                if reuse_spline:
+                    self.saved_interp_functions[key] = lut
 
             # RectBivariateSpline uses boundary values outside of its input domain.
             # Clip here to retain that behavior because NdBSpline extrapolates.
@@ -2123,9 +2164,6 @@ class UVBeam(UVBase):
                     np.clip(za_array, theta_use[0], theta_use[-1]),
                     np.clip(az_array, phi_use[0], phi_use[-1]),
                 )
-            )
-            lut = interpolate.NdBSpline(
-                (theta_spline.t, phi_spline.t), spline_coeffs, (kx, ky)
             )
             interp_data = np.moveaxis(lut(interp_points), 0, -1)
         else:
@@ -2230,11 +2268,11 @@ class UVBeam(UVBase):
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
         reuse_spline : bool
-            Save the interpolation functions for reuse.
+            Save the interpolation functions for reuse. Has no effect here, this
+            interpolation does not build a reusable spline.
         spline_opts : dict, optional
-            Option to specify (kx, ky, s) for numpy.RectBivariateSpline. Note that
-            this parameter is ignored if this function has been called previously
-            on this object instance and reuse_spline is True.
+            Options passed through to :func:`scipy.ndimage.map_coordinates`, e.g.
+            the spline `order` and the boundary `mode` and `cval`.
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
@@ -2503,8 +2541,9 @@ class UVBeam(UVBase):
         "healpix_simple" for objects with the "healpix" pixel_coordinate_system.
         Currently supported interpolation functions include:
 
-        - "az_za_simple": Uses scipy RectBivariate spline interpolation, can only be
-          used on objects with an "az_za" pixel_coordinate_system.
+        - "az_za_simple": Uses scipy tensor-product bivariate spline interpolation
+          (see `spline_opts` for which engine is used), can only be used on objects
+          with an "az_za" pixel_coordinate_system.
         - "az_za_map_coordinates": Uses scipy map_coordinates interpolation, can only
           be used on objects with an "az_za" pixel_coordinate_system.
         - "healpix_simple": Uses HEALPix nearest-neighbor bilinear interpolation, can
@@ -2560,12 +2599,34 @@ class UVBeam(UVBase):
             if az_za_grid is True and `az_array` and `za_array` are evenly spaced
             or for frequency only interpolation.
         reuse_spline : bool
-            Save the interpolation functions for reuse. Only applies for
-            `az_za_simple` and `az_za_map_coordinates` interpolation.
+            Save the fitted splines on this object for reuse. Only applies for
+            `az_za_simple` interpolation, where it applies to both of the engines
+            described under `spline_opts`. The cache holds spline coefficients, so
+            it costs roughly as much memory as the beam data it was fit to.
         spline_opts : dict, optional
-            Provide options to numpy.RectBivariateSpline. This includes spline
-            order parameters `kx` and `ky`, and smoothing parameter `s`.
-            Applies for `az_za_simple` and `az_za_map_coordinates` interpolation.
+            Options for the spline fit used by `az_za_simple` interpolation: the
+            spline orders `kx` (zenith angle axis) and `ky` (azimuth axis), and the
+            smoothing parameter `s`. This dict is also what selects the
+            interpolation engine:
+
+            - **Default** (`spline_opts` is None, or contains only `kx`, `ky`
+              and/or `s=0`): :class:`scipy.interpolate.NdBSpline`. The
+              tensor-product basis is built once and every vector/feed/frequency
+              slice is evaluated against it together, which is substantially
+              faster.
+            - **Fallback** (`s` is nonzero, or any other
+              :class:`scipy.interpolate.RectBivariateSpline` keyword such as
+              `bbox` is given): RectBivariateSpline, fit and evaluated one slice
+              at a time. Smoothing is only available on this path.
+
+            For the same `kx` and `ky` with `s=0` the two engines solve the same
+            interpolating spline and agree to floating point rounding (of order
+            1e-15 relative), so this choice affects speed rather than results.
+
+            For `az_za_map_coordinates` interpolation this dict is instead passed
+            to :func:`scipy.ndimage.map_coordinates` (e.g. `order`, `mode`,
+            `cval`).
+
             Note that this parameter is ignored if this function has been called
             previously on this object instance and reuse_spline is True.
         run_check : bool
@@ -2890,8 +2951,8 @@ class UVBeam(UVBase):
         Currently supported interpolation functions for beams that are not already in
         a healpix coordinate system include:
 
-        - "az_za_simple": Uses scipy RectBivariate spline interpolation, can only be
-          used on objects with an "az_za" pixel_coordinate_system.
+        - "az_za_simple": Uses scipy tensor-product bivariate spline interpolation,
+          can only be used on objects with an "az_za" pixel_coordinate_system.
         - "az_za_map_coordinates": Uses scipy map_coordinates interpolation, can only
           be used on objects with an "az_za" pixel_coordinate
 
