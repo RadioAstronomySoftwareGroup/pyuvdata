@@ -1416,10 +1416,16 @@ def test_batched_rect_spline_reuse(beam_type):
     assert len(beam.saved_interp_functions) == 2
     np.testing.assert_allclose(subset_data, no_reuse_data[:, :, :1], rtol=0, atol=1e-12)
 
-    # The fallback caches one entry per data slice in the same dict; the two key
-    # shapes must not collide.
-    beam.interp(spline_opts={"s": 0.5}, reuse_spline=True, **interp_kwargs)
+    # The fallback caches one entry per data slice in the same dict. Its cache must
+    # reproduce its own result, and the two key shapes must not collide.
+    smooth_kwargs = {"spline_opts": {"s": 0.5}, "reuse_spline": True, **interp_kwargs}
+    smooth_cold, _ = beam.interp(**smooth_kwargs)
+    smooth_warm, _ = beam.interp(**smooth_kwargs)
+
+    assert np.array_equal(smooth_cold, smooth_warm)
+    assert not np.array_equal(smooth_cold, cold_data)
     assert len(beam.saved_interp_functions) > 2
+
     recheck_data, _ = beam.interp(reuse_spline=True, **interp_kwargs)
     assert np.array_equal(recheck_data, cold_data)
 
