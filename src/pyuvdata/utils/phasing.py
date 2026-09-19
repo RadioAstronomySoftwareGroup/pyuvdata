@@ -1973,12 +1973,13 @@ def interpolate_ephem(
             interp_kind = "cubic"
         else:
             interp_kind = "linear"
+        ephem_ra_c = np.unwrap(np.asarray(ephem_ra, dtype=float))
 
         # If we have values that line up perfectly, just use those directly
         select_mask = np.isin(time_array, ephem_times)
         if np.any(select_mask):
             time_select = time_array[select_mask]
-            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind="nearest")(
+            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra_c, kind="nearest")(
                 time_select
             )
             dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind="nearest")(
@@ -1998,7 +1999,7 @@ def interpolate_ephem(
         select_mask = ~select_mask
         if np.any(select_mask):
             time_select = time_array[select_mask]
-            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra, kind=interp_kind)(
+            ra_vals[select_mask] = interp1d(ephem_times, ephem_ra_c, kind=interp_kind)(
                 time_select
             )
             dec_vals[select_mask] = interp1d(ephem_times, ephem_dec, kind=interp_kind)(
@@ -2013,7 +2014,7 @@ def interpolate_ephem(
                     ephem_times, ephem_vel, kind=interp_kind
                 )(time_select)
 
-    return (ra_vals, dec_vals, dist_vals, vel_vals)
+    return (np.mod(ra_vals, 2.0 * np.pi), dec_vals, dist_vals, vel_vals)
 
 
 def calc_app_coords(
