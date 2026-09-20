@@ -1973,6 +1973,8 @@ def interpolate_ephem(
             interp_kind = "cubic"
         else:
             interp_kind = "linear"
+        # Unwrap the RA values to avoid discontinuities during interpolation
+        ephem_ra = np.unwrap(ephem_ra)
 
         # If we have values that line up perfectly, just use those directly
         select_mask = np.isin(time_array, ephem_times)
@@ -2012,6 +2014,8 @@ def interpolate_ephem(
                 vel_vals[select_mask] = interp1d(
                     ephem_times, ephem_vel, kind=interp_kind
                 )(time_select)
+    # Ensure RA values are within the range [0, 2*pi) (undo the unwrapping)
+    ra_vals = np.mod(ra_vals, 2 * np.pi)
 
     return (ra_vals, dec_vals, dist_vals, vel_vals)
 
