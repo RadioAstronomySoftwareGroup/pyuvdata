@@ -1320,6 +1320,26 @@ def test_ephem_interp_multi_point():
     np.testing.assert_allclose(time_array + 4.0, vel_vals2, 1e-15, 0.0)
 
 
+def test_ephem_interp_ra_wrap():
+    ephem_times = np.arange(11)
+    true_ra = np.mod(np.linspace(-0.5, 0.5, 11), 2 * np.pi)
+    exp_ra = np.mod(np.linspace(-0.5, 0.5, 101), 2 * np.pi)
+
+    # Sample both on and between the ephem grid points
+    time_array = np.arange(101) * 0.1
+
+    ra_vals, dec_vals, _, _ = phs_utils.interpolate_ephem(
+        time_array=time_array,
+        ephem_times=ephem_times,
+        ephem_ra=true_ra,
+        ephem_dec=np.zeros(11),
+    )
+
+    np.testing.assert_allclose(ra_vals, exp_ra)
+    assert np.all((ra_vals >= 0.0) & (ra_vals < 2 * np.pi))
+    np.testing.assert_allclose(dec_vals, 0.0, rtol=0, atol=1e-15)
+
+
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):

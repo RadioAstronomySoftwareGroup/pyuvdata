@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- A bug where the longitudinal coordinate (e.g., RA) of "ephem" phase centers was not
+unwrapped, leading to potential discontinuities when performing interpolation.
+
 ## [3.2.8] - 2025-09-18
 
 ### Fixed
