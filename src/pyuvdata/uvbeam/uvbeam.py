@@ -5563,6 +5563,16 @@ def _uvbeam_constructor(loader, node):
             zfiles_use = zfiles_use[0]
         values["mwa_zfile"] = zfiles_use
 
+    # if delays specified for uvbeam and is a list, needs to be turned
+    # into a numpy array
+    if "delays" in values and not isinstance(values["delays"], np.ndarray):
+        if isinstance(values["delays"], list):
+            values["delays"] = np.asarray(values["delays"], dtype=int)
+        else:
+            raise TypeError(
+                "delays passed to uvbeam constructor must be a list or numpy array."
+            )
+
     beam = UVBeam.from_file(**values)
 
     return beam
