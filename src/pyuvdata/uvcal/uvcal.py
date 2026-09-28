@@ -5238,7 +5238,7 @@ class UVCal(UVBase):
         memmap : bool
             Option to memory-map the FITS data when reading it (passed to
             `astropy.io.fits.open`). Setting this to False reads the data into memory
-            in one go, which can be several times faster on network file systems. 
+            in one go, which can be several times faster on network file systems.
             Default is True.
 
         """
