@@ -6,8 +6,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - A `memmap` keyword to `UVCal.read_calfits` and `UVCal.read`, which is passed to
 `astropy.io.fits.open`. Setting it to False (the default is True) reads calfits data
-into memory in one go, which can be several times faster on network file systems such
-as Lustre.
+into memory in one go, which can be several times faster on network file systems.
 
 ### Changed
 - Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
