@@ -3,6 +3,7 @@
 
 """Tests for calfits object"""
 
+import mmap
 import os
 
 import numpy as np
@@ -16,6 +17,40 @@ from pyuvdata.testing import check_warnings
 
 from ..utils.test_coordinates import frame_selenoid, selenoids
 from . import extend_jones_axis, time_array_to_time_range
+
+
+def _is_memmapped(arr):
+    """Whether arr is a view into a memory-mapped file."""
+    while arr is not None:
+        if isinstance(arr, np.memmap | mmap.mmap):
+            return True
+        arr = getattr(arr, "base", None)
+    return False
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("memmap", [True, False])
+def test_read_memmap(caltype, memmap, gain_data, delay_data, tmp_path):
+    """Reading with or without memory mapping gives the same object."""
+    cal_in = gain_data if caltype == "gain" else delay_data
+    cal_in.total_quality_array = np.ones(
+        cal_in._total_quality_array.expected_shape(cal_in)
+    )
+    write_file = str(tmp_path / "outtest.fits")
+    cal_in.write_calfits(write_file, clobber=True)
+
+    cal_default = UVCal.from_file(write_file)
+    cal_memmap = UVCal.from_file(write_file, memmap=memmap)
+    assert cal_memmap == cal_default
+
+    # quality_array is sliced from the FITS data, so it is memory-mapped exactly when
+    # memmap is True
+    assert _is_memmapped(cal_default.quality_array)
+    assert _is_memmapped(cal_memmap.quality_array) == memmap
+    if caltype == "gain" and not memmap:
+        # the quality plane is copied out of the FITS data
+        assert cal_memmap.quality_array.base is None
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
