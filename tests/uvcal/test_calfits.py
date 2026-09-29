@@ -30,9 +30,8 @@ def _is_memmapped(arr):
 
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-@pytest.mark.parametrize("memmap", [True, False])
-def test_read_memmap(caltype, memmap, gain_data, delay_data, tmp_path):
-    """Reading with or without memory mapping gives the same object."""
+def test_read_not_memmapped(caltype, gain_data, delay_data, tmp_path):
+    """The arrays read from a calfits file are in memory, not mapped from the file."""
     cal_in = gain_data if caltype == "gain" else delay_data
     cal_in.total_quality_array = np.ones(
         cal_in._total_quality_array.expected_shape(cal_in)
@@ -40,17 +39,15 @@ def test_read_memmap(caltype, memmap, gain_data, delay_data, tmp_path):
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
 
-    cal_default = UVCal.from_file(write_file)
-    cal_memmap = UVCal.from_file(write_file, memmap=memmap)
-    assert cal_memmap == cal_default
-
-    # quality_array is sliced from the FITS data, so it is memory-mapped exactly when
-    # memmap is True
-    assert _is_memmapped(cal_default.quality_array)
-    assert _is_memmapped(cal_memmap.quality_array) == memmap
-    if caltype == "gain" and not memmap:
-        # the quality plane is copied out of the FITS data
-        assert cal_memmap.quality_array.base is None
+    cal_out = UVCal.from_file(write_file)
+    arrays = [cal_out.quality_array, cal_out.total_quality_array]
+    if caltype == "delay":
+        arrays.append(cal_out.delay_array)
+    for arr in arrays:
+        assert not _is_memmapped(arr)
+    if caltype == "gain":
+        # the quality array doesn't keep the rest of the FITS data in memory
+        assert cal_out.quality_array.base is None
 
 
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
