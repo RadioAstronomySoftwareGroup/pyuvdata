@@ -502,7 +502,6 @@ class CALFITS(UVCal):
         check_extra=True,
         run_check_acceptability=True,
         astrometry_library=None,
-        memmap=True,
     ):
         """Read data from a calfits file."""
         # update filename attribute
@@ -510,7 +509,8 @@ class CALFITS(UVCal):
         self.filename = [basename]
         self._filename.form = (1,)
 
-        with fits.open(filename, memmap=memmap) as fname:
+        # partial reading is not supported, so memory-mapping isn't needed
+        with fits.open(filename, memmap=False) as fname:
             hdr = fname[0].header.copy()
             hdunames = fits_utils._indexhdus(fname)
 
@@ -753,10 +753,8 @@ class CALFITS(UVCal):
                     )
                     self.flag_array = data[:, 0, :, :, :, 2].astype("bool")
                     if has_quality:
-                        self.quality_array = data[:, 0, :, :, :, -1]
-                        if not memmap:
-                            # copy, so the rest of the FITS data can be freed
-                            self.quality_array = self.quality_array.copy()
+                        # copy, so the rest of the FITS data can be freed
+                        self.quality_array = data[:, 0, :, :, :, -1].copy()
                 if self.cal_type == "delay":
                     self.delay_array = data[:, 0, :, :, :, 0]
                     if has_quality:

@@ -4721,11 +4721,6 @@ class UVCal(UVBase):
             (which uses the astropy utilities). Default is erfa unless the
             telescope_location frame is MCMF (on the moon), in which case the default
             is astropy.
-        memmap : bool
-            Option to memory-map the FITS data when reading it (passed to
-            `astropy.io.fits.open`). Setting this to False reads the data into memory
-            in one go, which can be several times faster on network file systems.
-            Default is True.
 
         """
         from . import calfits
@@ -5076,8 +5071,6 @@ class UVCal(UVBase):
         default_jones_array=None,
         # MiriadCal
         soln_type=None,
-        # CalFITS
-        memmap=True,
     ):
         """
         Read a generic file into a UVCal object.
@@ -5233,14 +5226,6 @@ class UVCal(UVBase):
             "gain", "delay", or "leakage". Default is None, which will look at the file
             and attempt to infer the solution type from the file contents.
 
-        CalFITS
-        -------
-        memmap : bool
-            Option to memory-map the FITS data when reading it (passed to
-            `astropy.io.fits.open`). Setting this to False reads the data into memory
-            in one go, which can be several times faster on network file systems.
-            Default is True.
-
         """
         if isinstance(filename, list | tuple | np.ndarray):
             for ind in range(len(filename)):
@@ -5372,8 +5357,6 @@ class UVCal(UVBase):
                 default_x_orientation=default_x_orientation,
                 default_jones_array=default_jones_array,
                 time_atol=time_atol,
-                # CalFITS
-                memmap=memmap,
             )
             uv_list = []
             for ind, file in enumerate(filename[1:]):
@@ -5421,8 +5404,6 @@ class UVCal(UVBase):
                     default_x_orientation=default_x_orientation,
                     default_jones_array=default_jones_array,
                     time_atol=time_atol,
-                    # CalFITS
-                    memmap=memmap,
                 )
                 uv_list.append(uvcal2)
             # Concatenate once at end
@@ -5506,7 +5487,6 @@ class UVCal(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     astrometry_library=astrometry_library,
-                    memmap=memmap,
                 )
 
             elif file_type == "fhd":
