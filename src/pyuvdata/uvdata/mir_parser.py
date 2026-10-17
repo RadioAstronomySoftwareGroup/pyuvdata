@@ -148,6 +148,10 @@ class MirPackdataError(Exception):
         super().__init__(message)
 
 
+#: Gunn multiplier (harmonic) of each SMA receiver, keyed on its MIR receiver code.
+MIR_RX_HARMONIC = {"230": 2, "240": 3, "345": 3, "400": 4}
+
+
 class MirParser:
     """
     General class for reading Mir datasets.
@@ -167,6 +171,7 @@ class MirParser:
         *,
         compass_soln=None,
         make_v3_compliant=None,
+        make_metadata_compliant=None,
         old_vis_format=None,
         nchunks=None,
         has_auto=False,
@@ -190,9 +195,10 @@ class MirParser:
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are loaded into the object.
         make_v3_compliant : bool
-            Convert the metadata required for filling a UVData object into a
-            v3-compliant format. Only applicable if MIR file version is v1 or v2.
-            Default behavior is to set this to True if the file version is v1 or v2.
+            Outdated keyword, which is no longer used and has no effect.
+        make_metadata_compliant : bool
+            Convert the metadata to a format compliant with the current minimum version
+            supported for SMA (currently v4).
         old_vis_format : bool
             Prior to the v1 data format, older visibility data was recorded with
             different header fields and endianness (big-endian versus the current
@@ -266,6 +272,7 @@ class MirParser:
                 filepath=filepath,
                 compass_soln=compass_soln,
                 make_v3_compliant=make_v3_compliant,
+                make_metadata_compliant=make_metadata_compliant,
                 old_vis_format=old_vis_format,
                 nchunks=nchunks,
                 has_auto=has_auto,
@@ -3154,6 +3161,7 @@ class MirParser:
         *,
         compass_soln=None,
         make_v3_compliant=None,
+        make_metadata_compliant=None,
         old_vis_format=None,
         nchunks=None,
         has_auto=False,
@@ -3178,9 +3186,10 @@ class MirParser:
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are loaded into the object.
         make_v3_compliant : bool
-            Convert the metadata required for filling a UVData object into a
-            v3-compliant format. Only applicable if MIR file version is v1 or v2.
-            Default behavior is to set this to True if the file version is v1 or v2.
+            Outdated keyword, which is no longer used and has no effect.
+        make_metadata_compliant : bool
+            Convert the metadata to a format compliant with the current minimum version
+            supported for SMA (currently v4).
         old_vis_format : bool
             Prior to the v1 data format, older visibility data was recorded with
             different header fields and endianness (big-endian versus the current
@@ -3204,14 +3213,22 @@ class MirParser:
         load_raw : bool
             Flag to load raw data into memory. Default is False.
         flag_bad_records : bool
-            By default, records which cause UVData.check to fail are nominally excluded
+            By default, records which cause UVData.check to fail are nominally excluded.
+            Note that this only applies if `make_metadata_compliant` is set to True.
         """
+        if make_v3_compliant is not None:
+            warnings.warn(
+                "The make_v3_compliant keyword is deprecated and will be removed in "
+                "pyuvdata v3.4, please use make_metadata_compliant instead.",
+                DeprecationWarning,
+            )
+
         # If auto-defaults are turned on, we can use the codes information within the
         # file to determine a few things. Use this to automatically handle a few
         # different things that change between the major file versions. Note that this
         # is meant to be a stopgap solution.
         filever = None
-        if None in [make_v3_compliant, old_vis_format, nchunks]:
+        if None in [make_metadata_compliant, old_vis_format, nchunks]:
             try:
                 temp_codes = MirCodesData(
                     filepath[0] if isinstance(filepath, list) else filepath
@@ -3223,10 +3240,10 @@ class MirParser:
                 # add to the testing data depot.
                 filever = 1
 
-        if make_v3_compliant is None:
-            # If v0, v1, or v2, we need to plug in the necessary metadata for making
-            # the conversion to UVData feasible.
-            make_v3_compliant = filever < 3
+        if make_metadata_compliant is None:
+            # Every version gets checked: v0-v2 need metadata plugged in for the
+            # conversion to UVData, v3 needs fDDS filled.
+            make_metadata_compliant = True
 
         if old_vis_format is None:
             # If this is a converted v0 file, from the ASIC era, with the old vis format
@@ -3280,10 +3297,11 @@ class MirParser:
                 "common_scale": True,
             }
 
-        # If we need to update metadata for V3 compliance, do that now, since we fill
-        # the acdata struct with fields added in V3.
-        if make_v3_compliant:
-            self._make_v3_compliant()
+        # If we need to update metadata for V4 compliance, do that now, since we
+        # fill the acdata struct with fields added in V4. (note this will also fix
+        # fDDS, which is a V4 field that is needed for some elements here).
+        if make_metadata_compliant:
+            self._make_v4_compliant()
 
         if self._has_auto:
             filetype = "ach_read"
@@ -3300,7 +3318,7 @@ class MirParser:
                 data_nvals=1,  # Real-only vals
                 pad_nvals=0,  # Autos have no padding, at least not currently.
                 scale_data=False,  # Auto data has no common scaling
-                hdr_fmt=OLD_AUTO_HEADER if old_vis_format else NEW_AUTO_HEADER,
+                hdr_fmt=OLD_AUTO_HEADER if old_auto_format else NEW_AUTO_HEADER,
             )
 
             file_dict["auto"] = {
@@ -3323,7 +3341,7 @@ class MirParser:
         self.vis_data = self.raw_data = self.auto_data = None
         self._tsys_applied = False
 
-        if flag_bad_records:
+        if flag_bad_records and make_metadata_compliant:
             self.flag_bad_records()
 
         # If requested, now we load up the visibilities.
@@ -4873,25 +4891,26 @@ class MirParser:
             # is optimal in the range [-1, -0.5] (although other values can be used).
             # Note that this formula comes from "Cubic Convolution Interpolation for
             # Digital Image Processing" by Robert Keys, IEEE Trans. VOL ASSP-29 #6
-            # (Dec 1981).
+            # (Dec 1981). Note that the order is flipped since unlike the IDL/MIR
+            # equivalent, np.convolve flips the kernel prior to convolution.
             shift_tuple = (
                 coarse_shift,
                 4,
                 np.array(
                     [
-                        (alpha_fac * ((2 - fine_shift) ** 3))  # 2-left entry
-                        - (5 * alpha_fac * ((2 - fine_shift) ** 2))
-                        + (8 * alpha_fac * (2 - fine_shift))
-                        - (4 * alpha_fac),
-                        ((alpha_fac + 2) * ((1 - fine_shift) ** 3))  # 1-left entry
-                        - ((alpha_fac + 3) * ((1 - fine_shift) ** 2))
-                        + 1,
-                        ((alpha_fac + 2) * (fine_shift**3))  # 1-right entry
-                        - ((alpha_fac + 3) * (fine_shift**2))
-                        + 1,
                         (alpha_fac * ((1 + fine_shift) ** 3))  # 2-right entry
                         - (5 * alpha_fac * ((1 + fine_shift) ** 2))
                         + (8 * alpha_fac * (1 + fine_shift))
+                        - (4 * alpha_fac),
+                        ((alpha_fac + 2) * (fine_shift**3))  # 1-right entry
+                        - ((alpha_fac + 3) * (fine_shift**2))
+                        + 1,
+                        ((alpha_fac + 2) * ((1 - fine_shift) ** 3))  # 1-left entry
+                        - ((alpha_fac + 3) * ((1 - fine_shift) ** 2))
+                        + 1,
+                        (alpha_fac * ((2 - fine_shift) ** 3))  # 2-left entry
+                        - (5 * alpha_fac * ((2 - fine_shift) ** 2))
+                        + (8 * alpha_fac * (2 - fine_shift))
                         - (4 * alpha_fac),
                     ],
                     dtype=np.float32,
@@ -5159,7 +5178,7 @@ class MirParser:
         kernel_type="cubic",
         tol=1e-3,
         flag_adj=True,
-        fix_freq=None,
+        fix_freq=True,
     ):
         """
         Re-doppler the data.
@@ -5201,62 +5220,69 @@ class MirParser:
             spectral PSF across the band.
         fix_freq : bool
             Only used if `freq_shift` is left unset (or otherwise set to None). Some
-            versions of MIR data have frequency information incorrectly stored. If set
-            to True, this metadata will be fixed before doppler-shifting the data. By
-            default, the method will apply this correction if the version of the MIR
-            data format is known to have the defective metadata.
+            versions of the MIR format record the frequency shift metadata differently,
+            and this flag allows the method to correct for it automatically. Default is
+            True.
 
         Raises
         ------
         ValueError
             If tol is outside of the range [0, 0.5], or if kernel_type does not match
-            the list of supported values. Also if providing no argument to freq_shift,
-            but doppler-tracking information cannot be determined (either because
-            it's the wrong file version or because the receiver code isn't recognized).
+            the list of supported values.
         """
         if freq_shift is None:
-            if not (
-                "filever" in self.codes_data.get_code_names()
-                and self.codes_data["filever"] not in [["2"], ["3"]]
-            ):
-                raise ValueError(
-                    "MIR file format < v4.0 detected, no doppler tracking information "
-                    "is stored in the file headers."
-                )
             # Grab the metadata from the sp data structure, flipping the sign since
             # we want to shift the spectrum back to the listed sky frequency.
             freq_shift = -self.sp_data["fDDS"]
 
-            # If we need to "fix" the values, do it now.
-            if (fix_freq is None and (self.codes_data["filever"] == ["4"])) or fix_freq:
-                # Figure out which receiver this is.
-                rx_code = int(
-                    np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
-                )
-                rx_name = self.codes_data["rec"][rx_code]
-                if rx_name not in ("230", "345"):
-                    raise ValueError(f"Receiver code {rx_code} not recognized.")
+            # Ignore the pseudo-cont values
+            freq_shift[self.sp_data["corrchunk"] == 0] = 0.0
 
-                freq_shift *= 2 if (rx_name == "230") else 3
-                # We have to do a bit of special handling for the so-called "RxB"
-                # data, which doesn't actually have the fDDS values stored. The correct
-                # value though just turns out to be the RxA value multiplied by
-                # the ratio of the two gunn frequencies.
-                rxa_blhids = self.bl_data["blhid"][
-                    (self.bl_data["ant1rx"] == 0) & (self.bl_data["ant2rx"] == 0)
-                ]
-                rxb_blhids = self.bl_data["blhid"][
-                    (self.bl_data["ant1rx"] == 1) & (self.bl_data["ant2rx"] == 1)
-                ]
-                sp_rxa = np.isin(self.sp_data["blhid"], rxa_blhids)
-                sp_rxb = np.isin(self.sp_data["blhid"], rxb_blhids)
-                freq_scale = np.median(self.sp_data["gunnLO"][sp_rxb]) / np.median(
-                    self.sp_data["gunnLO"][sp_rxa]
+            if fix_freq:
+                # Figure out which entries are pure RxA vs RxB entries
+                rxa_blhid = self.bl_data.get_value(
+                    "blhid", where=(("ant1rx", "eq", 0), ("ant2rx", "eq", 0))
                 )
-                freq_shift[sp_rxb] *= freq_scale
+                rxb_blhid = self.bl_data.get_value(
+                    "blhid", where=(("ant1rx", "eq", 1), ("ant2rx", "eq", 1))
+                )
 
-                # Finally, we want to just ignore the pseudo-cont values
-                freq_shift[self.sp_data["corrchunk"] == 0] = 0.0
+                rec_dict = self.codes_data["rec"]
+                rec_rxa = rec_rxb = None
+
+                # Figure out which receiver codes are in the dataset
+                if rxa_blhid.size > 0:
+                    rec_rxa = np.median(
+                        self.bl_data.get_value("irec", header_key=rxa_blhid)
+                    )
+                if rxb_blhid.size > 0:
+                    rec_rxb = np.median(
+                        self.bl_data.get_value("irec", header_key=rxb_blhid)
+                    )
+
+                # Get the multipliers, since we'll need them here shortly
+                mult_rxb = MIR_RX_HARMONIC.get(rec_dict.get(rec_rxb), 0)
+                mult_rxa = MIR_RX_HARMONIC.get(rec_dict.get(rec_rxa), 0)
+
+                if mult_rxa == 0 or (rxb_blhid.size != 0 and mult_rxb == 0):
+                    warnings.warn(
+                        "Unable to determine appropriate frequency shift due to an "
+                        "unknown receiver configuration. Skipping doppler correction."
+                    )
+                    return
+                elif (
+                    "filever" not in self.codes_data.get_code_names()
+                    or self.codes_data["filever"][0] in ("2", "3", "4")
+                ):
+                    # Everyone's off by the common multiplier for RxA
+                    freq_shift *= mult_rxa
+                elif mult_rxb != 0 and mult_rxa != mult_rxb:
+                    # The pure-RxB entries are off by the ratio of the gunn multipliers
+                    # Note that if the multipliers are the same or if there are no
+                    # pure-RxB entries (mult_rxb == 0), no adjustment is needed.
+                    freq_shift[np.isin(self.sp_data["blhid"], rxb_blhid)] *= (
+                        mult_rxa / mult_rxb
+                    )
 
         # Convert frequency shift into number of channels to shift. Note that the
         # negative sign here is to flip conventions (i.e., shifting "up" the center of
@@ -5441,6 +5467,84 @@ class MirParser:
             self.sp_data.set_value(
                 "corrchunk", new_chunks, where=("correlator", "eq", 1)
             )
+
+        # Clear the stored values so that reset doesn't use outdated cached data.
+        self.in_data._stored_values = {}
+        self.bl_data._stored_values = {}
+        self.sp_data._stored_values = {}
+
+    def _make_v4_compliant(self):
+        """
+        Update MIR metadata for export to UVData for v4 compliance.
+
+        This is an internal helper function, not meant to be called by users. This
+        function will make necessary adjustments to the metadata to ensure it is
+        compliant with MIR file version 4.
+        """
+        if "filever" in self.codes_data.get_code_names() and self.codes_data["filever"][
+            0
+        ] not in ("2", "3"):
+            # If the file version is already >= 4.0, then this is basically a no-op
+            return
+
+        if (
+            "filever" in self.codes_data.get_code_names()
+            and self.codes_data["filever"][0] == "3"
+        ):
+            # Older versions already warn on their way through _make_v3_compliant
+            warnings.warn(
+                "Pre v.4 MIR file format detected, modifying metadata to make it "
+                "minimally compliant for reading in with pyuvdata."
+            )
+
+        self._make_v3_compliant()
+        from ..data import DATA_PATH
+
+        # Finally, update the fDDS values
+        fdds_file = os.path.join(
+            DATA_PATH, "sma_config_data", "fDDS_compressed_screened.npz"
+        )
+        fdds_data = np.load(fdds_file)
+        fdds_mjd, fdds_freqs = fdds_data["mjd_tt"], fdds_data["fdds_ghz"]
+        # The table carries NaN markers in the gaps between archived tracks, so a
+        # NaN here (or from left/right) means there is no DDS record for that time.
+        fdds_vals = np.interp(
+            self.in_data.get_value("mjd", header_key=self.sp_data["inhid"]),
+            fdds_mjd,
+            fdds_freqs,
+            left=np.nan,
+            right=np.nan,
+        )
+        no_dds = np.isnan(fdds_vals)
+        if np.any(no_dds):
+            n_bad = len(np.unique(self.sp_data["inhid"][no_dds]))
+            n_tot = len(np.unique(self.sp_data["inhid"]))
+            warnings.warn(
+                f"{n_bad} of {n_tot} integrations fall outside the archived "
+                "doppler-tracking record; their fDDS values are set to 0, so no "
+                "de-doppler correction will be applied to them."
+            )
+            fdds_vals[no_dds] = 0.0
+
+        # v4 files record the RxA DDS-level term for every product except pure-RxB
+        # ones, which are scaled by the ratio of the LO frequencies; do the same.
+        rxa_blhid = self.bl_data.get_value(
+            "blhid", where=(("ant1rx", "eq", 0), ("ant2rx", "eq", 0))
+        )
+        rxb_blhid = self.bl_data.get_value(
+            "blhid", where=(("ant1rx", "eq", 1), ("ant2rx", "eq", 1))
+        )
+
+        sp_rxa = np.isin(self.sp_data["blhid"], rxa_blhid)
+        sp_rxb = np.isin(self.sp_data["blhid"], rxb_blhid)
+        if sp_rxb.any() and not sp_rxb.all():
+            gunn_lo = self.sp_data["gunnLO"]
+            fdds_vals[sp_rxb] *= np.median(gunn_lo[sp_rxb]) / np.median(gunn_lo[sp_rxa])
+
+        self.sp_data["fDDS"] = fdds_vals
+
+        # Clear the stored values to prevent outdated cached data from being used.
+        self.sp_data._stored_values = {}
 
     def flag_shadowed_antennas(self):
         """Flag records from shadowed antennas."""
