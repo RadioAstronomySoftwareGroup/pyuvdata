@@ -957,20 +957,8 @@ def _interp_dispatcher(
     # Making this explicit here that the two items are linked
     ignore_flags = flag_nearest
 
-    build_flags = build_interp_flags(
-        old_cal,
-        old_flags,
-        old_times,
-        new_times,
-        tol_lim=flag_delta,
-        is_gain_amp=(mode == "amp"),
-        is_gain_pha=(mode == "phase"),
-        flag_adjacent=flag_nearest,
-        max_time_delta=max_time_delta,
-        allow_extrapolation=allow_extrapolation,
-    )
-
     orig_dtype = old_cal.dtype
+    flag_cal = old_cal
     if mode == "real":
         old_cal = old_cal.real
     elif mode == "imag":
@@ -998,6 +986,20 @@ def _interp_dispatcher(
             max_time_delta = amp_max_time_delta
     else:
         raise ValueError(f"Unrecognised mode '{mode}'.")
+
+    # Build flags now that defaults have been set
+    build_flags = build_interp_flags(
+        flag_cal,
+        old_flags,
+        old_times,
+        new_times,
+        tol_lim=flag_delta,
+        is_gain_amp=(mode == "amp"),
+        is_gain_pha=(mode == "phase"),
+        flag_adjacent=flag_nearest,
+        max_time_delta=max_time_delta,
+        allow_extrapolation=allow_extrapolation,
+    )
 
     new_flags = build_flags if new_flags is None else (new_flags | build_flags)
 
