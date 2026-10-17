@@ -1988,6 +1988,8 @@ def test_uvw_track_generator_errs():
         utils.uvw_track_generator(telescope_loc=(0, 0, 0), telescope_frame="MCMF")
 
 
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.parametrize("flip_u", [False, True])
 @pytest.mark.parametrize("use_uvw", [False, True])
 @pytest.mark.parametrize("use_earthloc", [False, True])

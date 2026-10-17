@@ -11783,6 +11783,8 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         [
             "sma_mir",
             [
+                "Pre v.4 MIR file format detected",
+                "fall outside the archived doppler-tracking record",
                 (
                     "The lst_array is not self-consistent with the time_array and "
                     "telescope location. Consider recomputing with the "
