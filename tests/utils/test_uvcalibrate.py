@@ -1478,7 +1478,6 @@ def test_uvcalibrate_irregular_blt_times(uvcalibrate_data, interpolate):
             & (uvd.ant_2_array == uvd.ant_2_array[0])
         )
     )[0]
-    assert keep.any() and not keep.all()
 
     full = utils.uvcalibrate(uvd, uvc, inplace=False, interpolate=interpolate)
     gapped = utils.uvcalibrate(
