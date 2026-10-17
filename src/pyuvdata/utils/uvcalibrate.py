@@ -786,11 +786,12 @@ def uvcalibrate(
             if uvcal.time_range is not None and uvcal.Ntimes > 1:
                 gain = gain[trange_ind_arr[blt_subinds], :]
                 flag = flag[trange_ind_arr[blt_subinds], :]
-            elif keep_pos is not None and gain.shape[0] == keep_pos.size:
-                # If we only need a subset of the interpolated gains, grab them now
-                # for the apply step.
-                gain = gain[keep_pos]
-                flag = flag[keep_pos]
+            elif gain.shape[0] == uvdata_times.size and uvdata_times.size > 1:
+                # There is one solution per unique time on the data, so map each
+                # record to its own time, since different baselines may have different
+                # time cadences recorded.
+                gain = gain[uvd_time_ri[blt_subinds], :]
+                flag = flag[uvd_time_ri[blt_subinds], :]
 
             # Use a slice operator to expand out the flags and gains with a wide_band
             # calibration solution, otherwise use the Ellipsis to select the whole

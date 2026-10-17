@@ -1465,6 +1465,34 @@ def test_uvcalibrate_interpolate_with_select(uvcalibrate_data):
     np.testing.assert_array_equal(part.data_array[~mask], uvd.data_array[~mask])
 
 
+@pytest.mark.parametrize("interpolate", [False, True])
+def test_uvcalibrate_irregular_blt_times(uvcalibrate_data, interpolate):
+    uvd, uvc = uvcalibrate_data
+
+    # Drop the first time from a single baseline, so that the blt axis no longer
+    # steps through the times in lockstep for every baseline.
+    keep = np.nonzero(
+        np.logical_not(
+            (uvd.time_array == uvd.time_array[0])
+            & (uvd.ant_1_array == uvd.ant_1_array[0])
+            & (uvd.ant_2_array == uvd.ant_2_array[0])
+        )
+    )[0]
+    assert keep.any() and not keep.all()
+
+    full = utils.uvcalibrate(uvd, uvc, inplace=False, interpolate=interpolate)
+    gapped = utils.uvcalibrate(
+        uvd.select(blt_inds=keep, inplace=False),
+        uvc,
+        inplace=False,
+        interpolate=interpolate,
+    )
+
+    np.testing.assert_allclose(gapped.data_array, full.data_array[keep])
+    np.testing.assert_array_equal(gapped.flag_array, full.flag_array[keep])
+    np.testing.assert_allclose(gapped.nsample_array, full.nsample_array[keep])
+
+
 @pytest.mark.filterwarnings("ignore:Antennas .* have data on UVData but are missing")
 @pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
 def test_uvcalibrate_uvc_select_kwargs(uvcalibrate_data):
