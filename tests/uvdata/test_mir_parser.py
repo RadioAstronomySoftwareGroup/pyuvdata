@@ -45,6 +45,15 @@ def _matlab_char_array(string):
     return np.array([[ord(char) for char in string]], dtype=np.uint16)
 
 
+# Warnings raised whenever the (v3-format) test data set is read fresh from disk: the
+# metadata gets brought up to v4, and its single integration falls in a gap of the
+# archived doppler-tracking record.
+V4_COMPLIANCE_WARNINGS = [
+    "Pre v.4 MIR file format detected",
+    "fall outside the archived doppler-tracking record",
+]
+
+
 @pytest.fixture(scope="module")
 def compass_soln_file(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp("mir_parser", numbered=True)
@@ -532,9 +541,10 @@ def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file):
     mir_data.rechunk(16)
     mir_data.load_data()
 
-    mir_copy = MirParser(
-        mir_data.filepath, compass_soln=compass_soln_file, has_auto=True
-    )
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        mir_copy = MirParser(
+            mir_data.filepath, compass_soln=compass_soln_file, has_auto=True
+        )
     mir_copy.load_data()
     mir_copy.rechunk(16)
 
@@ -1586,7 +1596,8 @@ def test_write_warn(mir_data, tmp_path, unload_data, warn_msg):
     mir_data.unload_data()
     mir_data._clear_auto()
 
-    mir_copy = MirParser(testfile)
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        mir_copy = MirParser(testfile)
     assert (
         mir_copy._file_dict[mir_copy.filepath] == mir_data._file_dict[mir_data.filepath]
     )
@@ -2004,7 +2015,8 @@ def test_add_concat_warn(mir_data, tmp_path):
     with check_warnings(UserWarning, "Writing out raw data with tsys applied."):
         mir_data.write(filepath)
 
-    mir_copy = MirParser(filepath)
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        mir_copy = MirParser(filepath)
     with check_warnings(
         UserWarning,
         [
@@ -2062,8 +2074,11 @@ def test_add_concat(mir_data, tmp_path):
 
     with check_warnings(UserWarning, "Writing out raw data with tsys applied."):
         mir_copy.write(filepath, overwrite=True)
-    # Read the file in so that we have a dict here to work with.
-    mir_copy.read(filepath, load_cross=True, has_auto=True)
+    # Read the file in so that we have a dict here to work with. Skip the metadata
+    # compliance step, which would otherwise regenerate fDDS from the timestamps.
+    mir_copy.read(
+        filepath, load_cross=True, has_auto=True, make_metadata_compliant=False
+    )
 
     new_obj = mir_data + mir_copy
 
@@ -2116,9 +2131,9 @@ def test_generate_chanshift_kernel_errs(kern_type, tol, err_type, err_msg):
         ["linear", 1.3, -0.5, 1e-3, 1, [0.7, 0.3]],
         ["linear", -1.3, -0.5, 1e-3, -2, [0.3, 0.7]],
         ["cubic", -3.5, 0, 1e-3, -4, [0, 0.5, 0.5, 0]],
-        ["cubic", 1.4, 0.0, 1e-3, 1, [0.0, 0.352, 0.648, 0.0]],
-        ["cubic", 1.4, -0.5, 1e-4, 1, [-0.048, 0.424, 0.696, -0.072]],
-        ["cubic", 1.4, -1.0, 0, 1, [-0.096, 0.496, 0.744, -0.144]],
+        ["cubic", 1.4, 0.0, 1e-3, 1, [0.0, 0.648, 0.352, 0.0]],
+        ["cubic", 1.4, -0.5, 1e-4, 1, [-0.072, 0.696, 0.424, -0.048]],
+        ["cubic", 1.4, -1.0, 0, 1, [-0.144, 0.744, 0.496, -0.096]],
     ],
 )
 def test_generate_chanshift_kernel(
@@ -2327,20 +2342,141 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
     assert np.all(new_dict[456]["weights"] == exp_weights)
 
 
-@pytest.mark.parametrize(
-    "filever,irec,err_type,err_msg",
-    [
-        ["2", 3, ValueError, "MIR file format < v4.0 detected,"],
-        ["4", 3, ValueError, "Receiver code 3 not recognized."],
-    ],
-)
-def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
-    """Verify that redoppler_data throws errors as expected."""
-    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
-    mir_data.bl_data["irec"] = irec
+def _plug_and_redoppler(mir_data, fdds_chan, **kwargs):
+    """
+    Plug fDDS values (in units of a channel width) and de-doppler unit-ramp data.
 
-    with pytest.raises(err_type, match=err_msg):
-        mir_data.redoppler_data()
+    Returns the integer channel shift each spectral record actually received,
+    keyed on sphid, as measured on the data.
+    """
+    for sphid, nch in zip(
+        mir_data.sp_data["sphid"], mir_data.sp_data["nch"], strict=True
+    ):
+        mir_data.vis_data[sphid]["data"][:] = np.arange(nch)
+        mir_data.vis_data[sphid]["flags"][:] = False
+
+    # fDDS is in GHz, fres in MHz; the sign convention is that redoppler shifts
+    # the spectrum "up" by fDDS, so a positive plug moves the ramp down in index.
+    mir_data.sp_data["fDDS"] = fdds_chan * (mir_data.sp_data["fres"] / 1000)
+    mir_data.redoppler_data(**kwargs)
+
+    shifts = {}
+    for sp_rec in mir_data.sp_data:
+        data = mir_data.vis_data[sp_rec["sphid"]]["data"].real
+        nch = sp_rec["nch"]
+        # Find where the ramp landed (the unshifted part is exact)
+        shift = int(np.round(data[nch // 2] - (nch // 2)))
+        shifts[sp_rec["sphid"]] = -shift
+    return shifts
+
+
+@pytest.mark.parametrize("filever", ["2", "4", "5"])
+@pytest.mark.parametrize("lo_ratio", [1.0, 2.0])
+def test_redoppler_fix_freq(mir_data, filever, lo_ratio):
+    """
+    The stored fDDS values come out as the same fractional shift on both chains.
+
+    Through v4 the file records the DDS-level term (RxB's carrying the ratio of the
+    LOs); from v5 the sky shift, but with RxB scaled by its own Gunn multiplier
+    instead of RxA's. Cross-receiver products (full-pol tracks) carry RxA's value.
+    """
+    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
+    bl_data = mir_data.bl_data
+    rxb = (bl_data["ant1rx"] == 1) & (bl_data["ant2rx"] == 1)
+    # Turn one of the RxB baselines into a cross-receiver product
+    cross = np.zeros_like(rxb)
+    cross[np.where(rxb)[0][:1]] = True
+    mir_data.bl_data["ant1rx"] = np.where(cross, 0, bl_data["ant1rx"])
+    rxb &= ~cross
+
+    sp_rxb = np.isin(mir_data.sp_data["blhid"], bl_data["blhid"][rxb])
+    sp_cross = np.isin(mir_data.sp_data["blhid"], bl_data["blhid"][cross])
+    chunks = mir_data.sp_data["corrchunk"] != 0
+    mir_data.sp_data["gunnLO"] = mir_data.sp_data["gunnLO"] * np.where(
+        sp_rxb, lo_ratio, 1.0
+    )
+
+    # Aim for a shift of 2 channels on RxA (230, x2), 2 * lo_ratio on RxB (240, x3)
+    if filever in ("2", "4"):
+        plug = 1.0 * np.where(sp_rxb, lo_ratio, 1.0)
+    else:
+        plug = 2.0 * np.where(sp_rxb, lo_ratio * 3 / 2, 1.0)
+    shifts = _plug_and_redoppler(mir_data, plug * chunks)
+
+    for sp_rec in mir_data.sp_data:
+        sphid = sp_rec["sphid"]
+        if sp_rec["corrchunk"] == 0:
+            assert shifts[sphid] == 0
+        elif sphid in mir_data.sp_data["sphid"][sp_rxb]:
+            assert shifts[sphid] == 2 * lo_ratio
+        else:
+            assert shifts[sphid] == 2
+    assert np.any(sp_cross)
+
+
+@pytest.mark.parametrize("filever", ["4", "5"])
+@pytest.mark.parametrize("receiver", ["230", "240"])
+def test_redoppler_single_receiver(mir_data, filever, receiver):
+    """
+    RxA alone is corrected with its own multiplier, RxB alone cannot be.
+
+    Every file version needs RxA's Gunn multiplier to fix up the recorded values, so
+    a selection with no pure-RxA records has no way of determining the correction.
+    """
+    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
+    mir_data.select(where=("rec", "eq", receiver))
+    chunks = mir_data.sp_data["corrchunk"] != 0
+
+    # DDS-level values through v4 need x2 for the 230; from v5 they're already right
+    plug = 1.0 if filever == "4" else 2.0
+    if receiver == "230":
+        shifts = _plug_and_redoppler(mir_data, plug * chunks)
+        exp_shift = 2
+    else:
+        with check_warnings(
+            UserWarning, "Unable to determine appropriate frequency shift due to an"
+        ):
+            shifts = _plug_and_redoppler(mir_data, plug * chunks)
+        exp_shift = 0
+    for sp_rec in mir_data.sp_data:
+        assert shifts[sp_rec["sphid"]] == (exp_shift if sp_rec["corrchunk"] else 0)
+
+
+@pytest.mark.parametrize("filever", ["4", "5"])
+@pytest.mark.parametrize("scenario", ["both_unknown", "rxb_unknown", "single_unknown"])
+def test_redoppler_unknown_receiver(mir_data, filever, scenario):
+    """Without a known Gunn multiplier the correction is skipped, with a warning."""
+    mir_data.codes_data.set_value("code", filever, where=("v_name", "eq", "filever"))
+    if scenario == "both_unknown":
+        # Every baseline on a receiver code with no known multiplier
+        mir_data.bl_data["irec"] = 3
+        unknown = 3
+    elif scenario == "rxb_unknown":
+        unknown = 3
+    else:
+        # A single (RxA) receiver whose code is not recognized
+        mir_data.select(where=("rec", "eq", "230"))
+        unknown = 0
+    mir_data.codes_data.set_value(
+        "code", "999", where=[("v_name", "eq", "rec"), ("icode", "eq", unknown)]
+    )
+
+    chunks = mir_data.sp_data["corrchunk"] != 0
+    with check_warnings(
+        UserWarning, "Unable to determine appropriate frequency shift due to an"
+    ):
+        shifts = _plug_and_redoppler(mir_data, 1.0 * chunks)
+    # Nothing was shifted
+    assert all(shift == 0 for shift in shifts.values())
+
+
+def test_redoppler_no_fix(mir_data):
+    """fix_freq=False applies the recorded values without any version handling."""
+    mir_data.codes_data.set_value("code", "4", where=("v_name", "eq", "filever"))
+    chunks = mir_data.sp_data["corrchunk"] != 0
+    shifts = _plug_and_redoppler(mir_data, 1.0 * chunks, fix_freq=False)
+    for sp_rec in mir_data.sp_data:
+        assert shifts[sp_rec["sphid"]] == (1 if sp_rec["corrchunk"] else 0)
 
 
 @pytest.mark.parametrize("plug_vals", [True, False])
@@ -2348,9 +2484,6 @@ def test_redoppler_data_errs(mir_data, filever, irec, err_type, err_msg):
 @pytest.mark.parametrize("use_raw", [True, False])
 def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     """Verify that redoppler_data behaves as expected."""
-    # We have to spoof the filever because the test file is technically v3
-    mir_data.codes_data.set_value("code", "4", where=("v_name", "eq", "filever"))
-
     if use_raw:
         mir_data.raw_data = mir_data._convert_vis_to_raw(mir_data.vis_data)
         mir_data.vis_data = None
@@ -2373,17 +2506,17 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
             mir_data.vis_data[sphid]["flags"][:] = False
 
     rxb_blhids = mir_data.bl_data["blhid"][mir_data.bl_data["ant1rx"] == 1]
+    sp_rxb = np.isin(mir_data.sp_data["blhid"], rxb_blhids)
 
     freq_shift = (
         (139.6484375e-6)
-        * (1 + (diff_rx & np.isin(mir_data.sp_data["blhid"], rxb_blhids)))
+        * (1 + (diff_rx & sp_rxb))
         * (mir_data.sp_data["corrchunk"] != 0)
     )
 
     if plug_vals:
-        # Note we need the factor of two here now to simulate the an error
-        # that is currently present
-        # TODO: Remove this once the underlying issue is fixed.
+        # The test file is v3, whose fDDS values are the DDS-level term: the shift
+        # divided by the Gunn multiplier of the 230 receiver (2).
         mir_data.sp_data["fDDS"] = -(freq_shift / 2)
         freq_shift = None
 
@@ -2512,18 +2645,19 @@ def test_mir_save_restore_mask_loop(mir_data: MirParser):
 @pytest.mark.parametrize("from_file", [False, True])
 def test_mir_fix_v3_noop(mir_data, from_file):
     # The test file is already v3, so this should be identical
-    if from_file:
-        mir_copy = MirParser(
-            mir_data.filepath,
-            make_v3_compliant=True,
-            nchunks=8,
-            has_auto=True,
-            load_auto=True,
-            load_cross=True,
-        )
-    else:
-        mir_copy = mir_data.copy()
-        mir_copy._make_v3_compliant()
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        if from_file:
+            mir_copy = MirParser(
+                mir_data.filepath,
+                make_metadata_compliant=True,
+                nchunks=8,
+                has_auto=True,
+                load_auto=True,
+                load_cross=True,
+            )
+        else:
+            mir_copy = mir_data.copy()
+            mir_copy._make_v4_compliant()
 
     assert mir_copy == mir_data
 
@@ -2531,7 +2665,8 @@ def test_mir_fix_v3_noop(mir_data, from_file):
 @pytest.mark.parametrize("muck_antrx", [False, True])
 @pytest.mark.parametrize("muck_corrchunk", [False, True])
 def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
-    mir_data = MirParser()._load_test_data(has_auto=True)
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        mir_data = MirParser()._load_test_data(has_auto=True)
     mir_copy = mir_data.copy()
     mir_copy.codes_data._data[0]["code"] = "2"
     if muck_antrx:
@@ -2540,8 +2675,14 @@ def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
     if muck_corrchunk:
         mir_copy.sp_data["corrchunk"] = 0
 
-    with check_warnings(UserWarning, "Pre v.3 MIR file format detected"):
-        mir_copy._make_v3_compliant()
+    with check_warnings(
+        UserWarning,
+        [
+            "Pre v.3 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
+        ],
+    ):
+        mir_copy._make_v4_compliant()
 
     assert mir_copy.codes_data["filever"] == ["2"]
     mir_copy.codes_data._data[0]["code"] = "3"
@@ -2861,12 +3002,14 @@ def test_mir_parser_read_path_vs_str():
     from pathlib import Path
 
     sma_data_path = str(fetch_data("sma_mir"))
-    sma_str_init = MirParser(
-        sma_data_path, load_cross=True, load_auto=True, has_auto=True
-    )
-    sma_path_init = MirParser(
-        Path(sma_data_path), load_cross=True, load_auto=True, has_auto=True
-    )
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        sma_str_init = MirParser(
+            sma_data_path, load_cross=True, load_auto=True, has_auto=True
+        )
+    with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
+        sma_path_init = MirParser(
+            Path(sma_data_path), load_cross=True, load_auto=True, has_auto=True
+        )
     assert sma_str_init == sma_path_init
 
 

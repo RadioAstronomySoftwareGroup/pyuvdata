@@ -94,6 +94,8 @@ def sma_mir_main():
     with check_warnings(
         UserWarning,
         match=[
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
             "> 25 ms errors detected reading in LST values from MIR data. ",
             "The lst_array is not self-consistent with the time_array and telescope ",
         ],
@@ -116,7 +118,17 @@ def sma_mir(sma_mir_main):
 def mir_data_main():
     mir_data = MirParser()
 
-    yield mir_data._load_test_data(load_cross=True, load_auto=True, has_auto=True)
+    with check_warnings(
+        UserWarning,
+        match=[
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
+        ],
+    ):
+        mir_data = mir_data._load_test_data(
+            load_cross=True, load_auto=True, has_auto=True
+        )
+    yield mir_data
 
 
 @pytest.fixture(scope="function")

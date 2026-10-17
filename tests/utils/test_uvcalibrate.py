@@ -899,6 +899,8 @@ def test_uvdata_pol_array_in_stokes(uvcalibrate_data, flex):
         uvcalibrate(uvd, uvc)
 
 
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value in known")
@@ -930,6 +932,8 @@ def test_uvcalibrate_wideband_gains_errs():
     uvcalibrate(uvd, uvc, freq_range_check=False)
 
 
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value in known")

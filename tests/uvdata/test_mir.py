@@ -31,6 +31,8 @@ def sma_mir_filt_main():
     with check_warnings(
         UserWarning,
         match=[
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
             "> 25 ms errors detected reading in LST values from MIR data. ",
             "The lst_array is not self-consistent with the time_array and telescope ",
         ],
@@ -257,6 +259,8 @@ def test_mir_partial_read(sma_mir):
         match=[
             "Warning: a select on read keyword is set that is not supported by "
             "read_mir. This select will be done after reading the file.",
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
             "> 25 ms errors detected reading in LST values from MIR data. ",
             "The lst_array is not self-consistent with the time_array and telescope ",
             "The lst_array is not self-consistent with the time_array and telescope ",
@@ -291,6 +295,8 @@ def test_multi_nchan_spw_read(tmp_path):
     with check_warnings(
         UserWarning,
         match=[
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
             "> 25 ms errors detected reading in LST values from MIR data. ",
             "The lst_array is not self-consistent with the time_array and telescope ",
         ],
@@ -654,6 +660,8 @@ def test_bad_pol_code(mir_data):
     mir_obj._init_from_mir_parser(mir_data)
 
 
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_rechunk_on_read():
@@ -665,6 +673,8 @@ def test_rechunk_on_read():
     assert np.all(uv_data.channel_width == 2.288e09)
 
 
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 @pytest.mark.parametrize(
@@ -755,7 +765,14 @@ def test_source_pos_change_warning(mir_data, tmp_path):
     with check_warnings(UserWarning, "Writing out raw data with tsys applied."):
         mir_data.write(filepath)
 
-    mir_copy = MirParser(filepath)
+    with check_warnings(
+        UserWarning,
+        [
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
+        ],
+    ):
+        mir_copy = MirParser(filepath)
 
     # Now combine the data
     with check_warnings(
@@ -1046,6 +1063,8 @@ def test_illum_offset_errors():
 def test_read_mir_illum_dict():
     """Reading with illum_dict shifts the uvws as expected and notes it in history."""
     warn_list = [
+        "Pre v.4 MIR file format detected",
+        "fall outside the archived doppler-tracking record",
         "> 25 ms errors detected reading in LST values from MIR data. ",
         "The lst_array is not self-consistent with the time_array and telescope ",
     ]
@@ -1096,6 +1115,8 @@ def test_read_mir_illum_dict_single_receiver():
     with check_warnings(
         UserWarning,
         match=[
+            "Pre v.4 MIR file format detected",
+            "fall outside the archived doppler-tracking record",
             "> 25 ms errors detected reading in LST values from MIR data. ",
             "The lst_array is not self-consistent with the time_array and telescope ",
         ],
