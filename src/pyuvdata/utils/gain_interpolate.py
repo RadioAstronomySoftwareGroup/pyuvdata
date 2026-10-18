@@ -209,9 +209,13 @@ def build_interp_flags(
 
     if tol_lim > 0.0:
         # Dividing through the NaNs when flagged is deliberate, so suppress warnings.
-        with np.errstate(invalid="ignore"):
+        with np.errstate(invalid="ignore", divide="ignore"):
             if is_gain_amp:
-                delta_12 = np.abs(cal_array[:, :, 1:, :] / cal_array[:, :, :-1, :]) - 1
+                # Normalize w/ log
+                delta_12 = np.log(
+                    np.abs(cal_array[:, :, 1:, :] / cal_array[:, :, :-1, :])
+                )
+                tol_lim = np.log(1.0 + tol_lim)
             elif is_gain_pha:
                 delta_12 = np.angle(cal_array[:, :, 1:, :] / cal_array[:, :, :-1, :])
             else:
