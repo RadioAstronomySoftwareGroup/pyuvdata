@@ -1227,6 +1227,16 @@ def time_interp_cal(
     old_times = np.asarray(old_times, dtype=float)
     new_times = np.asarray(new_times, dtype=float)
 
+    # The interpolation (and phase unwrapping) assume the solutions are in time order,
+    # so sort them if not, along w/ everything else that runs along the time axis.
+    if np.any(np.diff(old_times) < 0):
+        sort_idx = np.argsort(old_times, kind="stable")
+        old_times = old_times[sort_idx]
+        old_cal = old_cal[:, :, sort_idx]
+        old_flags = old_flags[:, :, sort_idx]
+        if old_var is not None and np.shape(old_var)[-1] == len(sort_idx):
+            old_var = np.asarray(old_var)[..., sort_idx]
+
     # Numba has no support for arrays that are not in the native byte order
     if not old_cal.dtype.isnative:
         old_cal = old_cal.astype(old_cal.dtype.newbyteorder("="))

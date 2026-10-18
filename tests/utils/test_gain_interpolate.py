@@ -807,6 +807,39 @@ def test_time_interp_cal_var(gain_array, blank_flags, old_times, new_times):
     assert np.isfinite(new_cal).all()
 
 
+@pytest.mark.parametrize(
+    "kind,use_var",
+    [["nearest", False], ["linear", False], ["cubic", False], ["chebyshev", True]],
+)
+def test_time_interp_cal_unsorted(gain_array, old_times, new_times, kind, use_var):
+    flags = make_flags(partial=[(1, 0, 1)])
+    shuffle = np.random.default_rng(5).permutation(NTIMES)
+    var_kwargs = {}
+    if use_var:
+        var_kwargs = {
+            "old_var": np.vstack([np.sin(3 * old_times)]),
+            "new_var": np.vstack([np.sin(3 * new_times)]),
+            "poly_order": [3, 1],
+        }
+    exp_cal, exp_flags = gi_utils.time_interp_cal(
+        old_times, gain_array, flags, new_times, kind=kind, **var_kwargs
+    )
+    if use_var:
+        var_kwargs["old_var"] = var_kwargs["old_var"][:, shuffle]
+
+    new_cal, new_flags = gi_utils.time_interp_cal(
+        old_times[shuffle],
+        gain_array[:, :, shuffle],
+        flags[:, :, shuffle],
+        new_times,
+        kind=kind,
+        **var_kwargs,
+    )
+
+    np.testing.assert_allclose(new_cal, exp_cal)
+    np.testing.assert_array_equal(new_flags, exp_flags)
+
+
 def test_time_interp_cal_fully_flagged(gain_array, old_times, new_times):
     flags = np.ones((NANTS, NFREQS, NTIMES, NJONES), dtype=bool)
 
