@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Fixed reading MS files where `ASSOC_SPW_ID` exists but has zero-length cells (e.g. CASA `split` output).
 
 ### Changed
 - `UVCal.read_calfits` reads calfits files without memory-mapping them, which can be
