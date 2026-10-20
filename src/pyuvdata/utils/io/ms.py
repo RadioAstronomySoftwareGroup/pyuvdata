@@ -1253,7 +1253,7 @@ def read_ms_spectral_window(filepath):
                 int(idx[0]) for idx in tb_spws.getcol("ASSOC_SPW_ID")
             ]
             spw_dict["spoof_spw_id"] = False
-        except RuntimeError:
+        except (RuntimeError, IndexError):
             spw_dict["assoc_spw_id"] = np.arange(n_rows)
             spw_dict["spoof_spw"] = True
 
