@@ -1270,3 +1270,38 @@ def test_write_ms_baseline_conj_extra_columns(nrao_ms, tmp_path):
     )
     assert UVData.from_file(testfile2, data_column="MODEL_DATA") == uvd_model
     assert UVData.from_file(testfile2, data_column="CORRECTED_DATA") == uvd_corr
+
+
+
+
+def test_empty_assoc_spw_id(sma_mir, tmp_path):
+    """Test reading an MS where ASSOC_SPW_ID exists but has zero-length cells.
+
+    CASA split/mstransform can produce this when no windows are associated.
+    """
+    from casacore import tables
+
+    uv = UVData()
+    uv2 = UVData()
+    filename = os.path.join(tmp_path, "empty_assoc_spw_id.ms")
+
+    sma_mir.write_ms(filename)
+    uv.read(filename)
+
+    with tables.table(
+        os.path.join(filename, "SPECTRAL_WINDOW"), ack=False, readonly=False
+    ) as tb_spw:
+        for idx in range(tb_spw.nrows()):
+            tb_spw.putcell("ASSOC_SPW_ID", idx, np.array([], dtype=int))
+            tb_spw.putcell("ASSOC_NATURE", idx, np.array([], dtype=str))
+        assert np.size(tb_spw.getcol("ASSOC_SPW_ID")) == 0
+
+    uv2.read(filename)
+
+    # Without ASSOC_SPW_ID, spectral windows are numbered by their row in the
+    # SPECTRAL_WINDOW table, so relabel before comparing.
+    row_idx = {spw: idx for idx, spw in enumerate(uv.spw_array)}
+    uv.flex_spw_id_array = np.array([row_idx[spw] for spw in uv.flex_spw_id_array])
+    uv.spw_array = np.arange(uv.Nspws)
+
+    assert uv == uv2
