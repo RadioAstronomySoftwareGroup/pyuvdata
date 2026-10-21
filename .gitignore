@@ -87,3 +87,6 @@ src/pyuvdata/uvdata/src/miriad_wrap.cpp
 
 # test data cache populated by ci/prefetch_test_data.py
 pooch_cache/
+
+# macOS
+.DS_Store
