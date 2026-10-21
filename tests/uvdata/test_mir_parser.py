@@ -95,8 +95,9 @@ def compass_soln_file(tmp_path_factory):
 
         # Set up a picket fence of flags for the "normal" flagging. Note we use
         # uint8 here because of the compression scheme COMPASS uses. Flags shape is
-        # (Nints, Npols, Nbase, Nwin, Nchan//8)
-        file["flagArr"] = np.full((1, 2, 1, 8, 2048), 170, dtype=np.uint8)
+        # (Nints, Npols, Nbase, Nwin, Nchan//8). COMPASS packs least-significant bit
+        # first, so 85 = 0b01010101 flags the even channels.
+        file["flagArr"] = np.full((1, 2, 1, 8, 2048), 85, dtype=np.uint8)
 
         # Set up the static flags so that the first half of the spectrum is flagged,
         # first quarter w/ ant flags and second quarter w/ base flags
@@ -443,8 +444,89 @@ def test_compass_flag_sphid_apply(mir_data: MirParser, compass_soln_file):
     mir_data._apply_compass_solns(mir_data.vis_data)
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
-            assert not np.all(entry["flags"][1::2])
-            assert np.any(entry["flags"][::2])
+            assert np.all(entry["flags"][::2])
+            assert not np.any(entry["flags"][1::2])
+
+
+def _matlab_pack_flags(flags):
+    """
+    Pack flags along the last axis the way COMPASS does in MATLAB.
+
+    Mirrors ``for k = 1:8, x = bitset(x, k, flags(..., k:8:end)); end`` from
+    export_compass_solns.m (bit k holds the k-th channel of each block of 8), and is
+    written out by hand so that it does not lean on numpy's own notion of bit order.
+    """
+    packed = np.zeros(flags.shape[:-1] + (flags.shape[-1] // 8,), dtype=np.uint8)
+    for kdx in range(8):
+        packed |= flags[..., kdx::8].astype(np.uint8) << kdx
+    return packed
+
+
+@pytest.mark.parametrize("flag_type", ["sphid", "static"])
+def test_compass_flag_bit_order(mir_data: MirParser, compass_soln_copy, flag_type):
+    """
+    Test that COMPASS flags come back on the channels that COMPASS flagged.
+
+    A known channel pattern is packed the way COMPASS packs it, written to a solution
+    file, read back and applied, and has to land on exactly the same channels.
+    """
+    nchan = 16384
+    rng = np.random.default_rng(5)
+    pattern = rng.random(nchan) < 0.3
+    # A run starting one channel into a byte (0b11111110 at its first byte, which is
+    # how the bit order was caught on real data), plus a lone flag at an odd offset.
+    pattern[4800:5200] = False
+    pattern[4857:5000] = True
+    pattern[6000:6016] = False
+    pattern[6001] = True
+
+    packed = _matlab_pack_flags(pattern)
+    assert packed[4856 // 8] == 0b11111110
+    # Under numpy's default (MSB-first) order the same bytes would decode to
+    # something else, so this pattern can tell the two conventions apart.
+    assert not np.array_equal(np.unpackbits(packed).view(bool), pattern)
+
+    with h5py.File(compass_soln_copy, "r+") as file:
+        flag_arr = file["flagArr"][...]
+        ant_arr = file["staticAntFlagArr"][...]
+        base_arr = file["staticBaseFlagArr"][...]
+        if flag_type == "sphid":
+            flag_arr[...] = packed
+        else:
+            # Split the pattern across the antenna and baseline flags, so that both
+            # are checked (the applied flags are their union).
+            ant_arr[...] = _matlab_pack_flags(pattern & (np.arange(nchan) < 5000))
+            base_arr[...] = _matlab_pack_flags(pattern & (np.arange(nchan) >= 5000))
+        for key, value in zip(
+            ["flagArr", "staticAntFlagArr", "staticBaseFlagArr"],
+            [flag_arr, ant_arr, base_arr],
+            strict=True,
+        ):
+            del file[key]
+            file[key] = value
+
+    for entry in mir_data.vis_data.values():
+        entry["flags"][:] = False
+
+    if flag_type == "static":
+        # Static flags are only used where no per-integration flags match.
+        mir_data.in_data["mjd"] += 1
+
+    vis_data = mir_data.vis_data
+    mir_data.vis_data = None
+    with check_warnings(
+        UserWarning if flag_type == "static" else None,
+        "No metadata from COMPASS matches" if flag_type == "static" else None,
+    ):
+        mir_data.read_compass_solns(
+            compass_soln_copy, load_flags=True, load_bandpass=False
+        )
+    mir_data.vis_data = vis_data
+    mir_data._apply_compass_solns(mir_data.vis_data)
+
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
+            np.testing.assert_array_equal(entry["flags"], pattern)
 
 
 def test_compass_flag_static_apply(mir_data, compass_soln_file):
