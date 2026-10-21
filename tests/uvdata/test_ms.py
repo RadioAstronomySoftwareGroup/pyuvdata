@@ -1272,8 +1272,6 @@ def test_write_ms_baseline_conj_extra_columns(nrao_ms, tmp_path):
     assert UVData.from_file(testfile2, data_column="CORRECTED_DATA") == uvd_corr
 
 
-
-
 def test_empty_assoc_spw_id(sma_mir, tmp_path):
     """Test reading an MS where ASSOC_SPW_ID exists but has zero-length cells.
 
