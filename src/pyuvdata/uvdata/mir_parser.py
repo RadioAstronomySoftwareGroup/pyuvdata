@@ -4382,6 +4382,9 @@ class MirParser:
                             baseline-based flags that apply to the whole track.
         =================== ==========================================================
 
+        All three flag arrays are packed least-significant bit first; see the Notes in
+        `read_compass_solns`.
+
         Datasets written by COMPASS but consumed elsewhere:
         `obsID`, `obsData`, `antPos`, `freqArr`, `gainApEff`, `gainWinRefAnt`,
         `gainWinSolns`, `gainWinTimes`, `gainWinPha`, `gainWinAmp`, `gainWinUse`,
@@ -4662,6 +4665,20 @@ class MirParser:
         UserWarning
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
+
+        Notes
+        -----
+        The flag arrays in the solution file (`flagArr`, `staticAntFlagArr` and
+        `staticBaseFlagArr`) are bit-packed into uint8 along the channel axis,
+        **least-significant bit first**: byte ``j`` holds channels ``8*j`` through
+        ``8*j + 7``, with channel ``8*j + k`` in bit ``k`` (value ``2**k``). This is
+        how COMPASS packs them in MATLAB, ``bitset(x, k, flags(:, k:8:end))`` for
+        ``k = 1:8``, and it is why they are unpacked here with
+        ``np.unpackbits(..., bitorder="little")``; numpy's default, "big", would
+        mirror the channels within each byte. Files from before format version 0.12
+        packed the other way round (``2^(8-k)``), but those are refused by the
+        format check, so every file this method accepts is least-significant bit
+        first.
         """
         if filename is None:
             # Handle the no-op and just return here
@@ -4773,13 +4790,15 @@ class MirParser:
                 # Now we'll step through each spectral record that we have to process.
                 # Note that we use unpackbits because MATLAB/HDF5 doesn't seem to have
                 # a way to store single-bit values, and so the data are effectively
-                # compressed into uint8, which can be reinflated via unpackbits.
+                # compressed into uint8, which can be reinflated via unpackbits. COMPASS
+                # packs the first channel of each byte into the least significant bit,
+                # hence bitorder="little" (see `read_compass_solns`).
                 try:
                     # If we have a flags entry for this sphid, then go ahead and apply
                     # them to the flags table for that spectral record.
-                    vis_data[sphid]["flags"] |= np.unpackbits(sphid_flags[sphid]).view(
-                        bool
-                    )
+                    vis_data[sphid]["flags"] |= np.unpackbits(
+                        sphid_flags[sphid], bitorder="little"
+                    ).view(bool)
                 except KeyError:
                     # If no key is found, then we want to try and use the "broader"
                     # flags to mask out the data that's associated with the given
@@ -4799,7 +4818,8 @@ class MirParser:
                                     sb_arr[idx],
                                     chunk_arr[idx],
                                 )
-                            ]
+                            ],
+                            bitorder="little",
                         ).view(bool)
         return vis_data
 
