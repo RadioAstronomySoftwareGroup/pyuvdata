@@ -63,27 +63,53 @@ STREAM_BATCH_SIZE = 8
 
 # Format versions of the COMPASS solution file that this reader understands, given that
 # we've already had one version update that was incompatible with a prior version.
-COMPASS_SUPPORTED_VERSIONS = frozenset([(0, 12)])
+COMPASS_SUPPORTED_VERSIONS = frozenset([(0, 12), (0, 13)])
 
-# Keys that `_read_compass_solns` requires in order to operate.
-COMPASS_REQUIRED_KEYS = (
-    "antArr",
-    "ant1Arr",
-    "ant2Arr",
-    "rx1Arr",
-    "rx2Arr",
-    "rxList",
-    "sbArr",
-    "winArr",
-    "bandpassArr",
-    "sefdArr",
-    "mjdArr",
-    "flagArr",
-    "staticAntFlagArr",
-    "staticBaseFlagArr",
-)
+# Where `_read_compass_solns` finds each dataset it requires, by format version. 0.12 is
+# a MATLAB -v7.3 file; 0.13 is the plain HDF5 track file described in SMA-COMPASS's
+# docs/compass_track_format.md. The datasets have the same shapes in both, except that
+# 0.12 records 1D arrays as (1, N).
+COMPASS_LAYOUTS = {
+    # TODO(0.12 removal): drop once the archive has been regenerated as 0.13.
+    (0, 12): {
+        "ant": "antArr",
+        "ant1": "ant1Arr",
+        "ant2": "ant2Arr",
+        "rx1": "rx1Arr",
+        "rx2": "rx2Arr",
+        "rx": "rxList",
+        "sb": "sbArr",
+        "win": "winArr",
+        "bandpass": "bandpassArr",
+        "sefd": "sefdArr",
+        "mjd": "mjdArr",
+        "per_int": "flagArr",
+        "static_ant": "staticAntFlagArr",
+        "static_base": "staticBaseFlagArr",
+    },
+    (0, 13): {
+        "ant": "meta/antennas/number",
+        "ant1": "meta/baselines/ant1",
+        "ant2": "meta/baselines/ant2",
+        "rx1": "meta/pols/rx1",
+        "rx2": "meta/pols/rx2",
+        "rx": "meta/receivers/code",
+        "sb": "meta/spws/sideband",
+        "win": "meta/spws/chunk",
+        "bandpass": "calibration/bandpass",
+        "sefd": "calibration/sefd",
+        "mjd": "meta/mjd",
+        "per_int": "flags/per_int",
+        "static_ant": "flags/static_ant",
+        "static_base": "flags/static_base",
+    },
+}
 
-# COMPASS keys that only ever appeared in the pre-0.12 schema.
+# Groups that a 0.13 writer marks with `complete = 1` once it has finished them, which
+# is how a file left behind by an export that failed partway through is caught.
+COMPASS_COMPLETE_GROUPS = {(0, 13): ("meta", "calibration", "flags")}
+
+# COMPASS keys that only ever appeared in the pre-0.12 schema. TODO(0.12 removal)
 COMPASS_LEGACY_KEYS = ("reBandpassArr", "imBandpassArr", "staticFlagArr")
 
 # Stand-in bandpass solution used where COMPASS has none for a baseline, which flags the
@@ -4228,9 +4254,11 @@ class MirParser:
             return None
 
         raw_ver = file["compassVersion"][...]
-        # MATLAB writes char arrays as uint16 (a (1, N) row vector, hence the flatten),
-        # but be tolerant of a writer that stores a genuine string instead.
-        if raw_ver.dtype.kind in "SU":
+        # From 0.13 this is a scalar string (variable-length, so h5py hands back an
+        # object array). 0.12 files are written by MATLAB, which stores char arrays as
+        # uint16 (a (1, N) row vector, hence the flatten). Both sit at the same path so
+        # that the version can be read before knowing which layout the rest follows.
+        if raw_ver.dtype.kind in "OSU":
             ver_str = np.asarray(raw_ver).ravel()[0]
             if isinstance(ver_str, bytes):
                 ver_str = ver_str.decode()
@@ -4273,11 +4301,18 @@ class MirParser:
         filename : str
             Name of the file, used in the error messages.
 
+        Returns
+        -------
+        layout : dict
+            The entry of `COMPASS_LAYOUTS` for the file's format version, giving the
+            path of each dataset to read.
+
         Raises
         ------
         MirCompassError
             If the file declares an unsupported format version, carries no version at
-            all, or is missing datasets required to read the solutions.
+            all, was not completely written, or is missing datasets required to read
+            the solutions.
         """
         version = MirParser._parse_compass_version(file, filename=filename)
         supported = ", ".join(
@@ -4300,7 +4335,21 @@ class MirParser:
                 "of pyuvdata that understands this one."
             )
 
-        missing = [key for key in COMPASS_REQUIRED_KEYS if key not in file]
+        incomplete = [
+            group
+            for group in COMPASS_COMPLETE_GROUPS.get(version[:2], ())
+            if group in file and not file[group].attrs.get("complete", 0)
+        ]
+        if incomplete:
+            raise MirCompassError(
+                f"COMPASS solution file {filename} was not completely written: "
+                f"group(s) {', '.join(incomplete)} are not marked complete, which "
+                "usually means the export failed partway through. Rerun the export to "
+                "regenerate it."
+            )
+
+        layout = COMPASS_LAYOUTS[version[:2]]
+        missing = [key for key in layout.values() if key not in file]
         if missing:
             message = (
                 f"COMPASS solution file {filename} is missing required dataset(s): "
@@ -4315,6 +4364,8 @@ class MirParser:
                     f"with a version of COMPASS matching format version(s) {supported}."
                 )
             raise MirCompassError(message)
+
+        return layout
 
     def _read_compass_solns(self, filename=None) -> dict:
         """
@@ -4340,67 +4391,73 @@ class MirParser:
         Raises
         ------
         MirCompassError
-            If the file declares a format version this reader does not support, or is
-            missing datasets that are required to read the solutions.
+            If the file declares a format version this reader does not support, was
+            not completely written, or is missing datasets that are required to read
+            the solutions.
         UserWarning
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
 
         Notes
         -----
-        COMPASS is the SMA calibration and reduction pipeline. It writes its solutions
-        as a MATLAB ``-v7.3`` file, which is HDF5 underneath (hence the use of h5py
-        rather than `scipy.io.loadmat` to read it). This method reads the subset of the
+        COMPASS is the SMA calibration and reduction pipeline. From format version
+        0.13 it writes its solutions to a plain HDF5 track file,
+        ``<obsID>_compass.h5``, whose layout is set out in SMA-COMPASS's
+        docs/compass_track_format.md. Before that it wrote ``<obsID>_specsoln.mat``, a
+        MATLAB ``-v7.3`` file, which is HDF5 underneath (hence the use of h5py rather
+        than `scipy.io.loadmat` to read it). This method reads the subset of the
         calibration solutions needed to apply bandpass and flags to visibilities.
 
-        Datasets read by this method:
-        =================== ==========================================================
-        Dataset             Shape and meaning
-        =================== ==========================================================
-        `compassVersion`    Format version, e.g. ``'0.12.3'``. Checked against
-                            `COMPASS_SUPPORTED_VERSIONS`.
-        `antArr`            ``(1, Nant)`` antenna numbers.
-        `ant1Arr`,          ``(1, Nbase)`` antenna numbers of each baseline end.
-        `ant2Arr`
-        `rx1Arr`, `rx2Arr`  ``(1, Nbase)`` receiver code at each baseline end.
-        `rxList`            ``(1, Nrx)`` receiver codes present, e.g. ``[0, 3]``.
-                            Mapped to an A/B index (0/1) on read.
-        `sbArr`             ``(1, Nwin)`` sideband, 0 = LSB, 1 = USB.
-        `winArr`            ``(1, Nwin)`` spectral window number.
-        `bandpassArr`       ``(Nrx, Nant, Nwin, Nchan, 2)`` float32, the trailing axis
-                            being ``[real, imag]``; read via ``.view(np.complex64)``.
-        `sefdArr`           ``(Nrx, Nant, Nwin, Nchan)``. Note this is **squared on
-                            read** -- COMPASS records SEFD, the weights want SEFD^2.
-        `mjdArr`            ``(1, Nint)`` timestamps, matched against
-                            ``in_data["mjd"]`` to within half a second, since COMPASS
-                            has no access to the MIR integration header IDs.
-        `flagArr`           ``(Nint, Npol, Nbase, Nwin, Nchan // 8)`` uint8, bit-packed
-                            per-integration flags.
-        `staticAntFlagArr`  ``(Nrx, Nant, Nwin, Nchan // 8)`` uint8, bit-packed
-                            antenna-based flags that apply to the whole track.
-        `staticBaseFlagArr` ``(Nrx, Nbase, Nwin, Nchan // 8)`` uint8, bit-packed
-                            baseline-based flags that apply to the whole track.
-        =================== ==========================================================
+        Datasets read by this method, by their 0.13 path, with the 0.12 name below:
+        ====================== ========================================================
+        Dataset                Shape and meaning
+        ====================== ========================================================
+        `compassVersion`       Format version, e.g. ``'0.13.0'``, which picks the
+                               layout from `COMPASS_LAYOUTS`. A string from 0.13, a
+                               MATLAB char array in 0.12.
+        `meta/antennas/number` ``(Nant,)`` antenna numbers.
+        (`antArr`)
+        `meta/baselines/ant1`, ``(Nbase,)`` antenna numbers of each baseline end.
+        `meta/baselines/ant2`
+        (`ant1Arr`, `ant2Arr`)
+        `meta/pols/rx1`,       ``(Npol,)`` receiver code at each end of a receiver
+        `meta/pols/rx2`        pair.
+        (`rx1Arr`, `rx2Arr`)
+        `meta/receivers/code`  ``(Nrx,)`` receiver codes present, e.g. ``[0, 3]``.
+        (`rxList`)             Mapped to an A/B index (0/1) on read.
+        `meta/spws/sideband`   ``(Nwin,)`` sideband, 0 = LSB, 1 = USB.
+        (`sbArr`)
+        `meta/spws/chunk`      ``(Nwin,)`` spectral window number.
+        (`winArr`)
+        `calibration/bandpass` ``(Nrx, Nant, Nwin, Nchan, 2)`` float32, the trailing
+        (`bandpassArr`)        axis being ``[real, imag]``; read via
+                               ``.view(np.complex64)``.
+        `calibration/sefd`     ``(Nrx, Nant, Nwin, Nchan)``. Note this is **squared on
+        (`sefdArr`)            read** -- COMPASS records SEFD, the weights want SEFD^2.
+        `meta/mjd`             ``(Nint,)`` timestamps, matched against
+        (`mjdArr`)             ``in_data["mjd"]`` to within half a second, since
+                               COMPASS has no access to the MIR integration header IDs.
+        `flags/per_int`        ``(Nint, Npol, Nbase, Nwin, Nchan // 8)`` uint8,
+        (`flagArr`)            bit-packed per-integration flags.
+        `flags/static_ant`     ``(Nrx, Nant, Nwin, Nchan // 8)`` uint8, bit-packed
+        (`staticAntFlagArr`)   antenna-based flags that apply to the whole track.
+        `flags/static_base`    ``(Npol, Nbase, Nwin, Nchan // 8)`` uint8, bit-packed
+        (`staticBaseFlagArr`)  baseline-based flags that apply to the whole track.
+        ====================== ========================================================
 
-        All three flag arrays are packed least-significant bit first; see the Notes in
-        `read_compass_solns`.
+        0.12 records each 1D array as ``(1, N)``, an artefact of MATLAB; the shapes
+        are otherwise the same in both. All three flag arrays are packed
+        least-significant bit first; see the Notes in `read_compass_solns`. Both
+        writers chunk the per-integration flags one integration per chunk, which is
+        what lets them be read an integration at a time below.
 
-        Datasets written by COMPASS but consumed elsewhere:
-        `obsID`, `obsData`, `antPos`, `freqArr`, `gainApEff`, `gainWinRefAnt`,
-        `gainWinSolns`, `gainWinTimes`, `gainWinPha`, `gainWinAmp`, `gainWinUse`,
-        `gainWinSouID`, `gainUniqueSou`, `gainSouRA`, `gainSouDec`, `gainSouEpoch`,
-        `crossRxGainSolns`, `crossRxGainTimes`, `crossRxGainSouID`,
-        `crossRxGainUniqueSou`, `crossRxGainSouRA`, `crossRxGainSouDec`, and
-        `crossRxGainSouEpoch`, `crossRxBandpass`, `sameRxBandpass`, and `hasPol`.
+        Everything else in the file is consumed elsewhere, chiefly the gain tables,
+        which SMA-COMPASS's ``export_compass_gains.py`` turns into a `UVCal` object.
 
         An example of the format is the `compass_soln_file` fixture in
-        `test_mir_parser.py`, which builds a minimal but complete solution file.
+        `test_mir_parser.py`, which builds a minimal but complete solution file in
+        each layout.
         """
-        # Two conventions to note:
-        #   1) Every 1D array is recorded as a 2D array of shape (1, N), an artefact of
-        #      MATLAB, which is why they are read as file[key][0].
-        #   2) Flag arrays are bit-packed into uint8, so their last axis is Nchan // 8.
-
         # When we read in the COMPASS solutions, we will need to map some per-blhid
         # values to per-sphid values, so create an indexing array that we can do this
         # with conveniently.
@@ -4438,19 +4495,21 @@ class MirParser:
         # Detect cross-pol by looking for any mismatch in ant1 and ant2 receivers
         has_cross_pol = np.any(self.bl_data["ant1rx"] != self.bl_data["ant2rx"])
 
-        # MATLAB v7.3 format uses HDF5 format, so h5py here ftw!
+        # Both 0.12 (MATLAB v7.3) and 0.13 files are HDF5, so h5py here ftw!
         with h5py.File(filename, "r") as file:
             # Check the format/version up front, so that any problems get caught
-            # early and reported in terms of what the file actually contains.
-            self._check_compass_format(file, filename=filename)
+            # early and reported in terms of what the file actually contains. What
+            # comes back says where each dataset lives in this version's layout.
+            layout = self._check_compass_format(file, filename=filename)
 
             # First, pull out the bandpass solns, and the associated metadata. Note that
             # the real/imag values here are split to make it easier for grabbing the
-            # data cleanly w/o worries about endianness/recasting.
-            ant_arr = np.asarray(file["antArr"][0]).astype(int)  # Antenna number
-            rx_arr = np.asarray(file["rxList"][0]).astype(int)  # Rx num
-            sb_arr = np.asarray(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
-            win_arr = np.asarray(file["winArr"][0]).astype(int)  # Spectral win number
+            # data cleanly w/o worries about endianness/recasting. The 1D arrays are
+            # flattened, since 0.12 records them as (1, N).
+            ant_arr = file[layout["ant"]][...].ravel().astype(int)  # Antenna number
+            rx_arr = file[layout["rx"]][...].ravel().astype(int)  # Rx num
+            sb_arr = file[layout["sb"]][...].ravel().astype(int)  # Sideband (0=LSB)
+            win_arr = file[layout["win"]][...].ravel().astype(int)  # Spectral win num
 
             # Map receiver codes to A/B index values
             rx_arr[:] = [rx_map[rx] for rx in rx_arr]
@@ -4458,10 +4517,12 @@ class MirParser:
             Nant = len(ant_arr)
             Nwin = len(win_arr)
             bp_arr = (
-                file["bandpassArr"][...].view(np.complex64).reshape(Nrx, Nant, Nwin, -1)
+                file[layout["bandpass"]][...]
+                .view(np.complex64)
+                .reshape(Nrx, Nant, Nwin, -1)
             )  # BP gains (4D array)
 
-            sefd_arr = np.square(file["sefdArr"])
+            sefd_arr = np.square(file[layout["sefd"]])
 
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
@@ -4536,7 +4597,7 @@ class MirParser:
             # Now, we can move on to flags. Note that COMPASS doesn't have access to
             # the integration header IDs, so we have to do a little bit of matching
             # based on the timestamp of the data in COMPASS vs MIR (via the MJD).
-            mjd_compass = np.asarray(file["mjdArr"][0])
+            mjd_compass = file[layout["mjd"]][...].ravel()
             mjd_mir = self.in_data["mjd"]
             inhid_arr = self.in_data["inhid"]
 
@@ -4554,14 +4615,16 @@ class MirParser:
                 check = np.where(np.isclose(mjd, mjd_mir, atol=atol, rtol=0))[0]
                 index_dict[idx] = None if (len(check) == 0) else inhid_arr[check[0]]
 
-            # Pull out some metadata here for parsing the individual solutions
-            flags_arr = np.asarray(file["flagArr"])  # Per-sphid flags
-            saflags_arr = np.asarray(file["staticAntFlagArr"])  # "All times" ant flags
-            sbflags_arr = np.asarray(file["staticBaseFlagArr"])  # "All times" BL flags
-            a1_arr = np.asarray(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
-            rx1_arr = np.asarray(file["rx1Arr"][0]).astype(int)  # Rx/pol of 1st ant
-            a2_arr = np.asarray(file["ant2Arr"][0]).astype(int)  # 2nd ant in baseline
-            rx2_arr = np.asarray(file["rx2Arr"][0]).astype(int)  # Rx/pol of 2nd ant
+            # Pull out some metadata here for parsing the individual solutions. The
+            # per-sphid flags are left on disk, to be read below an integration at a
+            # time, since a long track's run past 10 GB.
+            flags_dset = file[layout["per_int"]]  # Per-sphid flags
+            saflags_arr = file[layout["static_ant"]][...]  # "All times" ant flags
+            sbflags_arr = file[layout["static_base"]][...]  # "All times" BL flags
+            a1_arr = file[layout["ant1"]][...].ravel().astype(int)  # 1st ant in bl
+            rx1_arr = file[layout["rx1"]][...].ravel().astype(int)  # Rx/pol of 1st ant
+            a2_arr = file[layout["ant2"]][...].ravel().astype(int)  # 2nd ant in bl
+            rx2_arr = file[layout["rx2"]][...].ravel().astype(int)  # Rx/pol of 2nd ant
 
             # Map receiver codes to A/B index values
             rx1_arr[:] = [rx_map[rx] for rx in rx1_arr]
@@ -4612,6 +4675,9 @@ class MirParser:
                     # has no flags for this integration. Skip it (on apply, it will
                     # use the wide flags instead).
                     continue
+                # One integration is exactly one chunk on disk, so this only ever
+                # reads (and holds onto) the integrations that are actually matched.
+                int_flags = flags_dset[idx]
                 for jdx, (rx1, rx2) in enumerate(zip(rx1_arr, rx2_arr, strict=True)):
                     for kdx, (a1, a2) in enumerate(zip(a1_arr, a2_arr, strict=True)):
                         for ldx, (sb, win) in enumerate(
@@ -4619,7 +4685,7 @@ class MirParser:
                         ):
                             try:
                                 sphid = sphid_dict[(inhid, a1, rx1, a2, rx2, sb, win)]
-                                sphid_flags[sphid] = flags_arr[idx, jdx, kdx, ldx]
+                                sphid_flags[sphid] = int_flags[jdx, kdx, ldx]
                             except KeyError:
                                 # If we don't have a match for the entry, that's okay,
                                 # since this may be a subset of the data that COMPASS
@@ -4649,27 +4715,31 @@ class MirParser:
         Parameters
         ----------
         filename : str
-            Name of the file containing the COMPASS flags and gains solutions.
+            Name of the file containing the COMPASS flags and gains solutions: the
+            track file ``<obsID>_compass.h5`` (format 0.13), or the older
+            ``<obsID>_specsoln.mat`` (format 0.12).
         load_flags : bool
             If set to True, the COMPASS flags will be read into the MirParser object.
             Default is True.
-        load_gains : bool
-            If set to True, the COMPASS gains will be read into the MirParser object.
-            Default is True.
+        load_bandpass : bool
+            If set to True, the COMPASS bandpass solutions will be read into the
+            MirParser object. Default is True.
 
         Raises
         ------
         MirCompassError
-            If the file declares a format version this reader does not support, or is
-            missing datasets that are required to read the solutions.
+            If the file declares a format version this reader does not support, was
+            not completely written, or is missing datasets that are required to read
+            the solutions.
         UserWarning
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
 
         Notes
         -----
-        The flag arrays in the solution file (`flagArr`, `staticAntFlagArr` and
-        `staticBaseFlagArr`) are bit-packed into uint8 along the channel axis,
+        The flag arrays in the solution file (`flags/per_int`, `flags/static_ant` and
+        `flags/static_base`; `flagArr`, `staticAntFlagArr` and `staticBaseFlagArr` in
+        0.12) are bit-packed into uint8 along the channel axis,
         **least-significant bit first**: byte ``j`` holds channels ``8*j`` through
         ``8*j + 7``, with channel ``8*j + k`` in bit ``k`` (value ``2**k``). This is
         how COMPASS packs them in MATLAB, ``bitset(x, k, flags(:, k:8:end))`` for

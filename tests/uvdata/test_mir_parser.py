@@ -34,15 +34,151 @@ from pyuvdata.uvdata.mir_parser import (
     MirParser,
 )
 
-# A version string within the supported range, written the way MATLAB writes char
-# arrays (a uint16 row vector) so the fixture exercises the real read path.
-COMPASS_TEST_MAJOR, COMPASS_TEST_MINOR = min(COMPASS_SUPPORTED_VERSIONS)
-COMPASS_TEST_VERSION = f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}.3"
+# The COMPASS format versions to build solution files in, as (major, minor). Every one
+# the reader supports, so that each layout gets the same tests.
+COMPASS_TEST_VERSIONS = sorted(COMPASS_SUPPORTED_VERSIONS)
+
+# Where each layout keeps what `_make_compass_soln` writes. Spelled out here rather
+# than taken from COMPASS_LAYOUTS, so that a wrong path there gets caught, not copied.
+COMPASS_FIXTURE_PATHS = {
+    # TODO(0.12 removal)
+    (0, 12): {
+        "ant": "antArr",
+        "ant1": "ant1Arr",
+        "ant2": "ant2Arr",
+        "rx1": "rx1Arr",
+        "rx2": "rx2Arr",
+        "rx": "rxList",
+        "sb": "sbArr",
+        "win": "winArr",
+        "mjd": "mjdArr",
+        "bandpass": "bandpassArr",
+        "sefd": "sefdArr",
+        "per_int": "flagArr",
+        "static_ant": "staticAntFlagArr",
+        "static_base": "staticBaseFlagArr",
+    },
+    (0, 13): {
+        "ant": "meta/antennas/number",
+        "ant1": "meta/baselines/ant1",
+        "ant2": "meta/baselines/ant2",
+        "rx1": "meta/pols/rx1",
+        "rx2": "meta/pols/rx2",
+        "rx": "meta/receivers/code",
+        "sb": "meta/spws/sideband",
+        "win": "meta/spws/chunk",
+        "mjd": "meta/mjd",
+        "bandpass": "calibration/bandpass",
+        "sefd": "calibration/sefd",
+        "per_int": "flags/per_int",
+        "static_ant": "flags/static_ant",
+        "static_base": "flags/static_base",
+    },
+}
 
 
 def _matlab_char_array(string):
     """Encode a str the way MATLAB -v7.3 stores a char array."""
     return np.array([[ord(char) for char in string]], dtype=np.uint16)
+
+
+def _ver_str(version):
+    """Spell a version tuple the way COMPASS does, e.g. (0, 13) -> "0.13"."""
+    return ".".join(str(item) for item in version)
+
+
+def _write_compass_version(file, ver_str, layout):
+    """Write a version marker the way the writer of format `layout` stores it."""
+    if "compassVersion" in file:
+        del file["compassVersion"]
+    if layout >= (0, 13):
+        # A scalar variable-length UTF-8 string
+        file["compassVersion"] = ver_str
+    else:
+        file["compassVersion"] = _matlab_char_array(ver_str)
+
+
+def _compass_layout(filename):
+    """Read the (major, minor) format version of a COMPASS solution file."""
+    with h5py.File(filename, "r") as file:
+        return MirParser._parse_compass_version(file)[:2]
+
+
+def _make_compass_soln(filename, layout, mjd=(59054.69153811,)):
+    """
+    Write a minimal but complete COMPASS solution file in format version `layout`.
+
+    The contents are the same in every layout: one baseline (antennas 1 and 4), two
+    receivers and eight windows, bandpass solutions that are easy to recreate in the
+    tests, a picket fence of per-integration flags, and static flags over the first
+    half of each spectrum. `mjd` gives the integration times; the default is the one
+    integration in the test data set (`in_data["mjd"]`).
+    """
+    paths = COMPASS_FIXTURE_PATHS[layout]
+
+    # Make a set of bp solns that are easy to recreate in the test (to verify
+    # that we actually have the solutions that we expect).
+    bp_soln = np.reshape(
+        np.arange(2 * 8 * 16384) + (np.flip(np.arange(2 * 8 * 16384)) * 1j),
+        (2, 1, 8, 16384, 1),
+    )
+
+    # Exp bp soln shape is (Nrx, Nants, Nwin, Nchan, 2) w/ float32s on the
+    # final axis ([real imag]).
+    bp_soln = np.concatenate(
+        (bp_soln / 2, np.conj(np.reciprocal(bp_soln))), axis=1
+    ).astype(np.complex64)
+
+    # Set up a picket fence of flags for the "normal" flagging. Note we use uint8 here
+    # because of the compression scheme COMPASS uses. Flags shape is (Nints, Npols,
+    # Nbase, Nwin, Nchan//8). COMPASS packs least-significant bit first, so
+    # 85 = 0b01010101 flags the even channels.
+    flag_arr = np.full((len(mjd), 2, 1, 8, 2048), 85, dtype=np.uint8)
+
+    # Set up the static flags so that the first half of the spectrum is flagged,
+    # first quarter w/ ant flags and second quarter w/ base flags
+    static_arr = np.zeros(2048, dtype=np.uint8)
+    static_arr[:512] = 255
+    static_ant = np.tile(static_arr, (2, 8, 8, 1))
+    static_arr[:512] = 0
+    static_arr[512:1024] = 255
+    static_base = np.tile(static_arr, (2, 28, 8, 1))
+
+    with h5py.File(filename, "w") as file:
+        # Format version marker, checked against COMPASS_SUPPORTED_VERSIONS on read.
+        _write_compass_version(file, _ver_str(layout) + ".3", layout)
+
+        # Set up some basic indexing for our one-baseline test file. 0.12 records 1D
+        # arrays as MATLAB does, as (1, N) row vectors.
+        for name, value in [
+            ("ant", [1, 4]),
+            ("ant1", [1]),
+            ("ant2", [4]),
+            ("rx1", [0, 3]),
+            ("rx2", [0, 3]),
+            ("rx", [0, 3]),
+            ("sb", [0, 0, 0, 0, 1, 1, 1, 1]),
+            ("win", [1, 2, 3, 4, 1, 2, 3, 4]),
+            ("mjd", list(mjd)),
+        ]:
+            file[paths[name]] = np.array(value if layout >= (0, 13) else [value])
+
+        file[paths["bandpass"]] = bp_soln.view(np.float32)
+
+        # Populate the SEFD values, exp shape (Nrx, Nants, Nwin, Nchan)
+        file[paths["sefd"]] = np.ones((2, 2, 8, 16384))
+
+        # Both writers chunk these one integration per chunk.
+        file.create_dataset(
+            paths["per_int"], data=flag_arr, chunks=(1,) + flag_arr.shape[1:]
+        )
+        file[paths["static_ant"]] = static_ant
+        file[paths["static_base"]] = static_base
+
+        if layout >= (0, 13):
+            file.attrs["time_scale"] = "TT"
+            for group in ["meta", "calibration", "flags"]:
+                file[group].attrs["complete"] = np.uint8(1)
 
 
 # Warnings raised whenever the (v3-format) test data set is read fresh from disk: the
@@ -54,60 +190,14 @@ V4_COMPLIANCE_WARNINGS = [
 ]
 
 
-@pytest.fixture(scope="module")
-def compass_soln_file(tmp_path_factory):
+@pytest.fixture(
+    scope="module", params=COMPASS_TEST_VERSIONS, ids=lambda ver: "v" + _ver_str(ver)
+)
+def compass_soln_file(tmp_path_factory, request):
+    """A reference solution file, once in each supported layout."""
     tmp_path = tmp_path_factory.mktemp("mir_parser", numbered=True)
-    filename = os.path.join(tmp_path, "compass_soln.mat")
-    with h5py.File(filename, "w") as file:
-        # Format version marker, checked against COMPASS_SUPPORTED_VERSIONS on read.
-        file["compassVersion"] = _matlab_char_array(COMPASS_TEST_VERSION)
-
-        # Set up some basic indexing for our one-baseline test file
-        file["antArr"] = np.array([[1, 4]])
-        file["ant1Arr"] = np.array([[1]])
-        file["ant2Arr"] = np.array([[4]])
-        file["rx1Arr"] = np.array([[0, 3]])
-        file["rx2Arr"] = np.array([[0, 3]])
-        file["rxList"] = np.array([[0, 3]])
-        file["sbArr"] = np.array([[0, 0, 0, 0, 1, 1, 1, 1]])
-        file["winArr"] = np.array([[1, 2, 3, 4, 1, 2, 3, 4]])
-
-        # Make a set of bp solns that are easy to recreate in the test (to verify
-        # that we actually have the solutions that we expect).
-        bp_soln = np.reshape(
-            np.arange(2 * 8 * 16384) + (np.flip(np.arange(2 * 8 * 16384)) * 1j),
-            (2, 1, 8, 16384, 1),
-        )
-
-        # Exp bp soln shape is (Nrx, Nants, Nwin, Nchan, 2) w/ float32s on the
-        # final axis ([real imag]).
-        bp_soln = np.concatenate(
-            (bp_soln / 2, np.conj(np.reciprocal(bp_soln))), axis=1
-        ).astype(np.complex64)
-
-        file["bandpassArr"] = bp_soln.view(np.float32)
-
-        # Populate the SEFD values, exp shape (Nrx, Nants, Nwin, Nchan)
-        file["sefdArr"] = np.ones((2, 2, 8, 16384))
-
-        # This number is pulled from the test mir_data object, in in_data["mjd"].
-        file["mjdArr"] = np.array([[59054.69153811]])
-
-        # Set up a picket fence of flags for the "normal" flagging. Note we use
-        # uint8 here because of the compression scheme COMPASS uses. Flags shape is
-        # (Nints, Npols, Nbase, Nwin, Nchan//8). COMPASS packs least-significant bit
-        # first, so 85 = 0b01010101 flags the even channels.
-        file["flagArr"] = np.full((1, 2, 1, 8, 2048), 85, dtype=np.uint8)
-
-        # Set up the static flags so that the first half of the spectrum is flagged,
-        # first quarter w/ ant flags and second quarter w/ base flags
-        static_arr = np.zeros(2048, dtype=np.uint8)
-        static_arr[:512] = 255
-        file["staticAntFlagArr"] = np.tile(static_arr, (2, 8, 8, 1))
-        static_arr[:512] = 0
-        static_arr[512:1024] = 255
-        file["staticBaseFlagArr"] = np.tile(static_arr, (2, 28, 8, 1))
-
+    filename = os.path.join(tmp_path, "compass_soln.h5")
+    _make_compass_soln(filename, request.param)
     yield filename
 
 
@@ -348,43 +438,44 @@ def test_compass_read_err(mir_data: MirParser, compass_soln_file):
 @pytest.fixture
 def compass_soln_copy(compass_soln_file, tmp_path):
     """Give each test a writable copy of the reference solution file."""
-    filename = os.path.join(tmp_path, "compass_soln_copy.mat")
+    filename = os.path.join(tmp_path, "compass_soln_copy.h5")
     with h5py.File(compass_soln_file, "r") as src, h5py.File(filename, "w") as dest:
+        # Group.copy keeps groups, attributes and chunking intact
+        dest.attrs.update(src.attrs)
         for key in src:
-            dest[key] = src[key][...]
+            src.copy(src[key], dest, name=key)
     yield filename
 
 
-@pytest.mark.parametrize(
-    "ver_str",
-    ["0.11.9", "1.12.3", "99.0.0", f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}"],
-)
+@pytest.mark.parametrize("ver_str", ["0.11.9", "1.12.3", "99.0.0", "own"])
 def test_compass_version_check(mir_data: MirParser, compass_soln_copy, ver_str):
     """A solution file from an unsupported schema should say so, and name the file."""
-    supported = f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}"
+    layout = _compass_layout(compass_soln_copy)
+    if ver_str == "own":
+        # A bare "major.minor" is fine -- the patch level is not part of the schema.
+        ver_str = _ver_str(layout)
     with h5py.File(compass_soln_copy, "r+") as file:
-        del file["compassVersion"]
-        file["compassVersion"] = _matlab_char_array(ver_str)
+        _write_compass_version(file, ver_str, layout)
 
     mir_data.unload_data()
     version = tuple(int(item) for item in ver_str.split("."))
     if version[:2] in COMPASS_SUPPORTED_VERSIONS:
-        # A bare "major.minor" is fine -- the patch level is not part of the schema.
         mir_data.read_compass_solns(compass_soln_copy)
         return
 
     with pytest.raises(MirCompassError, match="contains version") as err:
         mir_data.read_compass_solns(compass_soln_copy)
     assert compass_soln_copy in str(err.value)
-    assert supported in str(err.value)
+    for supported in COMPASS_SUPPORTED_VERSIONS:
+        assert _ver_str(supported) in str(err.value)
 
 
 @pytest.mark.parametrize("ver_str", ["not-a-version", "0", ""])
 def test_compass_version_unparsable(mir_data: MirParser, compass_soln_copy, ver_str):
     """A version marker we cannot make sense of should be reported as such."""
+    layout = _compass_layout(compass_soln_copy)
     with h5py.File(compass_soln_copy, "r+") as file:
-        del file["compassVersion"]
-        file["compassVersion"] = _matlab_char_array(ver_str)
+        _write_compass_version(file, ver_str, layout)
 
     mir_data.unload_data()
     with pytest.raises(MirCompassError, match="compassVersion"):
@@ -402,12 +493,43 @@ def test_compass_version_missing(mir_data: MirParser, compass_soln_copy):
     # The message still has to name the file and what would have been acceptable, even
     # though there is no version to quote back.
     assert compass_soln_copy in str(err.value)
-    assert f"{COMPASS_TEST_MAJOR}.{COMPASS_TEST_MINOR}" in str(err.value)
+    for supported in COMPASS_SUPPORTED_VERSIONS:
+        assert _ver_str(supported) in str(err.value)
 
 
-def test_compass_legacy_schema_err(mir_data: MirParser, compass_soln_copy):
-    """A pre-0.12 file should be diagnosed as such, not fail on a bare KeyError."""
+# TODO(0.12 removal): with one layout left, there is no other one to mistake it for.
+def test_compass_layout_mismatch(mir_data: MirParser, compass_soln_copy):
+    """A file claiming the other layout's version is missing that layout's datasets."""
+    layout = _compass_layout(compass_soln_copy)
+    other = next(ver for ver in COMPASS_TEST_VERSIONS if ver != layout)
     with h5py.File(compass_soln_copy, "r+") as file:
+        _write_compass_version(file, _ver_str(other) + ".0", layout)
+
+    mir_data.unload_data()
+    with pytest.raises(MirCompassError, match="missing required dataset") as err:
+        mir_data.read_compass_solns(compass_soln_copy)
+    assert COMPASS_FIXTURE_PATHS[other]["per_int"] in str(err.value)
+
+
+@pytest.mark.parametrize("group", ["meta", "calibration", "flags"])
+def test_compass_incomplete_group(mir_data: MirParser, tmp_path, group):
+    """A 0.13 file left behind by an export that failed partway is refused as such."""
+    filename = os.path.join(tmp_path, "compass_soln.h5")
+    _make_compass_soln(filename, (0, 13))
+    with h5py.File(filename, "r+") as file:
+        del file[group].attrs["complete"]
+
+    mir_data.unload_data()
+    with pytest.raises(MirCompassError, match=f"group\\(s\\) {group} are not marked"):
+        mir_data.read_compass_solns(filename)
+
+
+# TODO(0.12 removal): only a file claiming to be 0.12 can carry pre-0.12 datasets.
+def test_compass_legacy_schema_err(mir_data: MirParser, tmp_path):
+    """A pre-0.12 file should be diagnosed as such, not fail on a bare KeyError."""
+    filename = os.path.join(tmp_path, "compass_soln.mat")
+    _make_compass_soln(filename, (0, 12))
+    with h5py.File(filename, "r+") as file:
         # Recreate the shape of the older schema: split real/imag bandpass arrays and
         # a single combined static flag array.
         bp_arr = file["bandpassArr"][...]
@@ -419,7 +541,7 @@ def test_compass_legacy_schema_err(mir_data: MirParser, compass_soln_copy):
 
     mir_data.unload_data()
     with pytest.raises(MirCompassError, match="missing required dataset") as err:
-        mir_data.read_compass_solns(compass_soln_copy)
+        mir_data.read_compass_solns(filename)
     msg = str(err.value)
     assert "bandpassArr" in msg
     assert "staticAntFlagArr" in msg
@@ -486,24 +608,20 @@ def test_compass_flag_bit_order(mir_data: MirParser, compass_soln_copy, flag_typ
     # something else, so this pattern can tell the two conventions apart.
     assert not np.array_equal(np.unpackbits(packed).view(bool), pattern)
 
+    paths = COMPASS_FIXTURE_PATHS[_compass_layout(compass_soln_copy)]
     with h5py.File(compass_soln_copy, "r+") as file:
-        flag_arr = file["flagArr"][...]
-        ant_arr = file["staticAntFlagArr"][...]
-        base_arr = file["staticBaseFlagArr"][...]
         if flag_type == "sphid":
-            flag_arr[...] = packed
+            new_flags = {"per_int": packed}
         else:
             # Split the pattern across the antenna and baseline flags, so that both
             # are checked (the applied flags are their union).
-            ant_arr[...] = _matlab_pack_flags(pattern & (np.arange(nchan) < 5000))
-            base_arr[...] = _matlab_pack_flags(pattern & (np.arange(nchan) >= 5000))
-        for key, value in zip(
-            ["flagArr", "staticAntFlagArr", "staticBaseFlagArr"],
-            [flag_arr, ant_arr, base_arr],
-            strict=True,
-        ):
-            del file[key]
-            file[key] = value
+            new_flags = {
+                "static_ant": _matlab_pack_flags(pattern & (np.arange(nchan) < 5000)),
+                "static_base": _matlab_pack_flags(pattern & (np.arange(nchan) >= 5000)),
+            }
+        for name, value in new_flags.items():
+            dset = file[paths[name]]
+            dset[...] = np.broadcast_to(value, dset.shape)
 
     for entry in mir_data.vis_data.values():
         entry["flags"][:] = False
@@ -527,6 +645,39 @@ def test_compass_flag_bit_order(mir_data: MirParser, compass_soln_copy, flag_typ
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
             np.testing.assert_array_equal(entry["flags"], pattern)
+
+
+@pytest.mark.parametrize(
+    "layout", COMPASS_TEST_VERSIONS, ids=lambda ver: "v" + _ver_str(ver)
+)
+def test_compass_flag_int_matching(mir_data: MirParser, tmp_path, layout):
+    """
+    Test that per-integration flags come from the integration whose time matches.
+
+    The flags are read from disk one integration at a time, so this checks that the
+    one read is the matched one, and not its neighbours.
+    """
+    mjd = mir_data.in_data["mjd"][0]
+    filename = os.path.join(tmp_path, "compass_soln.h5")
+    _make_compass_soln(filename, layout, mjd=[mjd - 1, mjd, mjd + 1])
+    with h5py.File(filename, "r+") as file:
+        # Only the middle integration matches; flag everything in the other two.
+        per_int = file[COMPASS_FIXTURE_PATHS[layout]["per_int"]]
+        per_int[0] = 255
+        per_int[2] = 255
+
+    for entry in mir_data.vis_data.values():
+        entry["flags"][:] = False
+
+    vis_data = mir_data.vis_data
+    mir_data.vis_data = None
+    mir_data.read_compass_solns(filename, load_flags=True, load_bandpass=False)
+    mir_data.vis_data = vis_data
+    mir_data._apply_compass_solns(mir_data.vis_data)
+    for key, entry in mir_data.vis_data.items():
+        if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
+            assert np.all(entry["flags"][::2])
+            assert not np.any(entry["flags"][1::2])
 
 
 def test_compass_flag_static_apply(mir_data, compass_soln_file):
