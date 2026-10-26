@@ -260,7 +260,10 @@ def uvcalibrate(
     uvdata : UVData object
         UVData object to calibrate.
     uvcal : UVCal object
-        UVCal object containing the calibration.
+        UVCal object containing the calibration. Either object may be flex-pol/Jones,
+        in which case solutions are matched to the data window by window (where each
+        data window needs a corresponding solution window with the same window number
+        and matching Jones terms).
     inplace : bool, optional
         if True edit uvdata in place, else return a calibrated copy
     prop_flags : bool, optional
