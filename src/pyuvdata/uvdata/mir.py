@@ -472,6 +472,36 @@ class Mir(UVData):
             UVData, data from receivers with different offsets should be read
             separately. Default is None (no correction applied).
         """
+        # Map MIR pol code to pyuvdata/AIPS polarization number and feeds
+        pol_code_dict = {}
+        convert_code_map = {"aa": "hh", "ab": "hv", "ba": "vh", "bb": "vv"}
+        feed_code_dict = {}
+        icode_dict = mir_data.codes_data["pol"]
+        for code in mir_data.codes_data.get_codes("pol", return_dict=False):
+            # There are pol modes/codes that are support in MIR that are not in AIPS
+            # or CASA, although they are rarely used, so we can skip over them
+            std_code = convert_code_map.get(code.lower(), code.lower())
+            with contextlib.suppress(KeyError):
+                pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[std_code]
+                feed_code_dict[icode_dict[code]] = utils.pol.POL_TO_FEED_DICT[
+                    utils.POL_NUM2STR_DICT[utils.POL_STR2NUM_DICT[std_code]]
+                ]
+
+        # Drop records UVData can't actually hold (e.g., unknowns, cross-basis)
+        ipol, counts = np.unique(mir_data.bl_data["ipol"], return_counts=True)
+        good = np.isin(ipol, list(pol_code_dict))
+        circ = np.array([set(feed_code_dict.get(i, "?")) <= {"l", "r"} for i in ipol])
+        keep_circ = counts[good & circ].sum() >= counts[good & ~circ].sum()
+        bad = ~good | (circ != keep_circ)
+        if np.any(bad):
+            warnings.warn(
+                f"Dropping {counts[bad].sum()} of {counts.sum()} baseline records with "
+                "polarizations that have no UVData equivalent or are outside the main "
+                "(linear or circular) feed basis: "
+                + ", ".join(str(icode_dict.get(key)) for key in ipol[bad])
+            )
+            mir_data.select(where=("ipol", "ne", ipol[bad].tolist()))
+
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
         sp_bl_idx = mir_data.bl_data._index_query(header_key=mir_data.sp_data["blhid"])
@@ -487,13 +517,19 @@ class Mir(UVData):
             # If only one pol is found, and the polarization dictionary has only four
             # codes + four unique index codes, then we actually need to verify this is
             # a single pol observation, since the current system has a quirk that it
-            # marks both X- and Y-pol receivers as the same polarization.
+            # marks both X- and Y-pol receivers as the same polarization. The codes for
+            # hh, vv, hv, and vh are found by label (some 2026 files list them as bb,
+            # aa, ba, and ab), or else by position.
             pol_arr = np.zeros_like(sp_bl_idx)
+            icodes = {
+                convert_code_map.get(code.lower(), code.lower()): icode_dict[code]
+                for code in mir_data.codes_data.get_codes("pol", return_dict=False)
+            }
 
-            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = 0
-            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxb_mask)] = 1
-            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxb_mask)] = 2
-            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxa_mask)] = 3
+            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = icodes.get("hh", 0)
+            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxb_mask)] = icodes.get("vv", 1)
+            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxb_mask)] = icodes.get("hv", 2)
+            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxa_mask)] = icodes.get("vh", 3)
         else:
             # If this has multiple ipol codes, then we don't need to worry about the
             # single-code ambiguity.
@@ -543,22 +579,6 @@ class Mir(UVData):
                     loa_chunks.issubset(lob_chunks) or lob_chunks.issubset(loa_chunks)
                 )
 
-        # Map MIR pol code to pyuvdata/AIPS polarization number and feeds
-        pol_code_dict = {}
-        convert_code_map = {"aa": "hh", "ab": "hv", "ba": "vh", "bb": "vv"}
-        feed_code_dict = {}
-        icode_dict = mir_data.codes_data["pol"]
-        for code in mir_data.codes_data.get_codes("pol", return_dict=False):
-            # There are pol modes/codes that are support in MIR that are not in AIPS
-            # or CASA, although they are rarely used, so we can skip over translating
-            # them in the try/except loop here (if present in the data, it will throw
-            # an error further downstream).
-            std_code = convert_code_map.get(code.lower(), code.lower())
-            with contextlib.suppress(KeyError):
-                pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[std_code]
-                feed_code_dict[icode_dict[code]] = utils.pol.POL_TO_FEED_DICT[
-                    utils.POL_NUM2STR_DICT[utils.POL_STR2NUM_DICT[std_code]]
-                ]
         if pol_split_tuning and allow_flex_pol:
             # If we have a split tuning that, that means we can take advantage of
             # the flex-pol feature within UVData
