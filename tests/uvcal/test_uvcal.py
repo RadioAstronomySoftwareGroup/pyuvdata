@@ -3202,6 +3202,24 @@ def test_uvcal_get_methods(gain_data):
     assert not uvc._key_exists(antnum=10, jpol="Jnn")
     assert not uvc._key_exists(antnum=101, jpol="Jee")
 
+    # flex-Jones objects should match their padded (standard Jones axis) equivalent
+    uvc_flex = uvc.copy()
+    uvc_flex.jones_array[0] = -6
+    uvc_flex.gain_array *= 2
+    uvc_flex += uvc
+    uvc_flex.convert_to_flex_jones()
+    uvc_pad = uvc_flex.copy()
+    uvc_pad.remove_flex_jones(combine_spws=False)
+    # remove_flex_jones sorts the windows by number
+    uvc_flex.reorder_freqs(spw_order="number")
+    for method in ["get_gains", "get_flags", "get_quality"]:
+        for jpol in ["Jee", "Jnn"]:
+            np.testing.assert_array_equal(
+                getattr(uvc_flex, method)(10, jpol), getattr(uvc_pad, method)(10, jpol)
+            )
+    assert uvc_flex._key_exists(antnum=10, jpol="Jnn")
+    assert not uvc_flex._key_exists(jpol="Jen")
+
     # test exceptions
     with pytest.raises(ValueError, match="1 not found in ant_array"):
         uvc.get_gains(1)
@@ -4358,17 +4376,24 @@ def test_flex_jones_divide_and_add(multi_spw_gain, multi_spw_delay, func, caltyp
     uvcomb1 = uvc + uvc_copy
     uvcomb1.convert_to_flex_jones()
 
-    # Modify the spws so that they align nicely
-    uvc_copy.spw_array += uvc_copy.Nspws
+    # Number the windows as the conversion did, so that they align nicely
+    new_spws = uvcomb1.spw_array[uvcomb1.flex_jones_array == -6]
     if caltype == "gain":
-        uvc_copy.flex_spw_id_array += uvc_copy.Nspws
+        spw_map = dict(zip(uvc_copy.spw_array, new_spws, strict=True))
+        uvc_copy.flex_spw_id_array = np.array(
+            [spw_map[spw] for spw in uvc_copy.flex_spw_id_array]
+        )
+    uvc_copy.spw_array = new_spws
     uvc.convert_to_flex_jones()
     uvc_copy.convert_to_flex_jones()
 
     uvcomb2 = getattr(uvc, func)(uvc_copy, **kwargs)
 
-    # Bypass histories since they are different
-    uvcomb1.history = uvcomb2.history = None
+    # Compare in window-number order (the conversion puts the new windows last, which
+    # add does not), and bypass histories since they are different
+    for obj in (uvcomb1, uvcomb2):
+        obj.reorder_freqs(spw_order="number")
+        obj.history = None
 
     assert uvcomb1 == uvcomb2
 
@@ -4381,6 +4406,10 @@ def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode, caltype):
         uvc = multi_spw_delay
     elif caltype == "gain":
         uvc = multi_spw_gain
+    # total_quality_array lacks the antenna axis, so make sure it comes along too
+    uvc.total_quality_array = np.random.default_rng(5).uniform(
+        size=uvc.quality_array.shape[1:]
+    )
     uvc_copy = uvc.copy()
 
     if mode == "single":
@@ -4391,18 +4420,22 @@ def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode, caltype):
             uvc.flag_array[:, 1::2] = True
             uvc.delay_array[:, 1::2] = 0.0
             uvc.quality_array[:, 1::2] = 0.0
+            uvc.total_quality_array[1::2] = 0.0
             uvc_copy.flag_array[:, ::2] = True
             uvc_copy.delay_array[:, ::2] = 0.0
             uvc_copy.quality_array[:, ::2] = 0.0
+            uvc_copy.total_quality_array[::2] = 0.0
     elif caltype == "gain":
         uvc_copy.gain_array *= 2 + 3j  # adjust gains to make them pol-unique
         if mode == "make":
             uvc.flag_array[:, uvc.flex_spw_id_array == 2] = True
             uvc.gain_array[:, uvc.flex_spw_id_array == 2] = 0.0
             uvc.quality_array[:, uvc.flex_spw_id_array == 2] = 0.0
+            uvc.total_quality_array[uvc.flex_spw_id_array == 2] = 0.0
             uvc_copy.flag_array[:, uvc.flex_spw_id_array == 1] = True
             uvc_copy.gain_array[:, uvc.flex_spw_id_array == 1] = 0.0
             uvc_copy.quality_array[:, uvc.flex_spw_id_array == 1] = 0.0
+            uvc_copy.total_quality_array[uvc.flex_spw_id_array == 1] = 0.0
 
     if mode != "single":
         # Spoof a second polarization
@@ -4496,6 +4529,8 @@ def test_flex_jones_shuffle(multi_spw_gain, multi_spw_delay, mode):
     uvc_spoof.jones_array[0] = -6
     uvc += uvc_spoof
     uvc.convert_to_flex_jones()
+    # The conversion puts the new windows last, whereas add sorts them by number
+    uvc.reorder_freqs(spw_order="number")
 
     uvc1 = uvc.select(jones=[-5], inplace=False)
     uvc2 = uvc.select(jones=[-6], inplace=False)
