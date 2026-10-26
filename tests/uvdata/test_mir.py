@@ -660,6 +660,69 @@ def test_bad_pol_code(mir_data):
     mir_obj._init_from_mir_parser(mir_data)
 
 
+def _set_pol_codes(mir_data, labels):
+    """Replace the "pol" codes of a MirParser object, numbered in order."""
+    codes = mir_data.codes_data
+    rows = np.array(
+        [("pol", icode, label, 0) for icode, label in enumerate(labels)],
+        dtype=codes._data.dtype,
+    )
+    codes._data = np.concatenate([codes._data[codes._data["v_name"] != "pol"], rows])
+    codes._mask = np.ones(len(codes._data), dtype=bool)
+    codes._set_header_key_index_dict()
+
+
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+def test_op2207_pol_codes(mir_data):
+    """
+    Test that dual-receiver data with the OP-2207 pol codes (bb, aa, ba, ab, with ipol
+    = 0 throughout) read the same as with the legacy codes (hh, vv, hv, vh), i.e. with
+    receiver A as xx, since the codes are found by label rather than position.
+    """
+    legacy_obj = Mir()
+    legacy_obj._init_from_mir_parser(mir_data.copy())
+    _set_pol_codes(mir_data, ["bb", "aa", "ba", "ab"])
+    mir_obj = Mir()
+    mir_obj._init_from_mir_parser(mir_data)
+
+    # The pol axis follows the code order (yy first here), so compare in AIPS order
+    mir_obj.reorder_pols()
+    legacy_obj.reorder_pols()
+    assert mir_obj == legacy_obj
+
+
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
+@pytest.mark.parametrize(
+    "ipol, ndrop, dropped, pols",
+    [
+        ({0: 11, 1: [16, 0]}, 1, "Unknown", ["xx", "yy"]),  # HH, VV, unknown waveplate
+        ({0: 4, 1: [1, 5]}, 1, "LH", ["ll", "rr"]),  # waveplate out on one end
+        ({0: 4, 1: [1, 16]}, 1, "VV", ["ll", "rr"]),  # waveplates out on both ends
+        ({0: 11, 1: 1}, 2, "HH", ["rr"]),  # equal linear and circular: keep circular
+    ],
+)
+def test_pol_codes_v8(mir_data, ipol, ndrop, dropped, pols):
+    """
+    Test reading the pol codes written since MIR v8 (the pre-v7 full-pol table, for all
+    tracks), and that records UVData can't hold are dropped with a warning.
+    """
+    labels = ["Unknown", "RR", "RL", "LR", "LL", "LH", "LV", "RH", "RV"]
+    _set_pol_codes(mir_data, labels + ["HR", "HL", "HH", "HV", "VR", "VL", "VH", "VV"])
+    bl = mir_data.bl_data._data
+    slot = bl["ant1rx"].copy()
+    for rx, value in ipol.items():
+        bl["ipol"][slot == rx] = value
+
+    mir_obj = Mir()
+    with pytest.warns(UserWarning, match=f"Dropping {ndrop} of 4 .*: {dropped}$"):
+        mir_obj._init_from_mir_parser(mir_data)
+
+    pol_arr = mir_obj.flex_spw_polarization_array
+    pol_arr = mir_obj.polarization_array if pol_arr is None else pol_arr
+    assert sorted(set(utils.polnum2str(pol_arr))) == pols
+
+
 @pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
 @pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
