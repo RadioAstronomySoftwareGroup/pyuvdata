@@ -3,7 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support in `uvcalibrate` for flex-pol `UVData` objects, which carry one
+polarization per spectral window, and for flex-Jones `UVCal` objects, which carry one
+Jones term per spectral window. Solutions are matched to the data window by window.
+- Support in `UVCal.get_gains`, `UVCal.get_flags` and `UVCal.get_quality` for selecting
+a Jones term on flex-Jones objects.
+
 ### Changed
+- `UVCal.convert_to_flex_jones` numbers spectral windows the same way that
+`UVData.convert_to_flex_pol` does, so that a matching `UVData` and `UVCal` objects
+convert to the same window numbers.
 - `UVCal.read_calfits` reads calfits files without memory-mapping them, which can be
 several times faster on network file systems.
 - Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
@@ -16,6 +26,10 @@ interpolating spline for a given `kx`/`ky` with `s = 0`.
 - Updated minimum dependency versions: scipy>=1.15
 
 ### Fixed
+- A bug in `UVCal.__add__` where `flex_jones_array` was not reordered along with the
+spectral windows.
+- A bug where `UVCal.convert_to_flex_jones` and `UVCal.remove_flex_jones` errored if
+`total_quality_array` was set.
 - A bug in `utils.gain_interpolate.time_interp_cal`/`UVCal.interpolate_in_time`
 where solutions that were not in time order were interpolated incorrectly.
 - A bug in `uvcalibrate` where calibration solutions were matched to the data by
