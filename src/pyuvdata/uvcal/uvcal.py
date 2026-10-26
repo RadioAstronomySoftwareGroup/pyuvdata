@@ -939,24 +939,35 @@ class UVCal(UVBase):
         # Finally, update data attrs if they exist
         if not self.metadata_only:
             freq_index = self.spw_array if self.wide_band else self.flex_spw_id_array
+            freq_pos = np.zeros(len(index_check), dtype=int)
+            jones_pos = np.zeros(len(index_check), dtype=int)
+            for old_spw, jones in zip(spw_map, self.flex_jones_array, strict=True):
+                mask = index_check == old_spw
+                freq_pos[mask] = np.nonzero(freq_index == spw_map[old_spw])[0]
+                jones_pos[mask] = jones_array.index(jones)
+
             for name, param in zip(
                 self._data_params, self.data_like_parameters, strict=True
             ):
                 if param is None:
                     continue
-                # Update the parameter shape with
-                new_shape = list(param.shape)
-                new_shape[1] = self.Nspws if self.wide_band else self.Nfreqs
-                new_shape[3] = self.Njones
-                new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
-                for idx, old_spw in enumerate(spw_map):
-                    new_fidx = freq_index == spw_map[old_spw]
-                    # index_check is recycled from the original combine_windows check
-                    # above (and marks the original indexing positions of the object)
-                    old_fidx = index_check == old_spw
-                    jones_idx = jones_array.index(self.flex_jones_array[idx])
-                    new_param[:, new_fidx, :, jones_idx] = param[:, old_fidx, :, 0]
-                setattr(self, name, new_param)
+
+                # Get the form of the parameter and determine the frequency axis
+                p_form = getattr(self, f"_{name}").form
+                freq_axis = p_form.index("Nspws" if self.wide_band else "Nfreqs")
+
+                # Map out indexes for freq/Jones on the assignment side
+                inds_shape = [-1 if i == freq_axis else 1 for i in range(param.ndim)]
+                p_inds = list(np.indices(param.shape, sparse=True))
+                p_inds[freq_axis] = freq_pos.reshape(inds_shape)
+                p_inds[p_form.index("Njones")] = jones_pos.reshape(inds_shape)
+                exp_shape = tuple(getattr(self, attr) for attr in p_form)
+
+                # Create a new array, populate w/ True for flags, otherwise 0 (False)
+                new_vals = np.full(exp_shape, name == "flag_array", dtype=param.dtype)
+                new_vals[*p_inds] = param
+
+                setattr(self, name, new_vals)
 
         # Finally, drop flex_jones now that we no longer need it's info
         self.flex_jones_array = None
@@ -1017,28 +1028,22 @@ class UVCal(UVBase):
         self.jones_array = np.array([0])
         self.Njones = 1
 
-        # Now go through one-by-one with data-like parameters and update
+        # Broadcast to match the shape of the data-like parameters
+        spw_map = {spw: i for i, spw in enumerate(self.spw_array)}
+        jones_idx_arr = jones_idx_arr[[spw_map[spw] for spw in spw_id_arr]]
+
+        # Now go through the data-like parameters and pick those Jones terms out
         for name, param in zip(
             self._data_params, self.data_like_parameters, strict=True
         ):
-            # Grab the shape and update the Jones (last) axis to be length 1. Note we
-            # do it this way since total_quality_array has a different shape
             if param is None:
                 continue
-            new_shape = list(param.shape)
-            new_shape[-1] = 1
-
-            # We can use empty here, since we know that we will be filling all values
-            new_param = np.empty(new_shape, dtype=param.dtype)
-
-            for spw, jones_idx in zip(self.spw_array, jones_idx_arr, strict=True):
-                # Process each window individually, since jones code can vary
-                spw_screen = spw_id_arr == spw
-
-                # Grab from the right Jones-position and plug values in
-                new_param[:, spw_screen, :, 0] = param[:, spw_screen, :, jones_idx]
-
-            # Update the attribute with the new values
+            p_form = getattr(self, f"_{name}").form
+            freq_axis = p_form.index("Nspws" if self.wide_band else "Nfreqs")
+            inds_shape = [1 if i != freq_axis else -1 for i in range(param.ndim)]
+            new_param = np.take_along_axis(
+                param, jones_idx_arr.reshape(inds_shape), axis=p_form.index("Njones")
+            )
             setattr(self, name, new_param)
 
     def convert_to_flex_jones(self):
@@ -1062,7 +1067,8 @@ class UVCal(UVBase):
         old_nspws = self.Nspws * self.Njones
         njones = self.Njones
         new_nspws = self.Nspws * (self.Njones - 1)
-        new_spw_ids = list(set(range(1, old_nspws + 1)).difference(self.spw_array))
+        # Number the new windows to match the UVData ordering for flex-pol conversion
+        new_spw_ids = sorted(set(range(old_nspws + 1)).difference(self.spw_array))
         spw_array = np.concatenate((self.spw_array, new_spw_ids[:new_nspws]))
         flex_spw_id_arr = None
 
@@ -1103,13 +1109,14 @@ class UVCal(UVBase):
             ):
                 if param is None:
                     continue
-                # Make into a list so that its mutable
-                old_shape = param.shape
-                # ("Nants_data", "Nfreqs", "Ntimes", "Njones"),
-                # Extend the second axis by njones, shrink the last axis to 1
-                new_shape = [old_shape[0], old_shape[1] * njones, old_shape[2], 1]
-                param = np.transpose(param, (0, 3, 1, 2)).reshape(new_shape)
-                setattr(self, name, param)
+                attr_form = getattr(self, f"_{name}").form
+                freq_axis = attr_form.index("Nspws" if self.wide_band else "Nfreqs")
+                jones_axis = attr_form.index("Njones")
+                new_shape = list(param.shape)
+                new_shape[jones_axis], new_shape[freq_axis] = 1, -1
+                # Fold Jones into the freq axis (Jones slowest), leaving Njones = 1
+                param = np.moveaxis(param, jones_axis, freq_axis).reshape(new_shape)
+                setattr(self, name, np.ascontiguousarray(param))
 
     def set_telescope_params(
         self,
@@ -1934,7 +1941,10 @@ class UVCal(UVBase):
                 jpol = utils.jstr2num(
                     jpol, x_orientation=self.telescope.get_x_orientation_from_feeds()
                 )
-            if jpol not in self.jones_array:
+            if self.flex_jones_array is None:
+                if jpol not in self.jones_array:
+                    return False
+            elif jpol not in self.flex_jones_array:
                 return False
 
         return True
@@ -2011,6 +2021,22 @@ class UVCal(UVBase):
         elif len(key) == 2:
             # interpret as an antenna-pol pair
             output = data_array[self.ant2ind(key[0]), :, :, self.jpol2ind(key[1])]
+            if self.flex_jones_array is not None:
+                # If flex-pol, extract the values from windows that have the requested
+                # Jones terms, otherwise return dummy/flagged values.
+                jpol = key[1]
+                if isinstance(jpol, str | np.str_):
+                    jpol = utils.jstr2num(
+                        jpol,
+                        x_orientation=self.telescope.get_x_orientation_from_feeds(),
+                    )
+                has_jones = self.flex_jones_array == jpol
+                if not self.wide_band:
+                    has_jones = np.isin(
+                        self.flex_spw_id_array, self.spw_array[has_jones]
+                    )
+                # If Jones term doesn't match, return flags (set to True) or zeros.
+                output = np.where(has_jones[:, None], output, data_array.dtype == bool)
 
         return output
 
@@ -3065,9 +3091,11 @@ class UVCal(UVBase):
                 unique_index = np.sort(
                     np.unique(this.flex_spw_id_array, return_index=True)[1]
                 )
+                old_spw_array = this.spw_array
                 this.spw_array = np.sort(this.flex_spw_id_array[unique_index])
                 if this.flex_jones_array is not None:
-                    concat_spw_array = np.concatenate([this.spw_array, other.spw_array])
+                    # Ordered against original window order, same as flex_jones_array
+                    concat_spw_array = np.concatenate([old_spw_array, other.spw_array])
                     spw_index = np.asarray(
                         [
                             np.nonzero(concat_spw_array == spw)[0][0]
@@ -3364,6 +3392,8 @@ class UVCal(UVBase):
             if this.wide_band:
                 this.spw_array = this.spw_array[f_order]
                 this.freq_range = this.freq_range[f_order]
+                if this.flex_jones_array is not None:
+                    this.flex_jones_array = this.flex_jones_array[f_order]
             else:
                 this.freq_array = this.freq_array[f_order]
                 this.channel_width = this.channel_width[f_order]

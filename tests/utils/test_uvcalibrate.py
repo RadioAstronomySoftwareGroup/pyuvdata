@@ -124,6 +124,32 @@ class TestGetPolConventions:
             )
 
 
+def _calibrate(uvd, uvc, layout=None, **kwargs):
+    # Calibrate w/ the inputs laid out per `layout`, handing back standard-pol data.
+    # `layout` is None (as given), "flex" (flex-pol data w/ flex-Jones solutions),
+    # "padded" (flex-pol data w/ solutions on the same windows, but w/ a standard Jones
+    # axis) or "flex_cal" (the data as given w/ flex-Jones solutions).
+    if layout is None:
+        return uvcalibrate(uvd, uvc, inplace=False, **kwargs)
+
+    # Just the data's windows, so that the two conversions number the new ones alike
+    if np.array_equal(uvc.spw_array, uvd.spw_array):
+        uvc = uvc.copy()
+    else:
+        uvc = uvc.select(spws=uvd.spw_array, inplace=False)
+    uvc.convert_to_flex_jones()
+    if layout == "padded":
+        uvc.remove_flex_jones(combine_spws=False)
+    if layout == "flex_cal":
+        return uvcalibrate(uvd, uvc, inplace=False, **kwargs)
+
+    uvd = uvd.copy()
+    uvd.convert_to_flex_pol()
+    uvd = uvcalibrate(uvd, uvc, inplace=False, **kwargs)
+    uvd.remove_flex_pol()
+    return uvd
+
+
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
@@ -232,7 +258,10 @@ def test_uvcalibrate_delay_oldfiles(uvcalibrate_uvdata_oldfiles):
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
 @pytest.mark.parametrize("time_range", [None, "Ntimes", 3])
-def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_range):
+@pytest.mark.parametrize("layout", [None, "flex", "padded"])
+def test_uvcalibrate(
+    uvcalibrate_data, flip_gain_conj, gain_convention, time_range, layout
+):
     uvd, uvc = uvcalibrate_data
 
     if time_range is not None:
@@ -276,7 +305,7 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
         undo_warn_type = None
 
     with check_warnings(cal_warn_type, match=cal_warn_msg):
-        uvdcal = uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
+        uvdcal = _calibrate(uvd, uvc, layout, flip_gain_conj=flip_gain_conj)
     if gain_convention == "divide":
         assert uvdcal.vis_units == "uncalib"
     else:
@@ -310,12 +339,12 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
 
     # test undo
     with check_warnings(undo_warn_type, match=undo_warn_msg):
-        uvdcal = uvcalibrate(
+        uvdcal = _calibrate(
             uvdcal,
             uvc,
+            layout,
             prop_flags=True,
             ant_check=False,
-            inplace=False,
             undo=True,
             flip_gain_conj=flip_gain_conj,
         )
@@ -345,13 +374,14 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
-def test_uvcalibrate_flag_propagation(uvcalibrate_data):
+@pytest.mark.parametrize("layout", [None, "flex"])
+def test_uvcalibrate_flag_propagation(uvcalibrate_data, layout):
     uvd, uvc = uvcalibrate_data
 
     # test flag propagation
     uvc.flag_array[0] = True
     uvc.gain_array[1] = 0.0
-    uvdcal = uvcalibrate(uvd, uvc, prop_flags=True, ant_check=False, inplace=False)
+    uvdcal = _calibrate(uvd, uvc, layout, prop_flags=True, ant_check=False)
 
     assert np.all(uvdcal.get_flags(1, 13, "xx"))  # assert completely flagged
     assert np.all(uvdcal.get_flags(0, 12, "xx"))  # assert completely flagged
@@ -383,17 +413,13 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     )
 
     with pytest.raises(ValueError) as errinfo:
-        uvdcal = uvcalibrate(
-            uvd, uvc_sub, prop_flags=True, ant_check=True, inplace=False
-        )
+        uvdcal = _calibrate(uvd, uvc_sub, layout, prop_flags=True, ant_check=True)
 
     assert exp_err == str(errinfo.value)
 
     uvc_sub.gain_scale = "Jy"
     with pytest.warns(UserWarning) as warninfo:
-        uvdcal = uvcalibrate(
-            uvd, uvc_sub, prop_flags=True, ant_check=False, inplace=False
-        )
+        uvdcal = _calibrate(uvd, uvc_sub, layout, prop_flags=True, ant_check=False)
     warns = {warn.message.args[0] for warn in warninfo}
     ant_expected = {
         f"Antennas {missing_ant_names} have data on UVData but are missing "
@@ -668,7 +694,8 @@ def test_uvcalibrate_extra_cal_freqs(uvcalibrate_data):
     )
 
 
-def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
+@pytest.mark.parametrize("layout", [None, "flex_cal"])
+def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data, layout):
     uvd, uvc = uvcalibrate_data
 
     # downselect the feed polarization to get warnings
@@ -677,10 +704,12 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
             "Jnn", x_orientation=uvc.telescope.get_x_orientation_from_feeds()
         )
     )
+    # Flex-Jones solutions get matched (and so reported) window by window
+    spw_str = " in SPW 0" if layout else ""
     with pytest.raises(
-        ValueError, match=("Feed polarization e exists on UVData but not on UVCal.")
+        ValueError, match=f"Feed polarization e exists on UVData{spw_str} but not on"
     ):
-        uvcalibrate(uvd, uvc, inplace=False)
+        _calibrate(uvd, uvc, layout)
 
 
 def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
@@ -849,11 +878,16 @@ def test_gain_scale_wrong(uvcalibrate_data):
         uvcalibrate(uvd, uvc, undo=True)
 
 
-def test_uvdata_pol_array_in_stokes(uvcalibrate_data):
+@pytest.mark.parametrize("flex", [False, True])
+def test_uvdata_pol_array_in_stokes(uvcalibrate_data, flex):
     uvd, uvc = uvcalibrate_data
 
-    # Set polarization_array to be in Stokes I, Q, U, V
-    uvd.polarization_array = np.array([1, 2, 3, 4])
+    # Set polarization_array to be in Stokes I, Q, U, V (or each window, if flex-pol)
+    if flex:
+        uvd.convert_to_flex_pol()
+        uvd.flex_spw_polarization_array = np.array([1, 2])
+    else:
+        uvd.polarization_array = np.array([1, 2, 3, 4])
 
     with pytest.raises(
         NotImplementedError,
@@ -901,7 +935,8 @@ def test_uvcalibrate_wideband_gains_errs():
 @pytest.mark.filterwarnings("ignore:Setting telescope_location to value in known")
 @pytest.mark.filterwarnings("ignore:Unknown polarization basis for solutions")
 @pytest.mark.filterwarnings("ignore: Unknown x_orientation basis for solutions")
-def test_uvcalibrate_wideband_gains():
+@pytest.mark.parametrize("layout", [None, "flex", "padded"])
+def test_uvcalibrate_wideband_gains(layout):
     pytest.importorskip("casacore")
 
     uvd = UVData.from_file(fetch_data("sma_mir"))
@@ -927,7 +962,7 @@ def test_uvcalibrate_wideband_gains():
     uvc.freq_range[2:-2, 0] = np.min(uvd.freq_array.reshape(8, -1), axis=1)
     uvc.freq_range[2:-2, 1] = np.max(uvd.freq_array.reshape(8, -1), axis=1)
 
-    new_uvd = uvcalibrate(uvdata=uvd, uvcal=uvc, inplace=False)
+    new_uvd = _calibrate(uvd, uvc, layout)
 
     # Make sure no flagged solns got applied
     assert np.all(new_uvd.data_array.reshape(8, 16384, 2)[::2] == 1)
@@ -1130,15 +1165,14 @@ def test_uvcalibrate_catalog_names(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:Calibrating a subset of the data")
-def test_uvcalibrate_select_polarizations(uvcalibrate_data):
+@pytest.mark.parametrize("layout", [None, "flex", "flex_cal"])
+def test_uvcalibrate_select_polarizations(uvcalibrate_data, layout):
     """Selecting a polarization should leave the others exactly as they were."""
     uvd, uvc = uvcalibrate_data
 
     keep = uvd.polarization_array[0]
     full = utils.uvcalibrate(uvd, uvc, inplace=False)
-    part = utils.uvcalibrate(
-        uvd, uvc, inplace=False, uvd_select_kwargs={"polarizations": [keep]}
-    )
+    part = _calibrate(uvd, uvc, layout, uvd_select_kwargs={"polarizations": [keep]})
 
     np.testing.assert_array_equal(part.data_array[:, :, 0], full.data_array[:, :, 0])
     np.testing.assert_array_equal(part.data_array[:, :, 1:], uvd.data_array[:, :, 1:])
