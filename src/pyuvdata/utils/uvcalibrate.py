@@ -7,7 +7,14 @@ from typing import Literal
 
 import numpy as np
 
-from .pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2num
+from .pol import (
+    POL_TO_FEED_DICT,
+    jnum2str,
+    jstr2num,
+    parse_jpolstr,
+    polnum2str,
+    polstr2num,
+)
 
 
 def _get_pol_conventions(
@@ -249,7 +256,10 @@ def uvcalibrate(
     uvdata : UVData object
         UVData object to calibrate.
     uvcal : UVCal object
-        UVCal object containing the calibration.
+        UVCal object containing the calibration. Either object may be flex-pol/Jones,
+        in which case solutions are matched to the data window by window (where each
+        data window needs a corresponding solution window with the same window number
+        and matching Jones terms).
     inplace : bool, optional
         if True edit uvdata in place, else return a calibrated copy
     prop_flags : bool, optional
@@ -349,7 +359,11 @@ def uvcalibrate(
             "calibrations"
         )
 
-    if np.any(uvdata.polarization_array > 0):
+    uvd_flex = uvdata.flex_spw_polarization_array is not None
+    uvd_pols = (
+        uvdata.flex_spw_polarization_array if uvd_flex else uvdata.polarization_array
+    )
+    if np.any(uvd_pols > 0):
         raise NotImplementedError(
             "It is currently not possible to calibrate or de-calibrate data with "
             "stokes polarizations, since it is impossible to define UVCal objects with "
@@ -632,33 +646,53 @@ def uvcalibrate(
 
     # check if x_orientation-equivalent in uvdata isn't set (it's required for uvcal)
     uvd_x = uvdata.telescope.get_x_orientation_from_feeds()
+    uvc_x = uvcal.telescope.get_x_orientation_from_feeds()
     if uvd_x is None and uvdata.telescope.feed_array is None:
         # use the uvcal x_orientation throughout
-        uvd_x = uvcal.telescope.get_x_orientation_from_feeds()
+        uvd_x = uvc_x
         warnings.warn(
             "UVData object does not have `x_orientation` specified but UVCal does. "
             "Matching based on `x` and `y` only "
         )
 
     # Only the polarizations actually being calibrated need solutions to match against.
-    uvdata_pol_strs = polnum2str(
-        uvdata.polarization_array[pol_mask], x_orientation=uvd_x
-    )
-    uvcal_pol_strs = jnum2str(
-        uvcal.jones_array, x_orientation=uvcal.telescope.get_x_orientation_from_feeds()
-    )
-    uvdata_feed_pols = {
-        feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
-    }
-    for feed in uvdata_feed_pols:
-        # get diagonal jones str
-        jones_str = parse_jpolstr(
-            feed, x_orientation=uvcal.telescope.get_x_orientation_from_feeds()
+    if not uvd_flex and uvcal.flex_jones_array is None:
+        uvdata_pol_strs = polnum2str(
+            uvdata.polarization_array[pol_mask], x_orientation=uvd_x
         )
-        if jones_str not in uvcal_pol_strs:
-            raise ValueError(
-                f"Feed polarization {feed} exists on UVData but not on UVCal. "
-            )
+        uvcal_pol_strs = jnum2str(uvcal.jones_array, x_orientation=uvc_x)
+        uvdata_feed_pols = {
+            feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
+        }
+        for feed in uvdata_feed_pols:
+            # get diagonal jones str
+            jones_str = parse_jpolstr(feed, x_orientation=uvc_x)
+            if jones_str not in uvcal_pol_strs:
+                raise ValueError(
+                    f"Feed polarization {feed} exists on UVData but not on UVCal. "
+                )
+    else:
+        # Flex-pol data carry their polarization by window
+        for spw in np.unique(uvdata.flex_spw_id_array[freq_mask]):
+            if uvd_flex:
+                spw_pols = uvdata.flex_spw_polarization_array[uvdata.spw_array == spw]
+            else:
+                spw_pols = uvdata.polarization_array[pol_mask]
+            if uvcal.flex_jones_array is None:
+                spw_jones = uvcal.jones_array
+            else:
+                spw_jones = uvcal.flex_jones_array[uvcal.spw_array == spw]
+            spw_feeds = {
+                feed
+                for pol in polnum2str(spw_pols, x_orientation=uvd_x)
+                for feed in POL_TO_FEED_DICT[pol]
+            }
+            for feed in sorted(spw_feeds):
+                if jstr2num(feed, x_orientation=uvc_x) not in spw_jones:
+                    raise ValueError(
+                        f"Feed polarization {feed} exists on UVData in SPW {spw} but "
+                        "not on UVCal."
+                    )
 
     # downselect UVCal times, frequencies
     new_uvcal = not (
@@ -721,12 +755,36 @@ def uvcalibrate(
         )
         uvc_spw_map = {spw: idx for idx, spw in enumerate(uvcal_use.spw_array)}
 
+        # Flex-pol data carry one polarization per window (all on the one slot of the
+        # polarization axis), so calibrate the channels of each polarization in turn.
+        pol_chans = {}
+        if uvd_flex:
+            chan_sel = np.ones(uvdata.Nfreqs, dtype=bool)
+            if freq_ind_arr is not None:
+                chan_sel = freq_mask
+            for pol in np.unique(uvdata.flex_spw_polarization_array):
+                pol_spws = uvdata.spw_array[uvdata.flex_spw_polarization_array == pol]
+                chans = np.nonzero(
+                    chan_sel & np.isin(uvdata.flex_spw_id_array, pol_spws)
+                )[0]
+                if chans.size:
+                    pol_chans[polnum2str(pol, x_orientation=uvd_x)] = chans
+            antpairpols = [
+                antpair + (pol,)
+                for antpair in uvdata.get_antpairs()
+                for pol in pol_chans
+            ]
+        else:
+            antpairpols = uvdata.get_antpairpols()
+
         # iterate over keys
-        for key in uvdata.get_antpairpols():
+        for key in antpairpols:
+            # The channels this key covers (needed for flex-pol)
+            chan_inds = pol_chans[key[2]] if uvd_flex else freq_ind_arr
             # get indices for this key
             blt_subinds = uvdata.antpair2ind(key)
             keep_pos = None
-            if (blt_ind_arr is not None or freq_ind_arr is not None) and isinstance(
+            if (blt_ind_arr is not None or chan_inds is not None) and isinstance(
                 blt_subinds, slice
             ):
                 # `antpair2ind` hands back a slice when the records happen to be
@@ -752,6 +810,14 @@ def uvcalibrate(
             ant1_num = key[0]
             ant2_num = key[1]
 
+            # The data this key calibrates
+            if chan_inds is None:
+                data_slice = np.s_[blt_subinds, :, pol_ind]
+            else:
+                data_slice = np.s_[
+                    blt_subinds[:, np.newaxis], chan_inds[np.newaxis, :], pol_ind
+                ]
+
             feed1, feed2 = POL_TO_FEED_DICT[key[2]]
             try:
                 uvcal_ant1_num = uvcal_ant_dict[uvdata_ant_dict[ant1_num]]
@@ -766,7 +832,12 @@ def uvcalibrate(
                 uvcal_use._key_exists(antnum=uvcal_ant1_num, jpol=feed1)
                 and uvcal_use._key_exists(antnum=uvcal_ant2_num, jpol=feed2)
             ):
-                uvdata.flag_array[blt_subinds, :, pol_ind] = True
+                # Flex-pol data share the polarization slot, so only flag this key's
+                # channels there
+                if uvd_flex:
+                    uvdata.flag_array[data_slice] = True
+                else:
+                    uvdata.flag_array[blt_subinds, :, pol_ind] = True
                 continue
 
             uvcal_key1 = (uvcal_ant1_num, feed1)
@@ -798,19 +869,12 @@ def uvcalibrate(
             # array when using a channel-based soln.
             gain_slice = ...
             if uvcal_use.wide_band:
-                gain_slice = np.s_[
-                    :, [uvc_spw_map[spw] for spw in uvdata.flex_spw_id_array[freq_mask]]
-                ]
-            elif freq_ind_arr is not None:
-                gain_slice = np.s_[:, freq_ind_arr]
-
-            # Do the same on the data side
-            if freq_ind_arr is None:
-                data_slice = np.s_[blt_subinds, :, pol_ind]
-            else:
-                data_slice = np.s_[
-                    blt_subinds[:, np.newaxis], freq_ind_arr[np.newaxis, :], pol_ind
-                ]
+                spw_ids = uvdata.flex_spw_id_array
+                if chan_inds is not None:
+                    spw_ids = spw_ids[chan_inds]
+                gain_slice = np.s_[:, [uvc_spw_map[spw] for spw in spw_ids]]
+            elif chan_inds is not None:
+                gain_slice = np.s_[:, chan_inds]
 
             # propagate flags
             if prop_flags:
