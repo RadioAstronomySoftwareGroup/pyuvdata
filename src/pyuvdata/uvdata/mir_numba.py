@@ -35,7 +35,9 @@ def unpack_scaled(
     common exponent followed by Nchan pairs of real and imaginary values for each
     spectra, for a total of (2 * Nchan) + 1 int16 values. The common exponent gives a
     power-of-2 scale factor, which is multiplied by the normalization factor supplied by
-    the user (typically used for scaling by system temperature/SEFD).
+    the user (typically used for scaling by system temperature/SEFD). The normalization
+    is complex, and can carry a linear phase ramp across the channels of each record
+    (e.g., the change in w following an antenna position update).
 
     Parameters
     ----------
@@ -47,15 +49,18 @@ def unpack_scaled(
         Number of spectral channels in each record.
     out_off : ndarray of int
         Index at which each record's channels begin in the output buffers.
-    norm : ndarray of float32
-        Per-record multiplicative normalization applied to the data (1 for none). Note
-        that float64 works too, but is cast down to single precision.
+    norm : ndarray of complex128
+        Per-record normalization, of shape (Nrec, 2). The first column multiplies the
+        first channel of the record, and each subsequent channel is multiplied by the
+        value for the prior channel times the second column (i.e., a phase step). With
+        no imaginary part in the first column and a step of exactly 1, the record is
+        scaled by the real part alone (cast down to single precision).
     wt_val : ndarray of float32
         Per-record value written to the weights of every unflagged channel. Note that
         float64 works too, but is cast down to single precision.
     all_flag : ndarray of bool
-        Records for which every channel should be marked flagged. `norm` and `wt_val`
-        are ignored for these records.
+        Records for which every channel should be marked flagged. `wt_val` and the
+        amplitude of `norm` are ignored for these records (its phase is still applied).
     data_out : ndarray of complex64
         Output buffer for the visibilities. Modified in place.
     flag_out : ndarray of bool
@@ -70,29 +75,50 @@ def unpack_scaled(
         # The common exponent sits at the head of the record; the channel pairs follow.
         flag_state = all_flag[irec]
         sfac = np.exp2(np.float32(packdata[start]))
+        rot = norm[irec, 0]
+        step = norm[irec, 1]
         if flag_state:
             wgt = np.float32(1.0)
+            rot /= abs(rot)
         else:
-            # Cast explicitly here to preverve backwards compatibility/behavior with
-            # testing against prior numpy-based behavior.
-            sfac *= np.float32(norm[irec])
             wgt = np.float32(wt_val[irec])
 
         start += 1
-        for jdx in range(nchan[irec]):
-            re_val = packdata[start + (2 * jdx)]
-            sub_off = off + jdx
-            if re_val == BAD_VAL:
-                # Only the real component is checked, but the writer marks both.
-                data_out[sub_off] = np.float32(0)
-                flag_out[sub_off] = True
-                wt_out[sub_off] = np.float32(0.0)
-            else:
-                im_val = packdata[start + (2 * jdx) + 1]
-                # Complex turns out to be the most efficient way to cast this.
-                data_out[sub_off] = complex(re_val * sfac, im_val * sfac)
-                flag_out[sub_off] = flag_state
-                wt_out[sub_off] = wgt
+        if (rot.imag == 0.0) and (step == 1.0):
+            # Cast explicitly here to preverve backwards compatibility/behavior with
+            # testing against prior numpy-based behavior.
+            sfac *= np.float32(rot.real)
+            for jdx in range(nchan[irec]):
+                re_val = packdata[start + (2 * jdx)]
+                sub_off = off + jdx
+                if re_val == BAD_VAL:
+                    # Only the real component is checked, but the writer marks both.
+                    data_out[sub_off] = np.float32(0)
+                    flag_out[sub_off] = True
+                    wt_out[sub_off] = np.float32(0.0)
+                else:
+                    im_val = packdata[start + (2 * jdx) + 1]
+                    # Complex turns out to be the most efficient way to cast this.
+                    data_out[sub_off] = complex(re_val * sfac, im_val * sfac)
+                    flag_out[sub_off] = flag_state
+                    wt_out[sub_off] = wgt
+        else:
+            # Step the phasor along in double precision, which keeps the accumulated
+            # error at ~Nchan * 1e-16 rather than the ~Nchan * 1e-7 of single precision.
+            rot *= sfac
+            for jdx in range(nchan[irec]):
+                re_val = packdata[start + (2 * jdx)]
+                sub_off = off + jdx
+                if re_val == BAD_VAL:
+                    data_out[sub_off] = np.float32(0)
+                    flag_out[sub_off] = True
+                    wt_out[sub_off] = np.float32(0.0)
+                else:
+                    im_val = packdata[start + (2 * jdx) + 1]
+                    data_out[sub_off] = complex(re_val, im_val) * rot
+                    flag_out[sub_off] = flag_state
+                    wt_out[sub_off] = wgt
+                rot *= step
 
 
 @nb.njit(cache=True, parallel=True)

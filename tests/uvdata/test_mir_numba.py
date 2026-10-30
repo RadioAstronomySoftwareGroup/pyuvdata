@@ -68,14 +68,21 @@ def run_scaled(kernel, packdata, sidx, nchan_arr, out_off, norm, wt_val, all_fla
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 @pytest.mark.parametrize("add_flags", [True, False])
-def test_unpack_scaled(dtype, add_flags):
-    # Verify that everything works just like how it used to.
+@pytest.mark.parametrize("ramp", [False, True])
+def test_unpack_scaled(dtype, add_flags, ramp):
+    # Verify that everything works just like how it used to, and that a phase ramp
+    # folded into the normalization matches one applied after the fact.
     packdata, sidx, nchan_arr, out_off = make_packdata()
-    norm = np.random.uniform(0.5, 2.0, NREC).astype(dtype)
+    norm_val = np.random.uniform(0.5, 2.0, NREC).astype(dtype)
     wt_val = np.random.uniform(0.5, 2.0, NREC).astype(dtype)
     all_flag = np.zeros(NREC, bool)
     if add_flags:
         all_flag[::3] = True
+    # Phase of the first channel, and the step from one channel to the next
+    pha_arr = np.zeros((NREC, 2))
+    if ramp:
+        pha_arr = np.random.uniform(-np.pi, np.pi, (NREC, 2)) * [1.0, 1e-2]
+    norm = np.stack([norm_val, np.ones(NREC)], axis=1) * np.exp(1j * pha_arr)
 
     numba_data, numba_flags, numba_weights = run_scaled(
         mir_numba.unpack_scaled,
@@ -88,10 +95,17 @@ def test_unpack_scaled(dtype, add_flags):
         all_flag,
     )
     ref_data, ref_flags, ref_weights = reference_scaled(
-        packdata, sidx, nchan_arr, norm, wt_val, all_flag
+        packdata, sidx, nchan_arr, norm_val, wt_val, all_flag
     )
 
-    assert np.array_equal(numba_data, ref_data)
+    if ramp:
+        # Flagged records still take the phase, just not the normalization
+        ref_data = ref_data * np.exp(
+            1j * (pha_arr[:, :1] + pha_arr[:, 1:] * np.arange(NCHAN))
+        ).ravel().astype(np.complex64)
+        np.testing.assert_allclose(numba_data, ref_data, rtol=1e-6)
+    else:
+        assert np.array_equal(numba_data, ref_data)
     assert np.array_equal(numba_flags, ref_flags)
     assert np.array_equal(numba_weights, ref_weights)
 
@@ -110,7 +124,7 @@ def test_unpack_scaled_ragged():
     packdata[sidx] = -20
 
     # Populate some values here for the call
-    norm = np.ones(len(nchan_arr), np.float32)
+    norm = np.ones((len(nchan_arr), 2), np.complex128)
     wt_val = np.ones(len(nchan_arr), np.float32)
     all_flag = np.zeros(len(nchan_arr), bool)
 
@@ -125,7 +139,7 @@ def test_unpack_scaled_ragged():
         all_flag,
     )
     ref_data, ref_flags, ref_weights = reference_scaled(
-        packdata, sidx, nchan_arr, norm, wt_val, all_flag
+        packdata, sidx, nchan_arr, norm[:, 0].real, wt_val, all_flag
     )
 
     assert np.array_equal(numba_data, ref_data)
