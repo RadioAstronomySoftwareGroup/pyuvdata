@@ -5223,9 +5223,9 @@ class UVData(UVBase):
                 # Also Note that the old values here are being treated as zeros since
                 # we've calcualted relative deltas.
                 self._apply_w_proj(
-                    new_w_vals=0.0,
-                    old_w_vals=delta_uvw[:, 2],  # <-- w-col of the uvws
-                    select_mask=self._check_for_cat_type("unprojected"),
+                    new_w_vals=delta_uvw[:, 2],  # <-- w-col of the uvws
+                    old_w_vals=0.0,
+                    select_mask=~self._check_for_cat_type("unprojected"),
                 )
 
             # Assign the new antenna position values.
