@@ -18,7 +18,10 @@ from functools import partial
 
 import h5py
 import numpy as np
+from astropy import constants as const
 
+from .. import utils
+from ..telescopes import known_telescope_location
 from . import mir_numba
 from .mir_meta_data import (
     NEW_AUTO_DTYPE,
@@ -1452,9 +1455,8 @@ class MirParser:
         allocating three arrays per spectral record. The per-record entries handed back
         are views onto those buffers.
 
-        The Tsys normalization is folded into that same pass when it is supplied, which
-        is what makes it free -- applying it afterwards, as `apply_tsys` has to for data
-        that are already loaded, means a second traversal of the visibilities.
+        The Tsys normalization and the phase from any change in w-projection are folded
+        in when supplied.
 
         Parameters
         ----------
@@ -1466,9 +1468,10 @@ class MirParser:
             Starting index (common exponent index) of each record within `packdata`.
         eidx_arr : ndarray of int
             End index of each record within `packdata`.
-        norm_arr: ndarray of float32
-            Per-record normalization for the data. Default is None, which applies no
-            (additional) normalization.
+        norm_arr: ndarray of complex128
+            Per-record normalization for the data, of shape (Nrec, 2): the value for
+            the first channel, and the step from one channel to the next. Default is
+            None, which applies no normalization (aside from the common exponent).
         wt_arr : ndarray of float32
             Per-record weights. Default is None, which fills in the weights with a
             value of unity (1.0).
@@ -1499,7 +1502,8 @@ class MirParser:
         # With no normalization supplied, unity stands in -- multiplying by float32 one
         # is exact, so that path reproduces `_convert_raw_to_vis` bit for bit.
         if norm_arr is None:
-            norm_arr = wt_arr = np.ones(len(nchan_arr), dtype=np.float32)
+            norm_arr = np.ones((len(nchan_arr), 2), dtype=np.complex128)
+            wt_arr = np.ones(len(nchan_arr), dtype=np.float32)
         if all_flag_arr is None:
             all_flag_arr = np.zeros(len(nchan_arr), dtype=bool)
 
@@ -1740,15 +1744,16 @@ class MirParser:
         apply_cal : bool
             If True, apply COMPASS bandpass and flags. Default is False.
         norm_arr : ndarray or None
-            Per-spectral record tsys normalization per record in this integration.
-            If None, no tsys correction is applied.
+            Per-spectral record normalization (tsys and/or the phase ramp from a change
+            in w) for the records in this integration, of shape (Nrec, 2) (see
+            `_unpack_scaled`). If None, no normalization is applied.
         wt_arr : ndarray or None
             Weights for each spectral record. If None, a value of 1.0 is assumed.
         all_flag_arr : ndarray or None
             Flags all channels in a spectral record, nominally due to a bad system
             temperature scaling. If None, no additional flagging is applied. Note that
-            flagged records will ignore the values provided for `norm_arr` and `wt_arr`
-            (with 1.0 used as the default value for the latter).
+            flagged records will ignore the values provided for `wt_arr` and the
+            amplitude of `norm_arr` (with 1.0 used as the default value for the former).
 
         Returns
         -------
@@ -1927,9 +1932,10 @@ class MirParser:
 
         norm_arr = wt_arr = all_flag_arr = None
         sub_norm_arr = sub_wt_arr = sub_flag_arr = None
-        if apply_tsys and (data_type == "cross") and scale_data:
-            norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
-            self._tsys_applied = True
+        if (data_type == "cross") and scale_data:
+            norm_arr, wt_arr, all_flag_arr = self._get_unpack_norm(apply_tsys)
+            if apply_tsys:
+                self._tsys_applied = True
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
@@ -2066,9 +2072,10 @@ class MirParser:
         sub_norm_arr = sub_wt_arr = sub_flag_arr = None
         hid_arr = metadata_attr.get_header_keys(use_mask=False)
 
-        if apply_tsys and (data_type == "cross") and scale_data:
-            norm_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
-            self._tsys_applied = True
+        if (data_type == "cross") and scale_data:
+            norm_arr, wt_arr, all_flag_arr = self._get_unpack_norm(apply_tsys)
+            if apply_tsys:
+                self._tsys_applied = True
 
         keys = list(inhid_groups)
         for start in range(0, len(keys), batch):
@@ -2440,6 +2447,92 @@ class MirParser:
 
         return norm_arr, wt_arr, all_flag_arr
 
+    def _get_delta_w_phase(self, delta_w=None, *, native=False):
+        """
+        Calculate the per-spectral-record phase ramp from a change in w.
+
+        Note that this is an internal helper function which is not meant for general
+        use. MIR runs the other way round from pyuvdata (both in its uvws and in the
+        sign of its phases), so a change in w of `delta_w` (as recorded in `bl_data`)
+        moves the phase of a channel at frequency nu by -2 * pi * delta_w * nu / c.
+
+        Parameters
+        ----------
+        delta_w : ndarray of float
+            Change in w (meters) for every row of `bl_data` (masked or not), for when
+            the one wanted isn't the total recorded there (e.g., just the part from the
+            latest antenna position update). Default is `bl_data["delta_w"]`.
+        native : bool
+            If True, calculate the ramp at the resolution of the records on disk (i.e.,
+            prior to any channel averaging), as the unpacking kernel needs. Default is
+            False, which uses the current resolution.
+
+        Returns
+        -------
+        pha_arr : ndarray of float64 or None
+            Phase (radians) of the first channel and the step from one channel to the
+            next, of shape (Nrec, 2), with one entry per selected row of `sp_data` (in
+            the same order as `sp_data["sphid"]`). None if there is no change in w.
+        """
+        blhid, fsky, fres, nch = self.sp_data[["blhid", "fsky", "fres", "nch"]]
+        if delta_w is None:
+            delta_w = self.bl_data.get_value("delta_w", use_mask=False)
+        delta_w = delta_w[self.bl_data._index_query(header_key=blhid)]
+        if not np.any(delta_w):
+            return None
+
+        chan_avg = 1
+        if native:
+            chan_avg = self.sp_data._recpos_dict["chan_avg"][self.sp_data._mask]
+        fres = fres.astype(np.float64) * (1e6 / chan_avg)  # MHz -> Hz
+        nch = nch * chan_avg
+
+        # Channel frequencies as Mir.read assigns them (see the note there about fsky)
+        rate = (-2.0 * np.pi / const.c.to_value("m/s")) * delta_w
+        freq0 = (fsky * 1e9) - (np.sign(fres) * 139648.4375) + (fres * (0.5 - nch / 2))
+        return np.stack([rate * freq0, rate * fres], axis=1)
+
+    def _get_unpack_norm(self, apply_tsys):
+        """
+        Assemble the per-spectral-record normalization for the unpacking kernel.
+
+        Note that this is an internal helper function which is not meant for general
+        use. Combines the Tsys normalization (if requested) with the phase ramp from any
+        change in w recorded in `bl_data`, in the form that `_unpack_scaled` takes.
+
+        Parameters
+        ----------
+        apply_tsys : bool
+            If True, include the Tsys normalization (see `_get_tsys_norm`).
+
+        Returns
+        -------
+        norm_arr : ndarray of complex128
+            Normalization for every row of `sp_data`, of shape (Nrec, 2). None if
+            there is nothing to apply (along with the other two outputs).
+        wt_arr : ndarray of float32
+            Normalization for the weights of every row of `sp_data`.
+        all_flag_arr : ndarray of bool
+            Rows of `sp_data` to be flagged in their entirety.
+        """
+        pha_arr = self._get_delta_w_phase(native=True)
+        if not apply_tsys and pha_arr is None:
+            return None, None, None
+
+        if apply_tsys:
+            tsys_arr, wt_arr, all_flag_arr = self._get_tsys_norm()
+        else:
+            tsys_arr = wt_arr = np.ones(self.sp_data._size, dtype=np.float32)
+            all_flag_arr = np.zeros(self.sp_data._size, dtype=bool)
+
+        # Note the phases only cover the selected rows, the rest only the full table
+        norm_arr = np.ones((self.sp_data._size, 2), dtype=np.complex128)
+        norm_arr[:, 0] = tsys_arr
+        if pha_arr is not None:
+            norm_arr[self.sp_data._mask] *= np.exp(1j * pha_arr)
+
+        return norm_arr, wt_arr, all_flag_arr
+
     def apply_tsys(self, *, invert=False, force=False, use_cont_det=None):
         """
         Apply Tsys calibration to the visibilities.
@@ -2533,6 +2626,103 @@ class MirParser:
         ):
             if bool(flagval):
                 self.vis_data[sphid]["flags"][:] = True
+
+    def update_antenna_positions(self, filepath):
+        """
+        Update the antenna positions, along with the uvw coordinates and visibilities.
+
+        This is the counterpart to `UVData.update_antenna_positions` with
+        `delta_antpos=True`. The change in each antenna's position is rotated into the
+        apparent frame of each integration and added to the uvws in `bl_data`, and the
+        change in w is accumulated in `bl_data["delta_w"]`, whose phase is applied to
+        the visibilities: those in `vis_data` if they are loaded, and those unpacked
+        afterwards (`stream_integrations` included). Note that `raw_data` are never
+        changed, staying as they are on disk (`delta_w` being written alongside them),
+        while data written from `vis_data` carry the change, and so are written with a
+        `delta_w` of zero.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to a MIR "antennas" file containing the new antenna positions, or to a
+            folder containing one. Antennas not listed (or listed at the origin) are
+            left where they are.
+        """
+        if not os.path.exists(filepath):
+            raise ValueError("No such file or folder exists")
+
+        new_antpos_obj = MirAntposData()
+
+        if os.path.isfile(filepath):
+            # If this is a file, we want to load that in directly rather than looking at
+            # the default filename.
+            new_antpos_obj._filetype = os.path.basename(filepath)
+            filepath = os.path.dirname(filepath)
+
+        # Load in the data
+        new_antpos_obj.read("." if filepath == "" else filepath)
+        new_antpos_dict = dict(
+            zip(*new_antpos_obj[["antenna", "xyz_pos"]], strict=True)
+        )
+
+        ant_nums = self.antpos_data.get_value("antenna", use_mask=False)
+        old_pos = self.antpos_data.get_value("xyz_pos", use_mask=False)
+        delta_pos = np.zeros_like(old_pos)
+        for idx, ant in enumerate(ant_nums):
+            if (
+                ant in new_antpos_dict
+                and not np.allclose(new_antpos_dict[ant], old_pos[idx], rtol=0)
+                and not np.all(new_antpos_dict[ant] == 0.0)
+            ):
+                delta_pos[idx] = new_antpos_dict[ant] - old_pos[idx]
+
+        if not np.any(delta_pos):
+            warnings.warn("No antenna positions appear to have changed, returning.")
+            return
+
+        telescope_loc = known_telescope_location("SMA")
+        inhid, ant1, ant2 = self.bl_data.get_value(
+            ["inhid", "iant1", "iant2"], use_mask=False, return_tuples=False
+        )
+        app_ra, app_dec, lst = self.in_data.get_value(
+            ["ara", "adec", "lst"], header_key=inhid, return_tuples=False
+        )
+
+        # pyuvdata's uvws run from antenna 1 to antenna 2, MIR's the other way round.
+        # Note MIR stores positions in rotated ECEF, calc_uvw wants them in ECEF.
+        delta_uvw = -utils.phasing.calc_uvw(
+            app_ra=app_ra,
+            app_dec=app_dec,
+            frame_pa=np.zeros_like(app_ra),
+            lst_array=lst * (np.pi / 12.0),
+            antenna_positions=utils.ECEF_from_rotECEF(delta_pos, telescope_loc.lon.rad),
+            antenna_numbers=ant_nums,
+            ant_1_array=ant1,
+            ant_2_array=ant2,
+            telescope_lat=telescope_loc.lat.rad,
+            telescope_lon=telescope_loc.lon.rad,
+        )
+
+        self.antpos_data.set_value("xyz_pos", old_pos + delta_pos, use_mask=False)
+        for idx, field in enumerate(["u", "v", "w"]):
+            old_val = self.bl_data.get_value(field, use_mask=False)
+            self.bl_data.set_value(field, old_val + delta_uvw[:, idx], use_mask=False)
+
+        # Accumulated, since the phase it carries is relative to the data on disk
+        old_val = self.bl_data.get_value("delta_w", use_mask=False)
+        self.bl_data.set_value("delta_w", old_val + delta_uvw[:, 2], use_mask=False)
+
+        if self.vis_data is None or np.all(delta_uvw[:, 2] == 0.0):
+            return
+
+        # Loaded visibilities take the change in place, at their current resolution.
+        # Note that they already carry any earlier change, so only this one is applied.
+        pha_arr = self._get_delta_w_phase(delta_uvw[:, 2])
+        for sphid, (pha0, step) in zip(self.sp_data["sphid"], pha_arr, strict=True):
+            if pha0 == 0.0 and step == 0.0:
+                continue
+            data_arr = self.vis_data[sphid]["data"]
+            data_arr *= np.exp(1j * (pha0 + step * np.arange(data_arr.size)))
 
     def _check_data_index(self) -> bool:
         """
@@ -2722,10 +2912,9 @@ class MirParser:
         # and just need to convert it. If allow_conversion is None, we should decide
         # first whether or not to attempt this.
         if allow_conversion or (allow_conversion is None):
+            sphid_arr = self.sp_data["sphid"]
             if load_vis and (self.raw_data is not None):
-                allow_conversion = np.all(
-                    np.isin(self.sp_data["sphid"], list(self.raw_data))
-                )
+                allow_conversion = np.all(np.isin(sphid_arr, list(self.raw_data)))
             else:
                 allow_conversion = False
 
@@ -2738,6 +2927,16 @@ class MirParser:
             # If we need to apply tsys, do that now.
             if apply_tsys:
                 self.apply_tsys()
+            # Raw data are as on disk, so they still need the phase from any change in w
+            pha_arr = self._get_delta_w_phase()
+            if pha_arr is not None:
+                for sphid, (pha0, step) in zip(sphid_arr, pha_arr, strict=True):
+                    if pha0 == 0.0 and step == 0.0:
+                        continue
+                    # Grab the reference
+                    data_arr = self.vis_data[sphid]["data"]
+                    # Rotate them phases!
+                    data_arr *= np.exp(1j * (pha0 + step * np.arange(data_arr.size)))
 
         # Unload anything that we don't want to load at this point.
         self.unload_data(
@@ -3445,6 +3644,10 @@ class MirParser:
                 mir_meta_obj._recalc_dataoff(
                     data_dtype=data_dtype, data_nvals=data_nvals, scale_data=scale_data
                 )
+            elif (attr == "bl_data") and (self.vis_data is not None):
+                mir_meta_obj = self._metadata_attrs[attr].copy()
+                # Zero out w deltas since visibilities are already phase-corrected
+                mir_meta_obj.set_value("delta_w", 0.0, use_mask=False)
             else:
                 mir_meta_obj = self._metadata_attrs[attr]
 
@@ -5548,6 +5751,8 @@ class MirParser:
         self.bl_data["u"] = u_vals
         self.bl_data["v"] = v_vals
         self.bl_data["w"] = w_vals
+        # zero out the delta_w value to avoid carrying over garbage from older files
+        self.bl_data["delta_w"] = 0.0
 
         if all(self.sp_data.get_value("corrchunk", where=("correlator", "eq", 1)) == 0):
             # For some SWARM-era data, corrchunk not filled in, which some pieces of
