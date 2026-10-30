@@ -12484,20 +12484,20 @@ def test_update_antenna_positions_no_op(sma_mir, sma_mir_main):
     assert sma_mir == sma_mir_main
 
 
-@pytest.mark.parametrize("flip_antpos", [False, True])
+@pytest.mark.parametrize("change", ["shift", "flip", "move_one"])
 @pytest.mark.parametrize("delta_antpos", [False, True])
-def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
+def test_update_antenna_positions(sma_mir, delta_antpos, change):
     # Call this now to mitigate minor metadata recording errors.
     sma_mir.set_uvws_from_antenna_positions()
 
     sma_copy = sma_mir.copy()
 
-    if flip_antpos:
+    if change == "flip":
         # Flip the coords and antpos to see if we get back to where we are supposed to
         # be in the uvws (though we'll ignore the data in this case).
         sma_mir.uvw_array *= -1
         sma_mir.telescope.antenna_positions *= -1
-    else:
+    elif change == "shift":
         # Introduce a small delta to all ants so that the positions are different
         sma_mir.telescope.antenna_positions += 1
 
@@ -12508,12 +12508,19 @@ def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
             strict=True,
         )
     )
+    if change == "move_one":
+        # Moving one antenna changes the baselines, so the phases of the data follow:
+        # check that both ways of updating get the same answer.
+        new_positions[1] = new_positions[1] + np.array([5e-3, -3e-3, 2e-3])
+        sma_copy.update_antenna_positions(
+            new_positions=new_positions, delta_antpos=not delta_antpos
+        )
 
     sma_mir.update_antenna_positions(
         new_positions=new_positions, delta_antpos=delta_antpos
     )
 
-    if flip_antpos:
+    if change == "flip":
         sma_mir.data_array = sma_copy.data_array
 
     assert sma_mir == sma_copy
