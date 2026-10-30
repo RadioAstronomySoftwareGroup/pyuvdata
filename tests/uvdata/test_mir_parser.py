@@ -16,9 +16,12 @@ import h5py
 import numpy as np
 import pytest
 
+from pyuvdata import UVData, utils
 from pyuvdata.datasets import fetch_data
+from pyuvdata.telescopes import known_telescope_location
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata import mir_numba, mir_parser
+from pyuvdata.uvdata.mir import Mir
 from pyuvdata.uvdata.mir_parser import (
     COMPASS_SUPPORTED_VERSIONS,
     NEW_AUTO_DTYPE,
@@ -373,16 +376,26 @@ def test_mir_auto_data(mir_data: MirParser, tmp_path):
 
 @pytest.mark.filterwarnings("ignore", message=["No cross data", "No auto data"])
 @pytest.mark.parametrize("data_type", ["none", "raw", "vis", "load", "no_auto"])
-def test_mir_write_full(mir_data, tmp_path, data_type):
+@pytest.mark.parametrize("move_ants", [False, True])
+def test_mir_write_full(mir_data, tmp_path, data_type, move_ants):
     """
     Mir write dataset tester.
 
-    Make sure we can round-trip a MIR dataset correctly.
+    Make sure we can round-trip a MIR dataset correctly, including one whose antenna
+    positions have been updated (the data on disk staying as they are, with the change
+    in w written alongside them).
     """
     # We want to clear our the auto data here, since we can't _yet_ write that out
     mir_data.unload_data()
     if data_type == "no_auto":
         mir_data._clear_auto()
+    if move_ants:
+        antpos_data = mir_data.antpos_data.copy()
+        xyz_pos = antpos_data["xyz_pos"]
+        xyz_pos[0, 0] += 1e-2
+        antpos_data["xyz_pos"] = xyz_pos
+        antpos_data.write(tmp_path)
+        mir_data.update_antenna_positions(os.path.join(tmp_path, "antennas"))
 
     if data_type in ["vis", "raw", "no_auto"]:
         mir_data.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
@@ -420,6 +433,13 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
         mir_data.ac_data._recpos_dict = mir_copy.ac_data._recpos_dict = None
         assert np.any(mir_data.ac_data["dataoff"] != mir_copy.ac_data._data["dataoff"])
         mir_data.ac_data._data["dataoff"] = mir_copy.ac_data._data["dataoff"] = 0
+
+    # Written from vis_data, the data already carry the change in w, and so are written
+    # with a delta_w of zero (raw data are written w/ it, since they still need it).
+    if move_ants and mir_data.vis_data is not None:
+        assert np.any(mir_data.bl_data["delta_w"])
+        assert not np.any(mir_copy.bl_data["delta_w"])
+        mir_data.bl_data._data["delta_w"] = 0.0
 
     # Check for final equality with the above exceptions handled.
     assert mir_data == mir_copy
@@ -1143,8 +1163,9 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
 @pytest.mark.parametrize("scale_data", [True, False])
 @pytest.mark.parametrize("apply_tsys", [True, False])
 @pytest.mark.parametrize("batch", [1, 2, 1000])
+@pytest.mark.parametrize("move_ants", [False, True])
 def test_stream_integrations_matches_read_data(
-    mir_data: MirParser, data_type, scale_data, apply_tsys, batch
+    mir_data: MirParser, data_type, scale_data, apply_tsys, batch, move_ants, tmp_path
 ):
     """Streaming must hand back exactly what reading it all at once does.
 
@@ -1152,10 +1173,18 @@ def test_stream_integrations_matches_read_data(
     value, and a batch larger than the number of integrations has to behave as a single
     pass rather than falling off the end. Note that `apply_tsys` is passed explicitly
     to both, since the two methods default it differently -- `stream_integrations`
-    follows `load_data` rather than `_read_data`.
+    follows `load_data` rather than `_read_data`. Moving antennas must likewise reach
+    both alike.
     """
     if data_type == "auto" and not scale_data:
         pytest.skip("scale_data does not apply to the autos")
+    if move_ants:
+        antpos_data = mir_data.antpos_data.copy()
+        xyz_pos = antpos_data["xyz_pos"]
+        xyz_pos[0, 0] += 1e-2
+        antpos_data["xyz_pos"] = xyz_pos
+        antpos_data.write(tmp_path)
+        mir_data.update_antenna_positions(os.path.join(tmp_path, "antennas"))
 
     expected = mir_data._read_data(
         data_type, scale_data=scale_data, apply_tsys=apply_tsys
@@ -1177,6 +1206,118 @@ def test_stream_integrations_matches_read_data(
             assert np.array_equal(streamed[hid][field], val, equal_nan=True), (
                 f"{data_type} {hid} {field} differs when streamed"
             )
+
+
+@pytest.mark.parametrize("load_first", [False, True])
+def test_update_antenna_positions(mir_data: MirParser, load_first, tmp_path):
+    """Moving antennas matches UVData.update_antenna_positions w/ delta_antpos=True.
+
+    Visibilities already loaded take the change in place, those unpacked (or converted
+    from raw data) afterwards take it on the way in, and raw data stay as they are on
+    disk, with the change in w recorded in bl_data.
+    """
+    orig_vis = copy.deepcopy(mir_data.vis_data)
+    old_xyz = mir_data.antpos_data["xyz_pos"]
+    new_xyz = old_xyz.copy()
+    new_xyz[0] += [5e-3, -3e-3, 2e-3]
+    new_xyz[4] += [-4e-3, 1e-3, 6e-3]
+    # Antenna 8 is listed at the origin, which marks it as having no new position
+    new_xyz[7] = 0.0
+    antpos_data = mir_data.antpos_data.copy()
+    antpos_data["xyz_pos"] = new_xyz
+    antpos_data.write(tmp_path)
+    antpos_file = os.path.join(tmp_path, "antennas")
+
+    telescope_lon = known_telescope_location("SMA").lon.rad
+    new_pos = dict(
+        zip(
+            [1, 5], utils.ECEF_from_rotECEF(new_xyz[[0, 4]], telescope_lon), strict=True
+        )
+    )
+    ref_uv = UVData()
+    mir_obj = Mir()
+    with check_warnings(UserWarning, match="> 25 ms errors detected reading in LST"):
+        mir_obj._init_from_mir_parser(mir_data.copy())
+    ref_uv._convert_from_filetype(mir_obj)
+    ref_uv.update_antenna_positions(new_pos, delta_antpos=True)
+
+    mir_data.load_data(load_raw=True)
+    raw_data = copy.deepcopy(mir_data.raw_data)
+    mir_data.unload_data()
+    if load_first:
+        mir_data.load_data(load_cross=True)
+    with pytest.raises(ValueError, match="No such file or folder exists"):
+        mir_data.update_antenna_positions(os.path.join(tmp_path, "nowhere"))
+    mir_data.update_antenna_positions(antpos_file)
+
+    # Unmoved antennas keep their stored positions, and only baselines with a moved
+    # antenna pick up a change in w.
+    unmoved = [1, 2, 3, 5, 6, 7]
+    assert np.array_equal(mir_data.antpos_data["xyz_pos"][unmoved], old_xyz[unmoved])
+    moved = np.isin(mir_data.bl_data["iant1"], [1, 5]) | np.isin(
+        mir_data.bl_data["iant2"], [1, 5]
+    )
+    assert np.all(mir_data.bl_data["delta_w"][moved] != 0)
+    assert not np.any(mir_data.bl_data["delta_w"][~moved])
+    if load_first:
+        vis_data = copy.deepcopy(mir_data.vis_data)
+        mir_data.unload_data()
+        mir_data.load_data(load_cross=True)
+        for sphid, sp_vis in vis_data.items():
+            assert np.allclose(
+                sp_vis["data"], mir_data.vis_data[sphid]["data"], rtol=1e-6, atol=0
+            )
+
+    mir_uv = UVData()
+    mir_obj = Mir()
+    with check_warnings(UserWarning, match="> 25 ms errors detected reading in LST"):
+        mir_obj._init_from_mir_parser(mir_data.copy())
+    mir_uv._convert_from_filetype(mir_obj)
+    assert np.allclose(mir_uv.uvw_array, ref_uv.uvw_array, rtol=0, atol=1e-5)
+    assert np.allclose(mir_uv.data_array, ref_uv.data_array, rtol=1e-5, atol=1e-6)
+    assert np.allclose(
+        mir_uv.telescope.antenna_positions,
+        ref_uv.telescope.antenna_positions,
+        atol=1e-9,
+    )
+
+    # Raw data stay as they are on disk, and pick up the change in w when converted
+    mir_data.load_data(load_cross=True)
+    vis_data = copy.deepcopy(mir_data.vis_data)
+    mir_data.load_data(load_raw=True)
+    for sphid, sp_raw in raw_data.items():
+        assert np.array_equal(sp_raw["data"], mir_data.raw_data[sphid]["data"])
+    with check_warnings(UserWarning, match="Converting previously loaded data"):
+        mir_data.load_data(load_cross=True, allow_conversion=True)
+    for sphid, sp_vis in vis_data.items():
+        assert np.allclose(
+            sp_vis["data"], mir_data.vis_data[sphid]["data"], rtol=1e-6, atol=0
+        )
+
+    # A selection unpacks the same values for the records it keeps
+    mir_data.select(where=("isb", "eq", 1))
+    mir_data.load_data(load_cross=True, allow_downselect=False)
+    assert 0 < len(mir_data.vis_data) < len(vis_data)
+    for sphid, sp_vis in mir_data.vis_data.items():
+        assert np.array_equal(sp_vis["data"], vis_data[sphid]["data"])
+    with check_warnings(UserWarning, match="Unable to update data attributes"):
+        mir_data.select(reset=True)
+    mir_data.load_data(load_cross=True)
+
+    # Positions are compared against the current ones, so doing it again is a no-op
+    with check_warnings(UserWarning, match="No antenna positions appear to have"):
+        mir_data.update_antenna_positions(tmp_path)
+
+    # The change in w accumulates, so that moving them back undoes it, including for
+    # the visibilities already loaded (which only take the latest change).
+    antpos_data["xyz_pos"] = old_xyz
+    antpos_data.write(tmp_path, overwrite=True)
+    mir_data.update_antenna_positions(antpos_file)
+    assert np.allclose(mir_data.bl_data["delta_w"], 0.0, rtol=0, atol=1e-12)
+    for sphid, sp_vis in orig_vis.items():
+        assert np.allclose(
+            sp_vis["data"], mir_data.vis_data[sphid]["data"], rtol=1e-5, atol=0
+        )
 
 
 def test_stream_records_matches_stream_integrations(mir_data: MirParser):
@@ -2287,6 +2428,7 @@ def test_add_concat(mir_data, tmp_path):
         "icode",
         "ncode",
         "dataoff",
+        "delta_w",
         "nch",
         "iant1",
         "iant2",
@@ -2902,6 +3044,8 @@ def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
         mir_data = MirParser()._load_test_data(has_auto=True)
     mir_copy = mir_data.copy()
     mir_copy.codes_data._data[0]["code"] = "2"
+    # delta_w was a spare value in older files, and some carry garbage in it
+    mir_copy.bl_data["delta_w"] = 1e300
     if muck_antrx:
         mir_copy.bl_data["ant1rx"] = mir_copy.bl_data["ant2rx"] = 0
 
@@ -3062,9 +3206,9 @@ def test_mir_remember_me_bl_data(mir_data):
 
     assert np.all(mir_data.bl_data["iblcd"] == 2)
 
-    assert np.all(mir_data.bl_data["spareint1"] == 0)
+    assert np.all(mir_data.bl_data["sptsys1_offset"] == 0)
 
-    assert np.all(mir_data.bl_data["spareint2"] == 0)
+    assert np.all(mir_data.bl_data["sptsys2_offset"] == 0)
 
     assert np.all(mir_data.bl_data["spareint3"] == 0)
 
@@ -3076,7 +3220,7 @@ def test_mir_remember_me_bl_data(mir_data):
 
     assert np.all(mir_data.bl_data["wtave"] == 0.0)
 
-    assert np.all(mir_data.bl_data["sparedbl4"] == 0.0)
+    assert np.all(mir_data.bl_data["delta_w"] == 0.0)
 
     assert np.all(mir_data.bl_data["sparedbl5"] == 0.0)
 
