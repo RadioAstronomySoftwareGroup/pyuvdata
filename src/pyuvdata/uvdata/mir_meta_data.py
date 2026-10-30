@@ -267,10 +267,10 @@ bl_dtype = np.dtype(
         ("bln", np.float32),
         # Up-down baseline length (meters)
         ("blu", np.float32),
-        # Spare value, always 0
-        ("spareint1", np.int32),
-        # Spare value, always 0
-        ("spareint2", np.int32),
+        # byte offset of spectral Tsys for first antenna receiver in sptsys_read
+        ("sptsys1_offset", np.int32),
+        # byte offset of spectral Tsys for second antenna receiver in sptsys_read
+        ("sptsys2_offset", np.int32),
         # Spare value, always 0
         ("spareint3", np.int32),
         # Spare value, always 0
@@ -285,8 +285,8 @@ bl_dtype = np.dtype(
         ("bwave", np.float64),
         # Average weight for ampave, phaave (Jy**-2)
         ("wtave", np.float64),
-        # Spare value, always 0
-        ("sparedbl4", np.float64),
+        # Change in w-component (m) for the baseline (following antpos update)
+        ("delta_w", np.float64),
         # Spare value, always 0
         ("sparedbl5", np.float64),
         # Spare value, always 0
