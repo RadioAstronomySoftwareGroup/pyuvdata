@@ -2497,8 +2497,9 @@ class MirParser:
         Assemble the per-spectral-record normalization for the unpacking kernel.
 
         Note that this is an internal helper function which is not meant for general
-        use. Combines the Tsys normalization (if requested) with the phase ramp from any
-        change in w recorded in `bl_data`, in the form that `_unpack_scaled` takes.
+        use. Combines the Tsys normalization (if requested) with any factor recorded in
+        `sp_data["vis_fac"]` and the phase ramp from any change in w recorded in
+        `bl_data`, in the form that `_unpack_scaled` takes.
 
         Parameters
         ----------
@@ -2516,7 +2517,9 @@ class MirParser:
             Rows of `sp_data` to be flagged in their entirety.
         """
         pha_arr = self._get_delta_w_phase(native=True)
-        if not apply_tsys and pha_arr is None:
+        vis_fac = self.sp_data.get_value("vis_fac", use_mask=False)
+        has_fac = np.any(vis_fac)
+        if not (apply_tsys or has_fac) and pha_arr is None:
             return None, None, None
 
         if apply_tsys:
@@ -2528,6 +2531,9 @@ class MirParser:
         # Note the phases only cover the selected rows, the rest only the full table
         norm_arr = np.ones((self.sp_data._size, 2), dtype=np.complex128)
         norm_arr[:, 0] = tsys_arr
+        if has_fac:
+            # A factor of zero is a spare value never filled, rather than a real factor
+            norm_arr[:, 0] *= np.where(vis_fac == 0, 1, vis_fac)
         if pha_arr is not None:
             norm_arr[self.sp_data._mask] *= np.exp(1j * pha_arr)
 
@@ -2927,7 +2933,11 @@ class MirParser:
             # If we need to apply tsys, do that now.
             if apply_tsys:
                 self.apply_tsys()
-            # Raw data are as on disk, so they still need the phase from any change in w
+            # Raw data are as on disk, so they still need any factor recorded for them
+            # and the phase from any change in w
+            for sphid, fac in zip(sphid_arr, self.sp_data["vis_fac"], strict=True):
+                if fac != 0:
+                    self.vis_data[sphid]["data"] *= fac
             pha_arr = self._get_delta_w_phase()
             if pha_arr is not None:
                 for sphid, (pha0, step) in zip(sphid_arr, pha_arr, strict=True):
@@ -3644,6 +3654,9 @@ class MirParser:
                 mir_meta_obj._recalc_dataoff(
                     data_dtype=data_dtype, data_nvals=data_nvals, scale_data=scale_data
                 )
+                if (attr == "sp_data") and (self.vis_data is not None):
+                    # Zero out the factors since the visibilities already carry them
+                    mir_meta_obj.set_value("vis_fac", 0, use_mask=False)
             elif (attr == "bl_data") and (self.vis_data is not None):
                 mir_meta_obj = self._metadata_attrs[attr].copy()
                 # Zero out w deltas since visibilities are already phase-corrected
@@ -5753,6 +5766,11 @@ class MirParser:
         self.bl_data["w"] = w_vals
         # zero out the delta_w value to avoid carrying over garbage from older files
         self.bl_data["delta_w"] = 0.0
+        # Same for vis_fac, except in v1 files (no "filever"), whose crosses (but not
+        # autos) were recorded w/ an extra factor of sqrt(2) that v2 did away with.
+        self.sp_data["vis_fac"] = (
+            0 if ("filever" in self.codes_data.get_code_names()) else (0.5**0.5)
+        )
 
         if all(self.sp_data.get_value("corrchunk", where=("correlator", "eq", 1)) == 0):
             # For some SWARM-era data, corrchunk not filled in, which some pieces of

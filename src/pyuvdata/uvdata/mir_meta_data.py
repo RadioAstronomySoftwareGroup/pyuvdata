@@ -375,8 +375,9 @@ sp_dtype = np.dtype(
         ("tsys1", np.float32),
         # Tsys for ant2 in baseline (K)
         ("tsys2", np.float32),
-        # Spare value, always 0
-        ("sparedbl4", np.float64),
+        # Complex factor the stored visibilities still need (0 = none), e.g. to undo
+        # the sqrt(2) in v1 data or a phase from a mislabeled polarization
+        ("vis_fac", np.complex64),
         # Spare value, always 0
         ("sparedbl5", np.float64),
         # Spare value, always 0

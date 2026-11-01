@@ -382,8 +382,8 @@ def test_mir_write_full(mir_data, tmp_path, data_type, move_ants):
     Mir write dataset tester.
 
     Make sure we can round-trip a MIR dataset correctly, including one whose antenna
-    positions have been updated (the data on disk staying as they are, with the change
-    in w written alongside them).
+    positions have been updated and whose visibilities need a factor applied (the data
+    on disk staying as they are, with the change in w and factor written alongside).
     """
     # We want to clear our the auto data here, since we can't _yet_ write that out
     mir_data.unload_data()
@@ -396,6 +396,10 @@ def test_mir_write_full(mir_data, tmp_path, data_type, move_ants):
         antpos_data["xyz_pos"] = xyz_pos
         antpos_data.write(tmp_path)
         mir_data.update_antenna_positions(os.path.join(tmp_path, "antennas"))
+        # Every other record gets a factor, the rest are left w/ none (zero)
+        vis_fac = mir_data.sp_data["vis_fac"]
+        vis_fac[::2] = 0.5j
+        mir_data.sp_data["vis_fac"] = vis_fac
 
     if data_type in ["vis", "raw", "no_auto"]:
         mir_data.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
@@ -434,12 +438,14 @@ def test_mir_write_full(mir_data, tmp_path, data_type, move_ants):
         assert np.any(mir_data.ac_data["dataoff"] != mir_copy.ac_data._data["dataoff"])
         mir_data.ac_data._data["dataoff"] = mir_copy.ac_data._data["dataoff"] = 0
 
-    # Written from vis_data, the data already carry the change in w, and so are written
-    # with a delta_w of zero (raw data are written w/ it, since they still need it).
+    # Written from vis_data, the data already carry the change in w and the factor, and
+    # so are written without either (raw data are written w/ them, since they still
+    # need them).
     if move_ants and mir_data.vis_data is not None:
-        assert np.any(mir_data.bl_data["delta_w"])
-        assert not np.any(mir_copy.bl_data["delta_w"])
-        mir_data.bl_data._data["delta_w"] = 0.0
+        for field, meta in [("delta_w", "bl_data"), ("vis_fac", "sp_data")]:
+            assert np.any(getattr(mir_data, meta)[field])
+            assert not np.any(getattr(mir_copy, meta)[field])
+            getattr(mir_data, meta)._data[field] = 0
 
     # Check for final equality with the above exceptions handled.
     assert mir_data == mir_copy
@@ -1173,8 +1179,8 @@ def test_stream_integrations_matches_read_data(
     value, and a batch larger than the number of integrations has to behave as a single
     pass rather than falling off the end. Note that `apply_tsys` is passed explicitly
     to both, since the two methods default it differently -- `stream_integrations`
-    follows `load_data` rather than `_read_data`. Moving antennas must likewise reach
-    both alike.
+    follows `load_data` rather than `_read_data`. Moving antennas (and a factor for the
+    visibilities) must likewise reach both alike.
     """
     if data_type == "auto" and not scale_data:
         pytest.skip("scale_data does not apply to the autos")
@@ -1185,6 +1191,9 @@ def test_stream_integrations_matches_read_data(
         antpos_data["xyz_pos"] = xyz_pos
         antpos_data.write(tmp_path)
         mir_data.update_antenna_positions(os.path.join(tmp_path, "antennas"))
+        vis_fac = mir_data.sp_data["vis_fac"]
+        vis_fac[::2] = 0.5j
+        mir_data.sp_data["vis_fac"] = vis_fac
 
     expected = mir_data._read_data(
         data_type, scale_data=scale_data, apply_tsys=apply_tsys
@@ -2429,6 +2438,7 @@ def test_add_concat(mir_data, tmp_path):
         "ncode",
         "dataoff",
         "delta_w",
+        "vis_fac",
         "nch",
         "iant1",
         "iant2",
@@ -3039,13 +3049,19 @@ def test_mir_fix_v3_noop(mir_data, from_file):
 
 @pytest.mark.parametrize("muck_antrx", [False, True])
 @pytest.mark.parametrize("muck_corrchunk", [False, True])
-def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
+@pytest.mark.parametrize("filever", ["1", "2"])
+def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk, filever):
     with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
         mir_data = MirParser()._load_test_data(has_auto=True)
     mir_copy = mir_data.copy()
-    mir_copy.codes_data._data[0]["code"] = "2"
-    # delta_w was a spare value in older files, and some carry garbage in it
+    if filever == "1":
+        # v1 files predate the filever code
+        mir_copy.codes_data._data[0]["v_name"] = "nofilever"
+    else:
+        mir_copy.codes_data._data[0]["code"] = "2"
+    # delta_w and vis_fac were spare values in older files, and some carry garbage
     mir_copy.bl_data["delta_w"] = 1e300
+    mir_copy.sp_data["vis_fac"] = 1e30
     if muck_antrx:
         mir_copy.bl_data["ant1rx"] = mir_copy.bl_data["ant2rx"] = 0
 
@@ -3061,7 +3077,42 @@ def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
     ):
         mir_copy._make_v4_compliant()
 
-    assert mir_copy.codes_data["filever"] == ["2"]
+    if filever == "1":
+        # The crosses come out sqrt(2) smaller, whether unpacked or converted from raw,
+        # whereas records w/ a factor of zero (i.e., none) come out as they are.
+        vis_fac = mir_copy.sp_data["vis_fac"]
+        assert np.all(vis_fac == np.float32(0.5**0.5))
+        vis_fac[1::2] = 0
+        mir_copy.sp_data["vis_fac"] = vis_fac
+        exp_fac = dict(
+            zip(
+                mir_copy.sp_data["sphid"],
+                np.where(vis_fac == 0, 1, vis_fac),
+                strict=True,
+            )
+        )
+        mir_copy.load_data(load_cross=True)
+        vis_data = copy.deepcopy(mir_copy.vis_data)
+        mir_copy.load_data(load_raw=True)
+        with check_warnings(UserWarning, match="Converting previously loaded data"):
+            mir_copy.load_data(load_cross=True, allow_conversion=True)
+        conv_data = copy.deepcopy(mir_copy.vis_data)
+        mir_copy.sp_data["vis_fac"] = 0
+        mir_copy.unload_data()
+        mir_copy.load_data(load_cross=True)
+        for sphid, sp_vis in mir_copy.vis_data.items():
+            for vis in (vis_data, conv_data):
+                assert np.allclose(
+                    vis[sphid]["data"],
+                    sp_vis["data"] * exp_fac[sphid],
+                    rtol=1e-6,
+                    atol=0,
+                )
+        mir_copy.unload_data()
+        mir_copy.codes_data._data[0]["v_name"] = "filever"
+    else:
+        assert np.all(mir_copy.sp_data["vis_fac"] == 0)
+        assert mir_copy.codes_data["filever"] == ["2"]
     mir_copy.codes_data._data[0]["code"] = "3"
 
     for item in ["lst", "ara", "adec", "mjd"]:
@@ -3345,7 +3396,7 @@ def test_mir_remember_me_sp_data(mir_data):
 
     assert np.all(mir_data.sp_data["tsys2"] == 0.0)
 
-    assert np.all(mir_data.sp_data["sparedbl4"] == 0.0)
+    assert np.all(mir_data.sp_data["vis_fac"] == 0)
 
     assert np.all(mir_data.sp_data["sparedbl5"] == 0.0)
 
