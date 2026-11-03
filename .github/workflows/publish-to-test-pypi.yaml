@@ -61,7 +61,7 @@ jobs:
           python ci/prefetch_test_data.py "$PYUVDATA_DATA_DIR"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@f11181315571b24e4a3c67f1a828532793f2df55 # v4.3.2
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
