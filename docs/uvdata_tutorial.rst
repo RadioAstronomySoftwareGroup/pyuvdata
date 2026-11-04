@@ -1383,6 +1383,58 @@ Now when using `print_phase_center_info`, we'll see that all the data are unproj
   ----------------------------------------------------------------------
       2   unprojected   unprojected     0:00:00.00  +90:00:00.00  altaz
 
+Sources close to the array, such as an aircraft or a transmitter on a nearby tower, can
+be close enough that the wavefront arriving at the antennas is measurably curved, so the
+far-field approximation used above no longer holds. How close is close enough depends on
+the array and the observing frequency; for the short baselines and low frequencies of
+this dataset it is a few hundred meters. These can be phased using the "near_field"
+type, which applies the usual far-field phasing and then corrects the delays for the
+curvature of the wavefront. Note that `dist` is interpreted in meters for near-field
+phase centers rather than the parsecs used by the other types, although it is still
+stored in parsecs, which is why the distance printed below looks so small.
+
+.. code-block:: python
+
+    uvd.phase(lon=3.4949, lat=-0.5344, dist=400.0, cat_name="aircraft", cat_type="near_field")
+    uvd.print_phase_center_info()
+
+Now the print command yields::
+
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch     Dist
+      #          Name                       hours           deg                       pc
+  ---------------------------------------------------------------------------------------
+      0      aircraft    near_field   13:20:58.32  -30:37:07.91   icrs  J2000.0  1.3e-14
+
+The focal point can also move over the course of the observation, which is the usual
+situation for an aircraft or a satellite pass whose path is known from telemetry.
+Supplying `ephem_times` together with equal-length arrays of `lon`, `lat` and `dist`
+describes that track, which is interpolated onto the integration times. The track does
+not have to be sampled at the integration times, but it does have to span them.
+
+.. code-block:: python
+
+    import numpy as np
+
+    # a sparse track from telemetry: a low-earth-orbit satellite crossing zenith on a
+    # meridian pass, so the longitude holds while the latitude sweeps
+    track_times = np.linspace(uvd.time_array.min(), uvd.time_array.max(), 3)
+    uvd.phase(
+        lon=np.array([3.4949, 3.4949, 3.4949]),
+        lat=np.array([-0.8004, -0.5344, -0.2684]),
+        dist=np.array([518000.0, 500000.0, 518000.0]),
+        ephem_times=track_times,
+        cat_name="satellite",
+        cat_type="near_field",
+    )
+    uvd.print_phase_center_info()
+
+Now the print command yields::
+
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist
+      #          Name                       hours           deg                  Start-MJD    End-MJD       pc
+  -------------------------------------------------------------------------------------------------------------
+      1     satellite    near_field   13:20:58.32  -30:37:07.91   icrs  J2000.0   58660.73   58660.74  1.7e-11
+
 
 .. _large_files_uvdata:
 

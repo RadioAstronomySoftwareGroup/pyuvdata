@@ -26,6 +26,11 @@ for any other RectBivariateSpline-only option. Both engines solve the same
 interpolating spline for a given `kx`/`ky` with `s = 0`.
 - Updated minimum dependency versions: scipy>=1.15
 
+### Added
+- Support for a moving near-field focus, via `cat_times` on `near_field` phase center
+entries. When `cat_times` is set, equal-length `cat_lon`, `cat_lat` and `cat_dist`
+arrays describe a track that is interpolated onto the integration times.
+
 ### Fixed
 - A bug in `UVCal.__add__` where `flex_jones_array` was not reordered along with the
 spectral windows.
@@ -60,6 +65,19 @@ along the time axis correctly (mistakenly was using the Jones axis instead).
 - A bug in `UVData.phase` where near-field phasing ignored `select_mask` and applied the
 near-field correction to every record, overwriting the w-coordinate and rotating the
 visibilities of records belonging to other phase centers.
+- A bug in `UVData.set_uvws_from_antenna_positions` where the near-field correction was
+not re-applied after the uvw-coordinates were recalculated, so near-field phased data
+silently lost its focus: the w-coordinate was replaced by the far-field one and the
+visibilities were rotated to match. This also affected `UVData.new` and
+`UVData.update_antenna_positions` (except when using `delta_antpos`, which does not go
+through that method), both of which call it.
+- Near-field phasing no longer accepts a non-finite or non-positive `cat_dist`. A NaN
+range previously put NaNs into the w-coordinate and the visibilities without complaint.
+- A bug in `UVData.phase` where a phase center reached via `lookup_name=True` was
+handled using the caller's `cat_type` rather than the type resolved from the phase
+center catalog. A looked-up `near_field` entry received only far-field phasing, and a
+looked-up `unprojected` entry had its visibilities rotated by the w-projection instead
+of being left unprojected.
 
 ### Changed
 - `UVData.read_ms` and `UVData.write_ms` now always flip conjugation scheme on read and
