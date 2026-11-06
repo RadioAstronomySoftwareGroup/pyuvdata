@@ -779,3 +779,16 @@ class HDF5Meta:
         from ...telescopes import Telescope
 
         return Telescope.from_hdf5(self, run_check=False)
+
+
+def write_extra_keywords(all_extra_keywords, header):
+    """Write any extra keywords to the header."""
+    extra_keywords = header.create_group("extra_keywords")
+    for k in all_extra_keywords:
+        if isinstance(all_extra_keywords[k], str):
+            extra_keywords[k] = np.bytes_(all_extra_keywords[k])
+        elif all_extra_keywords[k] is None:
+            # save as empty/null dataset
+            extra_keywords[k] = h5py.Empty("f")
+        else:
+            extra_keywords[k] = all_extra_keywords[k]

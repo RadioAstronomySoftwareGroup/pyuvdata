@@ -13,6 +13,7 @@ import h5py
 import numpy as np
 
 from .. import Telescope, UVCal, UVData, parameter as uvp, utils
+from ..utils.io import hdf5 as hdf5_utils
 from ..uvbase import UVBase
 
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols"]
@@ -3367,14 +3368,7 @@ class UVFlag(UVBase):
 
             # write out extra keywords if it exists and has elements
             if self.extra_keywords:
-                extra_keywords = header.create_group(
-                    "extra_keywords"
-                )  # create spot in header
-                for k in self.extra_keywords:
-                    if isinstance(self.extra_keywords[k], str):
-                        extra_keywords[k] = np.bytes_(self.extra_keywords[k])
-                    else:
-                        extra_keywords[k] = self.extra_keywords[k]
+                hdf5_utils.write_extra_keywords(self.extra_keywords, header)
 
             header["history"] = np.bytes_(self.history)
 
