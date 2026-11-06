@@ -1232,15 +1232,7 @@ class UVH5(UVData):
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
-            extra_keywords = header.create_group("extra_keywords")
-            for k in self.extra_keywords:
-                if isinstance(self.extra_keywords[k], str):
-                    extra_keywords[k] = np.bytes_(self.extra_keywords[k])
-                elif self.extra_keywords[k] is None:
-                    # save as empty/null dataset
-                    extra_keywords[k] = h5py.Empty("f")
-                else:
-                    extra_keywords[k] = self.extra_keywords[k]
+            hdf5_utils.write_extra_keywords(self.extra_keywords, header)
 
         # write out history
         header["history"] = np.bytes_(self.history)
