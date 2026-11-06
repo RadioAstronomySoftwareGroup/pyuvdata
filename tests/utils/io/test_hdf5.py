@@ -3,6 +3,7 @@
 """Tests for hdf5 utility functions."""
 
 import numpy as np
+import h5py
 import pytest
 
 import pyuvdata.utils.io.hdf5 as hdf5_utils
@@ -73,3 +74,15 @@ def test_telescope_attr():
     meta = hdf5_utils.HDF5Meta(fetch_data("hera_h3c_uvh5"))
 
     assert meta.telescope.location == meta.telescope_location_obj
+
+def test_write_extra_keywords(tmp_path):
+    kw = {"str": "abc", "none": None, "int": 1, "arr": np.arange(3)}
+    with h5py.File(tmp_path / "test.h5", "w") as f:
+        hdf5_utils.write_extra_keywords(kw, f)
+        ek = f["extra_keywords"]
+
+        assert set(ek.keys()) == set(kw)
+        assert ek["str"][()] == b"abc"
+        assert ek["none"].shape is None
+        assert ek["int"][()] == 1
+        np.testing.assert_array_equal(ek["arr"][()], np.arange(3))
