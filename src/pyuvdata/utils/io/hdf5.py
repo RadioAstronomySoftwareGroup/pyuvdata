@@ -780,7 +780,9 @@ class HDF5Meta:
 
         return Telescope.from_hdf5(self, run_check=False)
 
+
 def write_extra_keywords(all_extra_keywords, header):
+    """Write any extra keywords to the header."""
     extra_keywords = header.create_group("extra_keywords")
     for k in all_extra_keywords:
         if isinstance(all_extra_keywords[k], str):
