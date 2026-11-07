@@ -26,6 +26,7 @@ interpolating spline for a given `kx`/`ky` with `s = 0`.
 - Updated minimum dependency versions: scipy>=1.15
 
 ### Fixed
+- A bug where `uvflag` errored when trying to write out extra keywords with value `None`.
 - A bug in `UVCal.__add__` where `flex_jones_array` was not reordered along with the
 spectral windows.
 - A bug where `UVCal.convert_to_flex_jones` and `UVCal.remove_flex_jones` errored if
@@ -39,7 +40,6 @@ position along the baseline-time axis, which caused an error when a baseline did
 have a record at every time in the data.
 - A bug where the longitudinal coordinate (e.g., RA) of "ephem" phase centers was not
 unwrapped, leading to potential discontinuities when performing interpolation.
-- A bug where `uvflag` errored when trying to write out extra keywords with value `None`.
 
 ## [3.2.8] - 2025-09-18
 
