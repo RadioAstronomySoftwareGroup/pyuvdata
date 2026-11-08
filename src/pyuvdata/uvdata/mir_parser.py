@@ -19,6 +19,7 @@ from functools import partial
 import h5py
 import numpy as np
 from astropy import constants as const
+from astropy.time import Time
 
 from .. import utils
 from ..telescopes import known_telescope_location
@@ -4720,6 +4721,8 @@ class MirParser:
         `meta/mjd`             ``(Nint,)`` timestamps, matched against
         (`mjdArr`)             ``in_data["mjd"]`` to within half a second, since
                                COMPASS has no access to the MIR integration header IDs.
+                               On the UTC scale if the file's `time_scale` says so,
+                               else TT (as MIR records it).
         `flags/per_int`        ``(Nint, Npol, Nbase, Nwin, Nchan // 8)`` uint8,
         (`flagArr`)            bit-packed per-integration flags.
         `flags/static_ant`     ``(Nrx, Nant, Nwin, Nchan // 8)`` uint8, bit-packed
@@ -4882,6 +4885,9 @@ class MirParser:
             # based on the timestamp of the data in COMPASS vs MIR (via the MJD).
             mjd_compass = file[layout["mjd"]][...].ravel()
             mjd_mir = self.in_data["mjd"]
+            # MIR records TT, which COMPASS converts to UTC at ingest (as the file says)
+            if file.attrs.get("time_scale", "TT") == "UTC":
+                mjd_mir = Time(mjd_mir, format="mjd", scale="tt").utc.mjd
             inhid_arr = self.in_data["inhid"]
 
             # Match each index to an inhid entry

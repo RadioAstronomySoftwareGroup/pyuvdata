@@ -15,6 +15,7 @@ import os
 import h5py
 import numpy as np
 import pytest
+from astropy.time import Time
 
 from pyuvdata import UVData, utils
 from pyuvdata.datasets import fetch_data
@@ -107,15 +108,16 @@ def _compass_layout(filename):
         return MirParser._parse_compass_version(file)[:2]
 
 
-def _make_compass_soln(filename, layout, mjd=(59054.69153811,)):
+def _make_compass_soln(filename, layout, mjd=(59054.69153811,), time_scale="TT"):
     """
     Write a minimal but complete COMPASS solution file in format version `layout`.
 
     The contents are the same in every layout: one baseline (antennas 1 and 4), two
     receivers and eight windows, bandpass solutions that are easy to recreate in the
     tests, a picket fence of per-integration flags, and static flags over the first
-    half of each spectrum. `mjd` gives the integration times; the default is the one
-    integration in the test data set (`in_data["mjd"]`).
+    half of each spectrum. `mjd` gives the integration times, on the scale given by
+    `time_scale` (0.13 only); the default is the one integration in the test data set
+    (`in_data["mjd"]`).
     """
     paths = COMPASS_FIXTURE_PATHS[layout]
 
@@ -179,7 +181,7 @@ def _make_compass_soln(filename, layout, mjd=(59054.69153811,)):
         file[paths["static_base"]] = static_base
 
         if layout >= (0, 13):
-            file.attrs["time_scale"] = "TT"
+            file.attrs["time_scale"] = time_scale
             for group in ["meta", "calibration", "flags"]:
                 file[group].attrs["complete"] = np.uint8(1)
 
@@ -674,18 +676,25 @@ def test_compass_flag_bit_order(mir_data: MirParser, compass_soln_copy, flag_typ
 
 
 @pytest.mark.parametrize(
-    "layout", COMPASS_TEST_VERSIONS, ids=lambda ver: "v" + _ver_str(ver)
+    "layout,time_scale",
+    [(layout, "TT") for layout in COMPASS_TEST_VERSIONS] + [((0, 13), "UTC")],
+    ids=lambda val: "v" + _ver_str(val) if isinstance(val, tuple) else val,
 )
-def test_compass_flag_int_matching(mir_data: MirParser, tmp_path, layout):
+def test_compass_flag_int_matching(mir_data: MirParser, tmp_path, layout, time_scale):
     """
     Test that per-integration flags come from the integration whose time matches.
 
     The flags are read from disk one integration at a time, so this checks that the
-    one read is the matched one, and not its neighbours.
+    one read is the matched one, and not its neighbours, on either time scale (MIR
+    records TT, about a minute off UTC).
     """
     mjd = mir_data.in_data["mjd"][0]
+    if time_scale == "UTC":
+        mjd = Time(mjd, format="mjd", scale="tt").utc.mjd
     filename = os.path.join(tmp_path, "compass_soln.h5")
-    _make_compass_soln(filename, layout, mjd=[mjd - 1, mjd, mjd + 1])
+    _make_compass_soln(
+        filename, layout, mjd=[mjd - 1, mjd, mjd + 1], time_scale=time_scale
+    )
     with h5py.File(filename, "r+") as file:
         # Only the middle integration matches; flag everything in the other two.
         per_int = file[COMPASS_FIXTURE_PATHS[layout]["per_int"]]
