@@ -238,6 +238,7 @@ class Mir(UVData):
         apply_flags=True,
         apply_dedoppler=False,
         illum_dict=None,
+        fix_tsys=None,
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
@@ -264,6 +265,10 @@ class Mir(UVData):
             mir_data.read_compass_solns(filename=compass_soln)
         else:
             mir_data = MirParser(filepath=filepath, compass_soln=compass_soln)
+
+        if fix_tsys is not None:
+            for rx, antennas in fix_tsys.items():
+                mir_data.fix_tsys(antennas, rx=rx)
 
         if codes_check:
             where_list = []

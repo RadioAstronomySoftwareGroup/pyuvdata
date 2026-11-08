@@ -8821,6 +8821,11 @@ class UVData(UVBase):
             respectively). Since uvw coordinates are shared across spectral windows,
             data from receivers with different offsets should be read separately.
             Default is None (no correction applied).
+        fix_tsys : dict
+            Antennas to replace the system temperatures of with the median of the other
+            antennas in the array. Keys are receiver numbers (0 for RxA, 1 for RxB),
+            values are lists of antenna numbers to replace. Default is None (no
+            replacement).
         pseudo_cont : boolean
             Read in only pseudo-continuum values. Default is false.
         rechunk : int
@@ -9725,6 +9730,7 @@ class UVData(UVBase):
         apply_flags=True,
         apply_dedoppler=False,
         illum_dict=None,
+        fix_tsys=None,
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
@@ -10148,6 +10154,11 @@ class UVData(UVBase):
             respectively). Since uvw coordinates are shared across spectral windows,
             data from receivers with different offsets should be read separately.
             Default is None (no correction applied).
+        fix_tsys : dict
+            Antennas to replace the system temperatures of with the median of the other
+            antennas in the array. Keys are receiver numbers (0 for RxA, 1 for RxB),
+            values are lists of antenna numbers to replace. Default is None (no
+            replacement).
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
@@ -10426,6 +10437,7 @@ class UVData(UVBase):
                         apply_flags=apply_flags,
                         apply_dedoppler=apply_dedoppler,
                         illum_dict=illum_dict,
+                        fix_tsys=fix_tsys,
                         pseudo_cont=pseudo_cont,
                         rechunk=rechunk,
                         compass_soln=compass_soln,
@@ -10565,6 +10577,7 @@ class UVData(UVBase):
                             apply_flags=apply_flags,
                             apply_dedoppler=apply_dedoppler,
                             illum_dict=illum_dict,
+                            fix_tsys=fix_tsys,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
                             compass_soln=compass_soln,
@@ -10868,6 +10881,7 @@ class UVData(UVBase):
                     apply_tsys=apply_tsys,
                     apply_flags=apply_flags,
                     illum_dict=illum_dict,
+                    fix_tsys=fix_tsys,
                     pseudo_cont=pseudo_cont,
                     rechunk=rechunk,
                     compass_soln=compass_soln,
