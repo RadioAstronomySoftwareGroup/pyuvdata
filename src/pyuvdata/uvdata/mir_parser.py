@@ -2393,7 +2393,7 @@ class MirParser:
             )
             with np.errstate(divide="ignore", invalid="ignore"):
                 if invert:
-                    temp_wt = np.square(temp_norm) / n_sample
+                    temp_wt = np.reciprocal(np.square(temp_norm) * n_sample)
                 else:
                     temp_wt = n_sample / np.square(temp_norm)
         else:
@@ -2538,6 +2538,73 @@ class MirParser:
             norm_arr[self.sp_data._mask] *= np.exp(1j * pha_arr)
 
         return norm_arr, wt_arr, all_flag_arr
+
+    def fix_tsys(self, antennas, *, rx=None, valid_range=(25.0, 2500.0), use_mask=True):
+        """
+        Replace the system temperatures based on array-median values.
+
+        In some instances, the measured system temperatures of certain antennas are
+        unreliable. To correct for this, the system temperatures of the given antennas
+        are replaced with those derived from the array median on a per-integration,
+        per-receiver basis. For the moment, these corrections are only applied to the
+        values stored in the continuum detectors (within the "tsys" and "tsys_rx2"
+        fields of `eng_data`), with a value of 0.0 indicating no valid measurement.
+
+        Parameters
+        ----------
+        antennas : array-like of int
+            Antenna numbers to replace.
+        rx : int
+            Receiver to replace them for: 0 for RxA (`tsys`), 1 for RxB (`tsys_rx2`).
+            Default is both.
+        valid_range : tuple of float
+            Range of valid system temperature values, which is used to screen values in
+            calculating the median. Units are in K (DSB Tsys), default is 25-2500 K.
+        use_mask : bool
+            If set to True, only records within the current selection count toward the
+            median or are replaced. Default is True.
+        """
+        reapply = self._tsys_applied and self.vis_data is not None
+
+        # Loaded data are normalized w/ the values in eng_data, so undo that first, or a
+        # later apply_tsys(invert=True) wouldn't get back the correlation coefficients.
+        if reapply:
+            self.apply_tsys(invert=True)
+
+        fields = {0: ("tsys",), 1: ("tsys_rx2",), None: ("tsys", "tsys_rx2")}[rx]
+        for field in fields:
+            tsys_arr, inhid_arr = self.eng_data.get_value(
+                [field, "inhid"],
+                where=[
+                    ("antenna", "ne", antennas),
+                    (field, "ge", valid_range[0]),
+                    (field, "le", valid_range[1]),
+                ],
+                use_mask=use_mask,
+                return_tuples=False,
+            )
+            tsys_dict = {}
+            if inhid_arr.size > 0:
+                sort_idx = utils.tools.slicify(np.argsort(inhid_arr), allow_empty=True)
+                inhid_arr = inhid_arr[sort_idx]
+                tsys_arr = tsys_arr[sort_idx]
+
+                mid_pts = np.hstack(
+                    ([0], np.nonzero(np.diff(inhid_arr) != 0)[0] + 1, [inhid_arr.size])
+                )
+                for idx in range(len(mid_pts) - 1):
+                    start, end = mid_pts[idx : idx + 2]
+                    tsys_dict[inhid_arr[start]] = np.median(tsys_arr[start:end])
+
+            # Now start populating based on inhid
+            ant_sel = ("antenna", "eq", antennas)
+            ids = self.eng_data.get_value("inhid", where=ant_sel, use_mask=use_mask)
+            tsys_arr = np.array([tsys_dict.get(inhid, 0.0) for inhid in ids])
+            self.eng_data.set_value(field, tsys_arr, where=ant_sel, use_mask=use_mask)
+
+        # Reapply Tsys correction if it was previously applied
+        if reapply:
+            self.apply_tsys()
 
     def apply_tsys(self, *, invert=False, force=False, use_cont_det=None):
         """
