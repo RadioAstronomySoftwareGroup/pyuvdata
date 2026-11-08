@@ -1732,6 +1732,11 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
         np.testing.assert_allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"], rtol=5e-7
         )
+        np.testing.assert_allclose(
+            mir_data.vis_data[key]["weights"],
+            mir_copy.vis_data[key]["weights"],
+            rtol=5e-7,
+        )
         assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
         )
@@ -3454,3 +3459,75 @@ def test_mir_parser_missing_auto_rx(mir_data):
 
     # Verify that every other entry is flagged, which means no data for that rx
     assert np.array_equal(mir_data.ac_data._mask, [True, False] * 8)
+
+
+@pytest.mark.parametrize("use_mask", [True, False])
+@pytest.mark.parametrize(
+    "rx,fields", [(None, ["tsys", "tsys_rx2"]), (0, ["tsys"]), (1, ["tsys_rx2"])]
+)
+def test_fix_tsys(mir_data: MirParser, rx, fields, use_mask):
+    """Test that fix_tsys takes the median of the good antennas, per receiver."""
+    mir_data.unload_data()
+    # The test data have two antennas and one integration, so make it six and two.
+    eng_data = mir_data.eng_data
+    eng_data._data = np.repeat(eng_data._data[:1], 12)
+    eng_data._mask = np.ones(12, dtype=bool)
+    eng_data._data["inhid"] = np.repeat([1, 2], 6)
+    eng_data._data["antenna"] = np.tile(np.arange(1, 7), 2)
+    eng_data._set_header_key_index_dict()
+
+    # Antenna 1 gets fixed, antenna 2 is out of range, and the rest are an even number
+    # of values, so the median is the mean of the middle two.
+    good_vals = np.array([1.0, 9000.0, 200.0, 300.0, 500.0, 800.0])
+    tsys_arr = np.concatenate([good_vals, good_vals * 1.5])
+    eng_data._data["tsys"] = tsys_arr
+    eng_data._data["tsys_rx2"] = tsys_arr * 2.0
+
+    # Deselect antenna 3 in the first integration and antenna 1 in the second, which
+    # w/ the mask used don't count toward the median or get fixed, respectively.
+    eng_data._mask[[2, 6]] = False
+    mir_data.fix_tsys([1], rx=rx, use_mask=use_mask)
+    eng_data._mask[:] = True
+    for field, scale in [("tsys", 1.0), ("tsys_rx2", 2.0)]:
+        expected = tsys_arr * scale
+        if field in fields:
+            first_vals = good_vals[3:] if use_mask else good_vals[2:]
+            expected[0] = np.median(first_vals * scale)
+            if not use_mask:
+                expected[6] = np.median(good_vals[2:] * 1.5 * scale)
+        assert np.allclose(eng_data[field], expected, rtol=1e-6)
+
+    # The measured values aren't lost
+    eng_data.reset_values()
+    assert np.allclose(eng_data["tsys"], tsys_arr)
+
+
+def test_fix_tsys_no_good_ants(mir_data: MirParser):
+    """Test that an integration with nothing to take a median of flags on load."""
+    mir_data.unload_data()
+    mir_data.eng_data["tsys"] = 0.0
+    mir_data.eng_data["tsys_rx2"] = 0.0
+    mir_data.fix_tsys(mir_data.eng_data["antenna"][:1])
+    assert np.all(mir_data.eng_data["tsys"] == 0.0)
+    _, _, flag_arr = mir_data._get_tsys_norm()
+    assert np.all(flag_arr)
+
+
+def test_fix_tsys_loaded(mir_data: MirParser):
+    """Test that data loaded w/ tsys applied are renormalized, and can be undone."""
+    antennas = mir_data.eng_data["antenna"][:1]
+    expected = mir_data.copy()
+    expected.unload_data()
+    expected.fix_tsys(antennas)
+    expected.load_data(load_cross=True)
+
+    assert mir_data._tsys_applied
+    mir_data.fix_tsys(antennas)
+    assert mir_data._tsys_applied
+    for invert in [False, True]:
+        if invert:
+            mir_data.apply_tsys(invert=True)
+            expected.apply_tsys(invert=True)
+        for sphid, vis_dict in mir_data.vis_data.items():
+            for key in ["data", "weights", "flags"]:
+                assert np.allclose(vis_dict[key], expected.vis_data[sphid][key])

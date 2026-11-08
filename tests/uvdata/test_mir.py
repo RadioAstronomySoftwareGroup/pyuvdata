@@ -1186,3 +1186,24 @@ def test_read_mir_illum_dict_single_receiver():
     ):
         uv_corr.read(fetch_data("sma_mir"), illum_dict=illum_dict, receivers=["230"])
     assert "illumination offset corrections to uvw coordinates" in uv_corr.history
+
+
+@pytest.mark.filterwarnings("ignore:Pre v.4 MIR file format detected")
+@pytest.mark.filterwarnings("ignore:1 of 1 integrations fall outside the archived")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
+def test_fix_tsys_on_read():
+    """Test that fix_tsys on read reaches the data, on the receiver it's named for."""
+    plain = UVData()
+    plain.read_mir(fetch_data("sma_mir"))
+    fixed = UVData()
+    fixed.read(fetch_data("sma_mir"), fix_tsys={0: [1]})
+
+    # Two antennas, so antenna 1 takes antenna 4's value, on RxA (the first pol) only
+    mir_data = MirParser(fetch_data("sma_mir"))
+    tsys_1, tsys_4 = mir_data.eng_data["tsys"]
+    good = plain.data_array != 0
+    ratio = fixed.data_array[good] / plain.data_array[good]
+    pol_idx = np.indices(plain.data_array.shape)[2]
+    expected = np.where(pol_idx == 0, (tsys_4 / tsys_1) ** 0.5, 1.0)
+    np.testing.assert_allclose(ratio, expected[good], rtol=1e-6)
