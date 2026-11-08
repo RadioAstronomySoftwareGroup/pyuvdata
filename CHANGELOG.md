@@ -14,6 +14,9 @@ a Jones term on flex-Jones objects.
 - `UVCal.convert_to_flex_jones` numbers spectral windows the same way that
 `UVData.convert_to_flex_pol` does, so that a matching `UVData` and `UVCal` objects
 convert to the same window numbers.
+- The `UVData.check` error raised when antennas in `ant_1_array` or `ant_2_array` are
+not in `telescope.antenna_numbers` now lists the missing antennas (the first 20 if
+there are more), so it can be diagnosed without a REPL.
 - `UVCal.read_calfits` reads calfits files without memory-mapping them, which can be
 several times faster on network file systems.
 - Improved `UVBeam` azimuth/zenith spline interpolation performance by sharing the
