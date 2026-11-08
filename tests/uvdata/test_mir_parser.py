@@ -81,44 +81,32 @@ COMPASS_FIXTURE_PATHS = {
 }
 
 
-def _matlab_char_array(string):
-    """Encode a str the way MATLAB -v7.3 stores a char array."""
-    return np.array([[ord(char) for char in string]], dtype=np.uint16)
-
-
 def _ver_str(version):
-    """Spell a version tuple the way COMPASS does, e.g. (0, 13) -> "0.13"."""
+    # Spell a version tuple the way COMPASS does, e.g. (0, 13) -> "0.13".
     return ".".join(str(item) for item in version)
 
 
 def _write_compass_version(file, ver_str, layout):
-    """Write a version marker the way the writer of format `layout` stores it."""
+    # Write a version marker the way the writer of format `layout` stores it.
     if "compassVersion" in file:
         del file["compassVersion"]
     if layout >= (0, 13):
         # A scalar variable-length UTF-8 string
         file["compassVersion"] = ver_str
     else:
-        file["compassVersion"] = _matlab_char_array(ver_str)
+        file["compassVersion"] = np.array(
+            [[ord(char) for char in ver_str]], dtype=np.uint16
+        )
 
 
 def _compass_layout(filename):
-    """Read the (major, minor) format version of a COMPASS solution file."""
+    # Read the (major, minor) format version of a COMPASS solution file
     with h5py.File(filename, "r") as file:
         return MirParser._parse_compass_version(file)[:2]
 
 
 def _make_compass_soln(filename, layout, mjd=(59054.69153811,), time_scale="TT"):
-    """
-    Write a minimal but complete COMPASS solution file in format version `layout`.
-
-    The contents are the same in every layout: one baseline (antennas 1 and 4), two
-    receivers and eight windows, bandpass solutions that are easy to recreate in the
-    tests, a picket fence of per-integration flags, and static flags over the first
-    half of each spectrum. `mjd` gives the integration times, on the scale given by
-    `time_scale` (0.13 only); the default is the one integration in the test data set
-    (`in_data["mjd"]`).
-    """
+    # Write a minimal but complete COMPASS solution file in format version `layout`.
     paths = COMPASS_FIXTURE_PATHS[layout]
 
     # Make a set of bp solns that are easy to recreate in the test (to verify
@@ -182,6 +170,7 @@ def _make_compass_soln(filename, layout, mjd=(59054.69153811,), time_scale="TT")
 
         if layout >= (0, 13):
             file.attrs["time_scale"] = time_scale
+            file.attrs["jypk"] = 97.661 / (0.75 * 0.988457)
             for group in ["meta", "calibration", "flags"]:
                 file[group].attrs["complete"] = np.uint8(1)
 
@@ -681,13 +670,7 @@ def test_compass_flag_bit_order(mir_data: MirParser, compass_soln_copy, flag_typ
     ids=lambda val: "v" + _ver_str(val) if isinstance(val, tuple) else val,
 )
 def test_compass_flag_int_matching(mir_data: MirParser, tmp_path, layout, time_scale):
-    """
-    Test that per-integration flags come from the integration whose time matches.
-
-    The flags are read from disk one integration at a time, so this checks that the
-    one read is the matched one, and not its neighbours, on either time scale (MIR
-    records TT, about a minute off UTC).
-    """
+    """Test that per-integration flags come from the integration whose time matches."""
     mjd = mir_data.in_data["mjd"][0]
     if time_scale == "UTC":
         mjd = Time(mjd, format="mjd", scale="tt").utc.mjd
@@ -707,6 +690,7 @@ def test_compass_flag_int_matching(mir_data: MirParser, tmp_path, layout, time_s
     vis_data = mir_data.vis_data
     mir_data.vis_data = None
     mir_data.read_compass_solns(filename, load_flags=True, load_bandpass=False)
+    assert mir_data.jypk == (97.661 / (0.75 * 0.988457) if layout >= (0, 13) else 130.0)
     mir_data.vis_data = vis_data
     mir_data._apply_compass_solns(mir_data.vis_data)
     for key, entry in mir_data.vis_data.items():

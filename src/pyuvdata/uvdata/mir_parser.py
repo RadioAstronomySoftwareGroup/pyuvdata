@@ -293,7 +293,8 @@ class MirParser:
         # multiplied against the system temperatures in order to produce values in units
         # of Jy (technically this is the SEFD, which when multiplied against correlator
         # coefficients produces visibilities in units of Jy). Default is 130.0, which
-        # is the estimated value for SMA.
+        # is the estimated value for SMA. `read_compass_solns` sets it to the value the
+        # COMPASS solutions were derived with, where the file records one.
         self.jypk = 130.0
 
         # On init, if a filepath is provided, then fill in the object
@@ -4731,6 +4732,9 @@ class MirParser:
         (`staticBaseFlagArr`)  baseline-based flags that apply to the whole track.
         ====================== ========================================================
 
+        Also read is the root attribute `jypk`, the forward gain (in Jy/K) that COMPASS
+        scaled the data by before deriving its solutions.
+
         0.12 records each 1D array as ``(1, N)``, an artefact of MATLAB; the shapes
         are otherwise the same in both. All three flag arrays are packed
         least-significant bit first; see the Notes in `read_compass_solns`. Both
@@ -4787,6 +4791,9 @@ class MirParser:
             # early and reported in terms of what the file actually contains. What
             # comes back says where each dataset lives in this version's layout.
             layout = self._check_compass_format(file, filename=filename)
+
+            # The forward gain the solutions were derived with (None if not recorded)
+            compass_soln_dict["jypk"] = file.attrs.get("jypk")
 
             # First, pull out the bandpass solns, and the associated metadata. Note that
             # the real/imag values here are split to make it easier for grabbing the
@@ -5054,6 +5061,9 @@ class MirParser:
             )
 
         compass_soln_dict = self._read_compass_solns(filename)
+        if compass_soln_dict["jypk"] is not None:
+            self.jypk = float(compass_soln_dict["jypk"])
+
         if load_flags:
             self._compass_sphid_flags = compass_soln_dict["sphid_flags"]
             self._compass_static_flags = compass_soln_dict["static_flags"]
