@@ -5954,13 +5954,15 @@ class MirParser:
         sma_lon = sma_loc.lon.rad
         sma_loc = np.array(sma_loc.value.tolist())
 
-        # Determined from Google Maps, picket fence around Subaru at NW, SW, SE corners
-        # NW: lat=19.825700919110243, lon=-155.47626089626624, height=4170
-        loc1 = np.array([-5464496.1903111, -2493049.20267715, 2150969.26718155])
-        # SW: lat=19.82533866312755, lon=-155.4762469705039, height=4170
-        loc2 = np.array([-5464507.96659309, -2493056.17992784, 2150931.51675793])
-        # SE: lat=19.825341424869098, lon=-155.47585942328195, height=4170
-        loc3 = np.array([-5464491.00910077, -2493093.09859875, 2150931.80455726])
+        # Determined from Google Maps, picket fence around Subaru at NW, SW, SE corners,
+        # raised from the ground (4170 m) by 41 m to cover the enclosure (fit to where
+        # calibrators lose and regain fringes)
+        # NW: lat=19.825700919110243, lon=-155.47626089626624, height=4211
+        loc1 = np.array([-5464531.280776156, -2493065.2118851137, 2150983.172738805])
+        # SW: lat=19.82533866312755, lon=-155.4762469705039, height=4211
+        loc2 = np.array([-5464543.057134241, -2493072.1891808226, 2150945.422071322])
+        # SE: lat=19.825341424869098, lon=-155.47585942328195, height=4211
+        loc3 = np.array([-5464526.099533021, -2493109.1080888086, 2150945.709872512])
 
         bad_blhid = []
         for ant, rel_pos in self.antpos_data:
