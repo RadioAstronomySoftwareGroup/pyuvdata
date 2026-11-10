@@ -795,17 +795,16 @@ class UVFlag(UVBase):
                     raise ValueError(
                         "All antennas in ant_2_array must be in antenna_numbers."
                     )
-        elif self.type == "antenna":
-            if self.telescope.antenna_numbers is not None:
-                missing_ants = self.ant_array[
-                    ~np.isin(self.ant_array, self.telescope.antenna_numbers)
-                ]
-                if missing_ants.size > 0:
-                    raise ValueError(
-                        "All antennas in ant_array must be in antenna_numbers. "
-                        "The antennas in ant_array that are missing in antenna_numbers "
-                        f"are: {missing_ants}"
-                    )
+        elif self.type == "antenna" and self.telescope.antenna_numbers is not None:
+            missing_ants = self.ant_array[
+                ~np.isin(self.ant_array, self.telescope.antenna_numbers)
+            ]
+            if missing_ants.size > 0:
+                raise ValueError(
+                    "All antennas in ant_array must be in antenna_numbers. "
+                    "The antennas in ant_array that are missing in antenna_numbers "
+                    f"are: {missing_ants}"
+                )
 
         # Check that all values in flex_spw_id_array are entries in the spw_array
         if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):

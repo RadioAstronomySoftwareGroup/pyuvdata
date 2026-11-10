@@ -12079,13 +12079,12 @@ def test_flex_pol_uvh5(multi_spw, sorting, uv_phase_comp, tmp_path):
         uvd.reorder_freqs(select_spw=spw_reorder, channel_order="-freq")
     elif sorting == "spw1":
         uvd.reorder_freqs(spw_order="number")
-    elif sorting == "spw2":
-        if multi_spw:
-            spw_final_order = [1, 4, 5, 0, 3, 2, 6, 7, 8, 9, 10, 11]
-            spw_order = np.zeros_like(uvd.spw_array)
-            for idx, spw in enumerate(spw_final_order):
-                spw_order[idx] = np.nonzero(uvd.spw_array == spw)[0][0]
-            uvd.reorder_freqs(spw_order=spw_order)
+    elif sorting == "spw2" and multi_spw:
+        spw_final_order = [1, 4, 5, 0, 3, 2, 6, 7, 8, 9, 10, 11]
+        spw_order = np.zeros_like(uvd.spw_array)
+        for idx, spw in enumerate(spw_final_order):
+            spw_order[idx] = np.nonzero(uvd.spw_array == spw)[0][0]
+        uvd.reorder_freqs(spw_order=spw_order)
 
     uvd.check(check_autos=True)
 
