@@ -434,6 +434,32 @@ def test_bad_delays():
         beam1.read_mwa_beam(fetch_data("mwa_full_EE"), pixels_per_deg=1, delays=delays)
 
 
+# TODO: add assert for the TypeError
+@pytest.mark.parametrize("model", ["fee", "aee"])
+@pytest.mark.parametrize(
+    "delays",
+    [
+        [
+            [0, 3, 6, 9, 0, 3, 6, 9, 0, 3, 6, 9, 0, 3, 6, 9],
+            [0, 3, 6, 9, 0, 3, 6, 9, 0, 3, 6, 9, 0, 3, 6, 9],
+        ],
+        "not_list",
+    ],
+)
+def test_list_delays(beam_filenames, uvbeam_kwargs, model, delays):
+    filename = beam_filenames[model]
+    kwargs = uvbeam_kwargs[model]
+    kwargs["delays"] = delays
+
+    errmsg = "delays passed to uvbeam constructor"
+
+    if isinstance(delays, list):
+        UVBeam.from_file(filename, **kwargs)
+    else:
+        with pytest.raises(TypeError, match=re.escape(errmsg)):
+            UVBeam.from_file(filename, **kwargs)
+
+
 def test_dead_dipoles():
     beam1 = UVBeam()
 
