@@ -2435,14 +2435,19 @@ class UVData(UVBase):
         # require that all entries in ant_1_array and ant_2_array exist in
         # antenna_numbers
         logger.debug("Doing Antenna Uniqueness Check...")
-        if not set(np.unique(self.ant_1_array)).issubset(
-            self.telescope.antenna_numbers
+        for name, ant_array in (
+            ("ant_1_array", self.ant_1_array),
+            ("ant_2_array", self.ant_2_array),
         ):
-            raise ValueError("All antennas in ant_1_array must be in antenna_numbers.")
-        if not set(np.unique(self.ant_2_array)).issubset(
-            self.telescope.antenna_numbers
-        ):
-            raise ValueError("All antennas in ant_2_array must be in antenna_numbers.")
+            missing = np.setdiff1d(ant_array, self.telescope.antenna_numbers)
+            if missing.size > 0:
+                # name the antennas, so the error can be diagnosed without a REPL
+                shown = ", ".join(str(ant) for ant in missing[:20])
+                more = f", and {missing.size - 20} more" if missing.size > 20 else ""
+                raise ValueError(
+                    f"All antennas in {name} must be in antenna_numbers. "
+                    f"The antennas not in antenna_numbers are: {shown}{more}."
+                )
         logger.debug("... Done Antenna Uniqueness Check")
 
         if run_check_acceptability:
