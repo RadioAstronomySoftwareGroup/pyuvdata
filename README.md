@@ -195,17 +195,21 @@ in pyuvdata. The options that can be passed in this way are:
 - ``novas``
 - ``plotting``
 - ``all``
+- ``datasets``
 - ``tutorial``
 - ``test``
 - ``doc``
 - ``dev``
 
 The first set (``astroquery``, ``casa``, ``hdf5_compression``, ``healpix``,
-``lunar``, ``novas``, and ``plotting``) enable various specific functionality
-while ``all`` will install all of the above to enable all functionality. The last
-three (``test``, ``doc`` and ``dev``) include everything installed with ``all``
-plus packages for testing and building the docs which may be useful for
-developers of pyuvdata.
+``lunar``, ``novas``, and ``plotting``) enable various specific functionality,
+while ``all`` will install all of the above to enable all optional functionality.
+The ``datasets`` option will install pooch for downloading test data.
+The ``tutorial`` option will install everything included with ``datasets`` and
+``plotting`` to enable running the tutorial. The next two (``test`` and ``doc``)
+include packages for testing and building the docs respectively. Finally, ``dev``
+includes everything installed with ``all``, ``test`` and ``doc`` so installs
+everything needed for developers of pyuvdata.
 
 ### Installing python-casacore
 python-casacore requires the casacore c++ libraries. It can be installed easily
