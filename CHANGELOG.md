@@ -26,6 +26,7 @@ interpolating spline for a given `kx`/`ky` with `s = 0`.
 - Updated minimum dependency versions: scipy>=1.15
 
 ### Fixed
+- A bug which caused `KeyError`s in `UVData.write_uvfits` with astropy>=8.0.3.
 - A bug where `uvflag` errored when trying to write out extra keywords with value `None`.
 - A bug in `UVCal.__add__` where `flex_jones_array` was not reordered along with the
 spectral windows.

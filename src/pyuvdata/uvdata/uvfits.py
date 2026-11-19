@@ -1080,44 +1080,44 @@ class UVFITS(UVData):
         # We no longer add 1 to the arrays as the arrays are not indices.
 
         group_parameter_dict = {
-            "UU      ": uvw_array_sec[:, 0],
-            "VV      ": uvw_array_sec[:, 1],
-            "WW      ": uvw_array_sec[:, 2],
-            "DATE    ": time_array1,
+            "UU": uvw_array_sec[:, 0],
+            "VV": uvw_array_sec[:, 1],
+            "WW": uvw_array_sec[:, 2],
+            "DATE": time_array1,
             "BASELINE": baselines_use,
-            "SOURCE  ": None,
+            "SOURCE": None,
             "ANTENNA1": ant1_array_use,
             "ANTENNA2": ant2_array_use,
             "SUBARRAY": np.ones_like(ant1_array_use),
-            "INTTIM  ": int_time_array,
+            "INTTIM": int_time_array,
         }
 
         id_offset = int(0 in self.phase_center_catalog)
-        group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
+        group_parameter_dict["SOURCE"] = self.phase_center_id_array + id_offset
 
         pscal_dict = {
-            "UU      ": 1.0,
-            "VV      ": 1.0,
-            "WW      ": 1.0,
-            "DATE    ": 1.0,
+            "UU": 1.0,
+            "VV": 1.0,
+            "WW": 1.0,
+            "DATE": 1.0,
             "BASELINE": 1.0,
-            "SOURCE  ": 1.0,
+            "SOURCE": 1.0,
             "ANTENNA1": 1.0,
             "ANTENNA2": 1.0,
             "SUBARRAY": 1.0,
-            "INTTIM  ": 1.0,
+            "INTTIM": 1.0,
         }
         pzero_dict = {
-            "UU      ": 0.0,
-            "VV      ": 0.0,
-            "WW      ": 0.0,
-            "DATE    ": jd_midnight,
+            "UU": 0.0,
+            "VV": 0.0,
+            "WW": 0.0,
+            "DATE": jd_midnight,
             "BASELINE": 0.0,
-            "SOURCE  ": 0.0,
+            "SOURCE": 0.0,
             "ANTENNA1": 0.0,
             "ANTENNA2": 0.0,
             "SUBARRAY": 0.0,
-            "INTTIM  ": 0.0,
+            "INTTIM": 0.0,
         }
 
         if write_lst:
@@ -1133,24 +1133,24 @@ class UVFITS(UVData):
                 )
             else:
                 lst_array_1 = lst_array_deg
-            group_parameter_dict["LST     "] = lst_array_1
-            pscal_dict["LST     "] = 1.0
-            pzero_dict["LST     "] = 0.0
+            group_parameter_dict["LST"] = lst_array_1
+            pscal_dict["LST"] = 1.0
+            pzero_dict["LST"] = 0.0
             if write_precision == 32:
-                pscal_dict["LST2    "] = 1.0
-                pzero_dict["LST2    "] = 0.0
+                pscal_dict["LST2"] = 1.0
+                pzero_dict["LST2"] = 0.0
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        parnames_use = ["UU      ", "VV      ", "WW      ", "DATE    "]
+        parnames_use = ["UU", "VV", "WW", "DATE"]
         if write_precision == 32:
-            group_parameter_dict["DATE2   "] = time_array2
-            pscal_dict["DATE2   "] = 1.0
-            pzero_dict["DATE2   "] = 0.0
-            parnames_use.append("DATE2   ")
+            group_parameter_dict["DATE2"] = time_array2
+            pscal_dict["DATE2"] = 1.0
+            pzero_dict["DATE2"] = 0.0
+            parnames_use.append("DATE2")
             if uvw_double:
                 for ind, name in enumerate(["UU", "VV", "WW"]):
-                    keyname = name + "2     "
+                    keyname = name + "2"
                     group_parameter_dict[keyname] = uvw_array2[:, ind]
                     pscal_dict[keyname] = 1.0
                     pzero_dict[keyname] = 0.0
@@ -1172,10 +1172,10 @@ class UVFITS(UVData):
                 "using the measurement set writer method (`write_ms`) instead."
             )
 
-        parnames_use += ["SOURCE  ", "ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM  "]
+        parnames_use += ["SOURCE", "ANTENNA1", "ANTENNA2", "SUBARRAY", "INTTIM"]
 
         if write_lst:
-            parnames_use.append("LST     ")
+            parnames_use.append("LST")
 
         group_parameter_list = [
             group_parameter_dict[parname] for parname in parnames_use
@@ -1184,15 +1184,15 @@ class UVFITS(UVData):
         if write_precision == 32:
             # add second date part
             parnames_write = copy.deepcopy(parnames_use)
-            parnames_write[parnames_write.index("DATE2   ")] = "DATE    "
+            parnames_write[parnames_write.index("DATE2")] = "DATE"
             if uvw_double:
-                parnames_write[parnames_write.index("UU2     ")] = "UU      "
-                parnames_write[parnames_write.index("VV2     ")] = "VV      "
-                parnames_write[parnames_write.index("WW2     ")] = "WW      "
+                parnames_write[parnames_write.index("UU2")] = "UU"
+                parnames_write[parnames_write.index("VV2")] = "VV"
+                parnames_write[parnames_write.index("WW2")] = "WW"
             if write_lst:
                 # add second LST array part
-                parnames_use.append("LST2    ")
-                parnames_write.append("LST     ")
+                parnames_use.append("LST2")
+                parnames_write.append("LST")
                 group_parameter_list.append(lst_array_2)
         else:
             parnames_write = copy.deepcopy(parnames_use)
@@ -1206,8 +1206,8 @@ class UVFITS(UVData):
         hdu = fits.GroupsHDU(hdu)
 
         for i, key in enumerate(parnames_use):
-            hdu.header["PSCAL" + str(i + 1) + "  "] = pscal_dict[key]
-            hdu.header["PZERO" + str(i + 1) + "  "] = pzero_dict[key]
+            hdu.header["PSCAL" + str(i + 1)] = pscal_dict[key]
+            hdu.header["PZERO" + str(i + 1)] = pzero_dict[key]
 
         # Create an astropy.time.Time object from first timestamp
         # obs_date0:           Time object in JD from first timestamp
@@ -1221,28 +1221,28 @@ class UVFITS(UVData):
 
         # Per AIPS memo 117, DATE-OBS is the YYYY-MM-DD string
         hdu.header["DATE-OBS"] = obs_date0_rdate_str
-        hdu.header["CTYPE2  "] = "COMPLEX "
-        hdu.header["CRVAL2  "] = 1.0
-        hdu.header["CRPIX2  "] = 1.0
-        hdu.header["CDELT2  "] = 1.0
+        hdu.header["CTYPE2"] = "COMPLEX "
+        hdu.header["CRVAL2"] = 1.0
+        hdu.header["CRPIX2"] = 1.0
+        hdu.header["CDELT2"] = 1.0
 
         # Note: This axis is called STOKES to comply with the AIPS memo 117
         # However, this confusing because it is NOT a true Stokes axis,
         #   it is really the polarization axis.
-        hdu.header["CTYPE3  "] = "STOKES  "
-        hdu.header["CRVAL3  "] = float(polarization_array[0])
-        hdu.header["CRPIX3  "] = 1.0
-        hdu.header["CDELT3  "] = float(pol_spacing)
+        hdu.header["CTYPE3"] = "STOKES"
+        hdu.header["CRVAL3"] = float(polarization_array[0])
+        hdu.header["CRPIX3"] = 1.0
+        hdu.header["CDELT3"] = float(pol_spacing)
 
-        hdu.header["CTYPE4  "] = "FREQ    "
-        hdu.header["CRVAL4  "] = ref_freq
-        hdu.header["CRPIX4  "] = 1.0
-        hdu.header["CDELT4  "] = delta_freq_array[0, 0]
+        hdu.header["CTYPE4"] = "FREQ"
+        hdu.header["CRVAL4"] = ref_freq
+        hdu.header["CRPIX4"] = 1.0
+        hdu.header["CDELT4"] = delta_freq_array[0, 0]
 
-        hdu.header["CTYPE5  "] = "IF      "
-        hdu.header["CRVAL5  "] = 1.0
-        hdu.header["CRPIX5  "] = 1.0
-        hdu.header["CDELT5  "] = 1.0
+        hdu.header["CTYPE5"] = "IF"
+        hdu.header["CRVAL5"] = 1.0
+        hdu.header["CRPIX5"] = 1.0
+        hdu.header["CDELT5"] = 1.0
 
         if self.Nphase > 1:
             ra_use = 0.0
@@ -1254,29 +1254,29 @@ class UVFITS(UVData):
             dec_use = np.rad2deg(phase_dict["cat_lat"])
             name_use = phase_dict["cat_name"]
 
-        hdu.header["CTYPE6  "] = "RA"
-        hdu.header["CRVAL6  "] = ra_use
+        hdu.header["CTYPE6"] = "RA"
+        hdu.header["CRVAL6"] = ra_use
 
-        hdu.header["CTYPE7  "] = "DEC"
-        hdu.header["CRVAL7  "] = dec_use
+        hdu.header["CTYPE7"] = "DEC"
+        hdu.header["CRVAL7"] = dec_use
 
-        hdu.header["BUNIT   "] = self.vis_units
-        hdu.header["BSCALE  "] = 1.0
-        hdu.header["BZERO   "] = 0.0
+        hdu.header["BUNIT"] = self.vis_units
+        hdu.header["BSCALE"] = 1.0
+        hdu.header["BZERO"] = 0.0
 
-        hdu.header["OBJECT  "] = name_use
+        hdu.header["OBJECT"] = name_use
         hdu.header["TELESCOP"] = self.telescope.name
         lat, lon, alt = self.telescope.location_lat_lon_alt_degrees
-        hdu.header["LAT     "] = lat
-        hdu.header["LON     "] = lon
-        hdu.header["ALT     "] = alt
+        hdu.header["LAT"] = lat
+        hdu.header["LON"] = lon
+        hdu.header["ALT"] = alt
         hdu.header["INSTRUME"] = self.telescope.instrument
         if self.Nphase == 1:
-            hdu.header["EPOCH   "] = float(phase_dict["cat_epoch"])
+            hdu.header["EPOCH"] = float(phase_dict["cat_epoch"])
         # TODO: This is a keyword that should at some point get added for velocity
         # reference stuff, although for right now pyuvdata doesn't do any sort of
         # handling of this, so stub this out for now.
-        # hdu.header["SPECSYS "] = "TOPOCENT"
+        # hdu.header["SPECSYS"] = "TOPOCENT"
 
         if self.Nphase == 1:
             hdu.header["RADESYS"] = phase_dict["cat_frame"]
@@ -1523,7 +1523,7 @@ class UVFITS(UVData):
         name_arr = np.array(
             [ps_dict["cat_name"] for ps_dict in self.phase_center_catalog.values()]
         )
-        cal_code = ["    "] * self.Nphase
+        cal_code = [""] * self.Nphase
         # These are things we need to flip through on a source-by-source basis
         ra_arr = np.zeros(self.Nphase, dtype=np.float64)
         app_ra = np.zeros(self.Nphase, dtype=np.float64)
