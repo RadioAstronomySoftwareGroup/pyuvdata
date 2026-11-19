@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.9] - 2025-11-18
+
 ### Added
 - Support in `uvcalibrate` for flex-pol `UVData` objects, which carry one
 polarization per spectral window, and for flex-Jones `UVCal` objects, which carry one
