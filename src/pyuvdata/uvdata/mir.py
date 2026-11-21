@@ -236,7 +236,7 @@ class Mir(UVData):
         select_where=None,
         apply_tsys=True,
         apply_flags=True,
-        apply_dedoppler=False,
+        apply_dedoppler=None,
         illum_dict=None,
         fix_tsys=None,
         pseudo_cont=False,
@@ -348,7 +348,6 @@ class Mir(UVData):
         blhid_blt_order,
         apply_flags=True,
         apply_tsys=True,
-        apply_dedoppler=False,
     ):
         """
         Load and prep data for import into UVData object.
@@ -380,17 +379,11 @@ class Mir(UVData):
             by the auto-correlations). Default is True, which instead scales the raw
             visibilities and forward-gain of the antenna to produce values in Jy
             (uncalibrated).
-        apply_dedoppler : bool
-            If set to True, data will be corrected for any doppler-tracking performed
-            during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
         """
         if mir_data.vis_data is None:
             mir_data.load_data(load_cross=True, apply_tsys=apply_tsys)
             if apply_flags:
                 mir_data.apply_flags()
-            if apply_dedoppler:
-                mir_data.redoppler_data()
 
         if not np.all(
             np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data.get_header_keys())
@@ -430,7 +423,7 @@ class Mir(UVData):
         allow_flex_pol=True,
         apply_tsys=True,
         apply_flags=True,
-        apply_dedoppler=False,
+        apply_dedoppler=None,
         metadata_only=False,
         illum_dict=None,
     ):
@@ -456,10 +449,13 @@ class Mir(UVData):
             by the auto-correlations). Default is True, which instead scales the raw
             visibilities and forward-gain of the antenna to produce values in Jy
             (uncalibrated).
-        apply_dedoppler : bool
+        apply_dedoppler : bool or None
             If set to True, data will be corrected for any doppler-tracking performed
             during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
+            for UVData objects), interpolating between channels where needed. If set to
+            None, the correction is instead rounded to whole channels as recorded on
+            disk (i.e., ahead of any averaging from `rechunk`), which needs no
+            interpolation. If set to False, no correction is applied. Default is None.
         metadata_only : bool
             Read in only the metadata, ignore visibility data. Default is False.
         illum_dict : dict
@@ -1043,6 +1039,14 @@ class Mir(UVData):
             self.flag_array = np.ones((Nblts, Nfreqs, Npols), dtype=bool)
             self.nsample_array = np.zeros((Nblts, Nfreqs, Npols), dtype=np.float32)
 
+            if (apply_dedoppler is not False) and (mir_data.vis_data is None):
+                # Done ahead of loading, so that the shift is applied as the data are
+                # read in, before any spectral averaging. With None, the shift is only
+                # rounded to whole channels on disk (see `redoppler_data`).
+                mir_data.redoppler_data(
+                    kernel_type="cubic" if apply_dedoppler else "nearest"
+                )
+
             # Get a list of the current inhid values for later
             inhid_list = mir_data.in_data["inhid"].copy()
 
@@ -1075,7 +1079,6 @@ class Mir(UVData):
                     blhid_blt_order,
                     apply_flags=apply_flags,
                     apply_tsys=apply_tsys,
-                    apply_dedoppler=apply_dedoppler,
                 )
 
                 # Because the select operation messes with the masks, we want to restore

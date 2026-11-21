@@ -288,6 +288,7 @@ class MirParser:
         self._compass_bp_soln = None
         self._compass_sphid_flags = None
         self._compass_static_flags = None
+        self._compass_cal = None
 
         # This value is the forward gain of the antenna (in units of Jy/K), which is
         # multiplied against the system temperatures in order to produce values in units
@@ -417,6 +418,13 @@ class MirParser:
             elif this_attr is None:
                 # If both are NoneType, we actually have nothing to do here
                 pass
+            elif item == "_compass_cal":
+                # Arrays derived from the solutions (see `_set_compass_cal`)
+                if (this_attr.keys() != other_attr.keys()) or not all(
+                    np.array_equal(this_attr[key], other_attr[key]) for key in this_attr
+                ):
+                    is_eq = False
+                    verbose_print(f"{item} has different values.")
             elif item in data_comp_dict:
                 # Data-related attributes are a bit special, in that they are dicts
                 # of dicts (note this may change at some point).
@@ -1447,6 +1455,10 @@ class MirParser:
         norm_arr=None,
         wt_arr=None,
         all_flag_arr=None,
+        chan_avg_arr=None,
+        chan_shift_arr=None,
+        chan_frac_arr=None,
+        compass_cal=None,
     ) -> dict:
         """
         Unpack commonly-scaled records from a packdata block into visibilities.
@@ -1458,7 +1470,8 @@ class MirParser:
         are views onto those buffers.
 
         The Tsys normalization and the phase from any change in w-projection are folded
-        in when supplied.
+        in when supplied. Any calibration is applied next, followed by any shift in
+        frequency and spectral averaging.
 
         Parameters
         ----------
@@ -1480,6 +1493,19 @@ class MirParser:
         all_flag_arr : ndarray of bool
             Records to flag in their entirety. Default is None, which applies no
             flagging to the spectral records.
+        chan_avg_arr : ndarray of int
+            Number of channels to average together for each record. Default is None,
+            which applies no averaging.
+        chan_shift_arr : ndarray of int
+            Whole number of channels to shift each record by (rounded up), applied
+            before averaging. Required if supplying `chan_avg_arr`.
+        chan_frac_arr : ndarray of float
+            Further fraction of a channel to shift each record by, in the range [0, 1),
+            interpolated via cubic convolution. Required if supplying `chan_avg_arr`.
+        compass_cal : dict
+            COMPASS solutions to apply to the unpacked records before any shift or
+            averaging, in the format of `_compass_cal` (see `_set_compass_cal`). Default
+            is None, which applies no calibration.
 
         Returns
         -------
@@ -1492,11 +1518,26 @@ class MirParser:
             packdata = packdata.astype(packdata.dtype.newbyteorder("="))
 
         nchan_arr = (eidx_arr - sidx_arr - 1) // 2
+        # Any shift and averaging is done as the records are unpacked, if there is
+        # anything to do (in which case the output holds the averaged channels).
+        regrid_args = {}
+        out_nchan = nchan_arr
+        if chan_avg_arr is not None and (
+            np.any(chan_avg_arr != 1)
+            or np.any(chan_shift_arr != 0)
+            or np.any(chan_frac_arr != 0)
+        ):
+            regrid_args = {
+                "chan_shift": chan_shift_arr,
+                "chan_frac": chan_frac_arr,
+                "chan_avg": chan_avg_arr,
+            }
+            out_nchan = nchan_arr // chan_avg_arr
         # Exclusive prefix sum -- where each record *starts* in the output. Spelled
         # this way rather than with np.cumulative_sum, which needs numpy 2.0.
-        out_off = np.cumsum(nchan_arr) - nchan_arr
+        out_off = np.cumsum(out_nchan) - out_nchan
 
-        ntot = int(nchan_arr.sum())
+        ntot = int(out_nchan.sum())
         data_out = np.empty(ntot, dtype=np.complex64)
         flag_out = np.empty(ntot, dtype=bool)
         wt_out = np.empty(ntot, dtype=np.float32)
@@ -1520,6 +1561,8 @@ class MirParser:
             data_out,
             flag_out,
             wt_out,
+            **({} if compass_cal is None else compass_cal),
+            **regrid_args,
         )
 
         return {
@@ -1528,7 +1571,7 @@ class MirParser:
                 "flags": flag_out[off : off + nch],
                 "weights": wt_out[off : off + nch],
             }
-            for hid, off, nch in zip(hid_arr, out_off, nchan_arr, strict=True)
+            for hid, off, nch in zip(hid_arr, out_off, out_nchan, strict=True)
         }
 
     @classmethod
@@ -1707,9 +1750,11 @@ class MirParser:
         sidx_arr,
         eidx_arr,
         chavg_arr,
+        chan_shift_arr,
+        chan_frac_arr,
         chavg_call,
         scale_data,
-        apply_cal=False,
+        compass_cal=None,
         norm_arr=None,
         wt_arr=None,
         all_flag_arr=None,
@@ -1739,12 +1784,17 @@ class MirParser:
             End positions for each spectral record within `packdata`.
         chavg_arr : ndarray of int
             Channel averaging factor of each record.
+        chan_shift_arr : ndarray of int
+            Whole number of channels to shift each record by before any averaging.
+        chan_frac_arr : ndarray of float
+            Further fraction of a channel to shift each record by.
         chavg_call : callable
             Channel averaging routine to use, called as `chavg_call(dict, chavg_arr)`.
         scale_data : bool
             If True, return scaled visibilities, otherwise return the packed records.
-        apply_cal : bool
-            If True, apply COMPASS bandpass and flags. Default is False.
+        compass_cal : dict or None
+            COMPASS bandpass and flags to apply, in the format of `_compass_cal` (see
+            `_set_compass_cal`). If None, no calibration is applied.
         norm_arr : ndarray or None
             Per-spectral record normalization (tsys and/or the phase ramp from a change
             in w) for the records in this integration, of shape (Nrec, 2) (see
@@ -1765,6 +1815,7 @@ class MirParser:
         no_chavg = np.all(chavg_arr == 1)
 
         if common_scale and scale_data:
+            # Calibration, shift and averaging are all handled during the unpacking.
             data_dict = self._unpack_scaled(
                 packdata,
                 hid_arr,
@@ -1773,9 +1824,12 @@ class MirParser:
                 norm_arr=norm_arr,
                 wt_arr=wt_arr,
                 all_flag_arr=all_flag_arr,
+                chan_avg_arr=chavg_arr,
+                chan_shift_arr=chan_shift_arr,
+                chan_frac_arr=chan_frac_arr,
+                compass_cal=compass_cal,
             )
-            if apply_cal:
-                data_dict = self._apply_compass_solns(data_dict)
+            return data_dict
         elif common_scale:
             # Pass along the raw crosses. Note that the dict construct here is
             # relatively light weight - construct it either for copying later for
@@ -1787,6 +1841,16 @@ class MirParser:
             if no_chavg:
                 # Force the copy in case of a read-only memory map
                 self._copy_scaled_inplace(data_dict, packdata, sidx_arr, eidx_arr)
+            if np.any(chan_shift_arr != 0) or np.any(chan_frac_arr != 0):
+                # Shift ahead of any averaging. Note the fraction of a channel is always
+                # less than one, so the kernel adds nothing to the whole channel shift.
+                shift_tuple_list = []
+                for shift, frac in zip(chan_shift_arr, chan_frac_arr, strict=True):
+                    _, kern_size, kern = self._generate_chanshift_kernel(
+                        frac, "cubic", tol=0
+                    )
+                    shift_tuple_list.append((shift, kern_size, kern))
+                self._chanshift_raw(data_dict, shift_tuple_list, inplace=True)
         else:
             # Un-scaled (float) records, i.e. autos.
             data_dict = self._unpack_unscaled(packdata, hid_arr, sidx_arr, eidx_arr)
@@ -1887,12 +1951,6 @@ class MirParser:
         hid_arr = metadata_attr.get_header_keys(use_mask=False)
         full_sidx_arr = recpos_dict["start_idx"]
         full_eidx_arr = recpos_dict["end_idx"]
-        chavg_arr = recpos_dict["chan_avg"]
-
-        def _group():
-            return metadata_attr.group_by(
-                "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
-            )
 
         def _do_read(inhid_groups, raise_err):
             if scatter_read:
@@ -1914,7 +1972,9 @@ class MirParser:
                 None,
             )
 
-        inhid_groups = _group()
+        inhid_groups = metadata_attr.group_by(
+            "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+        )
         try:
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
@@ -1929,15 +1989,20 @@ class MirParser:
             self._fix_int_dict(data_type)
             self._update_filter(update_data=False)
             # The filter just moved, so the grouping has to be rebuilt before retrying.
-            inhid_groups = _group()
+            inhid_groups = metadata_attr.group_by(
+                "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
+            )
             packdata_dict, index_dict = _do_read(inhid_groups, None)
 
         norm_arr = wt_arr = all_flag_arr = None
         sub_norm_arr = sub_wt_arr = sub_flag_arr = None
+        compass_cal = sub_compass_cal = None
         if (data_type == "cross") and scale_data:
             norm_arr, wt_arr, all_flag_arr = self._get_unpack_norm(apply_tsys)
             if apply_tsys:
                 self._tsys_applied = True
+            if apply_cal:
+                compass_cal = self._compass_cal
 
         # With the packdata in hand, start parsing the individual spectral records.
         data_dict = {}
@@ -1960,6 +2025,12 @@ class MirParser:
                 sub_norm_arr = norm_arr[idx_arr]
                 sub_wt_arr = wt_arr[idx_arr]
                 sub_flag_arr = all_flag_arr[idx_arr]
+            if compass_cal is not None:
+                # Pick out the per-record entries for this integration.
+                sub_compass_cal = dict(compass_cal)
+                for key in ["bp_idx", "flag_bytes"]:
+                    if compass_cal[key] is not None:
+                        sub_compass_cal[key] = compass_cal[key][idx_arr]
 
             data_dict.update(
                 self._unpack_integration(
@@ -1968,13 +2039,15 @@ class MirParser:
                     hid_arr=hid_arr[idx_arr],
                     sidx_arr=sidx_arr,
                     eidx_arr=eidx_arr,
-                    chavg_arr=chavg_arr[idx_arr],
+                    chavg_arr=recpos_dict["chan_avg"][idx_arr],
                     chavg_call=chavg_call,
                     scale_data=scale_data,
-                    apply_cal=apply_cal,
+                    compass_cal=sub_compass_cal,
                     norm_arr=sub_norm_arr,
                     wt_arr=sub_wt_arr,
                     all_flag_arr=sub_flag_arr,
+                    chan_shift_arr=recpos_dict["chan_shift"][idx_arr],
+                    chan_frac_arr=recpos_dict["chan_frac"][idx_arr],
                 )
             )
 
@@ -2064,7 +2137,6 @@ class MirParser:
         recpos_dict = metadata_attr._recpos_dict
         full_sidx_arr = recpos_dict["start_idx"]
         full_eidx_arr = recpos_dict["end_idx"]
-        chavg_arr = recpos_dict["chan_avg"]
 
         inhid_groups = metadata_attr.group_by(
             "inhid", index=np.where(metadata_attr._mask)[0], return_index=True
@@ -2072,12 +2144,15 @@ class MirParser:
 
         norm_arr = wt_arr = all_flag_arr = None
         sub_norm_arr = sub_wt_arr = sub_flag_arr = None
+        compass_cal = sub_compass_cal = None
         hid_arr = metadata_attr.get_header_keys(use_mask=False)
 
         if (data_type == "cross") and scale_data:
             norm_arr, wt_arr, all_flag_arr = self._get_unpack_norm(apply_tsys)
             if apply_tsys:
                 self._tsys_applied = True
+            if apply_cal:
+                compass_cal = self._compass_cal
 
         keys = list(inhid_groups)
         for start in range(0, len(keys), batch):
@@ -2103,6 +2178,12 @@ class MirParser:
                     sub_norm_arr = norm_arr[idx_arr]
                     sub_wt_arr = wt_arr[idx_arr]
                     sub_flag_arr = all_flag_arr[idx_arr]
+                if compass_cal is not None:
+                    # Pick out the per-record entries for this integration.
+                    sub_compass_cal = dict(compass_cal)
+                    for key in ["bp_idx", "flag_bytes"]:
+                        if compass_cal[key] is not None:
+                            sub_compass_cal[key] = compass_cal[key][idx_arr]
 
                 data_dict = self._unpack_integration(
                     packdata,
@@ -2110,13 +2191,15 @@ class MirParser:
                     hid_arr=hid_arr[idx_arr],
                     sidx_arr=sidx_arr,
                     eidx_arr=eidx_arr,
-                    chavg_arr=chavg_arr[idx_arr],
+                    chavg_arr=recpos_dict["chan_avg"][idx_arr],
                     chavg_call=chavg_call,
                     scale_data=scale_data,
-                    apply_cal=apply_cal,
+                    compass_cal=sub_compass_cal,
                     norm_arr=sub_norm_arr,
                     wt_arr=sub_wt_arr,
                     all_flag_arr=sub_flag_arr,
+                    chan_shift_arr=recpos_dict["chan_shift"][idx_arr],
+                    chan_frac_arr=recpos_dict["chan_frac"][idx_arr],
                 )
                 del packdata
 
@@ -4315,6 +4398,10 @@ class MirParser:
         else:
             new_obj.auto_data.update(copy.deepcopy(other_auto))
 
+        # The spectral records have changed, so match them up with the solutions again.
+        if new_obj._has_compass_soln:
+            new_obj._set_compass_cal()
+
         return new_obj
 
     def __iadd__(self, other, *, merge=None, overwrite=False, force=False) -> MirParser:
@@ -4878,6 +4965,7 @@ class MirParser:
                         out=weight_soln,
                     )
 
+                    # key here is ant1, pol1, ant2, pol2, sb, window
                     new_key = key1[:2] + key2
                     bp_gains_corr[new_key] = {
                         "cal_soln": cal_soln,
@@ -5071,7 +5159,119 @@ class MirParser:
         if load_bandpass:
             self._compass_bp_soln = compass_soln_dict["bp_gains_corr"]
 
+        self._set_compass_cal()
         self._has_compass_soln = True
+
+    def _set_compass_cal(self):
+        """
+        Gather the COMPASS solutions for each spectral record into `_compass_cal`.
+
+        Note that this is an internal helper function, not designed to be called by
+        users. This looks up the bandpass solution and the flags (per-integration where
+        COMPASS has them, otherwise those for the baseline over the whole track) that
+        go with each spectral record, selected or not, and gathers them into the arrays
+        taken by `mir_numba.unpack_scaled`, so that reading data only needs to pick out
+        the records read. It is run when solutions are read in (and again when objects
+        are added together).
+
+        `_compass_cal` is set to a dict with keys "bp_idx" (row of the bandpass
+        solutions for each record, -1 if there is no solution), "bp_gain", "bp_weight"
+        and "bp_flags" (the bandpass solutions, of shape (Nsoln, Nchan), or None if
+        there are no bandpass solutions to apply), and "flag_bytes" (the packed flags,
+        one row per record, empty where there are none, or None if there are no flags
+        to apply). The per-record entries are of length equal to all records in
+        `sp_data`, whether selected or not. The keys match the arguments of
+        `mir_numba.unpack_scaled`.
+
+        Raises
+        ------
+        ValueError
+            If the number of channels in a solution does not match that of the data.
+        """
+        nrec = len(self.sp_data._mask)
+        sphid_arr = self.sp_data.get_header_keys(use_mask=False)
+        blhid_arr = self.sp_data.get_value("blhid", use_mask=False)
+        # Solutions are per channel prior to averaging.
+        nch_arr = (
+            self.sp_data.get_value("nch", use_mask=False)
+            * self.sp_data._recpos_dict["chan_avg"]
+        )
+
+        # Solutions are keyed on ant1, rx1, ant2, rx2, sideband, and window.
+        key_list = list(
+            zip(
+                *[
+                    self.bl_data.get_value(field, header_key=blhid_arr).tolist()
+                    for field in ["iant1", "ant1rx", "iant2", "ant2rx", "isb"]
+                ],
+                self.sp_data.get_value("corrchunk", use_mask=False).tolist(),
+                strict=True,
+            )
+        )
+
+        compass_cal = {
+            "bp_idx": np.full(nrec, -1, dtype=int),
+            "bp_gain": None,
+            "bp_weight": None,
+            "bp_flags": None,
+            "flag_bytes": None,
+        }
+
+        if self._compass_bp_soln is not None:
+            # One row per solution in use, which records then point to.
+            bp_rows = {}
+
+            # key here is ant1, pol1, ant2, pol2, sb, window
+            for idx, key in enumerate(key_list):
+                if key in self._compass_bp_soln:
+                    if key not in bp_rows:
+                        # Record dummy position to note this thing needs flagging.
+                        bp_rows[key] = len(bp_rows)
+                    compass_cal["bp_idx"][idx] = bp_rows[key]
+            # Stack the solutions in use. Note this is done even if there are none,
+            # since records with no solution still need flagging.
+            nsoln = len(bp_rows)
+            soln_nch = len(next(iter(self._compass_bp_soln.values()))["cal_soln"])
+            compass_cal["bp_gain"] = np.zeros((nsoln, soln_nch), dtype=np.complex64)
+            compass_cal["bp_weight"] = np.zeros((nsoln, soln_nch), dtype=np.float32)
+            compass_cal["bp_flags"] = np.zeros((nsoln, soln_nch), dtype=bool)
+            for key, row in bp_rows.items():
+                compass_cal["bp_gain"][row] = self._compass_bp_soln[key]["cal_soln"]
+                compass_cal["bp_weight"][row] = self._compass_bp_soln[key][
+                    "weight_soln"
+                ]
+                compass_cal["bp_flags"][row] = self._compass_bp_soln[key]["flag_soln"]
+            has_soln = compass_cal["bp_idx"] >= 0
+            if np.any(nch_arr[has_soln] != soln_nch):
+                raise ValueError(
+                    "COMPASS bandpass solutions do not match the number of "
+                    "channels in the data."
+                )
+
+        if not (
+            self._compass_sphid_flags is None or self._compass_static_flags is None
+        ):
+            # Per-integration flags where COMPASS has them, otherwise the flags for the
+            # baseline over the whole track. If neither is found, the record was not
+            # evaluated by COMPASS, and is left alone (its row left empty).
+            compass_cal["flag_bytes"] = np.zeros(
+                (nrec, np.max(nch_arr) // 8), dtype=np.uint8
+            )
+            for idx, (sphid, key, nch) in enumerate(
+                zip(sphid_arr, key_list, nch_arr, strict=True)
+            ):
+                rec_flags = self._compass_sphid_flags.get(sphid)
+                if rec_flags is None:
+                    rec_flags = self._compass_static_flags.get(key)
+                    if rec_flags is None:
+                        continue
+                if (8 * len(rec_flags)) != nch:
+                    raise ValueError(
+                        "COMPASS flags do not match the number of channels in the data."
+                    )
+                compass_cal["flag_bytes"][idx, : len(rec_flags)] = rec_flags
+
+        self._compass_cal = compass_cal
 
     def _apply_compass_solns(self, vis_data=None):
         """
@@ -5575,6 +5775,18 @@ class MirParser:
         Note that this function may be moved out into utils module once UVData objects
         are capable of carrying Doppler tracking-related information.
 
+        Any data already loaded are shifted at their present resolution. The shift is
+        also recorded for data read in from here on, in units of the channels on disk,
+        so that it is applied as those data are read, ahead of any spectral averaging
+        (see `rechunk`). That way, a flagged channel only spreads to its neighbours at
+        the resolution on disk, rather than to whole averaged channels. Shifts are
+        rounded to the nearest whole channel on disk unless that leaves a residual of
+        more than `tol` of a channel at the present resolution, in which case the data
+        are interpolated with the "cubic" kernel as they are read in (and `flag_adj` is
+        taken to be True). Setting `kernel_type="nearest"` always rounds to whole
+        channels -- on disk for data read in later, and at the present resolution for
+        data already loaded.
+
         Parameters
         ----------
         freq_shift : ndarray
@@ -5601,6 +5813,10 @@ class MirParser:
             The default is 1e-3, which means that if the desired shift is within one
             one-thousandth of an existing channel, the method will (for the frequency
             window in question) the nearest-neighbor interpolation scheme.
+            Note that channels here are those at the present resolution, while data
+            read in after this call are shifted by whole channels on disk where possible
+            (so with data averaged by more than `0.5 / tol` channels, always). Must be
+            in the range [0, 0.5].
         flag_adj : bool
             Option to flag channels adjacent to those that are flagged, the number of
             which depends on the interpolation scheme (1 additional channel with linear
@@ -5619,6 +5835,14 @@ class MirParser:
             If tol is outside of the range [0, 0.5], or if kernel_type does not match
             the list of supported values.
         """
+        if (tol < 0) or (tol > 0.5):
+            raise ValueError("tol must be between 0 and 0.5.")
+        if kernel_type not in ("nearest", "linear", "cubic"):
+            raise ValueError(
+                f"Kernel type of '{kernel_type}' not recognized, must be one of: "
+                "'nearest', 'linear' or 'cubic'"
+            )
+
         if freq_shift is None:
             # Grab the metadata from the sp data structure, flipping the sign since
             # we want to shift the spectrum back to the listed sky frequency.
@@ -5677,6 +5901,29 @@ class MirParser:
         # negative sign here is to flip conventions (i.e., shifting "up" the center of
         # the band requires shifting "down" by a certain number of frequency channels).
         chan_shift_arr = -freq_shift / (self.sp_data["fres"] / 1000)
+
+        # Record the shift for data read in from here on, in units of channels on disk
+        # (i.e., ahead of any averaging), on top of any shift already recorded. Note
+        # that the rounding here matches that of `_generate_chanshift_kernel`.
+        rec_idx = np.where(self.sp_data._mask)[0]
+        recpos_dict = self.sp_data._recpos_dict
+        chan_avg = recpos_dict["chan_avg"][rec_idx]
+        delta_shift = (
+            (chan_shift_arr * chan_avg)
+            + recpos_dict["chan_shift"][rec_idx]
+            + recpos_dict["chan_frac"][rec_idx]
+        )
+        use_nearest = kernel_type == "nearest"
+        delta_whole = np.floor(delta_shift + (0.5 if use_nearest else 0.0))
+        delta_frac = 0.0 if use_nearest else delta_shift - delta_whole
+        if not use_nearest:
+            delta_tol = np.minimum(tol * chan_avg, 0.5)
+            use_nearest = (delta_frac < delta_tol) | (delta_frac > (1 - delta_tol))
+
+        recpos_dict["chan_shift"][rec_idx] = delta_whole + (
+            use_nearest & (delta_frac >= 0.5)
+        )
+        recpos_dict["chan_frac"][rec_idx] = np.where(use_nearest, 0.0, delta_frac)
 
         # We need to generate a set of tuples, which will be used by the lower level
         # re-doppler routines for figuring out

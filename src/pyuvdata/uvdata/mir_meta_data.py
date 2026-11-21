@@ -2109,6 +2109,8 @@ class MirMetaData:
         self.reset_values()
         if self._recpos_dict is not None:
             self._recpos_dict["chan_avg"][:] = 1
+            self._recpos_dict["chan_shift"][:] = 0
+            self._recpos_dict["chan_frac"][:] = 0
         self.set_mask(reset=True)
         self._set_header_key_index_dict()
 
@@ -2744,10 +2746,12 @@ class MirMetaData:
             values of the spectral window header key ("sphid" for cross-correlations, or
             "achid" for auto-correlations), the whole group of which are matched to a
             particular "inhid" value. The values of this "lower" dict is yet another
-            dict, containing three keys: "start_idx" (starting position of the spectral
+            dict, containing five keys: "start_idx" (starting position of the spectral
             record in the packed data, in number of 2-byte ints), "end_idx" (ending
-            position of the spectral record), and "chan_avg" (number of channels ones
-            needs to average the spectrum over; default is 1).
+            position of the spectral record), "chan_avg" (number of channels ones
+            needs to average the spectrum over; default is 1), "chan_shift" (whole
+            number of channels to shift the spectrum by before averaging; default is 0),
+            and "chan_frac" (fractional part to shift by, within [0, 1); default is 0).
         """
         val_size = data_dtype.itemsize
         header_size = np.dtype(hdr_fmt).itemsize
@@ -2782,6 +2786,8 @@ class MirMetaData:
             "start_idx": start_idx.astype(np.int64),
             "end_idx": end_idx.astype(np.int64),
             "chan_avg": np.ones(len(start_idx), dtype=int),
+            "chan_shift": np.zeros(len(start_idx), dtype=int),
+            "chan_frac": np.zeros(len(start_idx), dtype=float),
         }
 
         # Begin putting together dicts now.

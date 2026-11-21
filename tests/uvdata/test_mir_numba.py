@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from pyuvdata.uvdata import mir_numba
+from pyuvdata.uvdata.mir_parser import MirParser
 
 NCHAN = 64
 NREC = 20
@@ -182,3 +183,150 @@ def test_copy_records_subset():
 
     mir_numba.copy_records(packdata, sidx, nvals_arr, out_off, out)
     assert np.array_equal(out, np.concatenate([np.arange(10, 15), np.arange(50, 55)]))
+
+
+@pytest.mark.parametrize("chan_avg", [1, 2, 30, 240])
+@pytest.mark.parametrize("chan_shift,chan_frac", [[0, 0], [3, 0], [-5, 0], [2, 0.3]])
+def test_unpack_scaled_regrid(chan_avg, chan_shift, chan_frac):
+    """Shifting and averaging while unpacking matches _chanshift_vis + _rechunk_data."""
+    nchan = 480
+    packdata, sidx, nchan_arr, out_off = make_packdata(nchan=nchan)
+    # Common exponents that leave values of order unity, to compare against.
+    packdata[sidx] = -10
+    norm = np.ones((NREC, 2), np.complex128)
+    wt_val = np.random.default_rng(0).uniform(0.5, 2.0, NREC).astype(np.float32)
+    wt_val[1] = 0.0
+    all_flag = np.zeros(NREC, bool)
+    all_flag[0] = True
+    data, flags, weights = run_scaled(
+        mir_numba.unpack_scaled,
+        packdata,
+        sidx,
+        nchan_arr,
+        out_off,
+        norm,
+        wt_val,
+        all_flag,
+    )
+
+    shift_tuple = MirParser._generate_chanshift_kernel(
+        chan_shift + chan_frac, "cubic", tol=0
+    )
+    ref_dict = MirParser._chanshift_vis(
+        {
+            irec: {
+                "data": data.reshape(NREC, nchan)[irec],
+                "flags": flags.reshape(NREC, nchan)[irec],
+                "weights": weights.reshape(NREC, nchan)[irec],
+            }
+            for irec in range(NREC)
+        },
+        [shift_tuple] * NREC,
+    )
+    ref_dict = MirParser._rechunk_data(ref_dict, [chan_avg] * NREC)
+
+    nout = nchan // chan_avg
+    out_data = np.empty(NREC * nout, np.complex64)
+    out_flags = np.empty(NREC * nout, bool)
+    out_weights = np.empty(NREC * nout, np.float32)
+    mir_numba.unpack_scaled(
+        packdata,
+        sidx,
+        nchan_arr,
+        np.arange(NREC) * nout,
+        norm,
+        wt_val,
+        all_flag,
+        out_data,
+        out_flags,
+        out_weights,
+        chan_shift=np.full(NREC, chan_shift),
+        chan_frac=np.full(NREC, chan_frac, dtype=float),
+        chan_avg=np.full(NREC, chan_avg),
+    )
+
+    ref_data = np.concatenate([rec["data"] for rec in ref_dict.values()])
+    ref_flags = np.concatenate([rec["flags"] for rec in ref_dict.values()])
+    ref_weights = np.concatenate([rec["weights"] for rec in ref_dict.values()])
+    assert np.array_equal(out_flags, ref_flags)
+    # Zero weights only lead to flags once channels are averaged together.
+    assert np.all(out_flags.reshape(NREC, nout)[: (1 if chan_avg == 1 else 2)])
+    # Summed in double precision (and any interpolation done in a different order), so
+    # these agree to within rounding.
+    np.testing.assert_allclose(out_data, ref_data, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(out_weights, ref_weights, rtol=1e-5)
+
+
+@pytest.mark.parametrize("apply_bp", [True, False])
+@pytest.mark.parametrize("add_flags", [True, False])
+def test_unpack_scaled_cal(apply_bp, add_flags):
+    """Bandpass solutions and packed flags apply as numpy would, record by record."""
+    rng = np.random.default_rng(1)
+    packdata, sidx, nchan_arr, out_off = make_packdata()
+    norm = np.ones((NREC, 2), np.complex128)
+    wt_val = rng.uniform(0.5, 2.0, NREC).astype(np.float32)
+    all_flag = np.zeros(NREC, bool)
+    data, flags, weights = run_scaled(
+        mir_numba.unpack_scaled,
+        packdata,
+        sidx,
+        nchan_arr,
+        out_off,
+        norm,
+        wt_val,
+        all_flag,
+    )
+
+    # Three solutions, with every fourth record having none (and so flagged).
+    bp_gain = (rng.standard_normal((3, NCHAN, 2))).astype(np.float32)
+    bp_gain = bp_gain.view(np.complex64).reshape(3, NCHAN)
+    bp_weight = rng.uniform(0.5, 2.0, (3, NCHAN)).astype(np.float32)
+    bp_flags = rng.random((3, NCHAN)) < 0.1
+    bp_idx = np.arange(NREC) % 4 - 1
+
+    # Packed flags (least significant bit first), w/ every other record left empty.
+    pack_flags = rng.random((NREC, NCHAN)) < 0.2
+    pack_flags[1::2] = False
+    flag_bytes = np.packbits(pack_flags, axis=1, bitorder="little")
+
+    ref_data = data.reshape(NREC, NCHAN).copy()
+    ref_flags = flags.reshape(NREC, NCHAN).copy()
+    ref_weights = weights.reshape(NREC, NCHAN).copy()
+    for irec in range(NREC):
+        if apply_bp and bp_idx[irec] < 0:
+            ref_data[irec] *= 1.0
+            ref_weights[irec] *= 0.0
+            ref_flags[irec] |= True
+        elif apply_bp:
+            ref_data[irec] *= bp_gain[bp_idx[irec]]
+            ref_weights[irec] *= bp_weight[bp_idx[irec]]
+            ref_flags[irec] |= bp_flags[bp_idx[irec]]
+        if add_flags:
+            ref_flags[irec] |= pack_flags[irec]
+
+    compass_cal = {
+        "bp_idx": bp_idx,
+        "bp_gain": bp_gain if apply_bp else None,
+        "bp_weight": bp_weight if apply_bp else None,
+        "bp_flags": bp_flags if apply_bp else None,
+        "flag_bytes": flag_bytes if add_flags else None,
+    }
+    mir_numba.unpack_scaled(
+        packdata,
+        sidx,
+        nchan_arr,
+        out_off,
+        norm,
+        wt_val,
+        all_flag,
+        data,
+        flags,
+        weights,
+        **compass_cal,
+    )
+
+    # Where numpy runs complex multiplication with fused multiply-adds (e.g., on AVX2),
+    # the bandpass products can round differently, by ~1 ulp of their magnitude.
+    np.testing.assert_allclose(data, ref_data.ravel(), rtol=2.5e-7)
+    assert np.array_equal(flags, ref_flags.ravel())
+    assert np.array_equal(weights.view(np.uint32), ref_weights.ravel().view(np.uint32))

@@ -449,7 +449,27 @@ def test_compass_read_err(mir_data: MirParser, compass_soln_file):
     # MirParser will complain if data are already loaded when attempting to read in
     # the COMPASS solutions, so unloading it should allow it resolve the error above.
     mir_data.unload_data()
+
+    # The solutions also have to match the number of channels on disk (made not to here
+    # by recording an average over two channels for every record).
+    mir_data.sp_data._recpos_dict["chan_avg"][:] = 2
+    with pytest.raises(ValueError, match="COMPASS flags do not match the number"):
+        mir_data.read_compass_solns(compass_soln_file, load_bandpass=False)
+    with pytest.raises(ValueError, match="COMPASS bandpass solutions do not match"):
+        mir_data.read_compass_solns(compass_soln_file)
+    mir_data.sp_data._recpos_dict["chan_avg"][:] = 1
     mir_data.read_compass_solns(compass_soln_file)
+
+    # Applied as data are read in, the solutions match `_apply_compass_solns` (to within
+    # rounding, where numpy multiplies complex values w/ fused multiply-adds).
+    cal_data = mir_data._read_data("cross", apply_cal=True)
+    ref_data = mir_data._apply_compass_solns(
+        mir_data._read_data("cross", apply_cal=False)
+    )
+    for sphid, sp_vis in cal_data.items():
+        assert np.array_equal(sp_vis["flags"], ref_data[sphid]["flags"])
+        assert np.array_equal(sp_vis["weights"], ref_data[sphid]["weights"])
+        np.testing.assert_allclose(sp_vis["data"], ref_data[sphid]["data"], rtol=2.5e-7)
 
 
 @pytest.fixture
@@ -787,10 +807,21 @@ def test_compass_no_op(mir_data: MirParser, compass_soln_file):
     assert mir_data._compass_static_flags is None
 
 
-def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file):
+@pytest.mark.parametrize("chan_shift", [0, 3])
+def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file, chan_shift):
+    """COMPASS solns applied on read match loaded data, and come before any shift."""
+    # Shift by chan_shift channels on disk, leaving the pseudo-cont alone. The bandpass
+    # and flags vary channel to channel, so applying them after the shift would not
+    # match the loaded data (calibrated on read, then shifted).
+    freq_shift = (
+        -chan_shift
+        * (mir_data.sp_data["fres"] / 1000)
+        * (mir_data.sp_data["corrchunk"] != 0)
+    )
     mir_data.unload_data()
     mir_data.read_compass_solns(compass_soln_file)
     mir_data.rechunk(16)
+    mir_data.redoppler_data(freq_shift=freq_shift, kernel_type="nearest")
     mir_data.load_data()
 
     with check_warnings(UserWarning, match=V4_COMPLIANCE_WARNINGS):
@@ -798,8 +829,17 @@ def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file):
             mir_data.filepath, compass_soln=compass_soln_file, has_auto=True
         )
     mir_copy.load_data()
+    mir_copy.redoppler_data(freq_shift=freq_shift, kernel_type="nearest")
     mir_copy.rechunk(16)
 
+    assert mir_data == mir_copy
+    for sphid, sp_vis in mir_data.vis_data.items():
+        assert np.array_equal(sp_vis["flags"], mir_copy.vis_data[sphid]["flags"])
+
+    # Adding objects matches their records up with the solutions again.
+    mir_copy._compass_cal["bp_idx"][:] = -1
+    assert mir_data != mir_copy
+    mir_copy += mir_data
     assert mir_data == mir_copy
 
 
@@ -1187,6 +1227,15 @@ def test_stream_integrations_matches_read_data(
         vis_fac = mir_data.sp_data["vis_fac"]
         vis_fac[::2] = 0.5j
         mir_data.sp_data["vis_fac"] = vis_fac
+        # As well as a Doppler shift (of 1.6 channels) and COMPASS solutions, all
+        # applied as data are read in.
+        mir_data.unload_data()
+        mir_data.redoppler_data(
+            freq_shift=-1.6 * (mir_data.sp_data["fres"] / 1000), tol=0
+        )
+        soln_file = os.path.join(tmp_path, "compass_soln.h5")
+        _make_compass_soln(soln_file, COMPASS_TEST_VERSIONS[-1])
+        mir_data.read_compass_solns(soln_file)
 
     expected = mir_data._read_data(
         data_type, scale_data=scale_data, apply_tsys=apply_tsys
@@ -2154,14 +2203,69 @@ def test_rechunk_nop(mir_data):
     assert mir_data == mir_copy
 
 
-def test_rechunk_on_the_fly(mir_data):
-    mir_data.rechunk(8)
+@pytest.mark.parametrize(
+    "chan_avg,chan_shift", [[8, 0], [8, 1], [8, -2], [1, 0.4], [8, 0.375]]
+)
+def test_rechunk_on_the_fly(mir_data, chan_avg, chan_shift):
+    """Rechunk/redoppler loaded data, and compare to doing so as data are read in."""
+    mir_data.rechunk(chan_avg)
     mir_copy = mir_data.copy()
+    mir_plain = mir_data.copy()
 
+    # Shift by chan_shift (averaged) channels, leaving the pseudo-cont alone.
+    freq_shift = (
+        -chan_shift
+        * (mir_data.sp_data["fres"] / 1000)
+        * (mir_data.sp_data["corrchunk"] != 0)
+    )
+    mir_data.redoppler_data(freq_shift=freq_shift)
     mir_copy.unload_data()
+    mir_copy.redoppler_data(freq_shift=freq_shift)
     mir_copy.load_data(load_cross=True, load_auto=True)
 
-    assert mir_data == mir_copy
+    if chan_shift == int(chan_shift):
+        # Whole averaged channels, which come out the same either way (to rounding).
+        assert mir_data == mir_copy
+        for sphid, sp_vis in mir_data.vis_data.items():
+            assert np.array_equal(sp_vis["flags"], mir_copy.vis_data[sphid]["flags"])
+    elif chan_avg == 1:
+        # Both interpolate at the same resolution, so agree to within rounding.
+        assert mir_data == mir_copy
+    else:
+        # Here 3 channels on disk, which is applied as a whole channel shift on read,
+        # dropping just those channels (rather than flagging whole averaged channels).
+        assert mir_data != mir_copy
+        assert np.all(mir_copy.sp_data._recpos_dict["chan_frac"] == 0)
+        for sp_rec in mir_copy.sp_data:
+            sphid = sp_rec["sphid"]
+            sp_vis = mir_copy.vis_data[sphid]
+            plain_vis = mir_plain.vis_data[sphid]
+            if sp_rec["corrchunk"] == 0:
+                assert np.array_equal(sp_vis["data"], plain_vis["data"])
+                continue
+            # Only the first channel loses anything (3 of the 8 it averages over).
+            exp_weights = plain_vis["weights"].copy()
+            exp_weights[0] *= 5 / 8
+            assert np.array_equal(sp_vis["flags"], plain_vis["flags"])
+            np.testing.assert_allclose(sp_vis["weights"], exp_weights, rtol=1e-6)
+
+    # Two half shifts, recorded one on top of the other, add up to the full shift.
+    mir_half = mir_plain.copy()
+    mir_half.unload_data()
+    mir_half.redoppler_data(freq_shift=freq_shift / 2)
+    mir_half.redoppler_data(freq_shift=freq_shift / 2)
+    full_recpos = mir_copy.sp_data._recpos_dict
+    half_recpos = mir_half.sp_data._recpos_dict
+    assert np.array_equal(half_recpos["chan_shift"], full_recpos["chan_shift"])
+    np.testing.assert_allclose(
+        half_recpos["chan_frac"], full_recpos["chan_frac"], rtol=0, atol=1e-9
+    )
+    mir_half.load_data(load_cross=True)
+    for sphid, sp_vis in mir_copy.vis_data.items():
+        assert np.array_equal(sp_vis["flags"], mir_half.vis_data[sphid]["flags"])
+        np.testing.assert_allclose(
+            sp_vis["data"], mir_half.vis_data[sphid]["data"], rtol=1e-6, atol=1e-6
+        )
 
 
 def test_rechunk_raw_vs_vis(mir_data):
@@ -2493,10 +2597,15 @@ def test_add_concat(mir_data, tmp_path):
         ["abc", 0.5, ValueError, "Kernel type of 'abc' not recognized,"],
     ],
 )
-def test_generate_chanshift_kernel_errs(kern_type, tol, err_type, err_msg):
+def test_generate_chanshift_kernel_errs(mir_data, kern_type, tol, err_type, err_msg):
     """Verify that _generate_chanshift_kernel throws errors as expected."""
     with pytest.raises(err_type, match=err_msg):
         MirParser._generate_chanshift_kernel(1.5, kern_type, tol=tol)
+
+    # Same checks are made by redoppler_data, even with no data loaded.
+    mir_data.unload_data()
+    with pytest.raises(err_type, match=err_msg):
+        mir_data.redoppler_data(kernel_type=kern_type, tol=tol)
 
 
 @pytest.mark.parametrize(

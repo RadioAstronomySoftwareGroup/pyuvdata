@@ -792,7 +792,8 @@ def test_non_icrs_coord_read(mir_data):
 
 
 @pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
-def test_dedoppler_data(mir_data, sma_mir):
+@pytest.mark.parametrize("apply_dedoppler", [True, None])
+def test_dedoppler_data(mir_data, sma_mir, apply_dedoppler):
     mir_uv = UVData()
     mir_obj = Mir()
 
@@ -807,8 +808,13 @@ def test_dedoppler_data(mir_data, sma_mir):
     mir_data.sp_data["fDDS"] = 1.0
 
     # Complete the initialization of the UVData object
-    mir_obj._init_from_mir_parser(mir_data, apply_dedoppler=True)
+    mir_obj._init_from_mir_parser(mir_data, apply_dedoppler=apply_dedoppler)
     mir_uv._convert_from_filetype(mir_obj)
+
+    # With None, the shift is only ever rounded to whole channels.
+    recpos_dict = mir_data.sp_data._recpos_dict
+    assert np.any(recpos_dict["chan_shift"] != 0)
+    assert np.any(recpos_dict["chan_frac"] != 0) == bool(apply_dedoppler)
     mir_uv.set_lsts_from_time_array()
 
     # Make sure things differ

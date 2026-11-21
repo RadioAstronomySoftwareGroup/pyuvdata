@@ -8803,10 +8803,13 @@ class UVData(UVBase):
             by the auto-correlations). Default is True, which instead scales the raw
             visibilities and forward-gain of the antenna to produce values in Jy
             (uncalibrated).
-        apply_dedoppler : bool
+        apply_dedoppler : bool or None
             If set to True, data will be corrected for any doppler-tracking performed
             during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
+            for UVData objects), interpolating between channels where needed. If set to
+            None, the correction is instead rounded to whole channels as recorded on
+            disk (i.e., ahead of any averaging from `rechunk`), which needs no
+            interpolation. If set to False, no correction is applied. Default is None.
         illum_dict : dict
             Dictionary which defines the illumination (antenna phase-center) offsets
             for each antenna, used to correct the uvw coordinates for the displacement
@@ -9728,7 +9731,7 @@ class UVData(UVBase):
         mir_select_where=None,
         apply_tsys=True,
         apply_flags=True,
-        apply_dedoppler=False,
+        apply_dedoppler=None,
         illum_dict=None,
         fix_tsys=None,
         pseudo_cont=False,
@@ -10136,10 +10139,13 @@ class UVData(UVBase):
             by the auto-correlations). Default is True, which instead scales the raw
             visibilities and forward-gain of the antenna to produce values in Jy
             (uncalibrated).
-        apply_dedoppler : bool
+        apply_dedoppler : bool or None
             If set to True, data will be corrected for any doppler-tracking performed
             during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
+            for UVData objects), interpolating between channels where needed. If set to
+            None, the correction is instead rounded to whole channels as recorded on
+            disk (i.e., ahead of any averaging from `rechunk`), which needs no
+            interpolation. If set to False, no correction is applied. Default is None.
         illum_dict : dict
             Dictionary which defines the illumination (antenna phase-center) offsets
             for each antenna, used to correct the uvw coordinates for the displacement
