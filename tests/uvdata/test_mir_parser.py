@@ -1520,9 +1520,15 @@ def test_coalesce_ranges_covers_everything():
     assert seen == set(range(500))
 
 
+@pytest.mark.parametrize("has_pread", [True, False])
 @pytest.mark.parametrize("data_type", ["cross", "auto"])
-def test_scatter_read_packdata_matches_whole_records(mir_data: MirParser, data_type):
+def test_scatter_read_packdata_matches_whole_records(
+    mir_data: MirParser, data_type, has_pread, monkeypatch
+):
     """The scattered read must return the same bytes as reading whole records."""
+    if not has_pread:
+        # Mimic Windows, which has no os.pread
+        monkeypatch.delattr(os, "pread", raising=False)
     metadata_attr = mir_data.sp_data if data_type == "cross" else mir_data.ac_data
     recpos = metadata_attr._recpos_dict
     groups = metadata_attr.group_by(
@@ -3070,24 +3076,27 @@ def test_fix_acdata(mir_data):
     mir_data.ac_data._mask = np.tile(mir_data.ac_data._mask, 2)
     mir_data.ac_data._set_header_key_index_dict()
 
+    # Give each integration its own fDDS, which should be carried over per integration.
+    bl_inhid = dict(zip(*mir_data.bl_data[["blhid", "inhid"]], strict=True))
+    mir_data.sp_data._data["fDDS"] = [
+        bl_inhid[key] for key in mir_data.sp_data["blhid"]
+    ]
+
     # Finally, call fix_acdata, which should (among other things), appropriately fill
-    # in the frequency information.
-    mir_data._fix_acdata()
+    # in the frequency information. Here fsky and fres now differ between integrations,
+    # where it should be static, so we expect a warning and the median value.
+    with check_warnings(
+        UserWarning, match="not uniform where expected \\(fres, fsky\\)"
+    ):
+        mir_data._fix_acdata()
 
-    # Now check that fsky is correctly set
+    fsky_med = (mir_data.sp_data["fsky"][11:15] + mir_data.sp_data["fsky"][1:5]) / 2
     assert np.array_equal(
-        mir_data.ac_data["fsky"][:16],
-        np.tile(np.repeat(mir_data.sp_data["fsky"][11:15], 2), 2),
+        mir_data.ac_data["fsky"][:16], np.tile(np.repeat(fsky_med, 2), 2)
     )
-    assert np.array_equal(
-        mir_data.ac_data["fsky"][16:],
-        np.tile(np.repeat(mir_data.sp_data["fsky"][1:5], 2), 2),
-    )
-
-    # Make sure these values are actually different
-    assert np.all(
-        ~np.isin(mir_data.ac_data["fsky"][:16], mir_data.sp_data["fsky"][1:5])
-    )
+    assert np.array_equal(mir_data.ac_data["fsky"][16:], mir_data.ac_data["fsky"][:16])
+    assert np.all(mir_data.ac_data["fDDS"][:16] == 1)
+    assert np.all(mir_data.ac_data["fDDS"][16:] == 2)
 
 
 @pytest.mark.parametrize(
@@ -3556,8 +3565,9 @@ def test_mir_parser_missing_auto_rx(mir_data):
     mir_data.bl_data["ant1rx"] = 0
     mir_data.bl_data["ant2rx"] = 0
 
-    # Call the "fix"
-    mir_data._fix_acdata()
+    # Call the "fix", which warns since both receivers' irec values now sit under rx 0
+    with check_warnings(UserWarning, match="not uniform where expected \\(irec\\)"):
+        mir_data._fix_acdata()
 
     # Verify that every other entry is flagged, which means no data for that rx
     assert np.array_equal(mir_data.ac_data._mask, [True, False] * 8)

@@ -927,9 +927,10 @@ class MirParser:
             One entry from `_coalesce_ranges`: start offset, length, and the indices it
             covers.
         fd : int
-            Open file descriptor to read from.
+            Open file descriptor to read from (where os.pread is available).
         filename : str
-            Name of the file, used only for error messages.
+            Name of the file, used for error messages and to read from where os.pread
+            is not available (i.e., on Windows).
         offsets, lengths : list of int
             Start and length of every range, in bytes.
         owners : list of tuple
@@ -946,7 +947,13 @@ class MirParser:
             If the read comes up short, which means the file is truncated.
         """
         start, size, members = read
-        buf = os.pread(fd, size, start)
+        if hasattr(os, "pread"):
+            buf = os.pread(fd, size, start)
+        else:
+            # No pread on Windows, so use a handle of our own (safe across threads).
+            with open(filename, "rb", buffering=0) as data_file:
+                data_file.seek(start)
+                buf = data_file.read(size)
         if len(buf) != size:
             raise MirPackdataError(
                 f"Read past the end of {filename}; the file appears truncated."
@@ -3431,11 +3438,17 @@ class MirParser:
         sel_mask = np.isin(self.ac_data._data["iband"], unique_bands)
 
         self.ac_data._data = self.ac_data._data[sel_mask]
-        self.ac_data._mask = np.ones(self.ac_data._size, dtype=bool)
+        self.ac_data._mask = np.zeros(self.ac_data._size, dtype=bool)
 
         # Set up the header index for the object, and then construct the header key dict
         self.ac_data._data["achid"] = np.arange(1, self.ac_data._size + 1)
         self.ac_data._set_header_key_index_dict()
+
+        # Grab references to the underlying recarrays themselves, since we're going to
+        # be doing a lot of lookups and want to avoid repeated attribute access.
+        ac_data = self.ac_data._data
+        bl_data = self.bl_data._data
+        sp_data = self.sp_data._data
 
         # Now that we've got vitals, we want to import in metadata from some of the
         # other metadata objects. List out those fields now.
@@ -3444,99 +3457,73 @@ class MirParser:
 
         # Handle the special case that is the ipol values -- a common error is that they
         # are all set to 0 when operating in dual-pol mode (when they should be 0 & 1).
-        if len(np.unique(self.bl_data["ipol"])) == 1 and (
+        if len(np.unique(bl_data["ipol"])) == 1 and (
             len(self.codes_data["pol"]) == (2 * 4)
         ):
             bl_imports.remove("ipol")
-            self.ac_data["ipol"] = self.ac_data["antrx"]
+            ac_data["ipol"] = ac_data["antrx"]
 
-        # First, handle the cases where all values should be the same on a per-inhid
-        # basis, but pulled from bl_data.
-        ac_groups = self.ac_data.group_by(
-            ["inhid", "antrx", "antrx", "isb"], return_index=True, use_mask=False
-        )
-        bl_groups = self.bl_data.group_by(
-            ["inhid", "ant1rx", "ant2rx", "isb"], return_index=True, use_mask=False
-        )
+        # Map each sp record to its baseline record. Only baselines with the same
+        # receiver on both ends matter here, since there are no cross-hand autos.
+        bl_sort = np.argsort(bl_data["blhid"], kind="stable")
+        sp_bl_map = bl_sort[
+            np.minimum(
+                np.searchsorted(bl_data["blhid"], sp_data["blhid"], sorter=bl_sort),
+                len(bl_sort) - 1,
+            )
+        ]
+        sp_ok = bl_data["blhid"][sp_bl_map] == sp_data["blhid"]
+        bl_same_hand = bl_data["ant1rx"] == bl_data["ant2rx"]
 
-        # For each field, plug in the entries on a per-group basis. Note we use median
-        # here to try to add some robustness (in case of recording error in one record).
-        for field in bl_imports:
-            data_arr = self.ac_data._data[field]
-            export_data_arr = self.bl_data._data[field]
-            for key, idx_arr in ac_groups.items():
-                if key in bl_groups:
-                    data_arr[idx_arr] = np.median(export_data_arr[bl_groups[key]])
-                else:
-                    # If no key is found, then skip over filling in the data. Odds are
-                    # this is single-rx data, which means the second receiver is
-                    # basically blank, so flag the entry
-                    self.ac_data._mask[idx_arr] = False
+        # Everything but fDDS should be static for a given receiver, sideband and band,
+        # so take the median there (to guard against a bad record), and warn if the
+        # values aren't all close to it. fDDS changes per integration, so take the
+        # median record of each integration instead (the upper of the middle two for
+        # an even count, so that it is always a recorded value).
+        static_imports = [field for field in sp_imports if field != "fDDS"]
+        varied = set()
+        for rx, isb in sorted(set(zip(ac_data["antrx"], ac_data["isb"], strict=True))):
+            ac_mask = (ac_data["antrx"] == rx) & (ac_data["isb"] == isb)
+            bl_mask = bl_same_hand & (bl_data["ant1rx"] == rx) & (bl_data["isb"] == isb)
+            sp_mask = sp_ok & bl_mask[sp_bl_map]
 
-        # Now get set up for tackling the items that can change on a per spectral
-        # window basis. Note that here we are assuming that the values should be the
-        # same for at least the same inhid and spectral band number.
-        ac_groups = self.ac_data.group_by(
-            ["inhid", "antrx", "isb", "iband"], return_index=True, use_mask=False
-        )
-        bl_groups = self.bl_data.group_by(
-            ["inhid", "ant1rx", "ant2rx", "isb"], use_mask=False
-        )
-        sp_groups = self.sp_data.group_by(
-            ["blhid", "iband"], use_mask=False, assume_unique=True, return_index=True
-        )
+            # Autos are good where this receiver has baselines at that inhid. Odds are
+            # that where it doesn't, this is single-rx data, and the second receiver is
+            # basically blank.
+            self.ac_data._mask[
+                ac_mask & np.isin(ac_data["inhid"], bl_data["inhid"][bl_mask])
+            ] = True
 
-        # We have to do a bit of extra legwork here to figure out which blocks o
-        # entries map to which values.
-        metablock_dict = {}
-        for (inhid, ant1rx, ant2rx, isb), blhid_arr in bl_groups.items():
-            # Ignore cross-hand pol, since we don't have that for autos.
-            if ant1rx == ant2rx:
-                for iband in unique_bands:
-                    try:
-                        ac_idx = ac_groups[(inhid, ant1rx, isb, iband)]
-                        # Pull together all the sphid entries that are in this group,
-                        # then add it to a list for handling later.
-                        sp_idx = [sp_groups[(blhid, iband)] for blhid in blhid_arr]
-                    except KeyError:
-                        # If we have a key error, it means there are no entries with
-                        # this receiver, sideband, band at this inhid, so just skip it.
-                        continue
-
-                    try:
-                        metablock_dict[(ant1rx, isb, iband)]["ac_idx"].append(ac_idx)
-                        metablock_dict[(ant1rx, isb, iband)]["sp_idx"].append(sp_idx)
-                    except KeyError:
-                        metablock_dict[(ant1rx, isb, iband)] = {
-                            "ac_idx": [ac_idx],
-                            "sp_idx": [sp_idx],
-                        }
-
-        # Now get into plugging in values.
-        for field in sp_imports:
-            for idx_groups in metablock_dict.values():
-                # For several values, they will not change over the course of the obs.
-                # If that's the case, then it is _much_ faster to find the one value
-                # and plug it in once.
-                val_arr = self.sp_data.get_value(
-                    field, index=np.concatenate(idx_groups["sp_idx"])
-                )
-                median_val = np.median(val_arr)
-                if np.allclose(val_arr, median_val):
-                    self.ac_data.set_value(
-                        field, median_val, index=np.concatenate(idx_groups["ac_idx"])
-                    )
+            for band in unique_bands:
+                ac_idx = np.flatnonzero(ac_mask & (ac_data["iband"] == band))
+                sp_idx = np.flatnonzero(sp_mask & (sp_data["iband"] == band))
+                if not (ac_idx.size and sp_idx.size):
                     continue
 
-                # Otherwise, if the value varies, then handle it on a per-inhid basis.
-                for ac_idx, sp_idx in zip(
-                    idx_groups["ac_idx"], idx_groups["sp_idx"], strict=True
-                ):
-                    self.ac_data.set_value(
-                        field,
-                        np.median(self.sp_data.get_value(field, index=sp_idx)),
-                        index=ac_idx,
-                    )
+                for field, vals in [
+                    *[(field, bl_data[field][bl_mask]) for field in bl_imports],
+                    *[(field, sp_data[field][sp_idx]) for field in static_imports],
+                ]:
+                    median_val = np.median(vals)
+                    if not np.allclose(vals, median_val):
+                        varied.add(field)
+                    ac_data[field][ac_idx] = median_val
+
+                inhid_arr = bl_data["inhid"][sp_bl_map[sp_idx]]
+                order = np.lexsort((sp_data["fDDS"][sp_idx], inhid_arr))
+                inhids, starts, counts = np.unique(
+                    inhid_arr[order], return_index=True, return_counts=True
+                )
+                sp_mid = sp_idx[order[starts + (counts // 2)]]
+                ac_found = ac_idx[np.isin(ac_data["inhid"][ac_idx], inhids)]
+                int_idx = np.searchsorted(inhids, ac_data["inhid"][ac_found])
+                ac_data["fDDS"][ac_found] = sp_data["fDDS"][sp_mid[int_idx]]
+
+        if varied:
+            warnings.warn(
+                "Auto-correlation metadata taken from other records were not uniform "
+                f"where expected ({', '.join(sorted(varied))}), using median values."
+            )
 
         # Finally, clear out any stored values we may have accumulated from the above
         # operations, since we don't want reset to clear them out.

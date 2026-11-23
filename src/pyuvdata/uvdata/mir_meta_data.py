@@ -13,6 +13,7 @@ import contextlib
 import copy
 import os
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +48,10 @@ OLD_VIS_PAD = 4
 NEW_VIS_PAD = 0
 
 # Define the packed data header fields for autocorrelations (should be static)
+# Number of threads used to read the headers of old-style auto-correlation files. Those
+# reads are tiny and bound by latency on network filesystems, so more threads help.
+HEADER_READ_THREADS = 16
+
 OLD_AUTO_HEADER = [
     ("antenna", "<i4"),
     ("nchunks", "<i4"),
@@ -3716,63 +3721,53 @@ class MirAcData(MirMetaData):
         ac_data["isb"] = 1
         ac_data["correlator"] = 1
 
-        # Grab some references (views) to the values we need to plug in to. This saves
-        # us a little work later of needing to rearrange this data into a single
-        # complex dtype which can be handled in one ndarray.
-        dataoff_arr = ac_data["dataoff"]
-        antenna_arr = ac_data["antenna"]
-        chunk_arr = ac_data["corrchunk"]
-        antrx_arr = ac_data["antrx"]
-        inhid_arr = ac_data["inhid"]
-        dhrs_arr = ac_data["dhrs"]
-        int_dict = {}
-        last_inhid = None
-        last_pos = 0
-        rec_count = 0
+        # Read just the headers, one small read each. On network filesystems these are
+        # bound by latency, so spread them across several threads, each with its own
+        # (unbuffered) file handle so that seek + read is safe on any platform. Note
+        # that a memmap of the file is much slower here, since readahead pulls in much
+        # of the (far larger) packed data along with each header.
+        def read_headers(span):
+            with open(filepath, "rb", buffering=0) as auto_file:
+                hdr_list = []
+                for idx in range(*span):
+                    auto_file.seek(idx * rec_size)
+                    hdr_list.append(auto_file.read(hdr_dtype.itemsize))
+            return b"".join(hdr_list)
+
+        bounds = np.linspace(0, nrec, HEADER_READ_THREADS + 1).astype(int)
+        with ThreadPoolExecutor(max_workers=HEADER_READ_THREADS) as pool:
+            hdr_arr = np.frombuffer(
+                b"".join(
+                    pool.map(read_headers, zip(bounds[:-1], bounds[1:], strict=True))
+                ),
+                dtype=hdr_dtype,
+            )
+
+        # Each record holds nspec spectra, alternating between receivers for each chunk.
+        ac_data["dhrs"] = np.repeat(hdr_arr["dhrs"], nspec)
+        ac_data["antenna"] = np.repeat(hdr_arr["antenna"], nspec)
+        ac_data["inhid"] = np.repeat(hdr_arr["inhid"], nspec)
+        ac_data["corrchunk"] = np.tile(np.repeat(np.arange(1, nchunks + 1), nrx), nrec)
+        ac_data["antrx"] = np.tile(np.arange(nrx), nchunks * nrec)
+
+        # Records for each inhid are written in a contiguous run. Data offsets are
+        # relative to the start of the run, which is also what int_dict records.
+        new_run = np.ones(nrec, dtype=bool)
+        new_run[1:] = hdr_arr["inhid"][1:] != hdr_arr["inhid"][:-1]
+        run_start = np.flatnonzero(new_run)
+        run_len = np.diff(np.append(run_start, nrec))
+        rec_count = np.arange(nrec) - np.repeat(run_start, run_len)
         dataoff_spec = np.arange(nspec) * OLD_AUTO_DTYPE.itemsize * nchan
+        ac_data["dataoff"] = (dataoff_spec + (rec_count[:, None] * rec_size)).ravel()
 
-        with open(filepath, "rb") as auto_file:
-            for idx in range(nrec):
-                auto_vals = np.fromfile(
-                    auto_file,
-                    dtype=hdr_dtype,
-                    count=1,
-                    offset=pack_size if idx else 0,  # Skip offset on first iteration
-                )[0]
-                if auto_vals["inhid"] != last_inhid:
-                    # If this is a new inhid, start record keeping for it
-                    last_pos += rec_count * rec_size
-                    rec_count = 0
-                    last_inhid = auto_vals["inhid"]
-
-                    # Create a sub-dict for this particular record
-                    rec_dict = {
-                        "inhid": auto_vals["inhid"],
-                        "record_size": 0,
-                        "record_start": last_pos,
-                    }
-                    # Plug the subdict into the main dict
-                    int_dict[last_inhid] = rec_dict
-
-                # Setup some slices that we'll use for plugging in values
-                rxa_slice = slice(idx * nspec, (idx + 1) * nspec, 2)
-                rxb_slice = slice(1 + (idx * nspec), (idx + 1) * nspec, 2)
-                ac_slice = slice(rxa_slice.start, rxb_slice.stop)
-
-                # Plug in the entries that are changing on a per-record basis
-                dhrs_arr[ac_slice] = auto_vals["dhrs"]
-                antenna_arr[ac_slice] = auto_vals["antenna"]
-                chunk_arr[rxa_slice] = chunk_arr[rxb_slice] = np.arange(1, nchunks + 1)
-                antrx_arr[rxa_slice] = 0
-                antrx_arr[rxb_slice] = 1
-                inhid_arr[ac_slice] = last_inhid
-
-                # Now plug in the dataoff values
-                dataoff_arr[ac_slice] = dataoff_spec + (rec_count * rec_size)
-                # Tally one more record
-                rec_count += 1
-                # Update the record size
-                rec_dict["record_size"] = (rec_count * rec_size) - hdr_dtype.itemsize
+        int_dict = {}
+        for start, count in zip(run_start, run_len, strict=True):
+            inhid = hdr_arr["inhid"][start]
+            int_dict[inhid] = {
+                "inhid": inhid,
+                "record_size": int(count * rec_size) - hdr_dtype.itemsize,
+                "record_start": int(start * rec_size),
+            }
 
         # Copy the corrchunk values to iband, since they should be the same here.
         ac_data["iband"] = ac_data["corrchunk"]
