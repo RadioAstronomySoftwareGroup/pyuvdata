@@ -1765,10 +1765,20 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
     mir_copy.unload_data()
     mir_copy.load_data(load_cross=True, apply_tsys=True)
 
-    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list, strict=True):
+    # Weights are 1/sigma**2 per real (or imag) part: 2 * bandwidth * time / SEFD**2
+    n_sample = np.abs(mir_data.sp_data["fres"] * 1e6) * mir_data.in_data["rinteg"][0]
+    wt_list = np.ones(20) if bad_vals else 2 * n_sample / norm_list**2
+    for key, norm_fac, wt_fac in zip(
+        mir_data.vis_data.keys(), norm_list, wt_list, strict=True
+    ):
         np.testing.assert_allclose(
             norm_fac * mir_data.vis_data[key]["data"],
             mir_copy.vis_data[key]["data"],
+            rtol=5e-7,
+        )
+        np.testing.assert_allclose(
+            wt_fac * mir_data.vis_data[key]["weights"],
+            mir_copy.vis_data[key]["weights"],
             rtol=5e-7,
         )
         assert np.array_equal(

@@ -2479,25 +2479,27 @@ class MirParser:
             temp_norm = bl_norm[bl_pos]
             temp_flag = temp_norm == 0.0
 
-            # Samples == freq resolution * integration time
+            # Samples == freq resolution * integration time. (real or imag, not complex)
             n_sample = np.abs(self.sp_data["fres"] * 1e6) * (
                 self.in_data.get_value("rinteg", header_key=self.sp_data["inhid"])
             )
             with np.errstate(divide="ignore", invalid="ignore"):
                 if invert:
-                    temp_wt = np.reciprocal(np.square(temp_norm) * n_sample)
+                    temp_wt = np.reciprocal(2.0 * np.square(temp_norm) * n_sample)
                 else:
-                    temp_wt = n_sample / np.square(temp_norm)
+                    temp_wt = 2.0 * n_sample / np.square(temp_norm)
         else:
             # The "wt" column is calculated as (integ time)/(T_DSB ** 2), but we want
             # units of Jy**-2. To do this, we just need to multiply by one of the
             # forward gain of the antenna (130 Jy/K for SMA) squared and the channel
             # width. The factor of 2**2 (4) arises because we need to convert T_DSB**2
-            # to T_SSB**2. Note the 1e6 is there to convert fres from MHz to Hz.
+            # to T_SSB**2. Note the 1e6 is there to convert fres from MHz to Hz, and the
+            # extra factor of 2 is to account for weights counting real or imag (as
+            # opposed to complex) samples.
             temp_wt = (
                 self.sp_data["wt"]
                 * abs(self.sp_data["fres"])
-                * (1e6 * ((self.jypk * 2.0) ** (-2.0)))
+                * (2 * 1e6 * ((self.jypk * 2.0) ** (-2.0)))
             )
 
             # For data normalization, we used the "wt" but strip out the integration
