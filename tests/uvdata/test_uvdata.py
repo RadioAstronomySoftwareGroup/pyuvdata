@@ -613,6 +613,7 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj = casa_uvfits
     # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
+    removed = uvobj.telescope.antenna_numbers[0]
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[1:]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[1:]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[1:, :]
@@ -621,7 +622,11 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.feed_array = uvobj.telescope.feed_array[1:, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
-        ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
+        ValueError,
+        match=(
+            "All antennas in ant_1_array must be in antenna_numbers. "
+            f"The antennas not in antenna_numbers are: {removed}[.]"
+        ),
     ):
         uvobj.check()
 
@@ -632,6 +637,7 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
     uvobj = uvobj
+    removed = uvobj.telescope.antenna_numbers[-1]
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[:-1]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[:-1]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[:-1]
@@ -640,9 +646,38 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.feed_array = uvobj.telescope.feed_array[:-1, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
-        ValueError, match="All antennas in ant_2_array must be in antenna_numbers"
+        ValueError,
+        match=(
+            "All antennas in ant_2_array must be in antenna_numbers. "
+            f"The antennas not in antenna_numbers are: {removed}[.]"
+        ),
     ):
         uvobj.check()
+
+
+def test_many_antennas_not_in_antnums_are_listed_up_to_a_limit(casa_uvfits):
+    uvobj = casa_uvfits
+    # keep a single antenna in antenna_numbers (and the arrays that go with it), so
+    # that every other antenna in the data is missing
+    keep = slice(0, 1)
+    uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[keep]
+    uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[keep]
+    uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[keep, :]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[keep]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[keep, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[keep, :]
+    uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
+    missing = np.setdiff1d(uvobj.ant_1_array, uvobj.telescope.antenna_numbers)
+    assert missing.size > 1
+    with pytest.raises(ValueError) as error:
+        uvobj.check()
+    message = str(error.value)
+    assert "The antennas not in antenna_numbers are: " in message
+    shown = message.split("are: ")[1].rstrip(".")
+    if missing.size > 20:
+        assert shown.endswith(f", and {missing.size - 20} more")
+    else:
+        assert shown == ", ".join(str(ant) for ant in missing)
 
 
 def test_converttofiletype(casa_uvfits):
